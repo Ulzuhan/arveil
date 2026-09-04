@@ -298,7 +298,7 @@ func TestCodecMatchesRustVectorsKeyPackages(t *testing.T) {
 		frame Frame
 	}{
 		{"a262696401677061796c6f6164a1724b65795061636b616765735075626c697368a16c6b65795f7061636b61676573824201024103", Frame{ID: 1, Payload: Payload{Kind: KindKeyPackagesPublish, KeyPackages: [][]byte{{1, 2}, {3}}}}},
-		{"a262696402677061796c6f6164a1704b65795061636b61676573436c61696da16b6964656e746974795f69644409090909", Frame{ID: 2, Payload: Payload{Kind: KindKeyPackagesClaim, IdentityID: []byte{9, 9, 9, 9}}}},
+		{"a262696402677061796c6f6164a1704b65795061636b61676573436c61696da2696465766963655f69644204046b6964656e746974795f69644409090909", Frame{ID: 2, Payload: Payload{Kind: KindKeyPackagesClaim, IdentityID: []byte{9, 9, 9, 9}, DeviceID: []byte{4, 4}}}},
 		{"a262696402677061796c6f6164a1714b65795061636b616765436c61696d6564a16b6b65795f7061636b616765420102", Frame{ID: 2, Payload: Payload{Kind: KindKeyPackageClaimed, KeyPackage: []byte{1, 2}}}},
 	}
 	for _, v := range vectors {

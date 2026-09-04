@@ -101,7 +101,7 @@ func (srv *Server) keyPackagesClaim(ctx context.Context, s *session, f channel.F
 	if !s.member() {
 		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
 	}
-	kp, err := srv.Store.ClaimKeyPackage(ctx, f.Payload.IdentityID)
+	kp, err := srv.Store.ClaimKeyPackage(ctx, f.Payload.IdentityID, f.Payload.DeviceID)
 	if errors.Is(err, store.ErrNoKeyPackage) {
 		return errFrame(f.ID, channel.CodeGone, "no key package available")
 	}

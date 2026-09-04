@@ -84,16 +84,15 @@ fn own_route(s: &Session) -> Result<String, CliError> {
         .mailbox_own()
         .map_err(err("mailbox"))?
         .ok_or_else(|| CliError("no mailbox; run `mailbox create` first".into()))?;
-    Ok(crate::commands::route_string(
-        &s.identity_id,
-        &m,
-        &s.device.keys.envelope_hpke.public,
-    ))
+    crate::commands::route_string(&s.client, &s.device, &m)
 }
 
 fn peer_from_route(r: &Route) -> Peer {
     Peer {
         identity: r.identity_id.clone(),
+        device_id: r.device_id.clone(),
+        credential_hash: r.credential_hash.clone(),
+        root_public: r.root_public.clone(),
         mailbox: Some(r.mailbox_id.clone()),
         write_cap: Some(r.write_capability.clone()),
         hpke: Some(r.hpke_public.clone()),
@@ -103,8 +102,11 @@ fn peer_from_route(r: &Route) -> Peer {
 fn route_of_peer(p: &Peer) -> Option<String> {
     match (&p.mailbox, &p.write_cap, &p.hpke) {
         (Some(m), Some(w), Some(h)) => Some(format!(
-            "arveil-route:v0:{}:{}:{}:{}",
+            "arveil-route:v1:{}:{}:{}:{}:{}:{}:{}",
             hex::encode(&p.identity),
+            hex::encode(&p.device_id),
+            hex::encode(&p.credential_hash),
+            hex::encode(&p.root_public),
             hex::encode(m),
             hex::encode(w),
             hex::encode(h)
@@ -274,10 +276,11 @@ async fn connect(s: &Session, b: &Bootstrap) -> Result<Connection, CliError> {
     Err(last)
 }
 
-async fn claim_key_package(conn: &mut Connection, identity: &[u8]) -> Result<MlsMessage, CliError> {
+async fn claim_key_package(conn: &mut Connection, r: &Route) -> Result<MlsMessage, CliError> {
     match conn
         .request(Payload::KeyPackagesClaim {
-            identity_id: identity.to_vec(),
+            identity_id: r.identity_id.clone(),
+            device_id: r.device_id.clone(),
         })
         .await?
     {
@@ -331,7 +334,7 @@ pub fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result<(
         let mut conn = connect(&s, &b).await?;
         let mut kps = Vec::new();
         for p in &peers {
-            kps.push(claim_key_package(&mut conn, &p.identity_id).await?);
+            kps.push(claim_key_package(&mut conn, p).await?);
         }
 
         let mut group = engine.create_group().map_err(err("mls"))?;
@@ -391,7 +394,7 @@ pub fn add(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), Cli
 
     block_on(async {
         let mut conn = connect(&s, &b).await?;
-        let kp = claim_key_package(&mut conn, &newcomer.identity_id).await?;
+        let kp = claim_key_package(&mut conn, &newcomer).await?;
         // On a non-creator device the policy refuses this before anything
         // is produced ("only leaf 0 may commit").
         let commit = group
@@ -429,8 +432,9 @@ pub fn add(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), Cli
             })
             .map_err(err("add unit"))?;
         println!(
-            "added: {} (epoch {})",
-            hex::encode(&newcomer.identity_id),
+            "added: device {} of {} (epoch {})",
+            hex::encode(&newcomer.device_id),
+            hex::encode(&newcomer.identity_id[..4]),
             group.current_epoch()
         );
         let n = publish_pending(&s, &mut conn).await?;
@@ -551,7 +555,9 @@ fn handle_mls<C: MlsConfig>(
                             let mut peers = Vec::new();
                             for line in text.lines() {
                                 let r = parse_route(line)?;
-                                if r.identity_id != s.identity_id {
+                                // Own other devices are peers; only this
+                                // device itself is left out.
+                                if r.device_id != s.device.keys.device_id {
                                     peers.push(peer_from_route(&r));
                                 }
                             }
@@ -727,8 +733,14 @@ pub fn history(data_dir: &Path) -> Result<(), CliError> {
             conv.peers
                 .iter()
                 .map(|p| format!(
-                    "{}{}",
+                    "{}/{}{}{}",
                     hex::encode(&p.identity[..4]),
+                    hex::encode(&p.device_id[..4]),
+                    if p.identity == s.identity_id {
+                        " (own)"
+                    } else {
+                        ""
+                    },
                     if p.routable() { "" } else { " (no route)" }
                 ))
                 .collect::<Vec<_>>()

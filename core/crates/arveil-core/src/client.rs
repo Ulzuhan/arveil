@@ -53,12 +53,15 @@ CREATE TABLE IF NOT EXISTS conversations (
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE TABLE IF NOT EXISTS peers (
-    group_id      BLOB NOT NULL REFERENCES conversations(group_id),
-    peer_identity BLOB NOT NULL,
-    mailbox       BLOB,
-    write_cap     BLOB,
-    hpke          BLOB,
-    PRIMARY KEY (group_id, peer_identity)
+    group_id        BLOB NOT NULL REFERENCES conversations(group_id),
+    device_id       BLOB NOT NULL,
+    peer_identity   BLOB NOT NULL,
+    credential_hash BLOB NOT NULL,
+    root_public     BLOB NOT NULL,
+    mailbox         BLOB,
+    write_cap       BLOB,
+    hpke            BLOB,
+    PRIMARY KEY (group_id, device_id)
 );
 CREATE TABLE IF NOT EXISTS realm (
     realm_id          BLOB PRIMARY KEY,
@@ -144,9 +147,14 @@ pub struct OwnMailbox {
 }
 
 /// A peer device in a conversation and, once learned, how to reach it.
+/// One row per device: a person with two devices is two peers, and one's
+/// own other devices are peers too (Phase 2, M2.2).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Peer {
     pub identity: Vec<u8>,
+    pub device_id: Vec<u8>,
+    pub credential_hash: Vec<u8>,
+    pub root_public: Vec<u8>,
     pub mailbox: Option<Vec<u8>>,
     pub write_cap: Option<Vec<u8>>,
     pub hpke: Option<Vec<u8>>,
@@ -592,13 +600,22 @@ impl Client {
         )?;
         for p in &c.peers {
             conn.execute(
-                "INSERT INTO peers (group_id, peer_identity, mailbox, write_cap, hpke)
-                 VALUES (?1, ?2, ?3, ?4, ?5)
-                 ON CONFLICT(group_id, peer_identity) DO UPDATE SET
+                "INSERT INTO peers (group_id, device_id, peer_identity, credential_hash, root_public, mailbox, write_cap, hpke)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                 ON CONFLICT(group_id, device_id) DO UPDATE SET
                    mailbox = COALESCE(excluded.mailbox, mailbox),
                    write_cap = COALESCE(excluded.write_cap, write_cap),
                    hpke = COALESCE(excluded.hpke, hpke)",
-                params![c.group_id, p.identity, p.mailbox, p.write_cap, p.hpke],
+                params![
+                    c.group_id,
+                    p.device_id,
+                    p.identity,
+                    p.credential_hash,
+                    p.root_public,
+                    p.mailbox,
+                    p.write_cap,
+                    p.hpke
+                ],
             )?;
         }
         Ok(())
@@ -607,14 +624,18 @@ impl Client {
     fn peers_of(&self, group_id: &[u8]) -> Result<Vec<Peer>, ClientError> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT peer_identity, mailbox, write_cap, hpke FROM peers WHERE group_id = ?1 ORDER BY peer_identity",
+            "SELECT peer_identity, device_id, credential_hash, root_public, mailbox, write_cap, hpke
+             FROM peers WHERE group_id = ?1 ORDER BY peer_identity, device_id",
         )?;
         let rows = stmt.query_map(params![group_id], |r| {
             Ok(Peer {
                 identity: r.get(0)?,
-                mailbox: r.get(1)?,
-                write_cap: r.get(2)?,
-                hpke: r.get(3)?,
+                device_id: r.get(1)?,
+                credential_hash: r.get(2)?,
+                root_public: r.get(3)?,
+                mailbox: r.get(4)?,
+                write_cap: r.get(5)?,
+                hpke: r.get(6)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)

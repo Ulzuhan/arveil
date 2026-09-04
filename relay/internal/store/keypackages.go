@@ -74,7 +74,11 @@ func (s *Store) PublishKeyPackages(ctx context.Context, identityID, deviceID []b
 // ClaimKeyPackage atomically consumes one available package of an identity
 // (any of its devices, oldest first) and returns its bytes. A lost reply
 // wastes the package; it never returns to circulation.
-func (s *Store) ClaimKeyPackage(ctx context.Context, identityID []byte) ([]byte, error) {
+// An empty deviceID accepts any device of the identity.
+func (s *Store) ClaimKeyPackage(ctx context.Context, identityID, deviceID []byte) ([]byte, error) {
+	if deviceID == nil {
+		deviceID = []byte{}
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -82,7 +86,7 @@ func (s *Store) ClaimKeyPackage(ctx context.Context, identityID []byte) ([]byte,
 	defer tx.Rollback()
 	var ref, bytes []byte
 	err = tx.QueryRowContext(ctx,
-		`SELECT ref, bytes FROM key_packages WHERE identity_id = ? AND consumed = 0 ORDER BY published, ref LIMIT 1`, identityID).
+		`SELECT ref, bytes FROM key_packages WHERE identity_id = ? AND (? = X'' OR device_id = ?) AND consumed = 0 ORDER BY published, ref LIMIT 1`, identityID, deviceID, deviceID).
 		Scan(&ref, &bytes)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNoKeyPackage

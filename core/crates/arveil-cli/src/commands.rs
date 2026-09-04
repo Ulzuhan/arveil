@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use arveil_core::channel::StaticKeypair;
 use arveil_core::channel::codec::Payload;
-use arveil_core::client::{Client, OwnMailbox};
+use arveil_core::client::{Client, OwnMailbox, StoredDevice};
 use arveil_core::delivery::Delivery;
 use arveil_core::envelope::{self, EnvelopeContext};
 use arveil_core::mls;
@@ -112,10 +112,6 @@ pub async fn finish_enrollment(
     conn: &mut Connection,
     device: &arveil_core::client::StoredDevice,
 ) -> Result<(), CliError> {
-    let identity_id = c
-        .identity_id()
-        .map_err(err("identity"))?
-        .ok_or_else(|| CliError("no identity".into()))?;
     let m = match conn.request(Payload::MailboxCreate).await? {
         Payload::MailboxCreated {
             mailbox_id,
@@ -147,10 +143,7 @@ pub async fn finish_enrollment(
         Payload::Ack => println!("key packages: 5 published"),
         other => return Err(CliError(format!("unexpected reply: {other:?}"))),
     }
-    println!(
-        "route: {}",
-        route_string(&identity_id, &m, &device.keys.envelope_hpke.public)
-    );
+    println!("route: {}", route_string(c, device, &m)?);
     Ok(())
 }
 
@@ -303,22 +296,37 @@ pub fn data_dir_arg(args: &[String]) -> (Option<PathBuf>, Vec<String>) {
     (dir, rest)
 }
 
-/// `arveil-route:v0:<identity_id>:<mailbox_id>:<write_capability>:<hpke_public>`:
-/// the contact card a peer needs to claim this identity's KeyPackage and
-/// deliver to this device. Exchanged out of band in Phase 0; inside
-/// MLS-protected events once a group exists (PROTOCOL §4).
-pub fn route_string(identity_id: &[u8], m: &OwnMailbox, hpke_public: &[u8]) -> String {
-    format!(
-        "arveil-route:v0:{}:{}:{}:{}",
+/// `arveil-route:v1:<identity_id>:<device_id>:<credential_hash>:<root_public>:<mailbox_id>:<write_capability>:<hpke_public>`:
+/// the contact card a peer needs to claim this device's KeyPackage, deliver
+/// to it, and later verify manifests of its identity (PROTOCOL §4). Exchanged
+/// out of band for the first contact; inside MLS-protected roster events
+/// once a group exists.
+pub fn route_string(c: &Client, d: &StoredDevice, m: &OwnMailbox) -> Result<String, CliError> {
+    let identity_id = c
+        .identity_id()
+        .map_err(err("identity"))?
+        .ok_or_else(|| CliError("no identity".into()))?;
+    let root_public = c
+        .root_public()
+        .map_err(err("identity"))?
+        .ok_or_else(|| CliError("no identity".into()))?;
+    Ok(format!(
+        "arveil-route:v1:{}:{}:{}:{}:{}:{}:{}",
         hex::encode(identity_id),
+        hex::encode(d.keys.device_id),
+        hex::encode(&d.credential_hash),
+        hex::encode(root_public.as_bytes()),
         hex::encode(&m.mailbox_id),
         hex::encode(&m.write_capability),
-        hex::encode(hpke_public)
-    )
+        hex::encode(&d.keys.envelope_hpke.public)
+    ))
 }
 
 pub struct Route {
     pub identity_id: Vec<u8>,
+    pub device_id: Vec<u8>,
+    pub credential_hash: Vec<u8>,
+    pub root_public: Vec<u8>,
     pub mailbox_id: Vec<u8>,
     pub write_capability: Vec<u8>,
     pub hpke_public: Vec<u8>,
@@ -326,15 +334,31 @@ pub struct Route {
 
 pub fn parse_route(s: &str) -> Result<Route, CliError> {
     let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 6 || parts[0] != "arveil-route" || parts[1] != "v0" {
-        return Err(CliError("not an arveil-route:v0 string".into()));
+    if parts.len() != 9 || parts[0] != "arveil-route" || parts[1] != "v1" {
+        return Err(CliError("not an arveil-route:v1 string".into()));
     }
-    Ok(Route {
+    let r = Route {
         identity_id: hex::decode(parts[2]).map_err(err("identity id"))?,
-        mailbox_id: hex::decode(parts[3]).map_err(err("mailbox id"))?,
-        write_capability: hex::decode(parts[4]).map_err(err("write capability"))?,
-        hpke_public: hex::decode(parts[5]).map_err(err("hpke key"))?,
-    })
+        device_id: hex::decode(parts[3]).map_err(err("device id"))?,
+        credential_hash: hex::decode(parts[4]).map_err(err("credential hash"))?,
+        root_public: hex::decode(parts[5]).map_err(err("root key"))?,
+        mailbox_id: hex::decode(parts[6]).map_err(err("mailbox id"))?,
+        write_capability: hex::decode(parts[7]).map_err(err("write capability"))?,
+        hpke_public: hex::decode(parts[8]).map_err(err("hpke key"))?,
+    };
+    // The identity id must derive from the root key the route names.
+    let pk: [u8; 32] = r
+        .root_public
+        .as_slice()
+        .try_into()
+        .map_err(|_| CliError("route: root key length".into()))?;
+    let vk = ed25519_dalek::VerifyingKey::from_bytes(&pk).map_err(err("route: root key"))?;
+    if arveil_core::identity::identity_id(&vk) != r.identity_id {
+        return Err(CliError(
+            "route: identity id does not derive from its root key".into(),
+        ));
+    }
+    Ok(r)
 }
 
 pub fn enrolled(
@@ -370,15 +394,8 @@ pub fn random_delivery_id() -> Result<Vec<u8>, CliError> {
 pub fn mailbox_create(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let (c, d, _) = enrolled(data_dir)?;
-    let identity_id = c
-        .identity_id()
-        .map_err(err("identity"))?
-        .ok_or_else(|| CliError("no identity".into()))?;
     if let Some(m) = c.mailbox_own().map_err(err("mailbox"))? {
-        println!(
-            "route: {}",
-            route_string(&identity_id, &m, &d.keys.envelope_hpke.public)
-        );
+        println!("route: {}", route_string(&c, &d, &m)?);
         return Ok(());
     }
     block_on(async {
@@ -402,10 +419,7 @@ pub fn mailbox_create(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> 
                 };
                 c.mailbox_save(&m).map_err(err("mailbox"))?;
                 println!("mailbox: {} created", hex::encode(&m.mailbox_id));
-                println!(
-                    "route: {}",
-                    route_string(&identity_id, &m, &d.keys.envelope_hpke.public)
-                );
+                println!("route: {}", route_string(&c, &d, &m)?);
             }
             other => return Err(CliError(format!("unexpected reply: {other:?}"))),
         }

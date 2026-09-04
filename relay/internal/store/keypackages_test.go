@@ -17,21 +17,21 @@ func TestKeyPackagesPublishAndClaimOnce(t *testing.T) {
 	if n != 2 {
 		t.Fatalf("available %d, want 2 (duplicate ignored)", n)
 	}
-	a, err := s.ClaimKeyPackage(ctx, id)
+	a, err := s.ClaimKeyPackage(ctx, id, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := s.ClaimKeyPackage(ctx, id)
+	b, err := s.ClaimKeyPackage(ctx, id, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(a) == string(b) {
 		t.Fatal("same package claimed twice")
 	}
-	if _, err := s.ClaimKeyPackage(ctx, id); !errors.Is(err, ErrNoKeyPackage) {
+	if _, err := s.ClaimKeyPackage(ctx, id, nil); !errors.Is(err, ErrNoKeyPackage) {
 		t.Fatalf("third claim: %v", err)
 	}
-	if _, err := s.ClaimKeyPackage(ctx, []byte("nobody")); !errors.Is(err, ErrNoKeyPackage) {
+	if _, err := s.ClaimKeyPackage(ctx, []byte("nobody"), nil); !errors.Is(err, ErrNoKeyPackage) {
 		t.Fatalf("unknown identity: %v", err)
 	}
 	big := make([][]byte, MaxKeyPackagesPerDevice+1)

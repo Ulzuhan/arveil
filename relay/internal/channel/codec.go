@@ -91,8 +91,9 @@ type Payload struct {
 	Token      []byte
 	Credential []byte
 	Manifest   []byte
-	// InviteRedeemed
+	// InviteRedeemed / KeyPackagesClaim
 	IdentityID []byte
+	DeviceID   []byte
 	// Mailbox and envelope frames
 	MailboxID       []byte
 	ReadCapability  []byte
@@ -163,6 +164,7 @@ type keyPackagesPublishBody struct {
 
 type keyPackagesClaimBody struct {
 	IdentityID []byte `cbor:"identity_id"`
+	DeviceID   []byte `cbor:"device_id"`
 }
 
 type keyPackageClaimedBody struct {
@@ -275,7 +277,7 @@ func Encode(f Frame) ([]byte, error) {
 		}
 		payload = map[string]keyPackagesPublishBody{KindKeyPackagesPublish: {KeyPackages: kps}}
 	case KindKeyPackagesClaim:
-		payload = map[string]keyPackagesClaimBody{KindKeyPackagesClaim: {IdentityID: f.Payload.IdentityID}}
+		payload = map[string]keyPackagesClaimBody{KindKeyPackagesClaim: {IdentityID: f.Payload.IdentityID, DeviceID: f.Payload.DeviceID}}
 	case KindKeyPackageClaimed:
 		payload = map[string]keyPackageClaimedBody{KindKeyPackageClaimed: {KeyPackage: f.Payload.KeyPackage}}
 	case KindMailboxCreated:
@@ -448,7 +450,7 @@ func Decode(b []byte) (Frame, error) {
 			if err := cbor.Unmarshal(body, &v); err != nil {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
-			f.Payload = Payload{Kind: name, IdentityID: v.IdentityID}
+			f.Payload = Payload{Kind: name, IdentityID: v.IdentityID, DeviceID: v.DeviceID}
 		case KindKeyPackageClaimed:
 			var v keyPackageClaimedBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

@@ -73,10 +73,13 @@ pub enum Payload {
     KeyPackagesPublish {
         key_packages: Vec<serde_bytes::ByteBuf>,
     },
-    /// Claim one KeyPackage of an identity (consumed atomically).
+    /// Claim one KeyPackage of one device of an identity (consumed
+    /// atomically). An empty `device_id` accepts any device (Phase 1 use).
     KeyPackagesClaim {
         #[serde(with = "serde_bytes")]
         identity_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        device_id: Vec<u8>,
     },
     KeyPackageClaimed {
         #[serde(with = "serde_bytes")]
@@ -218,4 +221,28 @@ pub fn decode(bytes: &[u8]) -> Result<Frame, CodecError> {
         return Err(CodecError::TooLarge(bytes.len()));
     }
     ciborium::from_reader(bytes).map_err(|e| CodecError::Decode(e.to_string()))
+}
+
+#[cfg(test)]
+mod vector_dump {
+    use super::*;
+
+    /// Prints hex vectors for `relay/internal/channel/channel_test.go`.
+    /// Run with `cargo test -p arveil-core vector_dump -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn dump_vectors_for_go() {
+        let frames = [Frame {
+            id: 2,
+            payload: Payload::KeyPackagesClaim {
+                identity_id: vec![9, 9, 9, 9],
+                device_id: vec![4, 4],
+            },
+        }];
+        for f in &frames {
+            let bytes = encode(f).unwrap();
+            let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+            println!("{:?} => {hex}", f.payload);
+        }
+    }
 }
