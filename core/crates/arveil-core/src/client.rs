@@ -61,7 +61,18 @@ CREATE TABLE IF NOT EXISTS peers (
     mailbox         BLOB,
     write_cap       BLOB,
     hpke            BLOB,
+    revoked         INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (group_id, device_id)
+);
+CREATE TABLE IF NOT EXISTS identity_devices (
+    device_id       BLOB PRIMARY KEY,
+    credential_hash BLOB NOT NULL,
+    revoked         INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS peer_manifests (
+    identity_id BLOB PRIMARY KEY,
+    sequence    INTEGER NOT NULL,
+    hash        BLOB NOT NULL
 );
 CREATE TABLE IF NOT EXISTS realm (
     realm_id          BLOB PRIMARY KEY,
@@ -98,6 +109,16 @@ pub enum ClientError {
     GrantManifest,
     #[error("client: device already linked or enrolled")]
     DeviceExists,
+    #[error("client: unknown device {0} for this identity")]
+    UnknownDevice(String),
+    #[error("client: refusing to revoke the device in use; do it from another device")]
+    RevokeSelf,
+    #[error("client: manifest for an identity with no known root key")]
+    UnknownIdentity,
+}
+
+fn hex_of(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
 /// Default credential validity for Phase 0: one year.
@@ -138,6 +159,14 @@ impl StoredDevice {
     }
 }
 
+/// One device of this identity, as its own client knows it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OwnDevice {
+    pub device_id: Vec<u8>,
+    pub credential_hash: Vec<u8>,
+    pub revoked: bool,
+}
+
 /// A mailbox this device owns on the realm.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OwnMailbox {
@@ -158,6 +187,8 @@ pub struct Peer {
     pub mailbox: Option<Vec<u8>>,
     pub write_cap: Option<Vec<u8>>,
     pub hpke: Option<Vec<u8>>,
+    /// Known revoked by its identity's manifest: receives nothing more.
+    pub revoked: bool,
 }
 
 impl Peer {
@@ -305,6 +336,10 @@ impl Client {
                 "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
                 params![body.identity_id, state.sequence as i64, manifest, state.hash],
             )?;
+            conn.execute(
+                "INSERT INTO identity_devices (device_id, credential_hash) VALUES (?1, ?2)",
+                params![keys.device_id.to_vec(), credential_hash],
+            )?;
             Ok::<_, rusqlite::Error>(())
         })?;
 
@@ -449,20 +484,203 @@ impl Client {
                     .collect()
             })
             .unwrap_or_default();
-        active.push(hash);
+        active.push(hash.clone());
         let manifest = identity::issue_manifest(&root, previous.as_ref(), &active, &revoked)?;
         let (mbody, state) =
             identity::accept_manifest(&manifest, &root.public(), previous.as_ref())?;
-        self.conn.lock().execute(
-            "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
-            params![
-                mbody.identity_id,
-                state.sequence as i64,
-                manifest,
-                state.hash
-            ],
-        )?;
+        self.conn.unit_of_work(|c| {
+            let conn = c.lock();
+            conn.execute(
+                "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    mbody.identity_id,
+                    state.sequence as i64,
+                    manifest,
+                    state.hash
+                ],
+            )?;
+            conn.execute(
+                "INSERT OR REPLACE INTO identity_devices (device_id, credential_hash, revoked) VALUES (?1, ?2, 0)",
+                params![public.device_id, hash],
+            )?;
+            Ok::<_, rusqlite::Error>(())
+        })?;
         Ok((credential, manifest))
+    }
+
+    /// Own devices as this client knows them.
+    pub fn own_devices(&self) -> Result<Vec<OwnDevice>, ClientError> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT device_id, credential_hash, revoked FROM identity_devices ORDER BY rowid",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(OwnDevice {
+                device_id: r.get(0)?,
+                credential_hash: r.get(1)?,
+                revoked: r.get::<_, i64>(2)? != 0,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Mark every peer row carrying one of these credential hashes as
+    /// revoked, in every conversation. Returns the rows changed.
+    pub fn peers_mark_revoked(&self, hashes: &[Vec<u8>]) -> Result<usize, ClientError> {
+        let conn = self.conn.lock();
+        let mut n = 0;
+        for h in hashes {
+            n += conn.execute(
+                "UPDATE peers SET revoked = 1 WHERE credential_hash = ?1 AND revoked = 0",
+                params![h],
+            )?;
+            conn.execute(
+                "UPDATE identity_devices SET revoked = 1 WHERE credential_hash = ?1",
+                params![h],
+            )?;
+        }
+        Ok(n)
+    }
+
+    /// Administration device (M2.3): sign manifest N+1 that revokes one of
+    /// this identity's devices. Returns the signed manifest and the revoked
+    /// credential hash. Refuses to revoke the device in use.
+    pub fn device_revoke(&self, device_id: &[u8]) -> Result<(Vec<u8>, Vec<u8>), ClientError> {
+        let root = self.root()?.ok_or(ClientError::NoRoot)?;
+        let me = self.device()?.ok_or(ClientError::NoDevice)?;
+        if me.keys.device_id.as_slice() == device_id {
+            return Err(ClientError::RevokeSelf);
+        }
+        let hash = self
+            .own_devices()?
+            .into_iter()
+            .find(|d| d.device_id == device_id)
+            .map(|d| d.credential_hash)
+            .ok_or_else(|| ClientError::UnknownDevice(hex_of(device_id)))?;
+        let previous = self.manifest_state()?;
+        let body = self
+            .latest_manifest_body()?
+            .ok_or(ClientError::NoIdentity)?;
+        let active: Vec<Vec<u8>> = body
+            .active_credential_hashes
+            .iter()
+            .map(|h| h.to_vec())
+            .filter(|h| h != &hash)
+            .collect();
+        let mut revoked: Vec<Vec<u8>> = body
+            .revoked_credential_hashes
+            .iter()
+            .map(|h| h.to_vec())
+            .collect();
+        if !revoked.contains(&hash) {
+            revoked.push(hash.clone());
+        }
+        let manifest = identity::issue_manifest(&root, previous.as_ref(), &active, &revoked)?;
+        let (mbody, state) =
+            identity::accept_manifest(&manifest, &root.public(), previous.as_ref())?;
+        self.conn.unit_of_work(|c| {
+            c.lock().execute(
+                "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    mbody.identity_id,
+                    state.sequence as i64,
+                    manifest,
+                    state.hash
+                ],
+            )?;
+            Ok::<_, rusqlite::Error>(())
+        })?;
+        self.peers_mark_revoked(std::slice::from_ref(&hash))?;
+        Ok((manifest, hash))
+    }
+
+    /// A manifest of this device's own identity, from another own device or
+    /// from the realm. Accepted under the stored root key and the newest
+    /// known sequence; a fork or rollback is an error. Returns the body and
+    /// whether it was new.
+    pub fn manifest_accept_own(
+        &self,
+        signed: &[u8],
+    ) -> Result<(identity::DeviceManifest, bool), ClientError> {
+        let root = self.root_public()?.ok_or(ClientError::NoIdentity)?;
+        let known = self.manifest_state()?;
+        let (body, state) = identity::accept_manifest(signed, &root, known.as_ref())?;
+        let new = known.as_ref().map(|k| k.sequence) != Some(state.sequence);
+        if new {
+            self.conn.lock().execute(
+                "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
+                params![body.identity_id, state.sequence as i64, signed, state.hash],
+            )?;
+        }
+        let revoked: Vec<Vec<u8>> = body
+            .revoked_credential_hashes
+            .iter()
+            .map(|h| h.to_vec())
+            .collect();
+        self.peers_mark_revoked(&revoked)?;
+        Ok((body, new))
+    }
+
+    pub fn peer_manifest_state(
+        &self,
+        identity: &[u8],
+    ) -> Result<Option<ManifestState>, ClientError> {
+        let row: Option<(i64, Vec<u8>)> = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT sequence, hash FROM peer_manifests WHERE identity_id = ?1",
+                params![identity],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        Ok(row.map(|(sequence, hash)| ManifestState {
+            sequence: sequence as u64,
+            hash,
+        }))
+    }
+
+    /// A manifest of a peer identity. Verified under the root key learned
+    /// from that peer's routes; the sequence must not go backwards; revoked
+    /// hashes mark the matching peers in every conversation. Returns the
+    /// body and whether it was new.
+    pub fn peer_manifest_accept(
+        &self,
+        identity: &[u8],
+        signed: &[u8],
+    ) -> Result<(identity::DeviceManifest, bool), ClientError> {
+        let root_bytes: Option<Vec<u8>> = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT root_public FROM peers WHERE peer_identity = ?1 LIMIT 1",
+                params![identity],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let root_bytes = root_bytes.ok_or(ClientError::UnknownIdentity)?;
+        let pk: [u8; 32] = root_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| ClientError::UnknownIdentity)?;
+        let root = VerifyingKey::from_bytes(&pk).map_err(|_| ClientError::UnknownIdentity)?;
+        let known = self.peer_manifest_state(identity)?;
+        let (body, state) = identity::accept_manifest(signed, &root, known.as_ref())?;
+        let new = known.as_ref().map(|k| k.sequence) != Some(state.sequence);
+        if new {
+            self.conn.lock().execute(
+                "INSERT INTO peer_manifests (identity_id, sequence, hash) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(identity_id) DO UPDATE SET sequence = excluded.sequence, hash = excluded.hash",
+                params![identity, state.sequence as i64, state.hash],
+            )?;
+        }
+        let revoked: Vec<Vec<u8>> = body
+            .revoked_credential_hashes
+            .iter()
+            .map(|h| h.to_vec())
+            .collect();
+        self.peers_mark_revoked(&revoked)?;
+        Ok((body, new))
     }
 
     /// New device: accept a grant only if the credential names exactly this
@@ -516,6 +734,10 @@ impl Client {
             conn.execute(
                 "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
                 params![body.identity_id, state.sequence as i64, manifest, state.hash],
+            )?;
+            conn.execute(
+                "INSERT INTO identity_devices (device_id, credential_hash) VALUES (?1, ?2)",
+                params![device.keys.device_id.to_vec(), v.hash],
             )?;
             Ok::<_, rusqlite::Error>(())
         })?;
@@ -580,7 +802,22 @@ impl Client {
         signed: &[u8],
     ) -> Result<RealmEndpointList, ClientError> {
         let realm = self.realm()?.ok_or(ClientError::NoDevice)?;
-        let known = realm.endpoint_list.as_ref().map(|l| l.sequence);
+        // Re-fetching the list already stored is idempotent, not a
+        // rollback: the sequence rule applies to a *different* list.
+        let stored: Option<Vec<u8>> = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT endpoint_list FROM realm WHERE realm_id = ?1",
+                params![realm_id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .flatten();
+        let known = match &stored {
+            Some(bytes) if bytes.as_slice() == signed => None,
+            _ => realm.endpoint_list.as_ref().map(|l| l.sequence),
+        };
         let list = endpoints::verify(signed, &realm.signing_public, realm_id, known)?;
         self.conn.lock().execute(
             "UPDATE realm SET endpoint_list = ?1, endpoint_sequence = ?2, noise_public = ?3 WHERE realm_id = ?4",
@@ -600,12 +837,13 @@ impl Client {
         )?;
         for p in &c.peers {
             conn.execute(
-                "INSERT INTO peers (group_id, device_id, peer_identity, credential_hash, root_public, mailbox, write_cap, hpke)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                "INSERT INTO peers (group_id, device_id, peer_identity, credential_hash, root_public, mailbox, write_cap, hpke, revoked)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                  ON CONFLICT(group_id, device_id) DO UPDATE SET
                    mailbox = COALESCE(excluded.mailbox, mailbox),
                    write_cap = COALESCE(excluded.write_cap, write_cap),
-                   hpke = COALESCE(excluded.hpke, hpke)",
+                   hpke = COALESCE(excluded.hpke, hpke),
+                   revoked = MAX(revoked, excluded.revoked)",
                 params![
                     c.group_id,
                     p.device_id,
@@ -614,7 +852,8 @@ impl Client {
                     p.root_public,
                     p.mailbox,
                     p.write_cap,
-                    p.hpke
+                    p.hpke,
+                    p.revoked as i64
                 ],
             )?;
         }
@@ -624,7 +863,7 @@ impl Client {
     fn peers_of(&self, group_id: &[u8]) -> Result<Vec<Peer>, ClientError> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT peer_identity, device_id, credential_hash, root_public, mailbox, write_cap, hpke
+            "SELECT peer_identity, device_id, credential_hash, root_public, mailbox, write_cap, hpke, revoked
              FROM peers WHERE group_id = ?1 ORDER BY peer_identity, device_id",
         )?;
         let rows = stmt.query_map(params![group_id], |r| {
@@ -636,6 +875,7 @@ impl Client {
                 mailbox: r.get(4)?,
                 write_cap: r.get(5)?,
                 hpke: r.get(6)?,
+                revoked: r.get::<_, i64>(7)? != 0,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)

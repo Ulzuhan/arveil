@@ -22,6 +22,8 @@ const (
 	KindInviteRedeemed   = "InviteRedeemed"
 	KindCredentialPut    = "CredentialPut"
 	KindManifestPut      = "ManifestPut"
+	KindManifestGet      = "ManifestGet"
+	KindManifestLatest   = "ManifestLatest"
 	KindAck              = "Ack"
 	KindError            = "Error"
 	KindMailboxCreate    = "MailboxCreate"
@@ -226,6 +228,10 @@ type manifestPutBody struct {
 	Manifest []byte `cbor:"manifest"`
 }
 
+type manifestGetBody struct {
+	IdentityID []byte `cbor:"identity_id"`
+}
+
 type endpointListBody struct {
 	Signed []byte `cbor:"signed"`
 }
@@ -308,6 +314,10 @@ func Encode(f Frame) ([]byte, error) {
 		payload = map[string]credentialPutBody{KindCredentialPut: {Credential: f.Payload.Credential}}
 	case KindManifestPut:
 		payload = map[string]manifestPutBody{KindManifestPut: {Manifest: f.Payload.Manifest}}
+	case KindManifestGet:
+		payload = map[string]manifestGetBody{KindManifestGet: {IdentityID: f.Payload.IdentityID}}
+	case KindManifestLatest:
+		payload = map[string]manifestPutBody{KindManifestLatest: {Manifest: nonNil(f.Payload.Manifest)}}
 	case KindEndpointList:
 		payload = map[string]endpointListBody{KindEndpointList: {Signed: f.Payload.Signed}}
 	case KindError:
@@ -391,7 +401,13 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Credential: v.Credential}
-		case KindManifestPut:
+		case KindManifestGet:
+			var v manifestGetBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, IdentityID: v.IdentityID}
+		case KindManifestPut, KindManifestLatest:
 			var v manifestPutBody
 			if err := cbor.Unmarshal(body, &v); err != nil {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
@@ -498,4 +514,12 @@ func Decode(b []byte) (Frame, error) {
 		}
 	}
 	return f, nil
+}
+
+// nonNil makes an absent byte string encode as an empty one, never as null.
+func nonNil(b []byte) []byte {
+	if b == nil {
+		return []byte{}
+	}
+	return b
 }

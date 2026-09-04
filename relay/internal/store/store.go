@@ -325,6 +325,38 @@ func (s *Store) SetCredentialStatus(ctx context.Context, identityID []byte, hash
 	return n, nil
 }
 
+// RevokeCredentials marks credentials revoked and revokes every capability
+// of the mailboxes owned by those devices, in one transaction. Returns how
+// many credentials changed state.
+func (s *Store) RevokeCredentials(ctx context.Context, identityID []byte, hashes [][]byte) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	var n int64
+	for _, h := range hashes {
+		var deviceID []byte
+		err := tx.QueryRowContext(ctx, `SELECT device_id FROM device_credentials WHERE identity_id = ? AND credential_hash = ? AND status != 'revoked'`, identityID, h).Scan(&deviceID)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return n, err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE device_credentials SET status = 'revoked' WHERE credential_hash = ?`, h); err != nil {
+			return n, err
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE capabilities SET revoked = 1 WHERE mailbox_id IN (SELECT mailbox_id FROM mailboxes WHERE owner_identity = ? AND owner_device = ?)`,
+			identityID, deviceID); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, tx.Commit()
+}
+
 // PutCredential registers an additional credential for a member.
 func (s *Store) PutCredential(ctx context.Context, e Enrollment) error {
 	tx, err := s.db.BeginTx(ctx, nil)

@@ -254,6 +254,15 @@ pub fn verify_credential(
     })
 }
 
+/// The identity a manifest claims, read before any verification, only to
+/// choose which root key to verify it under. [`accept_manifest`] then binds
+/// the body to that root, so a lie here cannot be believed.
+pub fn manifest_identity_unverified(signed_manifest: &[u8]) -> Option<Vec<u8>> {
+    let so = signed::peek(signed_manifest).ok()?;
+    let body: DeviceManifest = ciborium::from_reader(so.body.as_slice()).ok()?;
+    Some(body.identity_id)
+}
+
 /// What a client remembers about the newest manifest it accepted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ManifestState {

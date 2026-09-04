@@ -115,6 +115,7 @@ impl Delivery {
                 ("accepted", Some(t)) if t <= now => "expired/unknown".to_string(),
                 ("accepted", Some(t)) => format!("accepted (relay keeps it until {t})"),
                 ("accepted", None) => "accepted".to_string(),
+                ("undeliverable", _) => "undeliverable (mailbox refused)".to_string(),
                 (other, _) => other.to_string(),
             };
             Ok((mailbox, label))
@@ -162,6 +163,17 @@ impl Delivery {
     pub fn mark_attempt(&self, id: i64) -> Result<(), rusqlite::Error> {
         self.conn.lock().execute(
             "UPDATE outbox SET attempts = attempts + 1 WHERE id = ?1",
+            params![id],
+        )?;
+        Ok(())
+    }
+
+    /// The relay refused this envelope for good (revoked capability, gone
+    /// mailbox). The row stays for the history; it is never retried and
+    /// never counted as delivered.
+    pub fn mark_undeliverable(&self, id: i64) -> Result<(), rusqlite::Error> {
+        self.conn.lock().execute(
+            "UPDATE outbox SET state = 'undeliverable' WHERE id = ?1",
             params![id],
         )?;
         Ok(())

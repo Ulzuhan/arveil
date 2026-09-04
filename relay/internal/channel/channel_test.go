@@ -343,3 +343,26 @@ func TestCodecMatchesRustVectorsBlobs(t *testing.T) {
 		}
 	}
 }
+
+func TestCodecMatchesRustVectorsManifests(t *testing.T) {
+	vectors := []struct {
+		hex   string
+		frame Frame
+	}{
+		{"a262696403677061796c6f6164a16b4d616e6966657374476574a16b6964656e746974795f69644409090909", Frame{ID: 3, Payload: Payload{Kind: KindManifestGet, IdentityID: []byte{9, 9, 9, 9}}}},
+		{"a262696403677061796c6f6164a16e4d616e69666573744c6174657374a1686d616e696665737442aabb", Frame{ID: 3, Payload: Payload{Kind: KindManifestLatest, Manifest: []byte{0xaa, 0xbb}}}},
+	}
+	for _, v := range vectors {
+		want, _ := hex.DecodeString(v.hex)
+		got, err := Encode(v.frame)
+		if err != nil || !bytes.Equal(got, want) {
+			t.Errorf("%s: encode mismatch (%v)\n got %x\nwant %x", v.frame.Payload.Kind, err, got, want)
+		}
+		dec, err := Decode(want)
+		if err != nil || dec.Payload.Kind != v.frame.Payload.Kind ||
+			!bytes.Equal(dec.Payload.IdentityID, v.frame.Payload.IdentityID) ||
+			!bytes.Equal(dec.Payload.Manifest, v.frame.Payload.Manifest) {
+			t.Errorf("%s: decode mismatch (%v): %+v", v.frame.Payload.Kind, err, dec.Payload)
+		}
+	}
+}

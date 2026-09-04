@@ -19,11 +19,13 @@ const USAGE: &str = "usage:
   arveil device request --data-dir <dir>
   arveil device authorize --data-dir <dir> <bootstrap> <link-request>
   arveil device link --data-dir <dir> <bootstrap> <link-grant>
+  arveil device revoke --data-dir <dir> <bootstrap> <device-id>
   arveil mailbox create --data-dir <dir> <bootstrap>
   arveil send --data-dir <dir> <bootstrap> <route> <text>
   arveil fetch --data-dir <dir> <bootstrap>
   arveil chat start --data-dir <dir> <bootstrap> <peer-route>...
   arveil chat add --data-dir <dir> <bootstrap> <peer-route>
+  arveil chat remove --data-dir <dir> <bootstrap> <device-id>
   arveil chat send --data-dir <dir> <bootstrap> <text>
   arveil chat send-file --data-dir <dir> <bootstrap> <path>
   arveil chat sync --data-dir <dir> <bootstrap>
@@ -68,6 +70,10 @@ fn main() -> ExitCode {
             Some(d) => link::link(&d, bootstrap, grant),
             None => usage(),
         },
+        ["device", "revoke", bootstrap, device] => match data_dir {
+            Some(d) => chat::revoke(&d, bootstrap, device),
+            None => usage(),
+        },
         ["mailbox", "create", bootstrap] => match data_dir {
             Some(d) => commands::mailbox_create(&d, bootstrap),
             None => usage(),
@@ -86,6 +92,10 @@ fn main() -> ExitCode {
         },
         ["chat", "add", bootstrap, route] => match data_dir {
             Some(d) => chat::add(&d, bootstrap, route),
+            None => usage(),
+        },
+        ["chat", "remove", bootstrap, device] => match data_dir {
+            Some(d) => chat::remove(&d, bootstrap, device),
             None => usage(),
         },
         ["chat", "send-file", bootstrap, path] => match data_dir {

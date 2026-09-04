@@ -69,6 +69,16 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         manifest: Vec<u8>,
     },
+    /// Newest manifest of an identity on the realm (Phase 2, M2.3). The
+    /// reply carries an empty `manifest` when the realm has none.
+    ManifestGet {
+        #[serde(with = "serde_bytes")]
+        identity_id: Vec<u8>,
+    },
+    ManifestLatest {
+        #[serde(with = "serde_bytes")]
+        manifest: Vec<u8>,
+    },
     /// Publish a bounded batch of KeyPackages for the session's device.
     KeyPackagesPublish {
         key_packages: Vec<serde_bytes::ByteBuf>,
@@ -232,13 +242,27 @@ mod vector_dump {
     #[test]
     #[ignore]
     fn dump_vectors_for_go() {
-        let frames = [Frame {
-            id: 2,
-            payload: Payload::KeyPackagesClaim {
-                identity_id: vec![9, 9, 9, 9],
-                device_id: vec![4, 4],
+        let frames = [
+            Frame {
+                id: 2,
+                payload: Payload::KeyPackagesClaim {
+                    identity_id: vec![9, 9, 9, 9],
+                    device_id: vec![4, 4],
+                },
             },
-        }];
+            Frame {
+                id: 3,
+                payload: Payload::ManifestGet {
+                    identity_id: vec![9, 9, 9, 9],
+                },
+            },
+            Frame {
+                id: 3,
+                payload: Payload::ManifestLatest {
+                    manifest: vec![0xaa, 0xbb],
+                },
+            },
+        ];
         for f in &frames {
             let bytes = encode(f).unwrap();
             let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();

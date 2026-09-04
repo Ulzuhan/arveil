@@ -104,6 +104,33 @@ func TestRedeemInviteIsAtomic(t *testing.T) {
 	}
 }
 
+func TestRevokeCredentialsInvalidatesMailboxes(t *testing.T) {
+	s, ctx, now := memberStore(t)
+	e := enrollment(1)
+	mb, err := s.CreateMailbox(ctx, e.IdentityID, e.DeviceID, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CheckCapability(ctx, mb.MailboxID, mb.WriteCapability, ScopeWrite, now); err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.RevokeCredentials(ctx, e.IdentityID, [][]byte{e.CredentialHash, []byte("unknown")})
+	if err != nil || n != 1 {
+		t.Fatalf("revoke: %d %v", n, err)
+	}
+	if err := s.CheckCapability(ctx, mb.MailboxID, mb.WriteCapability, ScopeWrite, now); !errors.Is(err, ErrCapability) {
+		t.Fatalf("capability survived revocation: %v", err)
+	}
+	d, _ := s.DeviceByTransportKey(ctx, e.TransportKey)
+	if d == nil || d.Status != "revoked" {
+		t.Fatalf("credential not revoked: %+v", d)
+	}
+	n, _ = s.RevokeCredentials(ctx, e.IdentityID, [][]byte{e.CredentialHash})
+	if n != 0 {
+		t.Fatalf("second revoke changed %d", n)
+	}
+}
+
 func TestLatestManifestAndCredentialStatus(t *testing.T) {
 	s, ctx, _ := memberStore(t)
 	e := enrollment(1)

@@ -98,4 +98,41 @@ for text in "hola alice, en los dos" "desde el portátil"; do
 done
 grep -q "(own)" "$DATA/phone.hist" || fail "phone history does not mark the laptop as an own device"
 
+step "M2.3 revocation: a revoked device is refused by the realm, and members pause until its leaf is gone"
+# A separate group whose committer is bob2, so the removal is not the same
+# action as the revocation: alice2 revokes, bob2 enacts it.
+"$CLI" enroll --data-dir "$DATA/alice2-phone" "$BOOTSTRAP" "$(invite)" > "$DATA/alice2-phone.enroll"
+"$CLI" enroll --data-dir "$DATA/bob2" "$BOOTSTRAP" "$(invite)" > "$DATA/bob2.enroll"
+"$CLI" device request --data-dir "$DATA/alice2-laptop" > "$DATA/l2.request"
+"$CLI" device authorize --data-dir "$DATA/alice2-phone" "$BOOTSTRAP" "$(sed -n 's/^request: //p' "$DATA/l2.request")" > "$DATA/p2.authorize"
+"$CLI" device link --data-dir "$DATA/alice2-laptop" "$BOOTSTRAP" "$(sed -n 's/^grant: //p' "$DATA/p2.authorize")" > "$DATA/l2.link"
+LAPTOP2="$(sed -n 's/^linked: device \([0-9a-f]*\) .*/\1/p' "$DATA/l2.link")"
+[ -n "$LAPTOP2" ] || fail "could not read the linked device id"
+"$CLI" chat start --data-dir "$DATA/bob2" "$BOOTSTRAP" "$(route_of "$DATA/alice2-phone.enroll")" "$(route_of "$DATA/l2.link")" > "$DATA/bob2.start"
+"$CLI" chat sync --data-dir "$DATA/alice2-phone" "$BOOTSTRAP" > "$DATA/p2.sync1"
+"$CLI" chat sync --data-dir "$DATA/alice2-laptop" "$BOOTSTRAP" > "$DATA/l2.sync1"
+grep -q "joined conversation" "$DATA/l2.sync1" || fail "alice2 laptop did not join"
+
+"$CLI" device revoke --data-dir "$DATA/alice2-phone" "$BOOTSTRAP" "$LAPTOP2" | tee "$DATA/p2.revoke"
+grep -q "^revoked: device $LAPTOP2" "$DATA/p2.revoke" || fail "revocation not signed"
+grep -q "the realm refuses that device from now on" "$DATA/p2.revoke" || fail "manifest not published"
+grep -q "removal left to the committer" "$DATA/p2.revoke" || fail "the non-committer should not remove the leaf"
+grep -q "1 revoked" "$DATA/relay.err" || fail "relay did not record the revocation"
+
+expect_fail "$DATA/l2.sync2" "$CLI" chat sync --data-dir "$DATA/alice2-laptop" "$BOOTSTRAP" || fail "the revoked laptop still reached the relay"
+grep -q "handshake" "$DATA/l2.sync2" || fail "unexpected error for the revoked device: $(cat "$DATA/l2.sync2")"
+
+"$CLI" chat sync --data-dir "$DATA/bob2" "$BOOTSTRAP" | tee "$DATA/bob2.sync1"
+grep -q "1 revoked" "$DATA/bob2.sync1" || fail "bob2 did not learn the revocation"
+expect_fail "$DATA/bob2.send1" "$CLI" chat send --data-dir "$DATA/bob2" "$BOOTSTRAP" "no debería salir" || fail "bob2 sent while a revoked device was still in the group"
+grep -q "paused: 1 revoked device(s) still in the group" "$DATA/bob2.send1" || fail "unexpected pause reason: $(cat "$DATA/bob2.send1")"
+
+"$CLI" chat remove --data-dir "$DATA/bob2" "$BOOTSTRAP" "$LAPTOP2" | tee "$DATA/bob2.remove"
+grep -q "^removed: leaf" "$DATA/bob2.remove" || fail "the committer did not remove the leaf"
+"$CLI" chat send --data-dir "$DATA/bob2" "$BOOTSTRAP" "ya sin el portátil" | tee "$DATA/bob2.send2"
+grep -q "1 envelope(s) queued" "$DATA/bob2.send2" || fail "after the removal the message should go to one device only"
+"$CLI" chat sync --data-dir "$DATA/alice2-phone" "$BOOTSTRAP" | tee "$DATA/p2.sync2"
+grep -q "message: ya sin el portátil" "$DATA/p2.sync2" || fail "alice2 phone did not receive the message after the removal"
+expect_fail "$DATA/l2.sync3" "$CLI" chat sync --data-dir "$DATA/alice2-laptop" "$BOOTSTRAP" || fail "the removed laptop still reached the relay"
+
 step "phase 2 checks so far ok"

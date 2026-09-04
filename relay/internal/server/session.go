@@ -55,6 +55,8 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.credentialPut(ctx, s, f, now)
 	case channel.KindManifestPut:
 		return srv.manifestPut(ctx, s, f)
+	case channel.KindManifestGet:
+		return srv.manifestGet(ctx, s, f)
 	case channel.KindBlobUploadBegin:
 		return srv.blobUploadBegin(ctx, s, f, now)
 	case channel.KindBlobChunk:
@@ -192,12 +194,26 @@ func (srv *Server) manifestPut(ctx context.Context, s *session, f channel.Frame)
 	if err != nil {
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
-	revoked, err := srv.Store.SetCredentialStatus(ctx, s.device.IdentityID, m.RevokedCredentialHashes, "revoked")
+	revoked, err := srv.Store.RevokeCredentials(ctx, s.device.IdentityID, m.RevokedCredentialHashes)
 	if err != nil {
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
 	srv.Logger.Printf("manifest %d for identity %x: %d active, %d revoked (%d newly revoked)", m.ManifestSequence, s.device.IdentityID[:4], len(m.ActiveCredentialHashes), len(m.RevokedCredentialHashes), revoked)
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
+}
+
+// manifestGet returns the newest manifest the realm holds for an identity,
+// so members can learn revocations even when the in-group copy is late. A
+// realm that hides versions is caught by the in-group copy, and the reverse.
+func (srv *Server) manifestGet(ctx context.Context, s *session, f channel.Frame) channel.Frame {
+	if !s.member() {
+		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
+	}
+	_, signed, err := srv.Store.LatestManifest(ctx, f.Payload.IdentityID)
+	if err != nil {
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindManifestLatest, Manifest: signed}}
 }
 
 func containsHash(list [][]byte, h []byte) bool {
