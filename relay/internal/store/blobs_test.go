@@ -96,6 +96,46 @@ func TestBlobUploadCommitReadAndSweep(t *testing.T) {
 	}
 }
 
+func TestStagedOffsetDrivesResume(t *testing.T) {
+	b, ctx, now, _ := blobStore(t)
+	owner := []byte{1, 1}
+	data := make([]byte, 100_000)
+	rand.Read(data)
+	sum := sha256.Sum256(data)
+	id, _, err := b.Begin(ctx, owner, uint64(len(data)), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if off, err := b.StagedOffset(ctx, owner, id); err != nil || off != 0 {
+		t.Fatalf("fresh offset: %d %v", off, err)
+	}
+	if err := b.Chunk(ctx, owner, id, 0, data[:MaxBlobChunk]); err != nil {
+		t.Fatal(err)
+	}
+	off, err := b.StagedOffset(ctx, owner, id)
+	if err != nil || off != MaxBlobChunk {
+		t.Fatalf("offset after one chunk: %d %v", off, err)
+	}
+	// Rewriting bytes the realm already holds is refused, so a resumed
+	// upload cannot quietly replace what was sent before.
+	if err := b.Chunk(ctx, owner, id, 0, data[:10]); !errors.Is(err, ErrBlobOffset) {
+		t.Fatalf("rewrite accepted: %v", err)
+	}
+	// Another member learns nothing and cannot resume it.
+	if _, err := b.StagedOffset(ctx, []byte{2, 2}, id); !errors.Is(err, ErrBlobUnknown) {
+		t.Fatalf("foreign offset: %v", err)
+	}
+	if err := b.Chunk(ctx, owner, id, off, data[off:]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Commit(ctx, owner, id, sum[:], 0, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.StagedOffset(ctx, owner, id); !errors.Is(err, ErrBlobState) {
+		t.Fatalf("committed blob still resumable: %v", err)
+	}
+}
+
 func TestBlobLimitsAndReconcile(t *testing.T) {
 	b, ctx, now, dir := blobStore(t)
 	owner := []byte{1, 1}

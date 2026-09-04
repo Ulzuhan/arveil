@@ -327,6 +327,8 @@ func TestCodecMatchesRustVectorsBlobs(t *testing.T) {
 		{"a262696403677061796c6f6164a16d426c6f62436f6d6d6974746564a1706566666563746976655f65787069727908", Frame{ID: 3, Payload: Payload{Kind: KindBlobCommitted, EffectiveExpiry: 8}}},
 		{"a262696404677061796c6f6164a169426c6f624665746368a4666c656e6774680a666f66667365740067626c6f625f696441016f726561645f6361706162696c6974794102", Frame{ID: 4, Payload: Payload{Kind: KindBlobFetch, BlobID: []byte{1}, ReadCapability: []byte{2}, Offset: 0, Length: 10}}},
 		{"a262696404677061796c6f6164a168426c6f6244617461a264646174614203046a746f74616c5f73697a6502", Frame{ID: 4, Payload: Payload{Kind: KindBlobData, TotalSize: 2, Data: []byte{3, 4}}}},
+		{"a262696408677061796c6f6164a16a426c6f62526573756d65a167626c6f625f6964420102", Frame{ID: 8, Payload: Payload{Kind: KindBlobResume, BlobID: []byte{1, 2}}}},
+		{"a262696408677061796c6f6164a16a426c6f624f6666736574a1666f6666736574183c", Frame{ID: 8, Payload: Payload{Kind: KindBlobOffset, Offset: 60}}},
 	}
 	for _, v := range vectors {
 		want, _ := hex.DecodeString(v.hex)

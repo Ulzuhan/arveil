@@ -62,6 +62,21 @@ func (srv *Server) blobChunk(ctx context.Context, s *session, f channel.Frame) c
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
 
+// blobResume reports how much of an interrupted upload the realm holds.
+func (srv *Server) blobResume(ctx context.Context, s *session, f channel.Frame) channel.Frame {
+	if !s.member() {
+		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
+	}
+	if srv.Blobs == nil {
+		return errFrame(f.ID, channel.CodeInternal, "no blob store")
+	}
+	off, err := srv.Blobs.StagedOffset(ctx, s.device.IdentityID, f.Payload.BlobID)
+	if err != nil {
+		return blobError(f.ID, err)
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindBlobOffset, Offset: off}}
+}
+
 func (srv *Server) blobCommit(ctx context.Context, s *session, f channel.Frame, now time.Time) channel.Frame {
 	if e := srv.blobsReady(s, f); e != nil {
 		return *e

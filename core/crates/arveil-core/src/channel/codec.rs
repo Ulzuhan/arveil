@@ -69,6 +69,14 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         manifest: Vec<u8>,
     },
+    /// How much of an interrupted upload the realm already holds (M3.3).
+    BlobResume {
+        #[serde(with = "serde_bytes")]
+        blob_id: Vec<u8>,
+    },
+    BlobOffset {
+        offset: u64,
+    },
     /// Open a pairing rendezvous (M3.1). Allowed on a provisional session:
     /// the device that is pairing is not a member yet.
     PairBegin,
@@ -359,6 +367,16 @@ mod vector_dump {
             Frame {
                 id: 7,
                 payload: Payload::PairFetched { data: vec![6] },
+            },
+            Frame {
+                id: 8,
+                payload: Payload::BlobResume {
+                    blob_id: vec![1, 2],
+                },
+            },
+            Frame {
+                id: 8,
+                payload: Payload::BlobOffset { offset: 60 },
             },
         ];
         for f in &frames {

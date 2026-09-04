@@ -69,6 +69,16 @@ CREATE TABLE IF NOT EXISTS identity_devices (
     credential_hash BLOB NOT NULL,
     revoked         INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS outgoing_files (
+    path            TEXT PRIMARY KEY,
+    blob_id         BLOB NOT NULL,
+    read_capability BLOB NOT NULL,
+    file_key        BLOB NOT NULL,
+    nonce           BLOB NOT NULL,
+    ciphertext_hash BLOB NOT NULL,
+    size            INTEGER NOT NULL,
+    created_at      INTEGER NOT NULL DEFAULT (unixepoch())
+);
 CREATE TABLE IF NOT EXISTS contacts (
     identity_id BLOB PRIMARY KEY,
     root_public BLOB NOT NULL,
@@ -186,6 +196,18 @@ impl StoredDevice {
             &self.keys.mls_signing_public_key,
         )
     }
+}
+
+/// An upload the realm has partly received.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingUpload {
+    pub blob_id: Vec<u8>,
+    pub read_capability: Vec<u8>,
+    pub file_key: Vec<u8>,
+    pub nonce: Vec<u8>,
+    pub ciphertext_hash: Vec<u8>,
+    /// Size of the ciphertext, which is what the realm counts.
+    pub size: u64,
 }
 
 /// An identity this device has met, and whether the user verified it.
@@ -700,6 +722,55 @@ impl Client {
         )?;
         let rows = stmt.query_map([], |r| r.get(0))?;
         Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Remember an upload in flight so an interrupted one can continue with
+    /// the same key, nonce and blob id (M3.3).
+    pub fn upload_save(&self, path: &str, u: &PendingUpload) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT OR REPLACE INTO outgoing_files
+             (path, blob_id, read_capability, file_key, nonce, ciphertext_hash, size)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                path,
+                u.blob_id,
+                u.read_capability,
+                u.file_key,
+                u.nonce,
+                u.ciphertext_hash,
+                u.size as i64
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn upload_pending(&self, path: &str) -> Result<Option<PendingUpload>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT blob_id, read_capability, file_key, nonce, ciphertext_hash, size
+                 FROM outgoing_files WHERE path = ?1",
+                params![path],
+                |r| {
+                    Ok(PendingUpload {
+                        blob_id: r.get(0)?,
+                        read_capability: r.get(1)?,
+                        file_key: r.get(2)?,
+                        nonce: r.get(3)?,
+                        ciphertext_hash: r.get(4)?,
+                        size: r.get::<_, i64>(5)? as u64,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn upload_clear(&self, path: &str) -> Result<(), ClientError> {
+        self.conn
+            .lock()
+            .execute("DELETE FROM outgoing_files WHERE path = ?1", params![path])?;
+        Ok(())
     }
 
     /// Remember an identity seen in a conversation, with the root key its

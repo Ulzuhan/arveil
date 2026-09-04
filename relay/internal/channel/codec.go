@@ -70,6 +70,8 @@ const (
 	KindBlobCommit        = "BlobCommit"
 	KindBlobCommitted     = "BlobCommitted"
 	KindBlobFetch         = "BlobFetch"
+	KindBlobResume        = "BlobResume"
+	KindBlobOffset        = "BlobOffset"
 	KindBlobData          = "BlobData"
 )
 
@@ -159,6 +161,14 @@ type blobCommitBody struct {
 
 type blobCommittedBody struct {
 	EffectiveExpiry uint64 `cbor:"effective_expiry"`
+}
+
+type blobResumeBody struct {
+	BlobID []byte `cbor:"blob_id"`
+}
+
+type blobOffsetBody struct {
+	Offset uint64 `cbor:"offset"`
 }
 
 type blobFetchBody struct {
@@ -326,6 +336,10 @@ func Encode(f Frame) ([]byte, error) {
 		payload = map[string]blobCommitBody{KindBlobCommit: {BlobID: f.Payload.BlobID, CiphertextHash: f.Payload.CiphertextHash, RequestedExpiry: f.Payload.RequestedExpiry}}
 	case KindBlobCommitted:
 		payload = map[string]blobCommittedBody{KindBlobCommitted: {EffectiveExpiry: f.Payload.EffectiveExpiry}}
+	case KindBlobResume:
+		payload = map[string]blobResumeBody{KindBlobResume: {BlobID: f.Payload.BlobID}}
+	case KindBlobOffset:
+		payload = map[string]blobOffsetBody{KindBlobOffset: {Offset: f.Payload.Offset}}
 	case KindBlobFetch:
 		payload = map[string]blobFetchBody{KindBlobFetch: {BlobID: f.Payload.BlobID, ReadCapability: f.Payload.ReadCapability, Offset: f.Payload.Offset, Length: f.Payload.Length}}
 	case KindBlobData:
@@ -537,6 +551,18 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, EffectiveExpiry: v.EffectiveExpiry}
+		case KindBlobResume:
+			var v blobResumeBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, BlobID: v.BlobID}
+		case KindBlobOffset:
+			var v blobOffsetBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Offset: v.Offset}
 		case KindBlobFetch:
 			var v blobFetchBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

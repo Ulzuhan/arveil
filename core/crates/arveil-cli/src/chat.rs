@@ -1145,6 +1145,37 @@ pub fn history(data_dir: &Path) -> Result<(), CliError> {
 
 const BLOB_CHUNK: usize = 60 * 1024;
 
+/// Test hook: stop an upload after this many chunks, as a network would.
+fn crash_after_chunks() -> Option<usize> {
+    std::env::var("ARVEIL_CRASH_AFTER_CHUNKS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+}
+
+/// Test hook: stop a download after this many chunks.
+fn crash_after_download_chunks() -> Option<usize> {
+    std::env::var("ARVEIL_CRASH_AFTER_DOWNLOAD_CHUNKS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+}
+
+/// Open a new blob on the realm and report where to start writing.
+async fn begin_upload(
+    conn: &mut Connection,
+    size: usize,
+) -> Result<(Vec<u8>, Vec<u8>, usize), CliError> {
+    match conn
+        .request(Payload::BlobUploadBegin { size: size as u64 })
+        .await?
+    {
+        Payload::BlobUploadStarted {
+            blob_id,
+            read_capability,
+        } => Ok((blob_id, read_capability, 0)),
+        other => Err(CliError(format!("unexpected reply: {other:?}"))),
+    }
+}
+
 fn blob_expiry() -> u64 {
     std::env::var("ARVEIL_BLOB_TTL_SECS")
         .ok()
@@ -1173,33 +1204,104 @@ pub fn send_file(data_dir: &Path, bootstrap: &str, path: &Path) -> Result<(), Cl
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "file".into());
-    let enc = attachments::encrypt(&plaintext).map_err(err("encrypt"))?;
+    let key = path.to_string_lossy().to_string();
+
+    // An upload interrupted earlier is continued with the same key, nonce
+    // and blob id, so the bytes the realm already holds stay valid; only if
+    // the file itself changed does it start again (M3.3).
+    let pending = s.client.upload_pending(&key).map_err(err("uploads"))?;
+    let enc = match &pending {
+        Some(u) => {
+            let again = attachments::encrypt_with(&u.file_key, &u.nonce, &plaintext)
+                .map_err(err("encrypt"))?;
+            if again.ciphertext_hash == u.ciphertext_hash {
+                Some(again)
+            } else {
+                println!("upload: {name} changed since the interrupted attempt; starting again");
+                s.client.upload_clear(&key).map_err(err("uploads"))?;
+                None
+            }
+        }
+        None => None,
+    };
+    let (enc, pending) = match enc {
+        Some(e) => (e, pending),
+        None => (
+            attachments::encrypt(&plaintext).map_err(err("encrypt"))?,
+            None,
+        ),
+    };
 
     let (blob_id, read_capability, expiry) = block_on(async {
         let mut conn = connect(&s, &b).await?;
-        let (blob_id, read_capability) = match conn
-            .request(Payload::BlobUploadBegin {
-                size: enc.ciphertext.len() as u64,
-            })
-            .await?
-        {
-            Payload::BlobUploadStarted {
-                blob_id,
-                read_capability,
-            } => (blob_id, read_capability),
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        // Where to continue: what the realm says it holds, or a new blob.
+        let (blob_id, read_capability, mut offset) = match &pending {
+            Some(u) => {
+                match conn
+                    .request(Payload::BlobResume {
+                        blob_id: u.blob_id.clone(),
+                    })
+                    .await
+                {
+                    Ok(Payload::BlobOffset { offset }) => {
+                        println!(
+                            "upload: resuming {name} at {offset} of {} ciphertext bytes",
+                            enc.ciphertext.len()
+                        );
+                        (
+                            u.blob_id.clone(),
+                            u.read_capability.clone(),
+                            offset as usize,
+                        )
+                    }
+                    Ok(other) => return Err(CliError(format!("unexpected reply: {other:?}"))),
+                    // The realm dropped it (expired, swept, committed):
+                    // start a fresh upload rather than guess.
+                    Err(e) => {
+                        println!(
+                            "upload: the realm no longer holds the interrupted upload ({e}); starting again"
+                        );
+                        begin_upload(&mut conn, enc.ciphertext.len()).await?
+                    }
+                }
+            }
+            None => begin_upload(&mut conn, enc.ciphertext.len()).await?,
         };
-        for (i, chunk) in enc.ciphertext.chunks(BLOB_CHUNK).enumerate() {
+        s.client
+            .upload_save(
+                &key,
+                &arveil_core::client::PendingUpload {
+                    blob_id: blob_id.clone(),
+                    read_capability: read_capability.clone(),
+                    file_key: enc.file_key.clone(),
+                    nonce: enc.nonce.clone(),
+                    ciphertext_hash: enc.ciphertext_hash.clone(),
+                    size: enc.ciphertext.len() as u64,
+                },
+            )
+            .map_err(err("uploads"))?;
+
+        let mut sent = 0usize;
+        while offset < enc.ciphertext.len() {
+            let end = (offset + BLOB_CHUNK).min(enc.ciphertext.len());
             match conn
                 .request(Payload::BlobChunk {
                     blob_id: blob_id.clone(),
-                    offset: (i * BLOB_CHUNK) as u64,
-                    data: chunk.to_vec(),
+                    offset: offset as u64,
+                    data: enc.ciphertext[offset..end].to_vec(),
                 })
                 .await?
             {
                 Payload::Ack => {}
                 other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+            }
+            offset = end;
+            sent += 1;
+            if let Some(limit) = crash_after_chunks()
+                && sent >= limit
+            {
+                eprintln!("simulated interruption after {sent} chunk(s), at offset {offset}");
+                std::process::exit(4);
             }
         }
         let expiry = match conn
@@ -1216,6 +1318,7 @@ pub fn send_file(data_dir: &Path, bootstrap: &str, path: &Path) -> Result<(), Cl
         conn.close().await;
         Ok((blob_id, read_capability, expiry))
     })??;
+    s.client.upload_clear(&key).map_err(err("uploads"))?;
     println!(
         "blob: {} uploaded ({} bytes of ciphertext, relay keeps it until {expiry})",
         hex::encode(&blob_id),
@@ -1307,8 +1410,24 @@ async fn download_pending(
                 continue;
             }
         };
-        let mut ciphertext = Vec::new();
+        // Ciphertext accumulates in a `.part` file, so a download that was
+        // interrupted continues where it stopped instead of starting over.
+        let part = dir.join(format!("{}.part", d.safe_name()));
+        let mut ciphertext = std::fs::read(&part).unwrap_or_default();
+        if !ciphertext.is_empty() {
+            if ciphertext.len() as u64 > d.size + 16 {
+                // Not ours, or corrupt: start again rather than guess.
+                ciphertext.clear();
+            } else {
+                println!(
+                    "file: resuming {} at {} bytes",
+                    d.safe_name(),
+                    ciphertext.len()
+                );
+            }
+        }
         let mut failure: Option<String> = None;
+        let mut chunks = 0usize;
         loop {
             match conn
                 .request(Payload::BlobFetch {
@@ -1324,6 +1443,17 @@ async fn download_pending(
                         break;
                     }
                     ciphertext.extend_from_slice(&data);
+                    std::fs::write(&part, &ciphertext).map_err(err("partial file"))?;
+                    chunks += 1;
+                    if let Some(limit) = crash_after_download_chunks()
+                        && chunks >= limit
+                    {
+                        eprintln!(
+                            "simulated interruption after {chunks} chunk(s), at {} bytes",
+                            ciphertext.len()
+                        );
+                        std::process::exit(4);
+                    }
                     if ciphertext.len() as u64 >= total_size {
                         break;
                     }
@@ -1347,6 +1477,11 @@ async fn download_pending(
                     std::fs::write(&target, &plain)
                         .map(|_| target)
                         .map_err(|e| e.to_string())
+                })
+                .inspect(|_| {
+                    // The whole file is verified and written: the partial
+                    // copy has no further use.
+                    let _ = std::fs::remove_file(&part);
                 }),
         };
         match outcome {

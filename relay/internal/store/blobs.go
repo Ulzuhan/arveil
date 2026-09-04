@@ -158,6 +158,26 @@ func (b *BlobStore) Chunk(ctx context.Context, ownerIdentity, id []byte, offset 
 	return err
 }
 
+// StagedOffset reports how much of a staging blob the realm already holds,
+// so an interrupted upload can continue instead of starting again. A blob
+// that is committed, gone or owned by somebody else reports nothing.
+func (b *BlobStore) StagedOffset(ctx context.Context, ownerIdentity, id []byte) (uint64, error) {
+	var stored int64
+	var state string
+	err := b.s.db.QueryRowContext(ctx, `SELECT stored_size, state FROM blobs WHERE blob_id = ? AND owner_identity = ?`, id, ownerIdentity).
+		Scan(&stored, &state)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrBlobUnknown
+	}
+	if err != nil {
+		return 0, err
+	}
+	if state != BlobStaging {
+		return 0, ErrBlobState
+	}
+	return uint64(stored), nil
+}
+
 // Commit verifies size and hash, fsyncs, renames into place, then marks the
 // row committed with its expiry. Returns the effective expiry.
 func (b *BlobStore) Commit(ctx context.Context, ownerIdentity, id, ciphertextHash []byte, requestedExpiry int64, now time.Time) (int64, error) {

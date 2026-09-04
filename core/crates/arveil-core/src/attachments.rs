@@ -106,17 +106,32 @@ pub fn sha256(bytes: &[u8]) -> Vec<u8> {
 
 /// Encrypt a whole file with a fresh key and nonce.
 pub fn encrypt(plaintext: &[u8]) -> Result<Encrypted, AttachmentError> {
-    if plaintext.len() > MAX_FILE_BYTES {
-        return Err(AttachmentError::TooLarge(plaintext.len()));
-    }
     let mut file_key = [0u8; 32];
     let mut nonce = [0u8; 12];
     getrandom::fill(&mut file_key).map_err(|_| AttachmentError::Random)?;
     getrandom::fill(&mut nonce).map_err(|_| AttachmentError::Random)?;
-    let cipher = Aes256Gcm::new_from_slice(&file_key).map_err(|_| AttachmentError::Encrypt)?;
+    encrypt_with(&file_key, &nonce, plaintext)
+}
+
+/// Encrypt with a key and nonce already chosen. Used when an interrupted
+/// upload resumes: the same inputs give the same ciphertext, so the bytes
+/// the realm already holds stay valid (M3.3). Never call it twice with the
+/// same key and nonce over different plaintext.
+pub fn encrypt_with(
+    file_key: &[u8],
+    nonce: &[u8],
+    plaintext: &[u8],
+) -> Result<Encrypted, AttachmentError> {
+    if plaintext.len() > MAX_FILE_BYTES {
+        return Err(AttachmentError::TooLarge(plaintext.len()));
+    }
+    if nonce.len() != 12 {
+        return Err(AttachmentError::Encrypt);
+    }
+    let cipher = Aes256Gcm::new_from_slice(file_key).map_err(|_| AttachmentError::Encrypt)?;
     let ciphertext = cipher
         .encrypt(
-            Nonce::from_slice(&nonce),
+            Nonce::from_slice(nonce),
             Payload {
                 msg: plaintext,
                 aad: AAD,
@@ -196,6 +211,16 @@ mod tests {
         // Descriptor round trip.
         let bytes = d.encode().unwrap();
         assert_eq!(FileDescriptor::decode(&bytes).unwrap(), d);
+    }
+
+    #[test]
+    fn the_same_key_and_nonce_reproduce_the_ciphertext() {
+        let plain = vec![3u8; 5000];
+        let a = encrypt(&plain).unwrap();
+        let b = encrypt_with(&a.file_key, &a.nonce, &plain).unwrap();
+        assert_eq!(a.ciphertext, b.ciphertext);
+        assert_eq!(a.ciphertext_hash, b.ciphertext_hash);
+        assert!(encrypt_with(&a.file_key, &[0; 11], &plain).is_err());
     }
 
     #[test]

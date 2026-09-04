@@ -73,6 +73,8 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.blobCommit(ctx, s, f, now)
 	case channel.KindBlobFetch:
 		return srv.blobFetch(ctx, s, f, now)
+	case channel.KindBlobResume:
+		return srv.blobResume(ctx, s, f)
 	case channel.KindKeyPackagesPublish:
 		return srv.keyPackagesPublish(ctx, s, f, now)
 	case channel.KindKeyPackagesClaim:

@@ -152,4 +152,38 @@ NUM_C="$(grep -A1 "^contact $CAROL_ID" "$DATA/bob.contacts3" | sed -n 's/^  safe
 [ -n "$NUM_C" ] || fail "carol is not a contact of bob"
 [ "$NUM_C" != "$NUM_B" ] || fail "two identities produced the same number"
 
+step "M3.3 resumable transfers: an interrupted upload continues where it stopped"
+head -c 400000 /dev/urandom > "$DATA/foto.bin"
+set +e
+ARVEIL_CRASH_AFTER_CHUNKS=2 "$CLI" chat send-file --data-dir "$DATA/bob" "$BOOTSTRAP2" "$DATA/foto.bin" > "$DATA/bob.upload1" 2>&1
+rc=$?
+set -e
+[ "$rc" = 4 ] || { cat "$DATA/bob.upload1"; fail "expected the simulated interruption to exit 4, got $rc"; }
+grep -q "simulated interruption after 2 chunk" "$DATA/bob.upload1" || fail "the upload was not interrupted where expected"
+"$CLI" chat send-file --data-dir "$DATA/bob" "$BOOTSTRAP2" "$DATA/foto.bin" | tee "$DATA/bob.upload2"
+grep -q "upload: resuming foto.bin at 122880 of" "$DATA/bob.upload2" || fail "the upload did not resume at what the realm already held"
+grep -q "^blob: .* uploaded" "$DATA/bob.upload2" || fail "the resumed upload did not finish"
+
+step "M3.3 an interrupted download continues, and the file matches"
+set +e
+ARVEIL_CRASH_AFTER_DOWNLOAD_CHUNKS=2 "$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" > "$DATA/alice.dl1" 2>&1
+rc=$?
+set -e
+[ "$rc" = 4 ] || { cat "$DATA/alice.dl1"; fail "expected the download interruption to exit 4, got $rc"; }
+[ -f "$DATA/alice/downloads/foto.bin.part" ] || fail "no partial file was kept"
+[ ! -f "$DATA/alice/downloads/foto.bin" ] || fail "an unverified file was written"
+"$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" | tee "$DATA/alice.dl2"
+grep -q "file: resuming foto.bin at 122880 bytes" "$DATA/alice.dl2" || fail "the download did not resume"
+grep -q "file: foto.bin saved to" "$DATA/alice.dl2" || fail "the resumed download did not finish"
+cmp "$DATA/foto.bin" "$DATA/alice/downloads/foto.bin" || fail "the resumed file does not match the original"
+[ ! -f "$DATA/alice/downloads/foto.bin.part" ] || fail "the partial file was left behind"
+
+step "M3.3 a changed file starts a new upload instead of mixing bytes"
+ARVEIL_CRASH_AFTER_CHUNKS=1 "$CLI" chat send-file --data-dir "$DATA/bob" "$BOOTSTRAP2" "$DATA/foto.bin" > "$DATA/bob.upload3" 2>&1 || true
+head -c 400000 /dev/urandom > "$DATA/foto.bin"
+"$CLI" chat send-file --data-dir "$DATA/bob" "$BOOTSTRAP2" "$DATA/foto.bin" | tee "$DATA/bob.upload4"
+grep -q "changed since the interrupted attempt; starting again" "$DATA/bob.upload4" || fail "a changed file was resumed as if it were the same"
+"$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" > "$DATA/alice.dl3"
+cmp "$DATA/foto.bin" "$DATA/alice/downloads/foto.bin" || fail "the second file does not match"
+
 step "phase 3 checks so far ok"
