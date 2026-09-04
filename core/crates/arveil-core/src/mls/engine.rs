@@ -32,14 +32,29 @@ pub struct MlsIdentity {
 }
 
 impl MlsIdentity {
+    /// Rebuild from stored key bytes; `identity` is the BasicCredential
+    /// identity (the device id in Arveil).
+    pub fn from_parts(identity: &[u8], secret: &[u8], public: &[u8]) -> Self {
+        let credential = BasicCredential::new(identity.to_vec()).into_credential();
+        Self {
+            signing_identity: SigningIdentity::new(credential, public.to_vec().into()),
+            secret: secret.to_vec().into(),
+        }
+    }
+
     pub fn generate(name: &str) -> Result<Self, MlsError> {
+        Self::generate_for(name.as_bytes())
+    }
+
+    /// Generate a signing key with an arbitrary BasicCredential identity.
+    pub fn generate_for(identity: &[u8]) -> Result<Self, MlsError> {
         let suite = RustCryptoProvider::default()
             .cipher_suite_provider(CIPHERSUITE)
             .ok_or(MlsError::UnsupportedCipherSuite(CIPHERSUITE))?;
         let (secret, public) = suite
             .signature_key_generate()
             .map_err(|e| MlsError::CryptoProviderError(e.into_any_error()))?;
-        let credential = BasicCredential::new(name.as_bytes().to_vec()).into_credential();
+        let credential = BasicCredential::new(identity.to_vec()).into_credential();
         Ok(Self {
             signing_identity: SigningIdentity::new(credential, public),
             secret,

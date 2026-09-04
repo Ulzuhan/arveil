@@ -80,3 +80,21 @@ jobs:
         with:
           workspaces: core
       - run: ./scripts/interop.sh
+
+  demo:
+    name: Phase 0 demo (MLS chat, relay restart, crash injection, inventory)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - run: sudo apt-get install -y sqlite3
+      - run: ./scripts/demo.sh

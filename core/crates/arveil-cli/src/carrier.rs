@@ -28,6 +28,12 @@ impl fmt::Display for CliError {
 
 impl std::error::Error for CliError {}
 
+impl From<rusqlite::Error> for CliError {
+    fn from(e: rusqlite::Error) -> Self {
+        CliError(format!("sqlite: {e}"))
+    }
+}
+
 pub fn err<E: fmt::Display>(context: &str) -> impl FnOnce(E) -> CliError + '_ {
     move |e| CliError(format!("{context}: {e}"))
 }

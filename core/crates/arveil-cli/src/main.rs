@@ -6,6 +6,7 @@
 use std::process::ExitCode;
 
 mod carrier;
+mod chat;
 mod commands;
 
 const USAGE: &str = "usage:
@@ -16,7 +17,11 @@ const USAGE: &str = "usage:
   arveil status --data-dir <dir>
   arveil mailbox create --data-dir <dir> <bootstrap>
   arveil send --data-dir <dir> <bootstrap> <route> <text>
-  arveil fetch --data-dir <dir> <bootstrap>";
+  arveil fetch --data-dir <dir> <bootstrap>
+  arveil chat start --data-dir <dir> <bootstrap> <peer-route>
+  arveil chat send --data-dir <dir> <bootstrap> <text>
+  arveil chat sync --data-dir <dir> <bootstrap>
+  arveil chat history --data-dir <dir>";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -55,6 +60,22 @@ fn main() -> ExitCode {
         },
         ["fetch", bootstrap] => match data_dir {
             Some(d) => commands::fetch(&d, bootstrap),
+            None => usage(),
+        },
+        ["chat", "start", bootstrap, route] => match data_dir {
+            Some(d) => chat::start(&d, bootstrap, route),
+            None => usage(),
+        },
+        ["chat", "send", bootstrap, text] => match data_dir {
+            Some(d) => chat::send(&d, bootstrap, text),
+            None => usage(),
+        },
+        ["chat", "sync", bootstrap] => match data_dir {
+            Some(d) => chat::sync(&d, bootstrap),
+            None => usage(),
+        },
+        ["chat", "history"] => match data_dir {
+            Some(d) => chat::history(&d),
             None => usage(),
         },
         _ => usage(),

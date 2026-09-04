@@ -53,6 +53,13 @@ type EnvelopeItem struct {
 	Ciphertext []byte `cbor:"ciphertext"`
 }
 
+// KeyPackage frames (PROTOCOL §5).
+const (
+	KindKeyPackagesPublish = "KeyPackagesPublish"
+	KindKeyPackagesClaim   = "KeyPackagesClaim"
+	KindKeyPackageClaimed  = "KeyPackageClaimed"
+)
+
 var ErrFrameTooLarge = errors.New("codec: frame exceeds the size limit")
 
 // Frame is `{ id, payload }`.
@@ -89,6 +96,21 @@ type Payload struct {
 	Limit           uint16
 	Items           []EnvelopeItem
 	DeliveryIDs     [][]byte
+	// KeyPackages
+	KeyPackages [][]byte
+	KeyPackage  []byte
+}
+
+type keyPackagesPublishBody struct {
+	KeyPackages [][]byte `cbor:"key_packages"`
+}
+
+type keyPackagesClaimBody struct {
+	IdentityID []byte `cbor:"identity_id"`
+}
+
+type keyPackageClaimedBody struct {
+	KeyPackage []byte `cbor:"key_package"`
 }
 
 type mailboxCreatedBody struct {
@@ -176,6 +198,16 @@ func Encode(f Frame) ([]byte, error) {
 	switch f.Payload.Kind {
 	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate:
 		payload = f.Payload.Kind
+	case KindKeyPackagesPublish:
+		kps := f.Payload.KeyPackages
+		if kps == nil {
+			kps = [][]byte{}
+		}
+		payload = map[string]keyPackagesPublishBody{KindKeyPackagesPublish: {KeyPackages: kps}}
+	case KindKeyPackagesClaim:
+		payload = map[string]keyPackagesClaimBody{KindKeyPackagesClaim: {IdentityID: f.Payload.IdentityID}}
+	case KindKeyPackageClaimed:
+		payload = map[string]keyPackageClaimedBody{KindKeyPackageClaimed: {KeyPackage: f.Payload.KeyPackage}}
 	case KindMailboxCreated:
 		payload = map[string]mailboxCreatedBody{KindMailboxCreated: {MailboxID: f.Payload.MailboxID, ReadCapability: f.Payload.ReadCapability, WriteCapability: f.Payload.WriteCapability}}
 	case KindEnvelopePut:
@@ -293,6 +325,24 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Manifest: v.Manifest}
+		case KindKeyPackagesPublish:
+			var v keyPackagesPublishBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, KeyPackages: v.KeyPackages}
+		case KindKeyPackagesClaim:
+			var v keyPackagesClaimBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, IdentityID: v.IdentityID}
+		case KindKeyPackageClaimed:
+			var v keyPackageClaimedBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, KeyPackage: v.KeyPackage}
 		case KindMailboxCreated:
 			var v mailboxCreatedBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

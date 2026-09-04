@@ -13,11 +13,14 @@ path = "src/main.rs"
 
 [dependencies]
 arveil-core = { path = "../arveil-core" }
+ciborium = "0.2"
 ed25519-dalek = "3"
 futures-util = "0.3.34"
 getrandom = "0.4.3"
 hex = "0.4.3"
+mls-rs = "0.56"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
 serde_bytes = "0.11.19"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros"] }
 tokio-tungstenite = "0.30"

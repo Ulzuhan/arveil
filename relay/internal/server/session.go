@@ -55,6 +55,10 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.credentialPut(ctx, s, f, now)
 	case channel.KindManifestPut:
 		return srv.manifestPut(ctx, s, f)
+	case channel.KindKeyPackagesPublish:
+		return srv.keyPackagesPublish(ctx, s, f, now)
+	case channel.KindKeyPackagesClaim:
+		return srv.keyPackagesClaim(ctx, s, f)
 	case channel.KindMailboxCreate:
 		return srv.mailboxCreate(ctx, s, f, now)
 	case channel.KindEnvelopePut:

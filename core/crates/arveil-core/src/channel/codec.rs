@@ -69,6 +69,19 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         manifest: Vec<u8>,
     },
+    /// Publish a bounded batch of KeyPackages for the session's device.
+    KeyPackagesPublish {
+        key_packages: Vec<serde_bytes::ByteBuf>,
+    },
+    /// Claim one KeyPackage of an identity (consumed atomically).
+    KeyPackagesClaim {
+        #[serde(with = "serde_bytes")]
+        identity_id: Vec<u8>,
+    },
+    KeyPackageClaimed {
+        #[serde(with = "serde_bytes")]
+        key_package: Vec<u8>,
+    },
     /// Create a mailbox owned by the session's device (member only).
     MailboxCreate,
     MailboxCreated {

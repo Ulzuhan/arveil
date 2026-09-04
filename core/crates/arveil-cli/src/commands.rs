@@ -8,7 +8,7 @@ use arveil_core::channel::codec::Payload;
 use arveil_core::client::{Client, OwnMailbox};
 use arveil_core::delivery::Delivery;
 use arveil_core::envelope::{self, EnvelopeContext};
-use arveil_core::mls::MlsIdentity;
+use arveil_core::mls;
 use arveil_core::storage::SharedConn;
 
 /// Phase 0 CLI payload kind: plain text without MLS. The chat demo (M0.6)
@@ -59,12 +59,7 @@ pub fn enroll(data_dir: &Path, bootstrap: &str, invite_hex: &str) -> Result<(), 
                 .ok_or_else(|| CliError("device without manifest".into()))?;
             (d, m)
         }
-        None => {
-            let mls = MlsIdentity::generate("device").map_err(err("mls identity"))?;
-            let public = mls.signing_identity.signature_key.to_vec();
-            let secret = mls.secret.as_bytes().to_vec();
-            c.device_new(secret, public, now()).map_err(err("device"))?
-        }
+        None => c.device_new(now()).map_err(err("device"))?,
     };
     c.realm_save(&b.realm_id, &b.signing_key, &b.noise_public, &b.url)
         .map_err(err("realm"))?;
@@ -104,6 +99,49 @@ pub fn enroll(data_dir: &Path, bootstrap: &str, invite_hex: &str) -> Result<(), 
             other => return Err(CliError(format!("unexpected reply: {other:?}"))),
         }
         c.realm_mark_enrolled(&b.realm_id).map_err(err("realm"))?;
+
+        // Phase 0 convenience: a mailbox and a first batch of KeyPackages
+        // right away, so the contact card can be printed.
+        let identity_id = c
+            .root()
+            .map_err(err("identity"))?
+            .ok_or_else(|| CliError("no identity".into()))?
+            .identity_id();
+        let m = match conn.request(Payload::MailboxCreate).await? {
+            Payload::MailboxCreated {
+                mailbox_id,
+                read_capability,
+                write_capability,
+            } => {
+                let m = OwnMailbox {
+                    mailbox_id,
+                    read_capability,
+                    write_capability,
+                };
+                c.mailbox_save(&m).map_err(err("mailbox"))?;
+                m
+            }
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        };
+        let engine = mls::open(c.conn.clone(), device.mls_identity());
+        let mut key_packages = Vec::new();
+        for _ in 0..5 {
+            let kp = engine.key_package().map_err(err("key package"))?;
+            key_packages.push(serde_bytes::ByteBuf::from(
+                kp.to_bytes().map_err(err("key package"))?,
+            ));
+        }
+        match conn
+            .request(Payload::KeyPackagesPublish { key_packages })
+            .await?
+        {
+            Payload::Ack => println!("key packages: 5 published"),
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+        println!(
+            "route: {}",
+            route_string(&identity_id, &m, &device.keys.envelope_hpke.public)
+        );
         conn.close().await;
         Ok(())
     })?
@@ -250,37 +288,41 @@ pub fn data_dir_arg(args: &[String]) -> (Option<PathBuf>, Vec<String>) {
     (dir, rest)
 }
 
-/// `arveil-route:v0:<mailbox_id>:<write_capability>:<hpke_public>`: what a
-/// contact needs to deliver to this device. Exchanged out of band in
-/// Phase 0; inside MLS-protected events later (PROTOCOL §4).
-fn route_string(m: &OwnMailbox, hpke_public: &[u8]) -> String {
+/// `arveil-route:v0:<identity_id>:<mailbox_id>:<write_capability>:<hpke_public>`:
+/// the contact card a peer needs to claim this identity's KeyPackage and
+/// deliver to this device. Exchanged out of band in Phase 0; inside
+/// MLS-protected events once a group exists (PROTOCOL §4).
+pub fn route_string(identity_id: &[u8], m: &OwnMailbox, hpke_public: &[u8]) -> String {
     format!(
-        "arveil-route:v0:{}:{}:{}",
+        "arveil-route:v0:{}:{}:{}:{}",
+        hex::encode(identity_id),
         hex::encode(&m.mailbox_id),
         hex::encode(&m.write_capability),
         hex::encode(hpke_public)
     )
 }
 
-struct Route {
-    mailbox_id: Vec<u8>,
-    write_capability: Vec<u8>,
-    hpke_public: Vec<u8>,
+pub struct Route {
+    pub identity_id: Vec<u8>,
+    pub mailbox_id: Vec<u8>,
+    pub write_capability: Vec<u8>,
+    pub hpke_public: Vec<u8>,
 }
 
-fn parse_route(s: &str) -> Result<Route, CliError> {
+pub fn parse_route(s: &str) -> Result<Route, CliError> {
     let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 5 || parts[0] != "arveil-route" || parts[1] != "v0" {
+    if parts.len() != 6 || parts[0] != "arveil-route" || parts[1] != "v0" {
         return Err(CliError("not an arveil-route:v0 string".into()));
     }
     Ok(Route {
-        mailbox_id: hex::decode(parts[2]).map_err(err("mailbox id"))?,
-        write_capability: hex::decode(parts[3]).map_err(err("write capability"))?,
-        hpke_public: hex::decode(parts[4]).map_err(err("hpke key"))?,
+        identity_id: hex::decode(parts[2]).map_err(err("identity id"))?,
+        mailbox_id: hex::decode(parts[3]).map_err(err("mailbox id"))?,
+        write_capability: hex::decode(parts[4]).map_err(err("write capability"))?,
+        hpke_public: hex::decode(parts[5]).map_err(err("hpke key"))?,
     })
 }
 
-fn enrolled(
+pub fn enrolled(
     data_dir: &Path,
 ) -> Result<
     (
@@ -303,7 +345,7 @@ fn enrolled(
     Ok((c, d, r))
 }
 
-fn random_delivery_id() -> Result<Vec<u8>, CliError> {
+pub fn random_delivery_id() -> Result<Vec<u8>, CliError> {
     let mut id = [0u8; 16];
     getrandom::fill(&mut id).map_err(err("random"))?;
     Ok(id.to_vec())
@@ -313,8 +355,16 @@ fn random_delivery_id() -> Result<Vec<u8>, CliError> {
 pub fn mailbox_create(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let (c, d, _) = enrolled(data_dir)?;
+    let identity_id = c
+        .root()
+        .map_err(err("identity"))?
+        .ok_or_else(|| CliError("no identity".into()))?
+        .identity_id();
     if let Some(m) = c.mailbox_own().map_err(err("mailbox"))? {
-        println!("route: {}", route_string(&m, &d.keys.envelope_hpke.public));
+        println!(
+            "route: {}",
+            route_string(&identity_id, &m, &d.keys.envelope_hpke.public)
+        );
         return Ok(());
     }
     block_on(async {
@@ -338,7 +388,10 @@ pub fn mailbox_create(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> 
                 };
                 c.mailbox_save(&m).map_err(err("mailbox"))?;
                 println!("mailbox: {} created", hex::encode(&m.mailbox_id));
-                println!("route: {}", route_string(&m, &d.keys.envelope_hpke.public));
+                println!(
+                    "route: {}",
+                    route_string(&identity_id, &m, &d.keys.envelope_hpke.public)
+                );
             }
             other => return Err(CliError(format!("unexpected reply: {other:?}"))),
         }

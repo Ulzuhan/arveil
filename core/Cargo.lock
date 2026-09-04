@@ -52,11 +52,14 @@ name = "arveil-cli"
 version = "0.0.1"
 dependencies = [
  "arveil-core",
+ "ciborium",
  "ed25519-dalek 3.0.0",
  "futures-util",
  "getrandom 0.4.3",
  "hex",
+ "mls-rs",
  "rusqlite",
+ "serde",
  "serde_bytes",
  "tokio",
  "tokio-tungstenite",

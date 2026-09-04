@@ -80,3 +80,33 @@ func (srv *Server) envelopeAck(ctx context.Context, s *session, f channel.Frame,
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
+
+func (srv *Server) keyPackagesPublish(ctx context.Context, s *session, f channel.Frame, now time.Time) channel.Frame {
+	if !s.member() {
+		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
+	}
+	err := srv.Store.PublishKeyPackages(ctx, s.device.IdentityID, s.device.DeviceID, f.Payload.KeyPackages, now)
+	switch {
+	case errors.Is(err, store.ErrKeyPackageBatch):
+		return errFrame(f.ID, channel.CodeQuota, "key package batch exceeds the bound")
+	case errors.Is(err, store.ErrEnvelopeTooBig):
+		return errFrame(f.ID, channel.CodeTooLarge, "key package too large")
+	case err != nil:
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
+}
+
+func (srv *Server) keyPackagesClaim(ctx context.Context, s *session, f channel.Frame) channel.Frame {
+	if !s.member() {
+		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
+	}
+	kp, err := srv.Store.ClaimKeyPackage(ctx, f.Payload.IdentityID)
+	if errors.Is(err, store.ErrNoKeyPackage) {
+		return errFrame(f.ID, channel.CodeGone, "no key package available")
+	}
+	if err != nil {
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindKeyPackageClaimed, KeyPackage: kp}}
+}

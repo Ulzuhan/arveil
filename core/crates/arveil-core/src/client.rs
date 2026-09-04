@@ -13,6 +13,7 @@ use crate::identity::{
     self, DeviceKeys, DevicePublicKeys, ManifestState, RootKey, USE_ENVELOPE, USE_MLS_LEAF,
     USE_TRANSPORT, Validity,
 };
+use crate::mls::MlsIdentity;
 use crate::storage::SharedConn;
 
 pub const CLIENT_SCHEMA: &str = "
@@ -44,6 +45,14 @@ CREATE TABLE IF NOT EXISTS mailbox_own (
     read_capability  BLOB NOT NULL,
     write_capability BLOB NOT NULL,
     created_at       INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE TABLE IF NOT EXISTS conversations (
+    group_id       BLOB PRIMARY KEY,
+    peer_identity  BLOB NOT NULL,
+    peer_mailbox   BLOB,
+    peer_write_cap BLOB,
+    peer_hpke      BLOB,
+    created_at     INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE TABLE IF NOT EXISTS realm (
     realm_id          BLOB PRIMARY KEY,
@@ -102,6 +111,26 @@ pub struct StoredDevice {
     pub credential_hash: Vec<u8>,
 }
 
+impl StoredDevice {
+    pub fn mls_identity(&self) -> MlsIdentity {
+        MlsIdentity::from_parts(
+            &self.keys.device_id,
+            &self.mls_signing_secret,
+            &self.keys.mls_signing_public_key,
+        )
+    }
+}
+
+/// A 1:1 conversation and the route of its peer device.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Conversation {
+    pub group_id: Vec<u8>,
+    pub peer_identity: Vec<u8>,
+    pub peer_mailbox: Option<Vec<u8>>,
+    pub peer_write_cap: Option<Vec<u8>>,
+    pub peer_hpke: Option<Vec<u8>>,
+}
+
 /// A mailbox this device owns on the realm.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OwnMailbox {
@@ -154,17 +183,20 @@ impl Client {
         }))
     }
 
-    /// Generate this device's keys, issue its credential and the first
+    /// Generate this device's keys (its MLS signing identity uses the device
+    /// id as BasicCredential identity), issue its credential and the first
     /// manifest under the local root, and persist everything in one unit of
     /// work. Returns the device and the signed manifest bytes.
-    pub fn device_new(
-        &self,
-        mls_signing_secret: Vec<u8>,
-        mls_signing_public: Vec<u8>,
-        now: u64,
-    ) -> Result<(StoredDevice, Vec<u8>), ClientError> {
+    pub fn device_new(&self, now: u64) -> Result<(StoredDevice, Vec<u8>), ClientError> {
         let root = self.root()?.ok_or(ClientError::NoIdentity)?;
-        let keys = DeviceKeys::generate(mls_signing_public.clone())?;
+        let mut device_id = [0u8; 16];
+        getrandom::fill(&mut device_id).map_err(|_| identity::IdentityError::Random)?;
+        let mls =
+            MlsIdentity::generate_for(&device_id).map_err(|e| ClientError::Mls(e.to_string()))?;
+        let mls_signing_public = mls.signing_identity.signature_key.to_vec();
+        let mls_signing_secret = mls.secret.as_bytes().to_vec();
+        let mut keys = DeviceKeys::generate(mls_signing_public.clone())?;
+        keys.device_id = device_id;
         let public: DevicePublicKeys = keys.public();
         let credential = identity::issue_credential(
             &root,
@@ -331,6 +363,56 @@ impl Client {
             params![signed, list.sequence as i64, list.realm_noise_public_key, realm_id],
         )?;
         Ok(list)
+    }
+
+    pub fn conversation_save(&self, c: &Conversation) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT INTO conversations (group_id, peer_identity, peer_mailbox, peer_write_cap, peer_hpke)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(group_id) DO UPDATE SET peer_identity = excluded.peer_identity,
+               peer_mailbox = COALESCE(excluded.peer_mailbox, peer_mailbox),
+               peer_write_cap = COALESCE(excluded.peer_write_cap, peer_write_cap),
+               peer_hpke = COALESCE(excluded.peer_hpke, peer_hpke)",
+            params![c.group_id, c.peer_identity, c.peer_mailbox, c.peer_write_cap, c.peer_hpke],
+        )?;
+        Ok(())
+    }
+
+    pub fn conversation(&self, group_id: &[u8]) -> Result<Option<Conversation>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT group_id, peer_identity, peer_mailbox, peer_write_cap, peer_hpke FROM conversations WHERE group_id = ?1",
+                params![group_id],
+                |r| {
+                    Ok(Conversation {
+                        group_id: r.get(0)?,
+                        peer_identity: r.get(1)?,
+                        peer_mailbox: r.get(2)?,
+                        peer_write_cap: r.get(3)?,
+                        peer_hpke: r.get(4)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn conversations(&self) -> Result<Vec<Conversation>, ClientError> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT group_id, peer_identity, peer_mailbox, peer_write_cap, peer_hpke FROM conversations ORDER BY created_at",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(Conversation {
+                group_id: r.get(0)?,
+                peer_identity: r.get(1)?,
+                peer_mailbox: r.get(2)?,
+                peer_write_cap: r.get(3)?,
+                peer_hpke: r.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
     }
 
     pub fn mailbox_save(&self, m: &OwnMailbox) -> Result<(), ClientError> {
