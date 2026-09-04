@@ -14,7 +14,7 @@ test-utils = []
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(mls_build_async)'] }
 
 [dependencies]
-arveil-core = { path = "../../core/crates/arveil-core" }
+arveil-core = { path = "../../core/crates/arveil-core", default-features = false }
 maybe-async = "0.2"
 mls-rs = "0.56"
 mls-rs-core = "0.27"

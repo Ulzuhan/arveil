@@ -16,6 +16,7 @@ pub mod delivery;
 pub mod envelope;
 pub mod identity;
 pub mod mls;
+#[cfg(feature = "recovery")]
 pub mod recovery;
 pub mod signed;
 pub mod storage;

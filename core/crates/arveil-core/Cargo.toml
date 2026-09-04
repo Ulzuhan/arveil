@@ -7,9 +7,16 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+default = ["recovery"]
+# The identity kit and history archive (M2.5). Optional so that consumers
+# which only need the MLS engine (the M0.5 spike) do not pull `age` and its
+# post-quantum dependency tree, which conflicts with OpenMLS's `kem`.
+recovery = ["dep:age"]
+
 [dependencies]
 aes-gcm = "0.10"
-age = "0.12.1"
+age = { version = "0.12.1", optional = true }
 ciborium = "0.2"
 ed25519-dalek = "3"
 getrandom = "0.4.3"

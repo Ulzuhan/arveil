@@ -181,7 +181,7 @@ mod tests {
         assert_eq!(o.openmls_epoch, 1);
         assert_eq!(o.mlsrs_epoch, 1);
         assert!(
-            o.policy_rejection.contains("only leaf 0 may commit"),
+            o.policy_rejection.contains("only the lowest active leaf may commit"),
             "got: {}",
             o.policy_rejection
         );

@@ -62,7 +62,9 @@ jobs:
           workspaces: spikes/mls
       - name: Test
         working-directory: spikes/mls
-        run: cargo test
+        # --locked so a stale lock fails here instead of silently resolving
+        # a dependency set nobody has run.
+        run: cargo test --locked
 
   interop:
     name: Channel interop (Go relay vs Rust client)

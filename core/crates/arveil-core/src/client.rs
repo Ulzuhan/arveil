@@ -593,6 +593,7 @@ impl Client {
 
     /// Import archived records. They land in their own table: history, never
     /// events (I-07). Returns (imported, already present).
+    #[cfg(feature = "recovery")]
     pub fn archive_import(
         &self,
         records: &[crate::recovery::ArchiveRecord],
