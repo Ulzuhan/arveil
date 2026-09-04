@@ -48,6 +48,7 @@ Full documentation, in reading order:
 | [Phase 0 plan](docs/PHASE0.md) | Milestones, acceptance criteria and results of the viability slice |
 | [Phase 1 plan](docs/PHASE1.md) | Groups, offline outbox, TTL, endpoint fallback, attachments: milestones and results |
 | [Phase 2 plan](docs/PHASE2.md) | Multi-device, revocation, coordinator succession, identity kit and archive, encryption at rest |
+| [Phase 3 plan](docs/PHASE3.md) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds |
 | [Viability review v0.3](docs/REVIEW-v0.3.md) | External-style review with verified references and open risks |
 
 La documentación completa también está disponible en español en [`docs/es/`](docs/es/README.md).
@@ -59,6 +60,7 @@ La documentación completa también está disponible en español en [`docs/es/`]
 | 0: viability (done) | Rust core without full UI, two CLI clients, minimal relay | Real MLS, verified identity and atomic persistence demonstrated |
 | 1: LAN vertical (done) | 1:1 and group chat, offline outbox, queues, attachments, Noise channel with endpoint list | Restarts, duplicates, TTL, network loss and carrier switching with no silent loss |
 | 2: personal use (done) | Multi-device, identity kit, history archive, revocation | Total-loss and restore drills; enrollment is never silent |
+| 3: ready to hand out (in progress) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds | Every claim in `scripts/phase3.sh`; builds a stranger can check |
 | 3: distribution | Mobile and desktop UI, signed updates, optional push | Signed builds, external review, verified platform matrix |
 
 ## Repository layout
