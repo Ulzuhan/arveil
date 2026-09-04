@@ -3,8 +3,8 @@
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 One Go binary, one SQLite file, one data directory. Runs on a Raspberry Pi in your home and stays reachable over LAN, Tailscale, or a Cloudflare Tunnel, without changing a single security guarantee.
 
-> **Status: Phase 0 complete (2026-09-04). Not a usable messenger yet.**
-> Two command-line clients chat with real MLS through the Go relay; the relay never sees plaintext, a group id or a conversation table; a client crash between commit and publish is recovered by retransmission; and a TLS-terminating proxy between client and relay records nothing but opaque frames. Every claim runs in CI: [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Transcript: [docs/evidence/demo-transcript.txt](docs/evidence/demo-transcript.txt). Phases 1 to 3 (attachments, multi-device, recovery, mobile) are ahead; see the [Phase 0 plan](docs/PHASE0.md) and the [roadmap](#roadmap).
+> **Status: Phases 0 and 1 complete (2026-09-04). A CLI messenger for a LAN, not a product yet.**
+> Command-line clients chat in groups with real MLS through the Go relay, send encrypted files, write messages while the relay is down and publish them later, survive relay restarts and client crashes without losing or duplicating anything, fall back between advertised endpoints, and see expired envelopes and blobs reported honestly. The relay never sees plaintext, a group id or a conversation table, and a TLS-terminating proxy between client and relay records nothing but opaque frames. Every claim runs in CI: [`scripts/phase1.sh`](scripts/phase1.sh), [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Transcript: [docs/evidence/demo-transcript.txt](docs/evidence/demo-transcript.txt). Phases 2 and 3 (multi-device, recovery, mobile) are ahead; see the [Phase 1 plan](docs/PHASE1.md) and the [roadmap](#roadmap).
 
 ## Why another messenger
 
@@ -45,7 +45,8 @@ Full documentation, in reading order:
 | [Protocol](docs/PROTOCOL.md) | Layers, objects, bootstrap, MLS groups, durable delivery, frame catalog, recovery |
 | [Domain model](docs/DOMAIN_MODEL.md) | Entities, key lifecycle, server schema, local atomicity, state machines |
 | [Decision records](docs/adr/) | ADR-001 to ADR-008: Go + Rust, MLS, zero-trust server, SQLite, identity, local-first, redundancy, carrier-independent transport |
-| [Phase 0 plan](docs/PHASE0.md) | Milestones, acceptance criteria and exclusions for the first runnable slice |
+| [Phase 0 plan](docs/PHASE0.md) | Milestones, acceptance criteria and results of the viability slice |
+| [Phase 1 plan](docs/PHASE1.md) | Groups, offline outbox, TTL, endpoint fallback, attachments: milestones and results |
 | [Viability review v0.3](docs/REVIEW-v0.3.md) | External-style review with verified references and open risks |
 
 La documentación completa también está disponible en español en [`docs/es/`](docs/es/README.md).
@@ -54,8 +55,8 @@ La documentación completa también está disponible en español en [`docs/es/`]
 
 | Phase | Deliverable | Exit condition |
 |---|---|---|
-| 0: viability | Rust core without full UI, two CLI clients, minimal relay | Real MLS, verified identity and atomic persistence demonstrated |
-| 1: LAN vertical | 1:1 and group chat, offline outbox, queues, attachments, Noise channel with endpoint list | Restarts, duplicates, TTL, network loss and carrier switching with no silent loss |
+| 0: viability (done) | Rust core without full UI, two CLI clients, minimal relay | Real MLS, verified identity and atomic persistence demonstrated |
+| 1: LAN vertical (done) | 1:1 and group chat, offline outbox, queues, attachments, Noise channel with endpoint list | Restarts, duplicates, TTL, network loss and carrier switching with no silent loss |
 | 2: personal use | Multi-device, identity kit, history archive, revocation | Total-loss and restore drills; enrollment is never silent |
 | 3: distribution | Mobile and desktop UI, signed updates, optional push | Signed builds, external review, verified platform matrix |
 

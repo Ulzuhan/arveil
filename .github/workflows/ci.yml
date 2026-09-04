@@ -115,3 +115,20 @@ jobs:
         with:
           workspaces: core
       - run: ./scripts/q3-capture.sh
+
+  phase1:
+    name: Phase 1 acceptance (offline outbox, groups, TTL, endpoints, attachments)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - run: ./scripts/phase1.sh

@@ -1,6 +1,6 @@
 # Phase 1 plan: LAN vertical
 
-**Status:** plan v1 · **Date:** 2026-09-04 · Exit condition from [Architecture §8](ARCHITECTURE.md#8-scope-and-engineering-gates): *restarts, duplicates, TTL and network loss with no silent loss*, for 1:1 and group chat with offline outbox, queues and attachments.
+**Status:** plan v1, **all six milestones complete on 2026-09-04** · Exit condition from [Architecture §8](ARCHITECTURE.md#8-scope-and-engineering-gates): *restarts, duplicates, TTL and network loss with no silent loss*, for 1:1 and group chat with offline outbox, queues and attachments.
 
 Phase 0 proved the three hypotheses (MLS in our transaction, policy before merge, opaque channel through a TLS-terminating proxy). Phase 1 turns the vertical into something a family could run on a LAN with the CLI: groups of more than two devices, messages written while the relay is down, envelopes and blobs that expire honestly, files, and a client that reaches the realm through whichever endpoint answers.
 
@@ -27,3 +27,15 @@ Phase 0 proved the three hypotheses (MLS in our transaction, policy before merge
 - **Routes in the group.** Every member sends a `route` event on join; the creator forwards nothing. Members store one route per peer identity.
 - **Attachments.** `FileKey` 32 bytes random, AES-256-GCM with a random 12-byte nonce over the whole file, descriptor `{version, blob_id, read_capability, file_key, nonce, ciphertext_hash, size, name, mime}` inside an MLS `file` event. Chunking on the wire only (frames of at most 60 KiB); no streaming AEAD in this phase.
 - **Expiry.** The relay is store-and-forward: a swept envelope is gone. The sender never learns whether it was read; the CLI shows `accepted (expires <t>)` and, after that time, `expired/unknown`.
+
+## Results
+
+All acceptance rows are exercised by `scripts/phase1.sh`, which runs in CI.
+
+- **M1.1** `chat send` commits locally and exits 0 with the relay down; `chat history` shows each recipient as `queued`, then `accepted (relay keeps it until t)`, then `expired/unknown`; one `chat sync` publishes everything pending and the peer receives each message exactly once.
+- **M1.2** Groups of three: the creator claims one KeyPackage per peer, adds all in one commit, sends the Welcome to each and a `roster` event with every route; everyone reads everyone. `chat add` by the creator brings a fourth member in at epoch 2 with an updated roster; that member cannot read earlier history; `chat add` from a non-creator is refused by the policy on the sender's own device (`only leaf 0 may commit`). Commits are accepted as MLS `PublicMessage` since the HPKE envelope already hides them from the relay. The receive pass stops at the first envelope that cannot be processed and advances the cursor only past processed ones, so nothing is lost behind a temporarily unprocessable envelope.
+- **M1.3** The relay sweeps expired envelopes, stale invites and blobs on `-sweep-interval`, logging counts only; `requested_expiry` is honoured up to the cap. A 2-second envelope is gone before the receiver syncs; the sender keeps its copy and shows `expired/unknown`.
+- **M1.4** With a dead endpoint advertised first, clients report it and connect through the next one; the signed list is refreshed on every connection and stored when its sequence increases.
+- **M1.5** A 1 MiB file round-trips with a matching hash through `blob_upload_begin` / `blob_chunk` / `blob_commit` / `blob_fetch`; the relay's blob file holds ciphertext only; an expired blob is reported as `file unavailable` and recorded as a `file-unavailable` event.
+
+What Phase 1 leaves open, for Phase 2: multi-device per person, device linking, identity kit and history archive, SQLCipher at rest, the commit coordinator successor rule, resumable uploads.

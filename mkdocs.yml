@@ -54,6 +54,7 @@ nav:
   - Protocol: PROTOCOL.md
   - Domain model: DOMAIN_MODEL.md
   - Phase 0 plan: PHASE0.md
+  - Phase 1 plan: PHASE1.md
   - Decision records:
       - ADR-001 Go server, Rust core: adr/ADR-001-go-server-rust-core.md
       - ADR-002 MLS: adr/ADR-002-mls.md
