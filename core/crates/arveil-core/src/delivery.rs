@@ -51,6 +51,16 @@ CREATE TABLE IF NOT EXISTS events (
 );
 ";
 
+/// One event as the archive carries it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExportedEvent {
+    pub group_id: Vec<u8>,
+    pub event_id: Vec<u8>,
+    pub kind: String,
+    pub body: Vec<u8>,
+    pub created_at: i64,
+}
+
 /// A local event: `(event_id, kind, body)`.
 pub type EventRow = (Vec<u8>, String, Vec<u8>);
 
@@ -280,6 +290,23 @@ impl Delivery {
     }
 
     /// Events of a group: `(event_id, kind, body)` in local order.
+    /// Every local event with its conversation and time, for the archive.
+    pub fn all_events(&self) -> Result<Vec<ExportedEvent>, rusqlite::Error> {
+        let conn = self.conn.lock();
+        let mut stmt = conn
+            .prepare("SELECT group_id, event_id, kind, body, created_at FROM events ORDER BY id")?;
+        let rows = stmt.query_map([], |r| {
+            Ok(ExportedEvent {
+                group_id: r.get(0)?,
+                event_id: r.get(1)?,
+                kind: r.get(2)?,
+                body: r.get(3)?,
+                created_at: r.get(4)?,
+            })
+        })?;
+        rows.collect()
+    }
+
     pub fn events(&self, group_id: &[u8]) -> Result<Vec<EventRow>, rusqlite::Error> {
         let conn = self.conn.lock();
         let mut stmt = conn

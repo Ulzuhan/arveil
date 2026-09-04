@@ -13,6 +13,7 @@ RELAY_PID=""
 step() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 fail() { echo "FAIL: $*"; exit 1; }
 cleanup() {
+  if [ -n "${RELAY2_PID:-}" ]; then kill "$RELAY2_PID" 2>/dev/null || true; wait "$RELAY2_PID" 2>/dev/null || true; fi
   if [ -n "$RELAY_PID" ]; then kill "$RELAY_PID" 2>/dev/null || true; wait "$RELAY_PID" 2>/dev/null || true; fi
   [ -n "${ARVEIL_P2_KEEP:-}" ] && echo "data kept in $DATA" || rm -rf "$DATA"
 }
@@ -167,5 +168,87 @@ expect_fail "$DATA/l3.add" "$CLI" chat add --data-dir "$DATA/alice3-laptop" "$BO
 grep -q "only the lowest active leaf may commit" "$DATA/l3.add" || fail "unexpected refusal: $(cat "$DATA/l3.add")"
 "$CLI" chat add --data-dir "$DATA/bob3" "$BOOTSTRAP" "$(route_of "$DATA/dave3.enroll")" | tee "$DATA/bob3.add"
 grep -q "^added: device" "$DATA/bob3.add" || fail "the successor cannot add members"
+
+step "M2.5 total loss: the identity comes back from its kit, the history from its archive"
+"$CLI" enroll --data-dir "$DATA/alice4" "$BOOTSTRAP" "$(invite)" > "$DATA/alice4.enroll"
+"$CLI" enroll --data-dir "$DATA/bob4" "$BOOTSTRAP" "$(invite)" > "$DATA/bob4.enroll"
+"$CLI" status --data-dir "$DATA/alice4" > "$DATA/alice4.status"
+ALICE4_OLD_DEV="$(sed -n 's/^device: *\([0-9a-f]*\) .*/\1/p' "$DATA/alice4.status")"
+"$CLI" chat start --data-dir "$DATA/bob4" "$BOOTSTRAP" "$(route_of "$DATA/alice4.enroll")" > "$DATA/bob4.start"
+"$CLI" chat sync --data-dir "$DATA/alice4" "$BOOTSTRAP" > "$DATA/alice4.sync1"
+"$CLI" chat send --data-dir "$DATA/bob4" "$BOOTSTRAP" "mensaje de antes del desastre" > /dev/null
+"$CLI" chat sync --data-dir "$DATA/alice4" "$BOOTSTRAP" | tee "$DATA/alice4.sync2"
+grep -q "message: mensaje de antes del desastre" "$DATA/alice4.sync2" || fail "alice4 did not receive the first message"
+
+"$CLI" kit export --data-dir "$DATA/alice4" "$DATA/alice4.kit" | tee "$DATA/alice4.kitout"
+KIT4="$(sed -n 's/^secret: //p' "$DATA/alice4.kitout")"
+"$CLI" archive export --data-dir "$DATA/alice4" "$DATA/alice4.archive" | tee "$DATA/alice4.arcout"
+ARC4="$(sed -n 's/^secret: //p' "$DATA/alice4.arcout")"
+head -c 21 "$DATA/alice4.kit" | grep -q "age-encryption.org/v1" || fail "the kit is not an age file"
+for word in "mensaje de antes" "$ALICE4_OLD_DEV"; do
+  grep -qa "$word" "$DATA/alice4.kit" && fail "'$word' found in plaintext in the kit"
+  grep -qa "$word" "$DATA/alice4.archive" && fail "'$word' found in plaintext in the archive"
+done
+echo "kit and archive hold no plaintext"
+
+# Everything alice4 had is gone: device keys, MLS state, history.
+rm -rf "$DATA/alice4"
+"$CLI" kit restore --data-dir "$DATA/alice4-new" "$BOOTSTRAP" "$DATA/alice4.kit" "$KIT4" | tee "$DATA/alice4.restore"
+grep -q "^restored: identity" "$DATA/alice4.restore" || fail "the identity did not come back"
+grep -q "recovered: the realm accepted the new device" "$DATA/alice4.restore" || fail "the realm refused the recovered device"
+grep -q "warning: the realm held manifest" "$DATA/alice4.restore" && fail "no rollback should be reported against a healthy realm"
+ROUTE4="$(route_of "$DATA/alice4.restore")"
+[ -n "$ROUTE4" ] || fail "the recovered device has no route"
+
+step "M2.5 the group notices: the lost device is revoked, removed, and the recovered one is added anew"
+"$CLI" chat sync --data-dir "$DATA/bob4" "$BOOTSTRAP" | tee "$DATA/bob4.sync1"
+grep -q "revoked" "$DATA/bob4.sync1" || fail "bob4 did not learn that alice4's device was lost"
+expect_fail "$DATA/bob4.send1" "$CLI" chat send --data-dir "$DATA/bob4" "$BOOTSTRAP" "nada" || fail "bob4 sent to a revoked device"
+grep -q "paused: 1 revoked device(s)" "$DATA/bob4.send1" || fail "unexpected pause: $(cat "$DATA/bob4.send1")"
+"$CLI" chat remove --data-dir "$DATA/bob4" "$BOOTSTRAP" "$ALICE4_OLD_DEV" > "$DATA/bob4.remove"
+"$CLI" chat add --data-dir "$DATA/bob4" "$BOOTSTRAP" "$ROUTE4" | tee "$DATA/bob4.add4"
+grep -q "^added: device" "$DATA/bob4.add4" || fail "the recovered device was not added"
+"$CLI" chat sync --data-dir "$DATA/alice4-new" "$BOOTSTRAP" | tee "$DATA/alice4.sync3"
+grep -q "joined conversation" "$DATA/alice4.sync3" || fail "the recovered device did not join"
+grep -q "mensaje de antes del desastre" "$DATA/alice4.sync3" && fail "a new device must not read messages from before its Add"
+"$CLI" chat send --data-dir "$DATA/bob4" "$BOOTSTRAP" "bienvenida de vuelta" > /dev/null
+"$CLI" chat sync --data-dir "$DATA/alice4-new" "$BOOTSTRAP" | tee "$DATA/alice4.sync4"
+grep -q "message: bienvenida de vuelta" "$DATA/alice4.sync4" || fail "the recovered device does not receive new messages"
+
+step "M2.5 the archive is history: imported records are never new events and are never re-sent"
+"$CLI" chat history --data-dir "$DATA/alice4-new" > "$DATA/alice4.hist1"
+grep -q "mensaje de antes del desastre" "$DATA/alice4.hist1" && fail "the old message should not be there before the import"
+"$CLI" archive import --data-dir "$DATA/alice4-new" "$DATA/alice4.archive" "$ARC4" | tee "$DATA/alice4.import"
+grep -q "^imported: 1 archived record" "$DATA/alice4.import" || fail "the archive did not import"
+"$CLI" chat history --data-dir "$DATA/alice4-new" | tee "$DATA/alice4.hist2"
+grep -q "\[archived received\] mensaje de antes del desastre" "$DATA/alice4.hist2" || fail "the archived record is not in the history"
+"$CLI" chat sync --data-dir "$DATA/bob4" "$BOOTSTRAP" | tee "$DATA/bob4.sync2"
+grep -q "synced: 0 envelope" "$DATA/bob4.sync2" || fail "importing an archive must not send anything"
+"$CLI" archive import --data-dir "$DATA/alice4-new" "$DATA/alice4.archive" "$ARC4" | tee "$DATA/alice4.import2"
+grep -q "1 already present" "$DATA/alice4.import2" || fail "a second import should be idempotent"
+
+step "M2.5 a realm restored from an older snapshot is reported, never believed (I-08)"
+PORT2=$((PORT + 1))
+"$RELAY" -data-dir "$DATA/relay2" -listen "127.0.0.1:$PORT2" > "$DATA/relay2.out" 2>> "$DATA/relay2.err" &
+RELAY2_PID=$!
+for _ in $(seq 1 50); do grep -q '^bootstrap: ' "$DATA/relay2.out" && break; sleep 0.1; done
+BOOT2="$(sed -n 's/^bootstrap: //p' "$DATA/relay2.out" | head -1)"
+[ -n "$BOOT2" ] || fail "the second relay did not start"
+INV2="$("$RELAY" invite -data-dir "$DATA/relay2" | sed -n 's/^invite: //p')"
+"$CLI" enroll --data-dir "$DATA/alice5" "$BOOT2" "$INV2" > "$DATA/alice5.enroll"
+cp -R "$DATA/relay2" "$DATA/relay2-snapshot"   # the realm as it was at manifest 1
+"$CLI" device request --data-dir "$DATA/alice5-b" > "$DATA/a5b.request"
+"$CLI" device authorize --data-dir "$DATA/alice5" "$BOOT2" "$(sed -n 's/^request: //p' "$DATA/a5b.request")" > "$DATA/a5.authorize"
+"$CLI" kit export --data-dir "$DATA/alice5" "$DATA/alice5.kit" > "$DATA/alice5.kitout"
+KIT5="$(sed -n 's/^secret: //p' "$DATA/alice5.kitout")"
+kill "$RELAY2_PID"; wait "$RELAY2_PID" 2>/dev/null || true
+rm -rf "$DATA/relay2"; mv "$DATA/relay2-snapshot" "$DATA/relay2"
+"$RELAY" -data-dir "$DATA/relay2" -listen "127.0.0.1:$PORT2" > "$DATA/relay2b.out" 2>> "$DATA/relay2.err" &
+RELAY2_PID=$!
+for _ in $(seq 1 50); do grep -q '^bootstrap: ' "$DATA/relay2b.out" && break; sleep 0.1; done
+"$CLI" kit restore --data-dir "$DATA/alice5-new" "$BOOT2" "$DATA/alice5.kit" "$KIT5" | tee "$DATA/alice5.restore"
+grep -q "warning: the realm held manifest 1 while this kit knows 2" "$DATA/alice5.restore" || fail "the rollback was not reported"
+grep -q "check revocations against a surviving device or a contact" "$DATA/alice5.restore" || fail "the rollback report gives no guidance"
+kill "$RELAY2_PID"; wait "$RELAY2_PID" 2>/dev/null || true; RELAY2_PID=""
 
 step "phase 2 checks so far ok"

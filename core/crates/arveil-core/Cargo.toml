@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 aes-gcm = "0.10"
+age = "0.12.1"
 ciborium = "0.2"
 ed25519-dalek = "3"
 getrandom = "0.4.3"

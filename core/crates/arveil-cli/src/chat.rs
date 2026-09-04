@@ -1011,6 +1011,15 @@ pub fn revoke(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<(), 
             other => return Err(CliError(format!("unexpected reply: {other:?}"))),
         }
 
+        for gid in s.client.archived_groups().map_err(err("archived"))? {
+            println!(
+                "conversation {} (archived only, no MLS state)",
+                hex::encode(&gid)
+            );
+            for (kind, body) in s.client.archived(&gid).map_err(err("archived"))? {
+                println!("  [archived {kind}] {}", String::from_utf8_lossy(&body));
+            }
+        }
         for conv in s.client.conversations().map_err(err("conversations"))? {
             let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
             let in_group = roster_device_ids(&group).contains(&device_id);
@@ -1078,6 +1087,15 @@ pub fn history(data_dir: &Path) -> Result<(), CliError> {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
+    for gid in s.client.archived_groups().map_err(err("archived"))? {
+        println!(
+            "conversation {} (archived only, no MLS state)",
+            hex::encode(&gid)
+        );
+        for (kind, body) in s.client.archived(&gid).map_err(err("archived"))? {
+            println!("  [archived {kind}] {}", String::from_utf8_lossy(&body));
+        }
+    }
     for conv in s.client.conversations().map_err(err("conversations"))? {
         println!(
             "conversation {} ({}), peers: {}",
@@ -1099,6 +1117,9 @@ pub fn history(data_dir: &Path) -> Result<(), CliError> {
                 .collect::<Vec<_>>()
                 .join(", ")
         );
+        for (kind, body) in s.client.archived(&conv.group_id).map_err(err("archived"))? {
+            println!("  [archived {kind}] {}", String::from_utf8_lossy(&body));
+        }
         for (event_id, kind, body) in s.delivery.events(&conv.group_id).map_err(err("events"))? {
             println!("  [{kind:>8}] {}", String::from_utf8_lossy(&body));
             if kind == "sent" {

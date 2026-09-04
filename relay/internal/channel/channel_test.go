@@ -351,6 +351,8 @@ func TestCodecMatchesRustVectorsManifests(t *testing.T) {
 	}{
 		{"a262696403677061796c6f6164a16b4d616e6966657374476574a16b6964656e746974795f69644409090909", Frame{ID: 3, Payload: Payload{Kind: KindManifestGet, IdentityID: []byte{9, 9, 9, 9}}}},
 		{"a262696403677061796c6f6164a16e4d616e69666573744c6174657374a1686d616e696665737442aabb", Frame{ID: 3, Payload: Payload{Kind: KindManifestLatest, Manifest: []byte{0xaa, 0xbb}}}},
+		{"a262696404677061796c6f6164a16f5265636f7665724964656e74697479a2686d616e696665737441036a63726564656e7469616c420102", Frame{ID: 4, Payload: Payload{Kind: KindRecoverIdentity, Credential: []byte{1, 2}, Manifest: []byte{3}}}},
+		{"a262696404677061796c6f6164a1695265636f7665726564a26b6964656e746974795f69644209097170726576696f75735f73657175656e636502", Frame{ID: 4, Payload: Payload{Kind: KindRecovered, IdentityID: []byte{9, 9}, PreviousSequence: 2}}},
 	}
 	for _, v := range vectors {
 		want, _ := hex.DecodeString(v.hex)

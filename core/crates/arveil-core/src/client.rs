@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS identity_devices (
     credential_hash BLOB NOT NULL,
     revoked         INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS archived_events (
+    group_id   BLOB NOT NULL,
+    event_id   BLOB NOT NULL,
+    kind       TEXT NOT NULL,
+    body       BLOB NOT NULL,
+    created_at INTEGER NOT NULL,
+    file_name  TEXT,
+    PRIMARY KEY (group_id, event_id)
+);
 CREATE TABLE IF NOT EXISTS peer_manifests (
     identity_id BLOB PRIMARY KEY,
     sequence    INTEGER NOT NULL,
@@ -305,11 +314,25 @@ impl Client {
         )?;
         let credential_hash = identity::credential_hash(&credential);
         let previous = self.manifest_state()?;
+        // On a first enrolment there is no chain. After a kit recovery there
+        // is: this device is the only active one and every credential the
+        // chain listed is now lost, so it is revoked in the same manifest.
+        let old = self.latest_manifest_body()?;
+        let revoked: Vec<Vec<u8>> = old
+            .as_ref()
+            .map(|b| {
+                b.active_credential_hashes
+                    .iter()
+                    .chain(b.revoked_credential_hashes.iter())
+                    .map(|h| h.to_vec())
+                    .collect()
+            })
+            .unwrap_or_default();
         let manifest = identity::issue_manifest(
             &root,
             previous.as_ref(),
             std::slice::from_ref(&credential_hash),
-            &[],
+            &revoked,
         )?;
         let (body, state) =
             identity::accept_manifest(&manifest, &root.public(), previous.as_ref())?;
@@ -521,6 +544,95 @@ impl Client {
                 revoked: r.get::<_, i64>(2)? != 0,
             })
         })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Install a recovered identity on a clean client from an identity kit
+    /// (M2.5): the root key and the newest manifest it signed. No device
+    /// keys and no MLS state travel this way. Returns the identity id.
+    pub fn identity_restore(
+        &self,
+        root_seed: &[u8],
+        latest_manifest: &[u8],
+    ) -> Result<Vec<u8>, ClientError> {
+        if self.identity_id()?.is_some() {
+            return Err(ClientError::IdentityExists);
+        }
+        let seed: [u8; 32] = root_seed
+            .try_into()
+            .map_err(|_| identity::IdentityError::Random)?;
+        let root = RootKey::from_seed(&seed);
+        let (body, state) = identity::accept_manifest(latest_manifest, &root.public(), None)?;
+        let identity_id = root.identity_id();
+        if body.identity_id != identity_id {
+            return Err(ClientError::UnknownIdentity);
+        }
+        self.conn.unit_of_work(|c| {
+            let conn = c.lock();
+            conn.execute(
+                "INSERT INTO identity (id, root_seed, root_public, identity_id) VALUES (1, ?1, ?2, ?3)",
+                params![
+                    root.signing.to_bytes().to_vec(),
+                    root.public().as_bytes().to_vec(),
+                    identity_id
+                ],
+            )?;
+            conn.execute(
+                "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    body.identity_id,
+                    state.sequence as i64,
+                    latest_manifest,
+                    state.hash
+                ],
+            )?;
+            Ok::<_, rusqlite::Error>(())
+        })?;
+        Ok(identity_id)
+    }
+
+    /// Import archived records. They land in their own table: history, never
+    /// events (I-07). Returns (imported, already present).
+    pub fn archive_import(
+        &self,
+        records: &[crate::recovery::ArchiveRecord],
+    ) -> Result<(usize, usize), ClientError> {
+        let conn = self.conn.lock();
+        let mut new = 0;
+        let mut dup = 0;
+        for r in records {
+            let n = conn.execute(
+                "INSERT OR IGNORE INTO archived_events (group_id, event_id, kind, body, created_at, file_name)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![r.group_id, r.event_id, r.kind, r.body, r.created_at, r.file_name],
+            )?;
+            if n == 1 {
+                new += 1;
+            } else {
+                dup += 1;
+            }
+        }
+        Ok((new, dup))
+    }
+
+    /// Archived records of one conversation, oldest first.
+    pub fn archived(&self, group_id: &[u8]) -> Result<Vec<(String, Vec<u8>)>, ClientError> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT kind, body FROM archived_events WHERE group_id = ?1 ORDER BY created_at, event_id",
+        )?;
+        let rows = stmt.query_map(params![group_id], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Conversations that exist only in the archive.
+    pub fn archived_groups(&self) -> Result<Vec<Vec<u8>>, ClientError> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT group_id FROM archived_events
+             WHERE group_id NOT IN (SELECT group_id FROM conversations) ORDER BY group_id",
+        )?;
+        let rows = stmt.query_map([], |r| r.get(0))?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 

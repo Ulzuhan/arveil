@@ -23,6 +23,8 @@ const (
 	KindCredentialPut    = "CredentialPut"
 	KindManifestPut      = "ManifestPut"
 	KindManifestGet      = "ManifestGet"
+	KindRecoverIdentity  = "RecoverIdentity"
+	KindRecovered        = "Recovered"
 	KindManifestLatest   = "ManifestLatest"
 	KindAck              = "Ack"
 	KindError            = "Error"
@@ -97,19 +99,20 @@ type Payload struct {
 	IdentityID []byte
 	DeviceID   []byte
 	// Mailbox and envelope frames
-	MailboxID       []byte
-	ReadCapability  []byte
-	WriteCapability []byte
-	DeliveryID      []byte
-	RequestedExpiry uint64
-	EffectiveExpiry uint64
-	HpkeEnc         []byte
-	Ciphertext      []byte
-	Cursor          uint64
-	NextCursor      uint64
-	Limit           uint16
-	Items           []EnvelopeItem
-	DeliveryIDs     [][]byte
+	MailboxID        []byte
+	ReadCapability   []byte
+	WriteCapability  []byte
+	DeliveryID       []byte
+	RequestedExpiry  uint64
+	EffectiveExpiry  uint64
+	HpkeEnc          []byte
+	Ciphertext       []byte
+	Cursor           uint64
+	PreviousSequence uint64
+	NextCursor       uint64
+	Limit            uint16
+	Items            []EnvelopeItem
+	DeliveryIDs      [][]byte
 	// KeyPackages
 	KeyPackages [][]byte
 	KeyPackage  []byte
@@ -228,6 +231,16 @@ type manifestPutBody struct {
 	Manifest []byte `cbor:"manifest"`
 }
 
+type recoverIdentityBody struct {
+	Credential []byte `cbor:"credential"`
+	Manifest   []byte `cbor:"manifest"`
+}
+
+type recoveredBody struct {
+	IdentityID       []byte `cbor:"identity_id"`
+	PreviousSequence uint64 `cbor:"previous_sequence"`
+}
+
 type manifestGetBody struct {
 	IdentityID []byte `cbor:"identity_id"`
 }
@@ -316,6 +329,10 @@ func Encode(f Frame) ([]byte, error) {
 		payload = map[string]manifestPutBody{KindManifestPut: {Manifest: f.Payload.Manifest}}
 	case KindManifestGet:
 		payload = map[string]manifestGetBody{KindManifestGet: {IdentityID: f.Payload.IdentityID}}
+	case KindRecoverIdentity:
+		payload = map[string]recoverIdentityBody{KindRecoverIdentity: {Credential: f.Payload.Credential, Manifest: f.Payload.Manifest}}
+	case KindRecovered:
+		payload = map[string]recoveredBody{KindRecovered: {IdentityID: f.Payload.IdentityID, PreviousSequence: f.Payload.PreviousSequence}}
 	case KindManifestLatest:
 		payload = map[string]manifestPutBody{KindManifestLatest: {Manifest: nonNil(f.Payload.Manifest)}}
 	case KindEndpointList:
@@ -401,6 +418,18 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Credential: v.Credential}
+		case KindRecoverIdentity:
+			var v recoverIdentityBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Credential: v.Credential, Manifest: v.Manifest}
+		case KindRecovered:
+			var v recoveredBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, IdentityID: v.IdentityID, PreviousSequence: v.PreviousSequence}
 		case KindManifestGet:
 			var v manifestGetBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

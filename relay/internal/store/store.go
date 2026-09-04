@@ -325,6 +325,59 @@ func (s *Store) SetCredentialStatus(ctx context.Context, identityID []byte, hash
 	return n, nil
 }
 
+// RecoverIdentity registers a new device for an identity that already
+// belongs to the realm, authorized by its root alone: the identity kit path
+// of ADR-006. The manifest must advance the chain the realm holds and list
+// the credential as active; every credential the manifest revokes loses its
+// status and its mailboxes' capabilities in the same transaction. Returns
+// the sequence the realm held before the call, so a device recovering from
+// a kit can see a realm restored from an older snapshot (I-08).
+func (s *Store) RecoverIdentity(ctx context.Context, e Enrollment, revoked [][]byte) (uint64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	var prev sql.NullInt64
+	if err := tx.QueryRowContext(ctx, `SELECT MAX(sequence) FROM device_manifests WHERE identity_id = ?`, e.IdentityID).Scan(&prev); err != nil {
+		return 0, err
+	}
+	previous := uint64(0)
+	if prev.Valid {
+		previous = uint64(prev.Int64)
+	}
+	if e.ManifestSeq <= previous {
+		return previous, ErrManifestOrder
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO device_manifests (identity_id, sequence, signed) VALUES (?, ?, ?)`,
+		e.IdentityID, e.ManifestSeq, e.SignedManifest); err != nil {
+		return previous, err
+	}
+	if err := insertCredential(ctx, tx, e); err != nil {
+		return previous, err
+	}
+	for _, h := range revoked {
+		var deviceID []byte
+		err := tx.QueryRowContext(ctx, `SELECT device_id FROM device_credentials WHERE identity_id = ? AND credential_hash = ?`, e.IdentityID, h).Scan(&deviceID)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return previous, err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE device_credentials SET status = 'revoked' WHERE credential_hash = ?`, h); err != nil {
+			return previous, err
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE capabilities SET revoked = 1 WHERE mailbox_id IN (SELECT mailbox_id FROM mailboxes WHERE owner_identity = ? AND owner_device = ?)`,
+			e.IdentityID, deviceID); err != nil {
+			return previous, err
+		}
+	}
+	return previous, tx.Commit()
+}
+
 // RevokeCredentials marks credentials revoked and revokes every capability
 // of the mailboxes owned by those devices, in one transaction. Returns how
 // many credentials changed state.

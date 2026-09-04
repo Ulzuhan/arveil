@@ -69,6 +69,24 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         manifest: Vec<u8>,
     },
+    /// Recover an identity on a clean device (Phase 2, M2.5). The only
+    /// frame a provisional session may use to become a member without an
+    /// invite: the credential must bind this session's Noise key and the
+    /// manifest must advance the chain the realm already holds, both signed
+    /// by the root the realm stored when the identity joined.
+    RecoverIdentity {
+        #[serde(with = "serde_bytes")]
+        credential: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        manifest: Vec<u8>,
+    },
+    Recovered {
+        #[serde(with = "serde_bytes")]
+        identity_id: Vec<u8>,
+        /// What the realm held before this call, so a realm restored from an
+        /// older snapshot is visible to the recovering device (I-08).
+        previous_sequence: u64,
+    },
     /// Newest manifest of an identity on the realm (Phase 2, M2.3). The
     /// reply carries an empty `manifest` when the realm has none.
     ManifestGet {
@@ -260,6 +278,20 @@ mod vector_dump {
                 id: 3,
                 payload: Payload::ManifestLatest {
                     manifest: vec![0xaa, 0xbb],
+                },
+            },
+            Frame {
+                id: 4,
+                payload: Payload::RecoverIdentity {
+                    credential: vec![1, 2],
+                    manifest: vec![3],
+                },
+            },
+            Frame {
+                id: 4,
+                payload: Payload::Recovered {
+                    identity_id: vec![9, 9],
+                    previous_sequence: 2,
                 },
             },
         ];

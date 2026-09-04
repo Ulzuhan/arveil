@@ -16,6 +16,7 @@ pub mod delivery;
 pub mod envelope;
 pub mod identity;
 pub mod mls;
+pub mod recovery;
 pub mod signed;
 pub mod storage;
 

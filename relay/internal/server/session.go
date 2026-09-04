@@ -57,6 +57,8 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.manifestPut(ctx, s, f)
 	case channel.KindManifestGet:
 		return srv.manifestGet(ctx, s, f)
+	case channel.KindRecoverIdentity:
+		return srv.recoverIdentity(ctx, s, f, now)
 	case channel.KindBlobUploadBegin:
 		return srv.blobUploadBegin(ctx, s, f, now)
 	case channel.KindBlobChunk:
@@ -200,6 +202,69 @@ func (srv *Server) manifestPut(ctx context.Context, s *session, f channel.Frame)
 	}
 	srv.Logger.Printf("manifest %d for identity %x: %d active, %d revoked (%d newly revoked)", m.ManifestSequence, s.device.IdentityID[:4], len(m.ActiveCredentialHashes), len(m.RevokedCredentialHashes), revoked)
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
+}
+
+// recoverIdentity is the only way a provisional session becomes a member
+// without an invite (ADR-006): possession of the identity's root is the
+// authorization, and the realm only checks that the chain it already holds
+// is advanced, never rolled back.
+func (srv *Server) recoverIdentity(ctx context.Context, s *session, f channel.Frame, now time.Time) channel.Frame {
+	if srv.Store == nil {
+		return errFrame(f.ID, channel.CodeInternal, "no store")
+	}
+	if s.member() {
+		return errFrame(f.ID, channel.CodeConflict, "session is already a member")
+	}
+	v, err := identity.VerifyCredential(f.Payload.Credential, uint64(now.Unix()))
+	if err != nil {
+		return errFrame(f.ID, channel.CodeUnauthorized, "credential rejected")
+	}
+	if err := v.BindsSession(s.remoteStatic); err != nil {
+		return errFrame(f.ID, channel.CodeUnauthorized, "credential does not bind this session")
+	}
+	root, err := srv.Store.RootPublic(ctx, v.IdentityID)
+	if err != nil {
+		return errFrame(f.ID, channel.CodeForbidden, "unknown identity")
+	}
+	if string(root) != string(v.Root) {
+		return errFrame(f.ID, channel.CodeForbidden, "credential is not signed by this identity's root")
+	}
+	m, err := identity.VerifyManifest(f.Payload.Manifest, root)
+	if err != nil {
+		return errFrame(f.ID, channel.CodeUnauthorized, "manifest rejected")
+	}
+	if !containsHash(m.ActiveCredentialHashes, v.Hash) {
+		return errFrame(f.ID, channel.CodeBadRequest, "manifest does not list the new credential as active")
+	}
+	previous, err := srv.Store.RecoverIdentity(ctx, store.Enrollment{
+		IdentityID:     v.IdentityID,
+		CredentialHash: v.Hash,
+		DeviceID:       v.Credential.DeviceID,
+		TransportKey:   v.Credential.TransportNoisePublicKey,
+		SignedCred:     f.Payload.Credential,
+		NotAfter:       int64(v.Credential.Validity.NotAfter),
+		ManifestSeq:    m.ManifestSequence,
+		SignedManifest: f.Payload.Manifest,
+	}, m.RevokedCredentialHashes)
+	switch {
+	case errors.Is(err, store.ErrManifestOrder):
+		return errFrame(f.ID, channel.CodeConflict, "the realm holds a newer manifest for this identity")
+	case errors.Is(err, store.ErrDeviceKeyInUse):
+		return errFrame(f.ID, channel.CodeConflict, "transport key already registered")
+	case err != nil:
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
+	s.device = &store.Device{
+		CredentialHash: v.Hash,
+		IdentityID:     v.IdentityID,
+		DeviceID:       v.Credential.DeviceID,
+		Status:         "active",
+		NotAfter:       int64(v.Credential.Validity.NotAfter),
+	}
+	srv.Logger.Printf("identity recovered: %x now on device %x, manifest %d (was %d)", v.IdentityID[:4], v.Credential.DeviceID[:4], m.ManifestSequence, previous)
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{
+		Kind: channel.KindRecovered, IdentityID: v.IdentityID, PreviousSequence: previous,
+	}}
 }
 
 // manifestGet returns the newest manifest the realm holds for an identity,

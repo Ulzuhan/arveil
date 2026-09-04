@@ -8,6 +8,7 @@ use std::process::ExitCode;
 mod carrier;
 mod chat;
 mod commands;
+mod kit;
 mod link;
 
 const USAGE: &str = "usage:
@@ -20,6 +21,10 @@ const USAGE: &str = "usage:
   arveil device authorize --data-dir <dir> <bootstrap> <link-request>
   arveil device link --data-dir <dir> <bootstrap> <link-grant>
   arveil device revoke --data-dir <dir> <bootstrap> <device-id>
+  arveil kit export --data-dir <dir> <path>
+  arveil kit restore --data-dir <dir> <bootstrap> <path> <secret>
+  arveil archive export --data-dir <dir> <path>
+  arveil archive import --data-dir <dir> <path> <secret>
   arveil mailbox create --data-dir <dir> <bootstrap>
   arveil send --data-dir <dir> <bootstrap> <route> <text>
   arveil fetch --data-dir <dir> <bootstrap>
@@ -72,6 +77,22 @@ fn main() -> ExitCode {
         },
         ["device", "revoke", bootstrap, device] => match data_dir {
             Some(d) => chat::revoke(&d, bootstrap, device),
+            None => usage(),
+        },
+        ["kit", "export", path] => match data_dir {
+            Some(d) => kit::kit_export(&d, std::path::Path::new(path)),
+            None => usage(),
+        },
+        ["kit", "restore", bootstrap, path, secret] => match data_dir {
+            Some(d) => kit::kit_restore(&d, bootstrap, std::path::Path::new(path), secret),
+            None => usage(),
+        },
+        ["archive", "export", path] => match data_dir {
+            Some(d) => kit::archive_export(&d, std::path::Path::new(path)),
+            None => usage(),
+        },
+        ["archive", "import", path, secret] => match data_dir {
+            Some(d) => kit::archive_import(&d, std::path::Path::new(path), secret),
             None => usage(),
         },
         ["mailbox", "create", bootstrap] => match data_dir {
