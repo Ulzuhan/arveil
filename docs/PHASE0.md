@@ -43,6 +43,8 @@ The spike lives in `spikes/mls`, outside the main workspace so its dependencies 
 
 **Library decision:** mls-rs, with a mobile crypto-provider gate before Phase 3. Rationale and comparison table in the [M0.5 spike report](spikes/M0.5-mls-library-comparison.md); recorded in [ADR-002](adr/ADR-002-mls.md).
 
+**Integration (M0.5 step 4) — done** (2026-09-04). `arveil-core` has `storage` (shared connection, ADR-004 pragmas, unit of work, bundled SQLite ≥ 3.51.3 gate) and `mls` (SQLite stores for group state, key packages and PSKs; `GroupPolicy` GroupContext extension type 0xF000; `PolicyRules` failing closed; engine). Nine core tests cover 1:1 both ways, 3-member add and remove with the removed member unable to read the new epoch, unauthorized commits refused by sender and every receiver, missing policy failing closed, and the shared unit of work. Conformance evidence: `spikes/mls/src/interop.rs` joins an OpenMLS member to a group created by `arveil-core`, exchanges messages both ways, and the policy refuses the OpenMLS member's commit. mls-rs runs the official RFC 9420 vectors in its own CI; running them here is deferred to the relay-integrated tests of M0.6.
+
 **Q3 — open.** Needs the channel (M0.2) and the demo (M0.6).
 
 ## Evidence required at exit

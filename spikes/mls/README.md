@@ -16,6 +16,7 @@ The written comparison and the ADR-002 update are issue [#17](https://github.com
 | `src/mlsrs_spike.rs` | mls-rs 0.56 baseline and the explicit-write model: `load_group` fails before `write_to_storage()` and succeeds after. |
 | `src/mlsrs_sqlite.rs` | mls-rs Q1: `GroupStateStorage` over the shared connection; `write_to_storage` inside the application's transaction. |
 | `src/mlsrs_policy.rs` | mls-rs Q2: `CommitterPolicy` implementing `MlsRules`; a valid commit from a non-authorized leaf fails in `process_incoming_message`, epoch unchanged, group still usable. |
+| `src/interop.rs` | Cross-implementation: a group created by `arveil-core` (mls-rs, policy extension) joined by an OpenMLS member; messages both ways; the OpenMLS member's commit is refused by the policy. |
 | `src/main.rs` | Runs every experiment and prints the outcomes. |
 
 ## Running
@@ -28,7 +29,7 @@ cargo test
 cargo run
 ```
 
-All seven tests pass and none is ignored. The written comparison is [docs/spikes/M0.5-mls-library-comparison.md](../../docs/spikes/M0.5-mls-library-comparison.md).
+All eight tests pass and none is ignored. The written comparison is [docs/spikes/M0.5-mls-library-comparison.md](../../docs/spikes/M0.5-mls-library-comparison.md).
 
 ## Notes to carry into the comparison
 

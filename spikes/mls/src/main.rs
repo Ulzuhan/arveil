@@ -1,5 +1,6 @@
 //! Runs both spike baselines. The real evidence is in `cargo test`.
 
+mod interop;
 mod mlsrs_policy;
 mod mlsrs_spike;
 mod mlsrs_sqlite;
@@ -57,5 +58,15 @@ fn main() {
     println!(
         "openmls 0.9  : Q1 (kv rows, outbox rows, loadable) before = {}, after rollback = {:?}, after commit = {:?}, loaded epoch = {:?}",
         o.kv_rows_before, o.after_rollback, o.after_commit, o.loaded_epoch
+    );
+
+    let o = interop::run();
+    println!(
+        "interop      : mls-rs(arveil-core) <-> openmls: read {:?} / {:?}; epochs {} / {}; openmls commit refused: {}",
+        String::from_utf8_lossy(&o.openmls_read),
+        String::from_utf8_lossy(&o.mlsrs_read),
+        o.openmls_epoch,
+        o.mlsrs_epoch,
+        o.policy_rejection
     );
 }

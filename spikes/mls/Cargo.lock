@@ -48,6 +48,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "arveil-core"
+version = "0.0.1"
+dependencies = [
+ "maybe-async",
+ "mls-rs",
+ "mls-rs-codec",
+ "mls-rs-core",
+ "mls-rs-crypto-rustcrypto",
+ "rusqlite",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1438,6 +1452,7 @@ dependencies = [
 name = "mls-spike"
 version = "0.0.0"
 dependencies = [
+ "arveil-core",
  "maybe-async",
  "mls-rs",
  "mls-rs-core",
