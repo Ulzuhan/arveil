@@ -33,6 +33,12 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// The commit a release was built from, from `ARVEIL_REVISION` at build
+/// time, so a binary can be traced back to source (M3.5). `None` locally.
+pub fn revision() -> Option<&'static str> {
+    option_env!("ARVEIL_REVISION").filter(|r| !r.is_empty())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -45,5 +51,14 @@ mod tests {
     #[test]
     fn version_matches_manifest() {
         assert_eq!(version(), "0.0.1");
+    }
+
+    /// An ordinary build claims no revision; releases inject one (M3.5).
+    #[test]
+    fn revision_is_absent_unless_a_release_sets_it() {
+        match option_env!("ARVEIL_REVISION") {
+            None | Some("") => assert_eq!(revision(), None),
+            Some(r) => assert_eq!(revision(), Some(r)),
+        }
     }
 }

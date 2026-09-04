@@ -1,0 +1,110 @@
+# Release builds (M3.5). Runs on a tag, produces one archive per target with
+# a SHA256SUMS file and signed build provenance, so somebody who did not
+# build it can check where it came from.
+#
+# What this does not do: platform code signing. There is no Apple
+# notarization and no Windows Authenticode certificate, so macOS and Windows
+# will still warn on first run. That is stated here rather than implied away.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x86_64
+            goos: linux
+            goarch: amd64
+          - os: macos-latest
+            target: macos-aarch64
+            goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: Build the relay
+        working-directory: relay
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/Ulzuhan/arveil/relay/internal/version.Revision=${GITHUB_SHA}" \
+            -o "dist/arveil-relay" ./cmd/arveil-relay
+
+      - name: Build the client
+        working-directory: core
+        env:
+          ARVEIL_REVISION: ${{ github.sha }}
+        run: cargo build --release -p arveil-cli
+
+      - name: Collect and check the artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp relay/dist/arveil-relay "dist/arveil-relay-${{ matrix.target }}"
+          cp core/target/release/arveil "dist/arveil-${{ matrix.target }}"
+          # The binaries must report the revision they were built from.
+          if [ "${{ matrix.goos }}" = "$(go env GOHOSTOS)" ]; then
+            "dist/arveil-relay-${{ matrix.target }}" -version | tee /dev/stderr | grep -q "${GITHUB_SHA}"
+          fi
+          "dist/arveil-${{ matrix.target }}" version | tee /dev/stderr | grep -q "${GITHUB_SHA}"
+          cd dist && shasum -a 256 arveil-* > "SHA256SUMS-${{ matrix.target }}.txt"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/arveil-relay-${{ matrix.target }}
+            dist/arveil-${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arveil-${{ matrix.target }}
+          path: dist/*
+
+  publish:
+    name: Attach the artifacts to the release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd dist && cat SHA256SUMS-*.txt > SHA256SUMS.txt && rm SHA256SUMS-*.txt
+          gh release upload "${GITHUB_REF_NAME}" ./* --clobber --repo "${GITHUB_REPOSITORY}"

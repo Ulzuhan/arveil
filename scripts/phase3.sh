@@ -231,4 +231,19 @@ if command -v sqlite3 >/dev/null; then
   [ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) FROM notify_hints')" = 0 ] || fail "the realm still stores an endpoint"
 fi
 
-step "phase 3 checks so far ok"
+step "M3.5 a build says where it came from"
+REV="0123456789abcdef0123456789abcdef01234567"
+(cd "$ROOT/relay" && go build -trimpath \
+  -ldflags "-X github.com/Ulzuhan/arveil/relay/internal/version.Revision=$REV" \
+  -o "$DATA/arveil-relay-rev" ./cmd/arveil-relay)
+"$DATA/arveil-relay-rev" -version | tee "$DATA/relay.version"
+grep -q "+$REV" "$DATA/relay.version" || fail "the relay does not report the revision it was built from"
+"$RELAY" -version | tee "$DATA/relay.version2"
+grep -q "+" "$DATA/relay.version2" && fail "a local build must not claim a revision"
+# The release workflow injects the same revision into the client and fails
+# if either binary does not report it; here we check the workflow says so.
+grep -q "ARVEIL_REVISION" "$ROOT/.github/workflows/release.yml" || fail "the release workflow does not inject the client revision"
+grep -q "attest-build-provenance" "$ROOT/.github/workflows/release.yml" || fail "the release workflow produces no provenance"
+grep -q "SHA256SUMS" "$ROOT/.github/workflows/release.yml" || fail "the release workflow publishes no checksums"
+
+step "phase 3 ok"

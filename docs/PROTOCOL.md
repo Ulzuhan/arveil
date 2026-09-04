@@ -102,6 +102,8 @@ The client verifies the root credential, the current device manifest against its
 
 A `RouteBundle` signed by the device binds its HPKE key, the destination realm or relay identified by its signing key, mailbox, capability and generation. It does not include URLs: the sender obtains them from that relay's `RealmEndpointList`. It is exchanged over a verified or E2EE channel; there is no public address book by default. Distributing a capability authorizes transport, not admission into conversations. V1 additionally requires that deliveries be published over the Noise channel of a member device of the relay: this simplifies quotas and makes the requester's identity visible to the relay. An anonymous delivery profile will require another ADR.
 
+**Implemented verification (M3.2).** The safety number over two identities is eight groups of five digits from `SHA-256("arveil/safety-number/v1" || min(root_a, root_b) || max(root_a, root_b))`, so both sides read the same thing in the same order. It covers identities, not devices: adding or replacing a device leaves it unchanged, and substituting an identity changes it. Verifying pins that identity's root key where routes are stored, so a later route naming a different root for it is refused, whether it arrived in a roster event or by hand.
+
 ## 5. MLS groups, KeyPackages and authorization
 
 Each device generates its own standard KeyPackages and keeps the corresponding private material in encrypted storage. They are published in a bounded batch and claimed once through an atomic relay operation. On timeout another package is used; a doubtful one is not reused. A malicious server can replay or exhaust packages: the library, the local state and the limits must handle this without trusting the relay's `consumed` flag.
@@ -201,6 +203,10 @@ The E2EE descriptor contains the format version, suite, blob ID, read capability
 
 The relay may learn the encrypted size and access times. There is no deduplication by plaintext hash. An expired blob is not recovered from the message; only from a client or archive that retains it.
 
+**Implemented resumption (M3.3).** `blob_resume` reports how much of a staging blob the realm holds, to its owner only. The client keeps the blob id, file key and nonce, so a resumed upload re-encrypts to exactly the same ciphertext and continues from that offset; the realm still refuses to overwrite bytes it already has. A downloader accumulates ciphertext in a partial file beside the target and writes the file itself only after the whole ciphertext passes its hash and its AEAD tag.
+
+**Implemented notification hint (M3.4).** A device may register one http(s) endpoint, which the realm pokes with a fixed marker when that device's mailbox goes from empty to non-empty: no sender, no size, no conversation, no identifier, nothing appended to the URL, no retries, and only that transition, so the endpoint cannot count messages. It is optional; with none configured nothing is sent and nothing is stored. The realm learns nothing new, and the endpoint learns that it was poked and when.
+
 ## 8. Adding, removing and recovering devices
 
 ### Enrollment with a surviving device
@@ -210,6 +216,10 @@ The new device generates its keys and shows a linking QR with ephemeral material
 The user unlocks the root key to sign the new credential and the next device manifest, without transmitting the root key to the new device. The public keys are registered. Each group accepts an explicit Add; the new device receives keys for new epochs, not a clone of the previous device's state. An ordinary device without the root key can transfer history to an already authorized device, but cannot sign its enrollment.
 
 **Implemented linking (M2.1, M2.2).** Until the pairing protocol of Phase 3 exists, the transcript is replaced by two strings the user copies over a channel they already trust. `device request` prints `arveil-link-request:v0:<device id>:<mls key>:<noise key>:<hpke key>` and keeps every private half on the new device. `device authorize`, on the device holding the root, signs a credential for exactly those keys and manifest N+1 listing it active, publishes both to the realm and prints `arveil-link-grant:v0:<hex CBOR {credential, manifest, root_public}>`; no private material travels. `device link` accepts the grant only if the credential names its own keys, verifies under the grant's root, and the manifest lists it active. The realm registers a credential only when the newest manifest it holds already lists it, and logs the enrollment, so a new device is never silent.
+
+**Implemented pairing (M3.1).** The copied grant is replaced by a live channel. The realm brokers a rendezvous it cannot read: `pair_begin` returns a random `pair_id` with a bearer capability and an expiry; `pair_put` and `pair_get` move three write-once slots of at most 8 KiB, for ten minutes, with a bound on how many rendezvous exist at once. Those bounds exist because a session that is not yet a member may open one, which is the only unauthenticated write surface in the protocol.
+
+The new device prints `arveil-pair:v1:<realm>:<pair_id>:<capability>:<static key>`, the code the user carries to the other screen. The administration device is the Noise `IK` initiator, so the code itself authenticates the responder's key; the new device answers with its four public keys inside message 2, and the administration device refuses to sign a transport key other than the one it just handshook with. Both derive eight digits from the handshake hash as `SHA-256("arveil/pair-sas/v1" || h) mod 10^8`. That number is not a secret and not a password: the new device stores the grant as pending and applies it only when the user confirms the two screens agree, so anything in the middle is visible before it matters.
 
 Routes carry the device: `arveil-route:v1:<identity id>:<device id>:<credential hash>:<root key>:<mailbox>:<write capability>:<hpke key>`, and the identity id must derive from the root key in the route. One MLS leaf, one mailbox and one route per device; a message fans out to every device of every member, one's own included.
 

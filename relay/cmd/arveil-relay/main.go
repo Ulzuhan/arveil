@@ -78,7 +78,7 @@ func serve() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("arveil-relay %s (protocol %d)\n", version.Relay, version.Protocol)
+		fmt.Printf("arveil-relay %s (protocol %d)\n", version.Full(), version.Protocol)
 		return
 	}
 

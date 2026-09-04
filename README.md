@@ -3,8 +3,8 @@
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 One Go binary, one SQLite file, one data directory. Runs on a Raspberry Pi in your home and stays reachable over LAN, Tailscale, or a Cloudflare Tunnel, without changing a single security guarantee.
 
-> **Status: Phases 0, 1 and 2 complete (2026-09-04). A CLI messenger a family could actually run, without a GUI.**
-> Command-line clients chat in groups with real MLS through the Go relay, with several devices per person, encrypted files, messages written while the relay is down, and honest expiry. A device is linked by the root on the administration device and never silently; revoking one stops it at the realm and inside every group; losing the group's creator no longer means recreating the group, because the lowest active leaf takes over; a lost identity comes back from its `age` kit, its history from its archive, and a realm restored from an older snapshot is reported rather than believed; the local database is encrypted at rest with SQLCipher. The relay never sees plaintext, a group id or a conversation table, and a TLS-terminating proxy records nothing but opaque frames. Every claim runs in CI: [`scripts/phase2.sh`](scripts/phase2.sh), [`scripts/phase1.sh`](scripts/phase1.sh), [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Transcript: [docs/evidence/demo-transcript.txt](docs/evidence/demo-transcript.txt). Phase 3 (mobile and desktop UI, pairing over a live channel, push) is ahead; see the [Phase 2 plan](docs/PHASE2.md) and the [roadmap](#roadmap).
+> **Status: Phases 0 to 2 complete, and the protocol half of Phase 3 (2026-09-04). A CLI messenger a family could run; the graphical clients are still ahead.**
+> Command-line clients chat in groups with real MLS through the Go relay, with several devices per person, encrypted files, messages written while the relay is down, and honest expiry. A device is paired over a live channel with a number both screens show, and never silently; people verify each other with a safety number; revoking a device stops it at the realm and inside every group; losing the group's creator no longer means recreating the group, because the lowest active leaf takes over; a lost identity comes back from its `age` kit and its history from its archive, with a rolled-back realm reported rather than believed; interrupted uploads and downloads resume; an optional push hint tells a device it has mail and nothing else; the local database is encrypted at rest. The relay never sees plaintext, a group id or a conversation table, and a TLS-terminating proxy records nothing but opaque frames. Every claim runs in CI: [`scripts/phase3.sh`](scripts/phase3.sh), [`scripts/phase2.sh`](scripts/phase2.sh), [`scripts/phase1.sh`](scripts/phase1.sh), [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Transcript: [docs/evidence/demo-transcript.txt](docs/evidence/demo-transcript.txt). The Flutter clients and the verified platform matrix are what remains of Phase 3; see the [Phase 3 plan](docs/PHASE3.md) and the [roadmap](#roadmap).
 
 ## Why another messenger
 
@@ -53,6 +53,12 @@ Full documentation, in reading order:
 
 La documentación completa también está disponible en español en [`docs/es/`](docs/es/README.md).
 
+## Releases
+
+Tagging `v*` runs [the release workflow](.github/workflows/release.yml): it builds the relay and the client for Linux x86-64 and macOS arm64, injects the commit each binary reports through `arveil version` and `arveil-relay -version`, publishes a `SHA256SUMS.txt`, and attaches signed build provenance so somebody who did not build them can check where they came from.
+
+It does **not** do platform code signing: there is no Apple notarization and no Windows Authenticode certificate, so those systems will still warn on first run. Verify a download with its checksum and its provenance attestation (`gh attestation verify <file> --repo Ulzuhan/arveil`), not with the absence of a warning.
+
 ## Roadmap
 
 | Phase | Deliverable | Exit condition |
@@ -60,7 +66,7 @@ La documentación completa también está disponible en español en [`docs/es/`]
 | 0: viability (done) | Rust core without full UI, two CLI clients, minimal relay | Real MLS, verified identity and atomic persistence demonstrated |
 | 1: LAN vertical (done) | 1:1 and group chat, offline outbox, queues, attachments, Noise channel with endpoint list | Restarts, duplicates, TTL, network loss and carrier switching with no silent loss |
 | 2: personal use (done) | Multi-device, identity kit, history archive, revocation | Total-loss and restore drills; enrollment is never silent |
-| 3: ready to hand out (in progress) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds | Every claim in `scripts/phase3.sh`; builds a stranger can check |
+| 3: ready to hand out (done) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds | Every claim in `scripts/phase3.sh`; builds a stranger can check |
 | 3: distribution | Mobile and desktop UI, signed updates, optional push | Signed builds, external review, verified platform matrix |
 
 ## Repository layout

@@ -1,6 +1,6 @@
 # Phase 3 plan: ready to hand out
 
-**Status:** plan v1 · **Date:** 2026-09-04 · Exit condition from [Architecture §8](ARCHITECTURE.md#8-scope-and-engineering-gates): *signed builds, external review and a verified platform matrix*.
+**Status:** plan v1, **the six milestones of this slice complete on 2026-09-04** · Exit condition from [Architecture §8](ARCHITECTURE.md#8-scope-and-engineering-gates): *signed builds, external review and a verified platform matrix*.
 
 Phases 0 to 2 produced something a family could run on a LAN with the command line: groups, several devices per person, revocation, recovery and encryption at rest. Phase 3 is about handing it to someone who is not the person who built it. That means closing the last protocol gap the design still marks as open (pairing over a live channel), letting people verify each other, surviving bad networks during uploads, telling a sleeping device that it has mail without telling the realm anything new, and publishing builds a stranger can check.
 
@@ -28,3 +28,16 @@ Phases 0 to 2 produced something a family could run on a LAN with the command li
 - **Short authentication string.** Both sides derive it from the handshake hash after the second message, as eight digits in two groups. It is not a secret and it is not a password: it tells the user that the two devices are talking to each other and not to something in the middle. The new device stores the grant as pending and applies it only when the user confirms that number.
 - **Safety number.** SHA-256 over the two root public keys sorted, rendered as twelve groups of five digits. It depends on identities only, so it survives device changes and reveals a substituted root.
 - **Push.** The realm learns nothing new: it already knows a mailbox received an envelope. The hint is a bare POST to a URL the device's operator configured, with no body beyond a version marker, and it is sent only on the transition from empty to non-empty so it cannot count messages for an observer of the network to the notifier.
+
+## Results
+
+All acceptance rows are exercised by `scripts/phase3.sh`, which runs in CI.
+
+- **M3.1** Two processes pair through a rendezvous the realm brokers and cannot read: the new device prints a code, the administration device answers it, both derive the same eight digits from the Noise transcript, and the grant is applied only after the user confirms that number. A wrong number is refused with nothing applied, a second device is refused a code already answered, the rendezvous rows hold ciphertext only, and an expired one is refused and swept. The paired device then works as a full member in a group with a third party.
+- **M3.2** Both sides read the same safety number over their two root keys; a wrong number does not verify. Verifying pins the contact, after which a route naming a different root for that identity is refused where routes are stored. The number belongs to identities, not devices: adding a device leaves it unchanged, another identity produces a different one, and one's own devices never appear as contacts.
+- **M3.3** An upload interrupted after two chunks resumes at exactly what the realm holds and finishes with a matching hash; a download interrupted the same way resumes from its partial file, and nothing is written under the file's own name until the whole ciphertext is verified. A file that changed since the interrupted attempt starts a new upload instead of mixing versions, and the realm still refuses to overwrite bytes it already has.
+- **M3.4** The first envelope into an empty mailbox pokes the configured endpoint with a fixed marker, an untouched URL and no identifiers; the second envelope pokes nothing; emptying the mailbox arms it again. Removing the endpoint stops it and leaves no row. A recording of what the endpoint actually receives is asserted on, not described.
+- **M3.5** The relay reports the commit it was built from and a local build claims none. The release workflow injects the same revision into both binaries and fails if either does not report it, publishes checksums, and attaches signed build provenance. Platform code signing is not done and the README says so.
+- **M3.6** `scripts/phase3.sh` runs in CI beside the phase 0, 1 and 2 scripts.
+
+What this slice leaves for the rest of Phase 3: the Flutter clients, the verified platform matrix and the external review. They need a UI toolchain and real devices, and no amount of protocol work substitutes for them.

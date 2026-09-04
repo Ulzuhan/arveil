@@ -50,11 +50,18 @@ fn main() -> ExitCode {
 
     let result = match words.as_slice() {
         ["version"] => {
-            println!(
-                "arveil {} (protocol {})",
-                arveil_core::version(),
-                arveil_core::PROTOCOL_VERSION
-            );
+            match arveil_core::revision() {
+                Some(rev) => println!(
+                    "arveil {}+{rev} (protocol {})",
+                    arveil_core::version(),
+                    arveil_core::PROTOCOL_VERSION
+                ),
+                None => println!(
+                    "arveil {} (protocol {})",
+                    arveil_core::version(),
+                    arveil_core::PROTOCOL_VERSION
+                ),
+            }
             Ok(())
         }
         ["identity", "new"] => match data_dir {
