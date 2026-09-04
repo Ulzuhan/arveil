@@ -39,6 +39,12 @@ CREATE TABLE IF NOT EXISTS manifest (
     hash        BLOB NOT NULL,
     PRIMARY KEY (identity_id, sequence)
 );
+CREATE TABLE IF NOT EXISTS mailbox_own (
+    mailbox_id       BLOB PRIMARY KEY,
+    read_capability  BLOB NOT NULL,
+    write_capability BLOB NOT NULL,
+    created_at       INTEGER NOT NULL DEFAULT (unixepoch())
+);
 CREATE TABLE IF NOT EXISTS realm (
     realm_id          BLOB PRIMARY KEY,
     signing_public    BLOB NOT NULL,
@@ -94,6 +100,14 @@ pub struct StoredDevice {
     pub mls_signing_secret: Vec<u8>,
     pub credential: Vec<u8>,
     pub credential_hash: Vec<u8>,
+}
+
+/// A mailbox this device owns on the realm.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OwnMailbox {
+    pub mailbox_id: Vec<u8>,
+    pub read_capability: Vec<u8>,
+    pub write_capability: Vec<u8>,
 }
 
 /// A stored realm.
@@ -317,6 +331,32 @@ impl Client {
             params![signed, list.sequence as i64, list.realm_noise_public_key, realm_id],
         )?;
         Ok(list)
+    }
+
+    pub fn mailbox_save(&self, m: &OwnMailbox) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT INTO mailbox_own (mailbox_id, read_capability, write_capability) VALUES (?1, ?2, ?3)",
+            params![m.mailbox_id, m.read_capability, m.write_capability],
+        )?;
+        Ok(())
+    }
+
+    pub fn mailbox_own(&self) -> Result<Option<OwnMailbox>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT mailbox_id, read_capability, write_capability FROM mailbox_own ORDER BY created_at LIMIT 1",
+                [],
+                |r| {
+                    Ok(OwnMailbox {
+                        mailbox_id: r.get(0)?,
+                        read_capability: r.get(1)?,
+                        write_capability: r.get(2)?,
+                    })
+                },
+            )
+            .optional()?)
     }
 
     pub fn realm_mark_enrolled(&self, realm_id: &[u8]) -> Result<(), ClientError> {

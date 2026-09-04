@@ -69,6 +69,54 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         manifest: Vec<u8>,
     },
+    /// Create a mailbox owned by the session's device (member only).
+    MailboxCreate,
+    MailboxCreated {
+        #[serde(with = "serde_bytes")]
+        mailbox_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        read_capability: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        write_capability: Vec<u8>,
+    },
+    /// Store one sealed envelope (member session + write capability).
+    EnvelopePut {
+        #[serde(with = "serde_bytes")]
+        mailbox_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        write_capability: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        delivery_id: Vec<u8>,
+        requested_expiry: u64,
+        #[serde(with = "serde_bytes")]
+        hpke_enc: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        ciphertext: Vec<u8>,
+    },
+    EnvelopeAccepted {
+        effective_expiry: u64,
+    },
+    /// Page through a mailbox (owner + read capability).
+    EnvelopeFetch {
+        #[serde(with = "serde_bytes")]
+        mailbox_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        read_capability: Vec<u8>,
+        cursor: u64,
+        limit: u16,
+    },
+    Envelopes {
+        items: Vec<EnvelopeItem>,
+        next_cursor: u64,
+    },
+    /// Delete named envelopes after durable local custody.
+    EnvelopeAck {
+        #[serde(with = "serde_bytes")]
+        mailbox_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        read_capability: Vec<u8>,
+        delivery_ids: Vec<serde_bytes::ByteBuf>,
+    },
     /// Generic success reply.
     Ack,
     /// Generic failure reply.
@@ -78,6 +126,17 @@ pub enum Payload {
     },
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnvelopeItem {
+    pub seq: u64,
+    #[serde(with = "serde_bytes")]
+    pub delivery_id: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    pub hpke_enc: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    pub ciphertext: Vec<u8>,
+}
+
 /// Error codes carried in `Payload::Error`.
 pub mod error_code {
     pub const BAD_REQUEST: u16 = 400;
@@ -85,6 +144,8 @@ pub mod error_code {
     pub const FORBIDDEN: u16 = 403;
     pub const CONFLICT: u16 = 409;
     pub const GONE: u16 = 410;
+    pub const TOO_LARGE: u16 = 413;
+    pub const QUOTA: u16 = 429;
     pub const INTERNAL: u16 = 500;
 }
 

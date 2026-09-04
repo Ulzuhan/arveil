@@ -100,6 +100,10 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("schema: %w", err)
 	}
+	if err := s.initDelivery(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("delivery schema: %w", err)
+	}
 	if _, err := db.Exec(`INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (1, ?)`, time.Now().Unix()); err != nil {
 		db.Close()
 		return nil, err

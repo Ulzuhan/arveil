@@ -13,7 +13,10 @@ const USAGE: &str = "usage:
   arveil identity new --data-dir <dir>
   arveil enroll --data-dir <dir> <bootstrap> <invite-token-hex>
   arveil probe [--data-dir <dir>] <bootstrap>
-  arveil status --data-dir <dir>";
+  arveil status --data-dir <dir>
+  arveil mailbox create --data-dir <dir> <bootstrap>
+  arveil send --data-dir <dir> <bootstrap> <route> <text>
+  arveil fetch --data-dir <dir> <bootstrap>";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -40,6 +43,18 @@ fn main() -> ExitCode {
         ["probe", bootstrap] => commands::probe(data_dir.as_deref(), bootstrap),
         ["status"] => match data_dir {
             Some(d) => commands::status(&d),
+            None => usage(),
+        },
+        ["mailbox", "create", bootstrap] => match data_dir {
+            Some(d) => commands::mailbox_create(&d, bootstrap),
+            None => usage(),
+        },
+        ["send", bootstrap, route, text] => match data_dir {
+            Some(d) => commands::send(&d, bootstrap, route, text),
+            None => usage(),
+        },
+        ["fetch", bootstrap] => match data_dir {
+            Some(d) => commands::fetch(&d, bootstrap),
             None => usage(),
         },
         _ => usage(),

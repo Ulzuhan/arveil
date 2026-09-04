@@ -67,9 +67,27 @@ fi
 grep -q "(410)" "$DATA/carol.out" || { echo "expected a 410 refusal, got:"; cat "$DATA/carol.out"; exit 1; }
 echo "refused with 410 as expected"
 
+echo "--- M0.4: mailbox, envelope put/fetch/ack between two enrolled devices"
+INVITE2="$("$RELAY" invite -data-dir "$DATA/relay" -uses 1 | sed -n 's/^invite: //p')"
+"$CLI" enroll --data-dir "$DATA/dave" "$BOOTSTRAP" "$INVITE2" > /dev/null
+ROUTE="$("$CLI" mailbox create --data-dir "$DATA/alice" "$BOOTSTRAP" | sed -n 's/^route: //p')"
+[ -n "$ROUTE" ] || { echo "no route"; exit 1; }
+"$CLI" send --data-dir "$DATA/dave" "$BOOTSTRAP" "$ROUTE" "hola alice, soy dave"
+"$CLI" fetch --data-dir "$DATA/alice" "$BOOTSTRAP" | tee "$DATA/fetch1.out"
+grep -q "message: hola alice, soy dave" "$DATA/fetch1.out" || { echo "message not received"; exit 1; }
+"$CLI" fetch --data-dir "$DATA/alice" "$BOOTSTRAP" | tee "$DATA/fetch2.out"
+grep -q "fetched: 0 envelope(s)" "$DATA/fetch2.out" || { echo "acked envelope was delivered again"; exit 1; }
+echo "--- M0.4: a provisional (unenrolled) session cannot put envelopes"
+"$CLI" identity new --data-dir "$DATA/eve" > /dev/null
+if "$CLI" send --data-dir "$DATA/eve" "$BOOTSTRAP" "$ROUTE" "spam" > "$DATA/eve.out" 2>&1; then
+  echo "unenrolled sender unexpectedly succeeded"; cat "$DATA/eve.out"; exit 1
+fi
+echo "refused as expected"
+
 echo "--- relay database inventory (I-01 spot check)"
 if command -v sqlite3 >/dev/null; then
   sqlite3 "$DATA/relay/realm.db" '.tables'
-  sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) AS memberships FROM realm_memberships; SELECT COUNT(*) AS credentials FROM device_credentials; SELECT COUNT(*) AS manifests FROM device_manifests; SELECT uses_left FROM invites;'
+  sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) AS memberships FROM realm_memberships; SELECT COUNT(*) AS credentials FROM device_credentials; SELECT COUNT(*) AS manifests FROM device_manifests; SELECT COUNT(*) AS mailboxes FROM mailboxes; SELECT COUNT(*) AS envelopes_left FROM envelopes;'
+  if sqlite3 "$DATA/relay/realm.db" 'SELECT hex(ciphertext) FROM envelopes' | grep -qi "$(printf 'hola alice' | xxd -p)"; then echo "PLAINTEXT FOUND IN RELAY"; exit 1; fi
 fi
 echo "interop ok"

@@ -254,3 +254,40 @@ func TestCodecMatchesRustVectorsM03(t *testing.T) {
 		}
 	}
 }
+
+var rustVectorsM04 = []struct {
+	hex   string
+	frame Frame
+}{
+	{"a262696401677061796c6f61646d4d61696c626f78437265617465", Frame{ID: 1, Payload: Payload{Kind: KindMailboxCreate}}},
+	{"a262696401677061796c6f6164a16e4d61696c626f7843726561746564a36a6d61696c626f785f696441016f726561645f6361706162696c69747941027077726974655f6361706162696c6974794103", Frame{ID: 1, Payload: Payload{Kind: KindMailboxCreated, MailboxID: []byte{1}, ReadCapability: []byte{2}, WriteCapability: []byte{3}}}},
+	{"a262696402677061796c6f6164a16b456e76656c6f7065507574a66868706b655f656e6341056a636970686572746578744206076a6d61696c626f785f696441016b64656c69766572795f69644104707265717565737465645f65787069727918637077726974655f6361706162696c6974794103", Frame{ID: 2, Payload: Payload{Kind: KindEnvelopePut, MailboxID: []byte{1}, WriteCapability: []byte{3}, DeliveryID: []byte{4}, RequestedExpiry: 99, HpkeEnc: []byte{5}, Ciphertext: []byte{6, 7}}}},
+	{"a262696402677061796c6f6164a170456e76656c6f70654163636570746564a1706566666563746976655f6578706972791862", Frame{ID: 2, Payload: Payload{Kind: KindEnvelopeAccepted, EffectiveExpiry: 98}}},
+	{"a262696403677061796c6f6164a16d456e76656c6f70654665746368a4656c696d69740a66637572736f72006a6d61696c626f785f696441016f726561645f6361706162696c6974794102", Frame{ID: 3, Payload: Payload{Kind: KindEnvelopeFetch, MailboxID: []byte{1}, ReadCapability: []byte{2}, Cursor: 0, Limit: 10}}},
+	{"a262696403677061796c6f6164a169456e76656c6f706573a2656974656d7381a463736571016868706b655f656e6341056a636970686572746578744206076b64656c69766572795f696441046b6e6578745f637572736f7201", Frame{ID: 3, Payload: Payload{Kind: KindEnvelopes, Items: []EnvelopeItem{{Seq: 1, DeliveryID: []byte{4}, HpkeEnc: []byte{5}, Ciphertext: []byte{6, 7}}}, NextCursor: 1}}},
+	{"a262696404677061796c6f6164a16b456e76656c6f706541636ba36a6d61696c626f785f696441016c64656c69766572795f6964738141046f726561645f6361706162696c6974794102", Frame{ID: 4, Payload: Payload{Kind: KindEnvelopeAck, MailboxID: []byte{1}, ReadCapability: []byte{2}, DeliveryIDs: [][]byte{{4}}}}},
+}
+
+func TestCodecMatchesRustVectorsM04(t *testing.T) {
+	for _, v := range rustVectorsM04 {
+		want, _ := hex.DecodeString(v.hex)
+		got, err := Encode(v.frame)
+		if err != nil {
+			t.Fatalf("%s: encode: %v", v.frame.Payload.Kind, err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s: encode mismatch\n got %x\nwant %x", v.frame.Payload.Kind, got, want)
+		}
+		dec, err := Decode(want)
+		if err != nil {
+			t.Fatalf("%s: decode: %v", v.frame.Payload.Kind, err)
+		}
+		if dec.Payload.Kind != v.frame.Payload.Kind || dec.Payload.RequestedExpiry != v.frame.Payload.RequestedExpiry ||
+			dec.Payload.EffectiveExpiry != v.frame.Payload.EffectiveExpiry || dec.Payload.Cursor != v.frame.Payload.Cursor ||
+			dec.Payload.Limit != v.frame.Payload.Limit || dec.Payload.NextCursor != v.frame.Payload.NextCursor ||
+			len(dec.Payload.Items) != len(v.frame.Payload.Items) || len(dec.Payload.DeliveryIDs) != len(v.frame.Payload.DeliveryIDs) ||
+			!bytes.Equal(dec.Payload.MailboxID, v.frame.Payload.MailboxID) || !bytes.Equal(dec.Payload.Ciphertext, v.frame.Payload.Ciphertext) {
+			t.Errorf("%s: decode mismatch: %+v", v.frame.Payload.Kind, dec.Payload)
+		}
+	}
+}

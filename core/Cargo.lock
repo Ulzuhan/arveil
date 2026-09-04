@@ -54,7 +54,10 @@ dependencies = [
  "arveil-core",
  "ed25519-dalek 3.0.0",
  "futures-util",
+ "getrandom 0.4.3",
  "hex",
+ "rusqlite",
+ "serde_bytes",
  "tokio",
  "tokio-tungstenite",
 ]

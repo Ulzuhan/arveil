@@ -5,9 +5,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use arveil_core::channel::StaticKeypair;
 use arveil_core::channel::codec::Payload;
-use arveil_core::client::Client;
+use arveil_core::client::{Client, OwnMailbox};
+use arveil_core::delivery::Delivery;
+use arveil_core::envelope::{self, EnvelopeContext};
 use arveil_core::mls::MlsIdentity;
 use arveil_core::storage::SharedConn;
+
+/// Phase 0 CLI payload kind: plain text without MLS. The chat demo (M0.6)
+/// replaces it with `envelope::KIND_MLS`.
+const KIND_PLAIN_TEXT: u8 = 250;
 
 use crate::carrier::{Bootstrap, CliError, Connection, block_on, err};
 
@@ -167,6 +173,27 @@ pub fn probe(data_dir: Option<&Path>, bootstrap: &str) -> Result<(), CliError> {
             }
             (_, r) => return Err(CliError(format!("unexpected manifest_put outcome: {r:?}"))),
         }
+        // Delivery frames: members need a valid capability; provisional
+        // sessions are refused outright.
+        let put = conn
+            .request(Payload::EnvelopePut {
+                mailbox_id: vec![0; 16],
+                write_capability: vec![0; 32],
+                delivery_id: vec![1; 16],
+                requested_expiry: 0,
+                hpke_enc: vec![0; 32],
+                ciphertext: vec![0; 32],
+            })
+            .await;
+        match (data_dir.is_some(), put) {
+            (true, Err(e)) if e.0.contains("(403)") => {
+                println!("envelope_put: rejected as expected (unknown capability)")
+            }
+            (false, Err(e)) if e.0.contains("(401)") => {
+                println!("envelope_put: refused on provisional session, as expected")
+            }
+            (_, r) => return Err(CliError(format!("unexpected envelope_put outcome: {r:?}"))),
+        }
         conn.close().await;
         println!("probe ok");
         Ok(())
@@ -221,4 +248,262 @@ pub fn data_dir_arg(args: &[String]) -> (Option<PathBuf>, Vec<String>) {
         }
     }
     (dir, rest)
+}
+
+/// `arveil-route:v0:<mailbox_id>:<write_capability>:<hpke_public>`: what a
+/// contact needs to deliver to this device. Exchanged out of band in
+/// Phase 0; inside MLS-protected events later (PROTOCOL §4).
+fn route_string(m: &OwnMailbox, hpke_public: &[u8]) -> String {
+    format!(
+        "arveil-route:v0:{}:{}:{}",
+        hex::encode(&m.mailbox_id),
+        hex::encode(&m.write_capability),
+        hex::encode(hpke_public)
+    )
+}
+
+struct Route {
+    mailbox_id: Vec<u8>,
+    write_capability: Vec<u8>,
+    hpke_public: Vec<u8>,
+}
+
+fn parse_route(s: &str) -> Result<Route, CliError> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 5 || parts[0] != "arveil-route" || parts[1] != "v0" {
+        return Err(CliError("not an arveil-route:v0 string".into()));
+    }
+    Ok(Route {
+        mailbox_id: hex::decode(parts[2]).map_err(err("mailbox id"))?,
+        write_capability: hex::decode(parts[3]).map_err(err("write capability"))?,
+        hpke_public: hex::decode(parts[4]).map_err(err("hpke key"))?,
+    })
+}
+
+fn enrolled(
+    data_dir: &Path,
+) -> Result<
+    (
+        Client,
+        arveil_core::client::StoredDevice,
+        arveil_core::client::StoredRealm,
+    ),
+    CliError,
+> {
+    let c = open_client(data_dir)?;
+    let d = c
+        .device()
+        .map_err(err("device"))?
+        .ok_or_else(|| CliError("no enrolled device in this data dir".into()))?;
+    let r = c
+        .realm()
+        .map_err(err("realm"))?
+        .filter(|r| r.enrolled)
+        .ok_or_else(|| CliError("not enrolled in a realm".into()))?;
+    Ok((c, d, r))
+}
+
+fn random_delivery_id() -> Result<Vec<u8>, CliError> {
+    let mut id = [0u8; 16];
+    getrandom::fill(&mut id).map_err(err("random"))?;
+    Ok(id.to_vec())
+}
+
+/// `arveil mailbox create --data-dir D <bootstrap>`
+pub fn mailbox_create(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let (c, d, _) = enrolled(data_dir)?;
+    if let Some(m) = c.mailbox_own().map_err(err("mailbox"))? {
+        println!("route: {}", route_string(&m, &d.keys.envelope_hpke.public));
+        return Ok(());
+    }
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &d.keys.transport_noise,
+        )
+        .await?;
+        match conn.request(Payload::MailboxCreate).await? {
+            Payload::MailboxCreated {
+                mailbox_id,
+                read_capability,
+                write_capability,
+            } => {
+                let m = OwnMailbox {
+                    mailbox_id,
+                    read_capability,
+                    write_capability,
+                };
+                c.mailbox_save(&m).map_err(err("mailbox"))?;
+                println!("mailbox: {} created", hex::encode(&m.mailbox_id));
+                println!("route: {}", route_string(&m, &d.keys.envelope_hpke.public));
+            }
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+        conn.close().await;
+        Ok(())
+    })?
+}
+
+/// `arveil send --data-dir D <bootstrap> <route> <text>`: seal, enqueue in
+/// the send unit of work, then publish everything pending.
+pub fn send(data_dir: &Path, bootstrap: &str, route: &str, text: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let r = parse_route(route)?;
+    let (c, d, realm) = enrolled(data_dir)?;
+    let delivery = Delivery::open(c.conn.clone()).map_err(err("delivery"))?;
+
+    let delivery_id = random_delivery_id()?;
+    let ctx = EnvelopeContext::new(&realm.realm_id, &r.mailbox_id, &delivery_id);
+    let sealed = envelope::seal(&r.hpke_public, &ctx, KIND_PLAIN_TEXT, text.as_bytes())
+        .map_err(err("seal"))?;
+    c.conn
+        .unit_of_work(|_| {
+            delivery.record_event(&r.mailbox_id, &delivery_id, "sent", text.as_bytes())?;
+            delivery.enqueue(&r.mailbox_id, &delivery_id, &sealed.enc, &sealed.ciphertext)
+        })
+        .map_err(err("send unit"))?;
+    println!("queued: delivery {}", hex::encode(&delivery_id));
+
+    let pending = delivery.pending().map_err(err("outbox"))?;
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &d.keys.transport_noise,
+        )
+        .await?;
+        for row in pending {
+            delivery.mark_attempt(row.id).map_err(err("outbox"))?;
+            match conn
+                .request(Payload::EnvelopePut {
+                    mailbox_id: row.mailbox_id.clone(),
+                    write_capability: r.write_capability.clone(),
+                    delivery_id: row.delivery_id.clone(),
+                    requested_expiry: 0,
+                    hpke_enc: row.hpke_enc.clone(),
+                    ciphertext: row.ciphertext.clone(),
+                })
+                .await?
+            {
+                Payload::EnvelopeAccepted { effective_expiry } => {
+                    delivery.mark_accepted(row.id).map_err(err("outbox"))?;
+                    println!(
+                        "accepted: delivery {} (expires {effective_expiry})",
+                        hex::encode(&row.delivery_id)
+                    );
+                }
+                other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+            }
+        }
+        conn.close().await;
+        Ok(())
+    })?
+}
+
+/// `arveil fetch --data-dir D <bootstrap>`: page the own mailbox, run the
+/// receive unit per envelope, then ACK what is durably stored.
+pub fn fetch(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let (c, d, realm) = enrolled(data_dir)?;
+    let m = c
+        .mailbox_own()
+        .map_err(err("mailbox"))?
+        .ok_or_else(|| CliError("no mailbox; run `mailbox create` first".into()))?;
+    let delivery = Delivery::open(c.conn.clone()).map_err(err("delivery"))?;
+
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &d.keys.transport_noise,
+        )
+        .await?;
+        let cursor = delivery.cursor(&m.mailbox_id).map_err(err("cursor"))? as u64;
+        let (items, next) = match conn
+            .request(Payload::EnvelopeFetch {
+                mailbox_id: m.mailbox_id.clone(),
+                read_capability: m.read_capability.clone(),
+                cursor,
+                limit: 50,
+            })
+            .await?
+        {
+            Payload::Envelopes { items, next_cursor } => (items, next_cursor),
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        };
+        let mut received = 0;
+        for item in &items {
+            let ctx = EnvelopeContext::new(&realm.realm_id, &m.mailbox_id, &item.delivery_id);
+            let outcome: Result<Option<Vec<u8>>, rusqlite::Error> = c.conn.unit_of_work(|_| {
+                if !delivery.record_incoming(&m.mailbox_id, &item.delivery_id, item.seq as i64)? {
+                    return Ok(None);
+                }
+                let inner = envelope::open(
+                    &d.keys.envelope_hpke.private,
+                    &ctx,
+                    &envelope::Sealed {
+                        enc: item.hpke_enc.clone(),
+                        ciphertext: item.ciphertext.clone(),
+                    },
+                )
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+                delivery.record_event(
+                    &m.mailbox_id,
+                    &item.delivery_id,
+                    "received",
+                    &inner.payload,
+                )?;
+                Ok(Some(inner.payload))
+            });
+            match outcome {
+                Ok(Some(text)) => {
+                    received += 1;
+                    println!("message: {}", String::from_utf8_lossy(&text));
+                }
+                Ok(None) => println!(
+                    "duplicate: delivery {} ignored",
+                    hex::encode(&item.delivery_id)
+                ),
+                Err(_) => println!(
+                    "undecryptable: delivery {} left unacked",
+                    hex::encode(&item.delivery_id)
+                ),
+            }
+        }
+        let unacked = delivery.unacked(&m.mailbox_id).map_err(err("inbox"))?;
+        if !unacked.is_empty() {
+            match conn
+                .request(Payload::EnvelopeAck {
+                    mailbox_id: m.mailbox_id.clone(),
+                    read_capability: m.read_capability.clone(),
+                    delivery_ids: unacked
+                        .iter()
+                        .cloned()
+                        .map(serde_bytes::ByteBuf::from)
+                        .collect(),
+                })
+                .await?
+            {
+                Payload::Ack => delivery
+                    .mark_acked(&m.mailbox_id, &unacked)
+                    .map_err(err("inbox"))?,
+                other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+            }
+        }
+        delivery
+            .set_cursor(&m.mailbox_id, next as i64)
+            .map_err(err("cursor"))?;
+        println!(
+            "fetched: {} envelope(s), {received} new, {} acked",
+            items.len(),
+            unacked.len()
+        );
+        conn.close().await;
+        Ok(())
+    })?
 }

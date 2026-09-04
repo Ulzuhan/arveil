@@ -1,0 +1,262 @@
+package store
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"database/sql"
+	"errors"
+	"time"
+)
+
+// Delivery tables (DOMAIN_MODEL §4): opaque mailboxes owned by devices,
+// capabilities stored as hashes, envelopes keyed by (mailbox, delivery id).
+// The relay never sees a conversation, a group id or a member list here.
+const deliverySchema = `
+CREATE TABLE IF NOT EXISTS mailboxes (
+    mailbox_id     BLOB PRIMARY KEY,
+    owner_identity BLOB NOT NULL REFERENCES realm_memberships(identity_id),
+    owner_device   BLOB NOT NULL,
+    created_at     INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS capabilities (
+    cap_hash   BLOB PRIMARY KEY,
+    mailbox_id BLOB NOT NULL REFERENCES mailboxes(mailbox_id),
+    scope      TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    revoked    INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS envelopes (
+    seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+    mailbox_id  BLOB NOT NULL REFERENCES mailboxes(mailbox_id),
+    delivery_id BLOB NOT NULL,
+    body_hash   BLOB NOT NULL,
+    hpke_enc    BLOB NOT NULL,
+    ciphertext  BLOB NOT NULL,
+    expires_at  INTEGER NOT NULL,
+    UNIQUE (mailbox_id, delivery_id)
+);
+CREATE INDEX IF NOT EXISTS envelopes_by_mailbox ON envelopes (mailbox_id, seq);
+`
+
+const (
+	ScopeRead  = "read"
+	ScopeWrite = "write"
+
+	// MaxEnvelopeBytes is the largest ciphertext accepted (ARCHITECTURE §5:
+	// 256 KiB after padding, plus AEAD tag and encapsulation overhead).
+	MaxEnvelopeBytes = 256*1024 + 64
+	// MaxMailboxQueue bounds pending envelopes per mailbox (prototype value).
+	MaxMailboxQueue = 1000
+	// DefaultEnvelopeTTL is the initial retention (ARCHITECTURE §5: 30 days).
+	DefaultEnvelopeTTL = 30 * 24 * time.Hour
+	// CapabilityTTL for prototype capabilities.
+	CapabilityTTL = 365 * 24 * time.Hour
+)
+
+var (
+	ErrCapability       = errors.New("capability: unknown, wrong scope, expired or revoked")
+	ErrEnvelopeTooBig   = errors.New("envelope: too large")
+	ErrMailboxFull      = errors.New("envelope: mailbox queue full")
+	ErrDeliveryConflict = errors.New("envelope: delivery id reused with a different body")
+	ErrUnknownMailbox   = errors.New("mailbox: unknown")
+)
+
+func (s *Store) initDelivery() error {
+	_, err := s.db.Exec(deliverySchema)
+	return err
+}
+
+// Mailbox is what the owner receives at creation; the relay keeps only the
+// capability hashes.
+type Mailbox struct {
+	MailboxID       []byte
+	ReadCapability  []byte
+	WriteCapability []byte
+}
+
+func randomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	return b, err
+}
+
+func capHash(cap []byte) []byte {
+	h := sha256.Sum256(cap)
+	return h[:]
+}
+
+// CreateMailbox creates a mailbox for a device with one read and one write
+// capability, in one transaction.
+func (s *Store) CreateMailbox(ctx context.Context, ownerIdentity, ownerDevice []byte, now time.Time) (*Mailbox, error) {
+	id, err := randomBytes(16)
+	if err != nil {
+		return nil, err
+	}
+	readCap, err := randomBytes(32)
+	if err != nil {
+		return nil, err
+	}
+	writeCap, err := randomBytes(32)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO mailboxes (mailbox_id, owner_identity, owner_device, created_at) VALUES (?, ?, ?, ?)`,
+		id, ownerIdentity, ownerDevice, now.Unix()); err != nil {
+		return nil, err
+	}
+	exp := now.Add(CapabilityTTL).Unix()
+	for _, c := range []struct {
+		cap   []byte
+		scope string
+	}{{readCap, ScopeRead}, {writeCap, ScopeWrite}} {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO capabilities (cap_hash, mailbox_id, scope, expires_at) VALUES (?, ?, ?, ?)`,
+			capHash(c.cap), id, c.scope, exp); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &Mailbox{MailboxID: id, ReadCapability: readCap, WriteCapability: writeCap}, nil
+}
+
+// CheckCapability verifies a presented capability for a mailbox and scope.
+func (s *Store) CheckCapability(ctx context.Context, mailboxID, capability []byte, scope string, now time.Time) error {
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM capabilities WHERE cap_hash = ? AND mailbox_id = ? AND scope = ? AND revoked = 0 AND expires_at > ?`,
+		capHash(capability), mailboxID, scope, now.Unix()).Scan(&n)
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrCapability
+	}
+	return nil
+}
+
+// PutResult reports how an envelope put was resolved.
+type PutResult struct {
+	EffectiveExpiry int64
+	Duplicate       bool // same delivery id and same body: idempotent retry
+}
+
+// PutEnvelope stores an envelope durably. A retry with identical bytes is
+// idempotent; a different body under the same delivery id is a conflict.
+func (s *Store) PutEnvelope(ctx context.Context, mailboxID, deliveryID, hpkeEnc, ciphertext []byte, requestedExpiry int64, now time.Time) (*PutResult, error) {
+	if len(ciphertext) > MaxEnvelopeBytes || len(hpkeEnc) > 64 || len(deliveryID) == 0 || len(deliveryID) > 32 {
+		return nil, ErrEnvelopeTooBig
+	}
+	maxExpiry := now.Add(DefaultEnvelopeTTL).Unix()
+	expiry := requestedExpiry
+	if expiry <= 0 || expiry > maxExpiry {
+		expiry = maxExpiry
+	}
+	h := sha256.New()
+	h.Write(hpkeEnc)
+	h.Write(ciphertext)
+	bodyHash := h.Sum(nil)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var existingHash []byte
+	var existingExpiry int64
+	err = tx.QueryRowContext(ctx, `SELECT body_hash, expires_at FROM envelopes WHERE mailbox_id = ? AND delivery_id = ?`, mailboxID, deliveryID).
+		Scan(&existingHash, &existingExpiry)
+	switch {
+	case err == nil:
+		if string(existingHash) != string(bodyHash) {
+			return nil, ErrDeliveryConflict
+		}
+		return &PutResult{EffectiveExpiry: existingExpiry, Duplicate: true}, nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return nil, err
+	}
+
+	var queued int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM envelopes WHERE mailbox_id = ?`, mailboxID).Scan(&queued); err != nil {
+		return nil, err
+	}
+	if queued >= MaxMailboxQueue {
+		return nil, ErrMailboxFull
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO envelopes (mailbox_id, delivery_id, body_hash, hpke_enc, ciphertext, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		mailboxID, deliveryID, bodyHash, hpkeEnc, ciphertext, expiry); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &PutResult{EffectiveExpiry: expiry}, nil
+}
+
+// Envelope is one queued item as returned to the owner.
+type Envelope struct {
+	Seq        uint64
+	DeliveryID []byte
+	HpkeEnc    []byte
+	Ciphertext []byte
+}
+
+// FetchEnvelopes returns up to `limit` envelopes with seq > cursor, oldest
+// first, and the cursor to continue from.
+func (s *Store) FetchEnvelopes(ctx context.Context, mailboxID []byte, cursor uint64, limit int, now time.Time) ([]Envelope, uint64, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT seq, delivery_id, hpke_enc, ciphertext FROM envelopes WHERE mailbox_id = ? AND seq > ? AND expires_at > ? ORDER BY seq LIMIT ?`,
+		mailboxID, cursor, now.Unix(), limit)
+	if err != nil {
+		return nil, cursor, err
+	}
+	defer rows.Close()
+	var out []Envelope
+	next := cursor
+	for rows.Next() {
+		var e Envelope
+		if err := rows.Scan(&e.Seq, &e.DeliveryID, &e.HpkeEnc, &e.Ciphertext); err != nil {
+			return nil, cursor, err
+		}
+		out = append(out, e)
+		next = e.Seq
+	}
+	return out, next, rows.Err()
+}
+
+// AckEnvelopes deletes the named envelopes of a mailbox. Idempotent.
+func (s *Store) AckEnvelopes(ctx context.Context, mailboxID []byte, deliveryIDs [][]byte) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, d := range deliveryIDs {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM envelopes WHERE mailbox_id = ? AND delivery_id = ?`, mailboxID, d); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ExpireEnvelopes removes envelopes past their TTL. Called periodically.
+func (s *Store) ExpireEnvelopes(ctx context.Context, now time.Time) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM envelopes WHERE expires_at <= ?`, now.Unix())
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}

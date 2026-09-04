@@ -14,16 +14,23 @@ const MaxFrameBytes = 1024 * 1024
 // wire a unit variant is a text string and a struct variant is a one-entry
 // map keyed by the variant name (serde's externally tagged representation).
 const (
-	KindPing            = "Ping"
-	KindPong            = "Pong"
-	KindEndpointListGet = "EndpointListGet"
-	KindEndpointList    = "EndpointList"
-	KindInviteRedeem    = "InviteRedeem"
-	KindInviteRedeemed  = "InviteRedeemed"
-	KindCredentialPut   = "CredentialPut"
-	KindManifestPut     = "ManifestPut"
-	KindAck             = "Ack"
-	KindError           = "Error"
+	KindPing             = "Ping"
+	KindPong             = "Pong"
+	KindEndpointListGet  = "EndpointListGet"
+	KindEndpointList     = "EndpointList"
+	KindInviteRedeem     = "InviteRedeem"
+	KindInviteRedeemed   = "InviteRedeemed"
+	KindCredentialPut    = "CredentialPut"
+	KindManifestPut      = "ManifestPut"
+	KindAck              = "Ack"
+	KindError            = "Error"
+	KindMailboxCreate    = "MailboxCreate"
+	KindMailboxCreated   = "MailboxCreated"
+	KindEnvelopePut      = "EnvelopePut"
+	KindEnvelopeAccepted = "EnvelopeAccepted"
+	KindEnvelopeFetch    = "EnvelopeFetch"
+	KindEnvelopes        = "Envelopes"
+	KindEnvelopeAck      = "EnvelopeAck"
 )
 
 // Error codes carried in Error frames (mirrors arveil-core codec::error_code).
@@ -33,8 +40,18 @@ const (
 	CodeForbidden    uint16 = 403
 	CodeConflict     uint16 = 409
 	CodeGone         uint16 = 410
+	CodeTooLarge     uint16 = 413
+	CodeQuota        uint16 = 429
 	CodeInternal     uint16 = 500
 )
+
+// EnvelopeItem is one queued envelope in an Envelopes reply.
+type EnvelopeItem struct {
+	Seq        uint64 `cbor:"seq"`
+	DeliveryID []byte `cbor:"delivery_id"`
+	HpkeEnc    []byte `cbor:"hpke_enc"`
+	Ciphertext []byte `cbor:"ciphertext"`
+}
 
 var ErrFrameTooLarge = errors.New("codec: frame exceeds the size limit")
 
@@ -58,6 +75,57 @@ type Payload struct {
 	Manifest   []byte
 	// InviteRedeemed
 	IdentityID []byte
+	// Mailbox and envelope frames
+	MailboxID       []byte
+	ReadCapability  []byte
+	WriteCapability []byte
+	DeliveryID      []byte
+	RequestedExpiry uint64
+	EffectiveExpiry uint64
+	HpkeEnc         []byte
+	Ciphertext      []byte
+	Cursor          uint64
+	NextCursor      uint64
+	Limit           uint16
+	Items           []EnvelopeItem
+	DeliveryIDs     [][]byte
+}
+
+type mailboxCreatedBody struct {
+	MailboxID       []byte `cbor:"mailbox_id"`
+	ReadCapability  []byte `cbor:"read_capability"`
+	WriteCapability []byte `cbor:"write_capability"`
+}
+
+type envelopePutBody struct {
+	MailboxID       []byte `cbor:"mailbox_id"`
+	WriteCapability []byte `cbor:"write_capability"`
+	DeliveryID      []byte `cbor:"delivery_id"`
+	RequestedExpiry uint64 `cbor:"requested_expiry"`
+	HpkeEnc         []byte `cbor:"hpke_enc"`
+	Ciphertext      []byte `cbor:"ciphertext"`
+}
+
+type envelopeAcceptedBody struct {
+	EffectiveExpiry uint64 `cbor:"effective_expiry"`
+}
+
+type envelopeFetchBody struct {
+	MailboxID      []byte `cbor:"mailbox_id"`
+	ReadCapability []byte `cbor:"read_capability"`
+	Cursor         uint64 `cbor:"cursor"`
+	Limit          uint16 `cbor:"limit"`
+}
+
+type envelopesBody struct {
+	Items      []EnvelopeItem `cbor:"items"`
+	NextCursor uint64         `cbor:"next_cursor"`
+}
+
+type envelopeAckBody struct {
+	MailboxID      []byte   `cbor:"mailbox_id"`
+	ReadCapability []byte   `cbor:"read_capability"`
+	DeliveryIDs    [][]byte `cbor:"delivery_ids"`
 }
 
 type inviteRedeemBody struct {
@@ -106,8 +174,28 @@ func init() {
 func Encode(f Frame) ([]byte, error) {
 	var payload any
 	switch f.Payload.Kind {
-	case KindPing, KindPong, KindEndpointListGet, KindAck:
+	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate:
 		payload = f.Payload.Kind
+	case KindMailboxCreated:
+		payload = map[string]mailboxCreatedBody{KindMailboxCreated: {MailboxID: f.Payload.MailboxID, ReadCapability: f.Payload.ReadCapability, WriteCapability: f.Payload.WriteCapability}}
+	case KindEnvelopePut:
+		payload = map[string]envelopePutBody{KindEnvelopePut: {MailboxID: f.Payload.MailboxID, WriteCapability: f.Payload.WriteCapability, DeliveryID: f.Payload.DeliveryID, RequestedExpiry: f.Payload.RequestedExpiry, HpkeEnc: f.Payload.HpkeEnc, Ciphertext: f.Payload.Ciphertext}}
+	case KindEnvelopeAccepted:
+		payload = map[string]envelopeAcceptedBody{KindEnvelopeAccepted: {EffectiveExpiry: f.Payload.EffectiveExpiry}}
+	case KindEnvelopeFetch:
+		payload = map[string]envelopeFetchBody{KindEnvelopeFetch: {MailboxID: f.Payload.MailboxID, ReadCapability: f.Payload.ReadCapability, Cursor: f.Payload.Cursor, Limit: f.Payload.Limit}}
+	case KindEnvelopes:
+		items := f.Payload.Items
+		if items == nil {
+			items = []EnvelopeItem{}
+		}
+		payload = map[string]envelopesBody{KindEnvelopes: {Items: items, NextCursor: f.Payload.NextCursor}}
+	case KindEnvelopeAck:
+		ids := f.Payload.DeliveryIDs
+		if ids == nil {
+			ids = [][]byte{}
+		}
+		payload = map[string]envelopeAckBody{KindEnvelopeAck: {MailboxID: f.Payload.MailboxID, ReadCapability: f.Payload.ReadCapability, DeliveryIDs: ids}}
 	case KindInviteRedeem:
 		payload = map[string]inviteRedeemBody{KindInviteRedeem: {Token: f.Payload.Token, Credential: f.Payload.Credential, Manifest: f.Payload.Manifest}}
 	case KindInviteRedeemed:
@@ -152,7 +240,7 @@ func Decode(b []byte) (Frame, error) {
 	var kind string
 	if err := cbor.Unmarshal(w.Payload, &kind); err == nil {
 		switch kind {
-		case KindPing, KindPong, KindEndpointListGet, KindAck:
+		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate:
 			f.Payload.Kind = kind
 			return f, nil
 		}
@@ -205,6 +293,42 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Manifest: v.Manifest}
+		case KindMailboxCreated:
+			var v mailboxCreatedBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, MailboxID: v.MailboxID, ReadCapability: v.ReadCapability, WriteCapability: v.WriteCapability}
+		case KindEnvelopePut:
+			var v envelopePutBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, MailboxID: v.MailboxID, WriteCapability: v.WriteCapability, DeliveryID: v.DeliveryID, RequestedExpiry: v.RequestedExpiry, HpkeEnc: v.HpkeEnc, Ciphertext: v.Ciphertext}
+		case KindEnvelopeAccepted:
+			var v envelopeAcceptedBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, EffectiveExpiry: v.EffectiveExpiry}
+		case KindEnvelopeFetch:
+			var v envelopeFetchBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, MailboxID: v.MailboxID, ReadCapability: v.ReadCapability, Cursor: v.Cursor, Limit: v.Limit}
+		case KindEnvelopes:
+			var v envelopesBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Items: v.Items, NextCursor: v.NextCursor}
+		case KindEnvelopeAck:
+			var v envelopeAckBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, MailboxID: v.MailboxID, ReadCapability: v.ReadCapability, DeliveryIDs: v.DeliveryIDs}
 		default:
 			return Frame{}, fmt.Errorf("codec: unknown variant %q", name)
 		}

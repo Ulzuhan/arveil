@@ -55,6 +55,14 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.credentialPut(ctx, s, f, now)
 	case channel.KindManifestPut:
 		return srv.manifestPut(ctx, s, f)
+	case channel.KindMailboxCreate:
+		return srv.mailboxCreate(ctx, s, f, now)
+	case channel.KindEnvelopePut:
+		return srv.envelopePut(ctx, s, f, now)
+	case channel.KindEnvelopeFetch:
+		return srv.envelopeFetch(ctx, s, f, now)
+	case channel.KindEnvelopeAck:
+		return srv.envelopeAck(ctx, s, f, now)
 	default:
 		return errFrame(f.ID, channel.CodeBadRequest, "unsupported frame")
 	}
