@@ -72,7 +72,7 @@ fn manifest_chain_sequence_and_conflicts() {
     let c1 = credential_hash(b"cred-1");
     let c2 = credential_hash(b"cred-2");
 
-    let m1 = issue_manifest(&root, None, &[c1.clone()], &[]).unwrap();
+    let m1 = issue_manifest(&root, None, std::slice::from_ref(&c1), &[]).unwrap();
     let (body1, s1) = accept_manifest(&m1, &root.public(), None).unwrap();
     assert_eq!(body1.manifest_sequence, 1);
     assert!(body1.previous_manifest_hash.is_empty());
@@ -93,17 +93,18 @@ fn manifest_chain_sequence_and_conflicts() {
         s2
     );
     // A different manifest with the same sequence is a conflict (fork).
-    let m2b = issue_manifest(&root, Some(&s1), &[c2.clone()], &[c1.clone()]).unwrap();
+    let m2b = issue_manifest(
+        &root,
+        Some(&s1),
+        std::slice::from_ref(&c2),
+        std::slice::from_ref(&c1),
+    )
+    .unwrap();
     assert!(matches!(
         accept_manifest(&m2b, &root.public(), Some(&s2)),
         Err(IdentityError::ManifestConflict(2))
     ));
-    // Chain broken: sequence 3 whose previous hash is not m2's.
-    let m3_bad = issue_manifest(&root, Some(&s1), &[], &[]).unwrap();
-    let mut wrong_seq = m3_bad.clone();
-    let _ = &mut wrong_seq;
-    // issue_manifest with previous = s1 yields sequence 2 again; build a
-    // sequence-3 manifest chained to s1's hash by hand.
+    // Chain broken: a sequence-3 manifest chained to s1's hash instead of s2's.
     let m3_body = DeviceManifest {
         version: MANIFEST_VERSION,
         identity_id: root.identity_id(),

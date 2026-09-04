@@ -324,14 +324,16 @@ pub fn accept_manifest(
                 known: k.sequence,
             });
         }
-        Some(k) => {
-            if body.manifest_sequence == k.sequence + 1 && body.previous_manifest_hash != k.hash {
-                return Err(IdentityError::ChainBroken);
-            }
-            // A jump of more than one is accepted (the client missed some
-            // manifests) but cannot be chain-checked; PROTOCOL §4 leaves
-            // detection of hidden updates to cross-checks between clients.
+        Some(k)
+            if body.manifest_sequence == k.sequence + 1
+                && body.previous_manifest_hash != k.hash =>
+        {
+            return Err(IdentityError::ChainBroken);
         }
+        // A jump of more than one is accepted (the client missed some
+        // manifests) but cannot be chain-checked; PROTOCOL §4 leaves
+        // detection of hidden updates to cross-checks between clients.
+        Some(_) => {}
     }
     let state = ManifestState {
         sequence: body.manifest_sequence,

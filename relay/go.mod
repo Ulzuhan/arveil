@@ -7,6 +7,7 @@ require (
 	github.com/flynn/noise v1.1.0
 	github.com/fxamacker/cbor/v2 v2.9.3
 	golang.org/x/crypto v0.56.0
+	modernc.org/sqlite v1.58.0
 )
 
 require (
@@ -20,5 +21,4 @@ require (
 	modernc.org/libc v1.75.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	modernc.org/sqlite v1.58.0 // indirect
 )
