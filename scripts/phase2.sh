@@ -251,4 +251,35 @@ grep -q "warning: the realm held manifest 1 while this kit knows 2" "$DATA/alice
 grep -q "check revocations against a surviving device or a contact" "$DATA/alice5.restore" || fail "the rollback report gives no guidance"
 kill "$RELAY2_PID"; wait "$RELAY2_PID" 2>/dev/null || true; RELAY2_PID=""
 
+step "M2.6 encryption at rest: the same conversation, with the client database keyed"
+KEY="$(head -c 32 /dev/urandom | xxd -p | tr -d '\n')"
+export ARVEIL_DB_KEY="$KEY"
+"$CLI" enroll --data-dir "$DATA/alice6" "$BOOTSTRAP" "$(invite)" > "$DATA/alice6.enroll"
+"$CLI" enroll --data-dir "$DATA/bob6" "$BOOTSTRAP" "$(invite)" > "$DATA/bob6.enroll"
+ROUTE6="$(route_of "$DATA/bob6.enroll")"
+"$CLI" chat start --data-dir "$DATA/alice6" "$BOOTSTRAP" "$ROUTE6" > "$DATA/alice6.start"
+"$CLI" chat sync --data-dir "$DATA/bob6" "$BOOTSTRAP" > "$DATA/bob6.sync1"
+"$CLI" chat send --data-dir "$DATA/alice6" "$BOOTSTRAP" "esto vive cifrado en disco" > /dev/null
+"$CLI" chat sync --data-dir "$DATA/bob6" "$BOOTSTRAP" | tee "$DATA/bob6.sync2"
+grep -q "message: esto vive cifrado en disco" "$DATA/bob6.sync2" || fail "the conversation does not work with a key set"
+"$CLI" status --data-dir "$DATA/bob6" | tee "$DATA/bob6.status"
+grep -q "database: encrypted at rest with ARVEIL_DB_KEY" "$DATA/bob6.status" || fail "status does not report encryption"
+ID6="$(sed -n 's/^identity: \([0-9a-f]*\).*/\1/p' "$DATA/bob6.status")"
+DEV6="$(sed -n 's/^device: *\([0-9a-f]*\) .*/\1/p' "$DATA/bob6.status")"
+head -c 15 "$DATA/bob6/client.db" | grep -q "SQLite format 3" && fail "the client database still has a plaintext SQLite header"
+for word in "esto vive cifrado" "$ID6" "$DEV6" "arveil-route"; do
+  grep -qa "$word" "$DATA/bob6/client.db" && fail "'$word' is readable in the client database"
+done
+echo "client database: no header, no message, no identity, no device id, no route"
+
+step "M2.6 negative: the wrong key, or no key, does not open it"
+ARVEIL_DB_KEY="$(head -c 32 /dev/urandom | xxd -p | tr -d '\n')" expect_fail "$DATA/bob6.wrong" "$CLI" status --data-dir "$DATA/bob6" || fail "another key opened the database"
+grep -q "encrypted with a different key" "$DATA/bob6.wrong" || fail "unexpected error for a wrong key: $(cat "$DATA/bob6.wrong")"
+ARVEIL_DB_KEY="demasiado-corta" expect_fail "$DATA/bob6.short" "$CLI" status --data-dir "$DATA/bob6" || fail "a low-entropy key was accepted"
+grep -q "must be 32 bytes as 64 hex characters" "$DATA/bob6.short" || fail "unexpected error for a bad key: $(cat "$DATA/bob6.short")"
+unset ARVEIL_DB_KEY
+expect_fail "$DATA/bob6.nokey" "$CLI" status --data-dir "$DATA/bob6" || fail "the database opened without its key"
+"$CLI" status --data-dir "$DATA/alice2-phone" | tee "$DATA/plain.status"
+grep -q "database: NOT encrypted at rest" "$DATA/plain.status" || fail "an unkeyed database must say so"
+
 step "phase 2 checks so far ok"

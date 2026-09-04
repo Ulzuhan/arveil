@@ -2,8 +2,14 @@
 //! core persists, so that a *unit of work* (see `docs/DOMAIN_MODEL.md` §5) is
 //! literally one SQLite transaction.
 //!
-//! Phase 0 scope: plain SQLite with the durability settings of ADR-004.
-//! SQLCipher and the OS-wrapped key are Phase 2 work.
+//! Encryption at rest (M2.6): given a 32-byte key as 64 hex characters, the
+//! file is opened through SQLCipher with that raw key, which covers every
+//! table on this connection (identity, MLS provider state, outbox, events)
+//! and the WAL. Without a key the file is plain SQLite, and `arveil status`
+//! says so rather than implying protection that is not there. Human-chosen
+//! passwords are refused on purpose (`docs/PROTOCOL.md` §9): the key is high
+//! entropy or nothing. The key reaches this module as an argument; reading
+//! the environment is the caller's job.
 
 use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -47,6 +53,14 @@ pub enum StorageError {
     #[error("sqlite: {0}")]
     Sqlite(#[from] rusqlite::Error),
     #[error(
+        "ARVEIL_DB_KEY must be 32 bytes as 64 hex characters (generate one with `openssl rand -hex 32`)"
+    )]
+    BadKey,
+    #[error("this database is encrypted with a different key, or it is not an Arveil database")]
+    WrongKey,
+    #[error("this build has no SQLCipher, so ARVEIL_DB_KEY cannot be honoured")]
+    NoSqlcipher,
+    #[error(
         "embedded SQLite {found} is older than the required {required} (ADR-004 WAL-reset fix)"
     )]
     SqliteTooOld {
@@ -58,6 +72,28 @@ pub enum StorageError {
 /// Minimum SQLite version carrying the WAL-reset fix required by ADR-004.
 pub const MIN_SQLITE_VERSION: &str = "3.51.3";
 const MIN_SQLITE_VERSION_NUMBER: i32 = 3_051_003;
+
+/// Apply the raw key and prove it opens the file. The key pragma must be
+/// the first statement on the connection; the read that follows is what
+/// tells a wrong key from a right one, since SQLCipher only fails when it
+/// tries to decrypt a page.
+fn unlock(conn: &Connection, key: &str) -> Result<(), StorageError> {
+    let key = key.trim();
+    if key.len() != 64 || !key.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(StorageError::BadKey);
+    }
+    let version: Option<String> = conn
+        .query_row("PRAGMA cipher_version", [], |r| r.get(0))
+        .ok();
+    if version.is_none_or(|v| v.is_empty()) {
+        return Err(StorageError::NoSqlcipher);
+    }
+    // The key is validated hex above, so this literal cannot inject.
+    conn.execute_batch(&format!("PRAGMA key = \"x'{key}'\";"))?;
+    conn.query_row("SELECT count(*) FROM sqlite_master", [], |_| Ok(()))
+        .map_err(|_| StorageError::WrongKey)?;
+    Ok(())
+}
 
 /// Shared handle to the core's single connection. Cloning shares it.
 ///
@@ -76,7 +112,16 @@ impl SharedConn {
 
     /// File-backed database with the ADR-004 durability pragmas applied.
     pub fn open_file(path: &Path) -> Result<Self, StorageError> {
-        Self::init(Connection::open(path)?, true)
+        Self::open_file_keyed(path, None)
+    }
+
+    /// The same, encrypted at rest when `key` is 64 hex characters.
+    pub fn open_file_keyed(path: &Path, key: Option<&str>) -> Result<Self, StorageError> {
+        let conn = Connection::open(path)?;
+        if let Some(key) = key {
+            unlock(&conn, key)?;
+        }
+        Self::init(conn, true)
     }
 
     fn init(conn: Connection, durable: bool) -> Result<Self, StorageError> {
@@ -137,6 +182,47 @@ mod tests {
             "bundled SQLite {} is older than {MIN_SQLITE_VERSION}",
             rusqlite::version()
         );
+    }
+
+    /// A file database with a key holds no readable header, no table names
+    /// and no payload; the wrong key does not open it.
+    #[test]
+    fn a_keyed_database_is_unreadable_without_its_key() {
+        let dir = std::env::temp_dir().join(format!("arveil-cipher-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("client.db");
+        let _ = std::fs::remove_file(&path);
+        let key = "a".repeat(64);
+        {
+            let c = SharedConn::open_file_keyed(&path, Some(&key)).unwrap();
+            c.lock()
+                .execute_batch(
+                    "CREATE TABLE secrets (v TEXT); INSERT INTO secrets VALUES ('hola familia')",
+                )
+                .unwrap();
+        }
+        let raw = std::fs::read(&path).unwrap();
+        assert!(!raw.starts_with(b"SQLite format 3"), "plaintext header");
+        for needle in [b"hola familia".as_slice(), b"secrets".as_slice()] {
+            assert!(
+                !raw.windows(needle.len()).any(|w| w == needle),
+                "{} found in the database file",
+                String::from_utf8_lossy(needle)
+            );
+        }
+        // The same key opens it again; another key does not, and neither
+        // does opening it without one.
+        SharedConn::open_file_keyed(&path, Some(&key)).unwrap();
+        assert!(matches!(
+            SharedConn::open_file_keyed(&path, Some(&"b".repeat(64))),
+            Err(StorageError::WrongKey)
+        ));
+        assert!(matches!(
+            SharedConn::open_file_keyed(&path, Some("not-hex")),
+            Err(StorageError::BadKey)
+        ));
+        assert!(SharedConn::open_file(&path).is_err());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -24,9 +24,18 @@ pub fn now() -> u64 {
         .unwrap_or(0)
 }
 
+/// The key that encrypts this device's database at rest, if the operator
+/// set one. Arveil never stores it: losing it loses the local history.
+pub fn db_key() -> Option<String> {
+    std::env::var("ARVEIL_DB_KEY")
+        .ok()
+        .filter(|k| !k.is_empty())
+}
+
 pub fn open_client(data_dir: &Path) -> Result<Client, CliError> {
     std::fs::create_dir_all(data_dir).map_err(err("data dir"))?;
-    let conn = SharedConn::open_file(&data_dir.join("client.db")).map_err(err("storage"))?;
+    let conn = SharedConn::open_file_keyed(&data_dir.join("client.db"), db_key().as_deref())
+        .map_err(err("storage"))?;
     Client::open(conn).map_err(err("client"))
 }
 
@@ -261,6 +270,14 @@ pub fn status(data_dir: &Path) -> Result<(), CliError> {
         ),
         None => println!("device:   none"),
     }
+    println!(
+        "database: {}",
+        if db_key().is_some() {
+            "encrypted at rest with ARVEIL_DB_KEY (SQLCipher)"
+        } else {
+            "NOT encrypted at rest; set ARVEIL_DB_KEY to a 64-hex-character key"
+        }
+    );
     match c.realm().map_err(err("realm"))? {
         Some(r) => {
             println!(
