@@ -36,3 +36,16 @@ All eight tests pass and none is ignored. The written comparison is [docs/spikes
 - Crypto providers used here are RustCrypto-based for both libraries because they build without system dependencies. mls-rs marks its RustCrypto provider as experimental; its stable providers are OpenSSL and AWS-LC. Provider choice for mobile is a separate check, not part of Q1/Q2.
 - OpenMLS forbids `content-debug` and `crypto-debug` in distributed builds ([ADR-002](../../docs/adr/ADR-002-mls.md)); verify transitive features when the winner is integrated.
 - Both libraries support custom GroupContext extensions, which the committer policy needs. Neither enforces our policy by itself.
+
+## Keeping this building
+
+The spike depends on `arveil-core` by path, so any dependency the core gains
+changes this project's graph too and leaves `Cargo.lock` stale. CI runs
+`cargo test --locked` on purpose: a stale lock fails loudly here instead of
+resolving, behind everyone's back, a dependency set nobody has run. When it
+does, run `cargo test` in this directory once and commit the updated lock.
+
+A core dependency that cannot coexist with OpenMLS (it happened with `age`,
+whose `ml-kem` conflicts with the `kem` version OpenMLS pins) belongs behind
+a non-default feature, so this spike can keep depending on the core with
+`default-features = false`.
