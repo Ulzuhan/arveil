@@ -90,4 +90,6 @@ make docs-serve
 
 The project is at a stage where design review is more valuable than code. Open an issue against a specific ADR or threat-model row. Security-relevant findings: see [SECURITY.md](SECURITY.md).
 
-License: not chosen yet. It will be selected before the first tagged release; AGPL-3.0 and Apache-2.0 are the candidates under consideration.
+## License
+
+Apache-2.0. See [LICENSE](LICENSE). The permissive choice is deliberate: the Rust core is meant to be embedded in mobile and desktop clients, including ones this project does not write, and the protocol is meant to be implementable by others.
