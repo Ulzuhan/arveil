@@ -103,8 +103,8 @@ ROUTE_E="$(route_of "$DATA/eve.enroll")"
 if "$CLI" chat add --data-dir "$DATA/g-bob" "$BOOTSTRAP" "$ROUTE_E" > "$DATA/bob.add" 2>&1; then
   fail "a non-creator was able to add a member"
 fi
-grep -q "only leaf 0 may commit" "$DATA/bob.add" || { cat "$DATA/bob.add"; fail "unexpected refusal reason"; }
-echo "refused as expected: $(grep -o 'only leaf 0 may commit[^)]*' "$DATA/bob.add" | head -1)"
+grep -q "only the lowest active leaf may commit" "$DATA/bob.add" || { cat "$DATA/bob.add"; fail "unexpected refusal reason"; }
+echo "refused as expected: $(grep -o 'only the lowest active leaf may commit[^)]*' "$DATA/bob.add" | head -1)"
 
 step "M1.3 TTL: a 2-second envelope is swept before the receiver syncs; the sender shows expired/unknown"
 stop_relay

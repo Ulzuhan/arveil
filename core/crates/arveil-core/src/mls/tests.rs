@@ -141,7 +141,10 @@ fn unauthorized_commit_is_refused_by_every_member() {
 
     // Bob's own client refuses to produce the commit (Send direction).
     let err = g_bob.commit_builder().build().unwrap_err().to_string();
-    assert!(err.contains("only leaf 0 may commit"), "got: {err}");
+    assert!(
+        err.contains("only the lowest active leaf may commit"),
+        "got: {err}"
+    );
 
     // A forged commit from bob, built by a client without rules, is refused
     // by alice and carol (Receive direction) with the epoch unchanged.
@@ -152,9 +155,107 @@ fn unauthorized_commit_is_refused_by_every_member() {
             .process_incoming_message(rogue.clone())
             .unwrap_err()
             .to_string();
-        assert!(err.contains("only leaf 0 may commit"), "{name}: {err}");
+        assert!(
+            err.contains("only the lowest active leaf may commit"),
+            "{name}: {err}"
+        );
         assert_eq!(g.current_epoch(), before, "{name}: epoch must not move");
     }
+}
+
+/// Mark a device id revoked in a peer's store, the way an accepted manifest
+/// does, so its policy sees the revocation (M2.4).
+fn mark_revoked<C: MlsConfig>(p: &Peer<C>, device: &[u8]) {
+    p.conn
+        .lock()
+        .execute_batch(crate::client::CLIENT_SCHEMA)
+        .unwrap();
+    p.conn
+        .lock()
+        .execute(
+            "INSERT INTO identity_devices (device_id, credential_hash, revoked) VALUES (?1, X'00', 1)",
+            [device],
+        )
+        .unwrap();
+}
+
+#[test]
+fn the_successor_removes_a_revoked_committer_and_everyone_accepts() {
+    let alice = peer("alice");
+    let bob = peer("bob");
+    let carol = peer("carol");
+
+    let mut g_alice = alice.engine.create_group().unwrap();
+    let commit = g_alice
+        .commit_builder()
+        .add_member(bob.engine.key_package().unwrap())
+        .unwrap()
+        .add_member(carol.engine.key_package().unwrap())
+        .unwrap()
+        .build()
+        .unwrap();
+    g_alice.apply_pending_commit().unwrap();
+    let mut g_bob = bob.engine.join(&commit.welcome_messages[0]).unwrap();
+    let mut g_carol = carol.engine.join(&commit.welcome_messages[0]).unwrap();
+
+    // Alice (leaf 0) is revoked. Bob and carol learn it from a manifest.
+    for p in [&bob.conn, &carol.conn] {
+        p.lock()
+            .execute_batch(crate::client::CLIENT_SCHEMA)
+            .unwrap();
+        p.lock()
+            .execute(
+                "INSERT INTO identity_devices (device_id, credential_hash, revoked) VALUES (?1, X'00', 1)",
+                [b"alice".as_slice()],
+            )
+            .unwrap();
+    }
+
+    // Bob, the lowest leaf that is not revoked, may commit only if the same
+    // commit removes alice.
+    let err = g_bob.commit_builder().build().unwrap_err().to_string();
+    assert!(
+        err.contains("must also remove the revoked leaf 0"),
+        "got: {err}"
+    );
+
+    let removal = g_bob
+        .commit_builder()
+        .remove_member(0)
+        .unwrap()
+        .build()
+        .unwrap();
+    g_bob.apply_pending_commit().unwrap();
+    match g_carol
+        .process_incoming_message(removal.commit_message.clone())
+        .unwrap()
+    {
+        ReceivedMessage::Commit(c) => assert_eq!(c.committer, 1),
+        other => panic!("expected a commit, got {other:?}"),
+    }
+    assert_eq!(g_bob.current_epoch(), g_carol.current_epoch());
+    assert_eq!(g_bob.roster().members().len(), 2);
+
+    // Carol (leaf 2) is still not the committer while bob holds leaf 1.
+    let err = g_carol.commit_builder().build().unwrap_err().to_string();
+    assert!(
+        err.contains("only the lowest active leaf may commit"),
+        "got: {err}"
+    );
+
+    // And a device that nobody revoked cannot be displaced by removing it.
+    mark_revoked(&carol, b"nobody");
+    let err = g_carol
+        .commit_builder()
+        .remove_member(1)
+        .unwrap()
+        .build()
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("only the lowest active leaf may commit"),
+        "got: {err}"
+    );
 }
 
 /// Build a commit from bob's identity using a client with *default* rules,

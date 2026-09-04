@@ -524,6 +524,23 @@ impl Client {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// Is this device id known to be revoked, as a peer or as one of our
+    /// own devices? The same question the group policy asks.
+    pub fn device_revoked(&self, device_id: &[u8]) -> Result<bool, ClientError> {
+        let conn = self.conn.lock();
+        let peer: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM peers WHERE device_id = ?1 AND revoked = 1",
+            params![device_id],
+            |r| r.get(0),
+        )?;
+        let own: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM identity_devices WHERE device_id = ?1 AND revoked = 1",
+            params![device_id],
+            |r| r.get(0),
+        )?;
+        Ok(peer + own > 0)
+    }
+
     /// Mark every peer row carrying one of these credential hashes as
     /// revoked, in every conversation. Returns the rows changed.
     pub fn peers_mark_revoked(&self, hashes: &[Vec<u8>]) -> Result<usize, ClientError> {

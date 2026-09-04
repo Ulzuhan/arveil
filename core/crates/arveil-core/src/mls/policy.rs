@@ -1,9 +1,13 @@
 //! Group policy carried in the authenticated GroupContext and enforced by
 //! every member before any commit changes state (`docs/PROTOCOL.md` §5).
 //!
-//! Phase 0 profile: a single authorized committer identified by leaf index.
-//! The deterministic-successor rule under evaluation (REVIEW-v0.3 §3.1) will
-//! extend this extension rather than replace the mechanism.
+//! Phase 2 profile (version 2, REVIEW-v0.3 §3.1): the authorized committer
+//! is the **lowest leaf that is not known to be revoked**. A device that
+//! wants to displace the leaves below it must remove them in the same
+//! commit, and every member checks independently that each of those leaves
+//! was revoked by a manifest it verified under that identity's own root.
+//! There is no election and no relay sequencing: the committer is a
+//! function of state every member already validates.
 
 use mls_rs::MlsRules;
 use mls_rs::group::{GroupContext, Roster};
@@ -14,24 +18,29 @@ use mls_rs::mls_rules::{
 use mls_rs_codec::{MlsDecode, MlsEncode, MlsSize};
 use mls_rs_core::error::IntoAnyError;
 use mls_rs_core::extension::{ExtensionType, MlsCodecExtension};
+use mls_rs_core::group::Member;
+
+use crate::storage::SharedConn;
 
 /// Private-use extension type (RFC 9420 §17.3 reserves 0xF000–0xFFFF).
 pub const GROUP_POLICY_EXTENSION_TYPE: ExtensionType = ExtensionType::new(0xF000);
 
-/// Authenticated group policy. Version 1: one authorized committer.
+/// Authenticated group policy. Version 2: the lowest active leaf commits.
+/// `creator_leaf` records who created the group; it is informational and
+/// never overrides the rule.
 #[derive(Clone, Debug, PartialEq, Eq, MlsSize, MlsEncode, MlsDecode)]
 pub struct GroupPolicy {
     pub version: u8,
-    pub authorized_committer: u32,
+    pub creator_leaf: u32,
 }
 
 impl GroupPolicy {
-    pub const VERSION: u8 = 1;
+    pub const VERSION: u8 = 2;
 
-    pub fn single_committer(leaf_index: u32) -> Self {
+    pub fn lowest_active_leaf(creator_leaf: u32) -> Self {
         Self {
             version: Self::VERSION,
-            authorized_committer: leaf_index,
+            creator_leaf,
         }
     }
 }
@@ -51,11 +60,19 @@ pub enum PolicyError {
     #[error("unsupported policy version {0}")]
     UnsupportedVersion(u8),
     #[error(
-        "commit from leaf {committer} refused: only leaf {authorized} may commit ({direction:?})"
+        "commit from leaf {committer} refused: leaf {blocking} is lower and not known to be revoked; only the lowest active leaf may commit ({direction:?})"
     )]
     UnauthorizedCommitter {
         committer: u32,
-        authorized: u32,
+        blocking: u32,
+        direction: CommitDirection,
+    },
+    #[error(
+        "commit from leaf {committer} refused: it must also remove the revoked leaf {revoked} below it ({direction:?})"
+    )]
+    RevokedLeafNotRemoved {
+        committer: u32,
+        revoked: u32,
         direction: CommitDirection,
     },
     #[error("external commits are not accepted in this profile")]
@@ -71,12 +88,59 @@ impl IntoAnyError for PolicyError {
 }
 
 /// `MlsRules` that fail closed: no policy in the context means no commits.
+///
+/// The revocation state comes from this device's own store: a leaf counts as
+/// revoked only once a manifest signed by its identity's root has been
+/// verified and recorded ([`crate::client::Client::peer_manifest_accept`]).
+/// Until then the member refuses the successor's commit and retries after
+/// the next manifest refresh, rather than trusting the commit's own claim.
 #[derive(Clone, Debug, Default)]
 pub struct PolicyRules {
     inner: DefaultMlsRules,
+    conn: Option<SharedConn>,
+}
+
+/// Is this device id recorded as revoked, as a peer or as one of our own
+/// devices? A store without those tables (the MLS-only tests) answers no.
+fn revoked(conn: &Option<SharedConn>, device_id: &[u8]) -> bool {
+    let Some(conn) = conn else {
+        return false;
+    };
+    let c = conn.lock();
+    let peer: i64 = c
+        .query_row(
+            "SELECT COUNT(*) FROM peers WHERE device_id = ?1 AND revoked = 1",
+            [device_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let own: i64 = c
+        .query_row(
+            "SELECT COUNT(*) FROM identity_devices WHERE device_id = ?1 AND revoked = 1",
+            [device_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    peer + own > 0
+}
+
+fn device_of(m: &Member) -> Vec<u8> {
+    m.signing_identity
+        .credential
+        .as_basic()
+        .map(|b| b.identifier.clone())
+        .unwrap_or_default()
 }
 
 impl PolicyRules {
+    /// Rules backed by this device's store, so revocations are known.
+    pub fn new(conn: SharedConn) -> Self {
+        Self {
+            inner: DefaultMlsRules::default(),
+            conn: Some(conn),
+        }
+    }
+
     fn policy_of(context: &GroupContext) -> Result<GroupPolicy, PolicyError> {
         let policy = context
             .extensions
@@ -103,17 +167,37 @@ impl MlsRules for PolicyRules {
         current_context: &GroupContext,
         proposals: ProposalBundle,
     ) -> Result<ProposalBundle, Self::Error> {
-        let policy = Self::policy_of(current_context)?;
-        match &source {
-            CommitSource::ExistingMember(m) if m.index == policy.authorized_committer => {}
-            CommitSource::ExistingMember(m) => {
+        let _policy = Self::policy_of(current_context)?;
+        let committer = match &source {
+            CommitSource::ExistingMember(m) => m.index,
+            CommitSource::NewMember(_) => return Err(PolicyError::ExternalCommit),
+        };
+        // Every leaf below the committer must be revoked *and* removed by
+        // this very commit. With no lower leaf, the committer is the lowest
+        // active one and may commit freely.
+        let removed: Vec<u32> = proposals
+            .remove_proposals()
+            .iter()
+            .map(|p| p.proposal.to_remove())
+            .collect();
+        for member in current_roster
+            .members_iter()
+            .filter(|m| m.index < committer)
+        {
+            if !revoked(&self.conn, &device_of(&member)) {
                 return Err(PolicyError::UnauthorizedCommitter {
-                    committer: m.index,
-                    authorized: policy.authorized_committer,
+                    committer,
+                    blocking: member.index,
                     direction,
                 });
             }
-            CommitSource::NewMember(_) => return Err(PolicyError::ExternalCommit),
+            if !removed.contains(&member.index) {
+                return Err(PolicyError::RevokedLeafNotRemoved {
+                    committer,
+                    revoked: member.index,
+                    direction,
+                });
+            }
         }
         Ok(self
             .inner

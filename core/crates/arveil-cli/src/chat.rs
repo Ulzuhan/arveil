@@ -280,6 +280,29 @@ fn roster_device_ids<C: MlsConfig>(group: &Group<C>) -> Vec<Vec<u8>> {
         .collect()
 }
 
+/// The leaf this device holds, and whether it is the authorized committer:
+/// the lowest leaf that is not known to be revoked (policy v2).
+fn committer_leaf<C: MlsConfig>(s: &Session, group: &Group<C>) -> Option<u32> {
+    let mut members: Vec<_> = group.roster().members();
+    members.sort_by_key(|m| m.index);
+    members
+        .into_iter()
+        .find(|m| {
+            let device = m
+                .signing_identity
+                .credential
+                .as_basic()
+                .map(|c| c.identifier.clone())
+                .unwrap_or_default();
+            !s.client.device_revoked(&device).unwrap_or(false)
+        })
+        .map(|m| m.index)
+}
+
+fn i_am_committer<C: MlsConfig>(s: &Session, group: &Group<C>) -> bool {
+    committer_leaf(s, group) == Some(group.current_member_index())
+}
+
 /// Revoked devices that still hold a leaf. While any exists, this device
 /// refuses to send: the epoch still lets them read (PROTOCOL §8).
 fn revoked_leaves<C: MlsConfig>(conv: &Conversation, group: &Group<C>) -> Vec<Vec<u8>> {
@@ -496,8 +519,8 @@ pub fn add(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), Cli
     block_on(async {
         let mut conn = connect(&s, &b).await?;
         let kp = claim_key_package(&mut conn, &newcomer).await?;
-        // On a non-creator device the policy refuses this before anything
-        // is produced ("only leaf 0 may commit").
+        // On a device that is not the lowest active leaf, the policy
+        // refuses this before anything is produced.
         let commit = group
             .commit_builder()
             .add_member(kp)
@@ -556,11 +579,6 @@ pub fn remove(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<(), 
     let device_id = hex::decode(device_hex).map_err(err("device id"))?;
     let (s, engine) = session(data_dir)?;
     let conv = single_conversation(&s)?;
-    if !conv.creator {
-        return Err(CliError(
-            "only the committer of this conversation may remove a member".into(),
-        ));
-    }
     if !conv
         .peers
         .iter()
@@ -816,6 +834,10 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
         if published > 0 {
             println!("published: {published} pending envelope(s)");
         }
+        // Revocations first: a commit that removes a revoked leaf is only
+        // acceptable once this device has verified the manifest that
+        // revoked it.
+        refresh_manifests(&s, &mut conn).await?;
         let cursor = s.delivery.cursor(&m.mailbox_id).map_err(err("cursor"))? as u64;
         let (items, _fetched_next) = match conn
             .request(Payload::EnvelopeFetch {
@@ -878,7 +900,6 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
             advanced_to = item.seq;
         }
         let next = advanced_to;
-        refresh_manifests(&s, &mut conn).await?;
         download_pending(&s, &mut conn, data_dir).await?;
         let unacked = s.delivery.unacked(&m.mailbox_id).map_err(err("inbox"))?;
         if !unacked.is_empty() {
@@ -993,8 +1014,9 @@ pub fn revoke(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<(), 
         for conv in s.client.conversations().map_err(err("conversations"))? {
             let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
             let in_group = roster_device_ids(&group).contains(&device_id);
+            let committer = i_am_committer(&s, &group);
             let event = manifest_message(&mut group, &manifest)?;
-            let removal = if in_group && conv.creator {
+            let removal = if in_group && committer {
                 let index = group
                     .roster()
                     .members()

@@ -73,7 +73,7 @@ pub fn open(conn: SharedConn, identity: MlsIdentity) -> Engine<impl MlsConfig> {
     let client = Client::builder()
         .identity_provider(BasicIdentityProvider)
         .crypto_provider(RustCryptoProvider::default())
-        .mls_rules(PolicyRules::default())
+        .mls_rules(PolicyRules::new(conn.clone()))
         .group_state_storage(SqliteGroupStore::new(conn.clone()))
         .key_package_repo(SqliteKeyPackageStore::new(conn.clone()))
         .psk_store(SqlitePskStore::new(conn))
@@ -93,12 +93,13 @@ impl<C: MlsConfig> Engine<C> {
             .generate_key_package_message(Default::default(), Default::default(), None)
     }
 
-    /// Create a group whose context carries the Arveil policy with this
-    /// device as the single authorized committer (leaf 0).
+    /// Create a group whose context carries the Arveil policy. This device
+    /// is leaf 0 and therefore the first committer; the rule itself is
+    /// "the lowest leaf that is not known to be revoked".
     pub fn create_group(&self) -> Result<Group<C>, MlsError> {
         let mut extensions = ExtensionList::new();
         extensions
-            .set_from(GroupPolicy::single_committer(0))
+            .set_from(GroupPolicy::lowest_active_leaf(0))
             .map_err(|e| MlsError::ExtensionError(e.into_any_error()))?;
         self.client
             .group_builder()?

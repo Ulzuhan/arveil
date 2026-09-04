@@ -135,4 +135,37 @@ grep -q "1 envelope(s) queued" "$DATA/bob2.send2" || fail "after the removal the
 grep -q "message: ya sin el portátil" "$DATA/p2.sync2" || fail "alice2 phone did not receive the message after the removal"
 expect_fail "$DATA/l2.sync3" "$CLI" chat sync --data-dir "$DATA/alice2-laptop" "$BOOTSTRAP" || fail "the removed laptop still reached the relay"
 
+step "M2.4 coordinator succession: the group creator is revoked and the next active leaf takes over"
+# Alice's laptop holds the root; her phone is the linked device that creates
+# the group, so losing the phone is losing the coordinator.
+"$CLI" enroll --data-dir "$DATA/alice3-laptop" "$BOOTSTRAP" "$(invite)" > "$DATA/alice3-laptop.enroll"
+"$CLI" enroll --data-dir "$DATA/bob3" "$BOOTSTRAP" "$(invite)" > "$DATA/bob3.enroll"
+"$CLI" enroll --data-dir "$DATA/dave3" "$BOOTSTRAP" "$(invite)" > "$DATA/dave3.enroll"
+"$CLI" device request --data-dir "$DATA/alice3-phone" > "$DATA/p3.request"
+"$CLI" device authorize --data-dir "$DATA/alice3-laptop" "$BOOTSTRAP" "$(sed -n 's/^request: //p' "$DATA/p3.request")" > "$DATA/l3.authorize"
+"$CLI" device link --data-dir "$DATA/alice3-phone" "$BOOTSTRAP" "$(sed -n 's/^grant: //p' "$DATA/l3.authorize")" > "$DATA/p3.link"
+PHONE3="$(sed -n 's/^linked: device \([0-9a-f]*\) .*/\1/p' "$DATA/p3.link")"
+"$CLI" chat start --data-dir "$DATA/alice3-phone" "$BOOTSTRAP" "$(route_of "$DATA/bob3.enroll")" "$(route_of "$DATA/alice3-laptop.enroll")" > "$DATA/p3.start"
+"$CLI" chat sync --data-dir "$DATA/bob3" "$BOOTSTRAP" > "$DATA/bob3.sync1"
+"$CLI" chat sync --data-dir "$DATA/alice3-laptop" "$BOOTSTRAP" > "$DATA/l3.sync1"
+grep -q "joined conversation" "$DATA/l3.sync1" || fail "alice3 laptop did not join"
+
+"$CLI" device revoke --data-dir "$DATA/alice3-laptop" "$BOOTSTRAP" "$PHONE3" | tee "$DATA/l3.revoke"
+grep -q "removal left to the committer" "$DATA/l3.revoke" || fail "the laptop is not the committer and must not remove the leaf"
+"$CLI" chat sync --data-dir "$DATA/bob3" "$BOOTSTRAP" | tee "$DATA/bob3.sync2"
+grep -q "1 revoked" "$DATA/bob3.sync2" || fail "bob3 did not learn that the coordinator was revoked"
+"$CLI" chat remove --data-dir "$DATA/bob3" "$BOOTSTRAP" "$PHONE3" | tee "$DATA/bob3.remove"
+grep -q "^removed: leaf 0" "$DATA/bob3.remove" || fail "the successor did not remove the revoked coordinator"
+"$CLI" chat sync --data-dir "$DATA/alice3-laptop" "$BOOTSTRAP" | tee "$DATA/l3.sync2"
+grep -q "commit from leaf 1 applied" "$DATA/l3.sync2" || fail "the laptop did not accept the successor's commit"
+"$CLI" chat send --data-dir "$DATA/bob3" "$BOOTSTRAP" "el grupo sigue vivo" > "$DATA/bob3.send"
+"$CLI" chat sync --data-dir "$DATA/alice3-laptop" "$BOOTSTRAP" | tee "$DATA/l3.sync3"
+grep -q "message: el grupo sigue vivo" "$DATA/l3.sync3" || fail "the group did not survive the loss of its creator"
+
+step "M2.4 negative: a leaf that is not the lowest active one still cannot commit"
+expect_fail "$DATA/l3.add" "$CLI" chat add --data-dir "$DATA/alice3-laptop" "$BOOTSTRAP" "$(route_of "$DATA/dave3.enroll")" || fail "leaf 2 committed while leaf 1 was active"
+grep -q "only the lowest active leaf may commit" "$DATA/l3.add" || fail "unexpected refusal: $(cat "$DATA/l3.add")"
+"$CLI" chat add --data-dir "$DATA/bob3" "$BOOTSTRAP" "$(route_of "$DATA/dave3.enroll")" | tee "$DATA/bob3.add"
+grep -q "^added: device" "$DATA/bob3.add" || fail "the successor cannot add members"
+
 step "phase 2 checks so far ok"
