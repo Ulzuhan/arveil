@@ -1438,6 +1438,7 @@ dependencies = [
 name = "mls-spike"
 version = "0.0.0"
 dependencies = [
+ "maybe-async",
  "mls-rs",
  "mls-rs-core",
  "mls-rs-crypto-rustcrypto",
@@ -1446,6 +1447,7 @@ dependencies = [
  "openmls_rust_crypto",
  "openmls_traits",
  "rusqlite",
+ "zeroize",
 ]
 
 [[package]]

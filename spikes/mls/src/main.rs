@@ -1,6 +1,7 @@
 //! Runs both spike baselines. The real evidence is in `cargo test`.
 
 mod mlsrs_spike;
+mod mlsrs_sqlite;
 mod openmls_spike;
 
 fn main() {
@@ -28,5 +29,13 @@ fn main() {
             println!("mls-rs 0.56  : loadable before write_to_storage = {before}, after = {after}")
         }
         Err(e) => println!("mls-rs 0.56  : explicit write check failed: {e}"),
+    }
+
+    match mlsrs_sqlite::q1_shared_transaction() {
+        Ok(o) => println!(
+            "mls-rs 0.56  : Q1 (outbox rows, group rows, loadable) after rollback = {:?}, after commit = {:?}",
+            o.after_rollback, o.after_commit
+        ),
+        Err(e) => println!("mls-rs 0.56  : Q1 failed: {e}"),
     }
 }

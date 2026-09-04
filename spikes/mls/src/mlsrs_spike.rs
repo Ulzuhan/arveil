@@ -1,10 +1,9 @@
 //! mls-rs 0.56 side of the M0.5 spike.
 //!
 //! Baseline: a two-member group and one application message.
-//! Q1 (partial): mls-rs persists explicitly. `load_group` fails before
-//! `write_to_storage()` and succeeds after, which is the property that lets
-//! the write sit inside our own transaction. The full answer needs a
-//! `GroupStateStorage` implementation over the transaction's connection.
+//! Q1: mls-rs persists explicitly. `load_group` fails before
+//! `write_to_storage()` and succeeds after. The full answer, a
+//! `GroupStateStorage` over our own SQLite transaction, is in `mlsrs_sqlite.rs`.
 //! Q2: stub. mls-rs applies an incoming commit inside
 //! `process_incoming_message`; enforcing a committer policy must go through
 //! `MlsRules` (proposal filtering, commit options) or the identity provider,
@@ -88,16 +87,7 @@ mod tests {
         assert!(after, "write_to_storage persists the group");
     }
 
-    /// Q1 for mls-rs: implement `GroupStateStorage` (and the key package and
-    /// PSK storage traits) over a `rusqlite::Connection` holding an open
-    /// transaction; call `write_to_storage` plus an outbox insert inside it;
-    /// roll back and assert both are absent; commit and assert both present.
-    /// Tracked in https://github.com/Ulzuhan/arveil/issues/15
-    #[test]
-    #[ignore = "M0.5 Q1: SQLite-backed GroupStateStorage over our transaction not implemented yet"]
-    fn q1_group_state_and_outbox_row_commit_or_roll_back_together() {
-        unimplemented!("see issue #15");
-    }
+    // Q1 for mls-rs is answered in `mlsrs_sqlite.rs`.
 
     /// Q2 for mls-rs: a valid commit from a non-authorized member must be
     /// rejected before it changes state. Candidate mechanisms: `MlsRules`
