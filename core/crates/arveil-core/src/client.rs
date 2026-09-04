@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS identity_devices (
     credential_hash BLOB NOT NULL,
     revoked         INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS contacts (
+    identity_id BLOB PRIMARY KEY,
+    root_public BLOB NOT NULL,
+    verified    INTEGER NOT NULL DEFAULT 0,
+    verified_at INTEGER,
+    first_seen  INTEGER NOT NULL DEFAULT (unixepoch())
+);
 CREATE TABLE IF NOT EXISTS pairing_pending (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
     sas         TEXT NOT NULL,
@@ -131,6 +138,12 @@ pub enum ClientError {
     RevokeSelf,
     #[error("client: manifest for an identity with no known root key")]
     UnknownIdentity,
+    #[error(
+        "client: identity {identity} is a verified contact whose root key does not match this route; refusing to accept it"
+    )]
+    ContactRootMismatch { identity: String },
+    #[error("client: no contact {0} to verify; you have to meet them in a conversation first")]
+    NoSuchContact(String),
 }
 
 fn hex_of(b: &[u8]) -> String {
@@ -173,6 +186,41 @@ impl StoredDevice {
             &self.keys.mls_signing_public_key,
         )
     }
+}
+
+/// An identity this device has met, and whether the user verified it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Contact {
+    pub identity_id: Vec<u8>,
+    pub root_public: Vec<u8>,
+    pub verified: bool,
+}
+
+/// Safety number over two root keys (M3.2): eight groups of five digits,
+/// order independent, so both sides read the same thing.
+pub fn safety_number(a_root: &[u8], b_root: &[u8]) -> String {
+    let (first, second) = if a_root <= b_root {
+        (a_root, b_root)
+    } else {
+        (b_root, a_root)
+    };
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(b"arveil/safety-number/v1");
+    h.update(first);
+    h.update(second);
+    let d = h.finalize();
+    d.chunks(4)
+        .map(|c| {
+            let n = u32::from_be_bytes([c[0], c[1], c[2], c[3]]) % 100_000;
+            format!("{n:05}")
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn normalize_number(s: &str) -> String {
+    s.chars().filter(|c| c.is_ascii_digit()).collect()
 }
 
 /// A grant received over a pairing channel, waiting for the user to compare
@@ -654,6 +702,91 @@ impl Client {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// Remember an identity seen in a conversation, with the root key its
+    /// route carries. A root that contradicts a verified contact is refused.
+    pub fn contact_seen(&self, identity: &[u8], root_public: &[u8]) -> Result<(), ClientError> {
+        let conn = self.conn.lock();
+        let known: Option<(Vec<u8>, i64)> = conn
+            .query_row(
+                "SELECT root_public, verified FROM contacts WHERE identity_id = ?1",
+                params![identity],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        match known {
+            Some((root, verified)) if root != root_public => {
+                if verified != 0 {
+                    return Err(ClientError::ContactRootMismatch {
+                        identity: hex_of(identity),
+                    });
+                }
+                conn.execute(
+                    "UPDATE contacts SET root_public = ?2 WHERE identity_id = ?1",
+                    params![identity, root_public],
+                )?;
+            }
+            Some(_) => {}
+            None => {
+                conn.execute(
+                    "INSERT INTO contacts (identity_id, root_public) VALUES (?1, ?2)",
+                    params![identity, root_public],
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn contacts(&self) -> Result<Vec<Contact>, ClientError> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT identity_id, root_public, verified FROM contacts ORDER BY first_seen, identity_id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(Contact {
+                identity_id: r.get(0)?,
+                root_public: r.get(1)?,
+                verified: r.get::<_, i64>(2)? != 0,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    pub fn contact(&self, identity: &[u8]) -> Result<Option<Contact>, ClientError> {
+        Ok(self
+            .contacts()?
+            .into_iter()
+            .find(|c| c.identity_id == identity))
+    }
+
+    /// The number both sides read to each other. Depends on the two root
+    /// keys only, so it survives device changes and changes if either
+    /// identity is substituted.
+    pub fn safety_number_with(&self, identity: &[u8]) -> Result<String, ClientError> {
+        let own = self.root_public()?.ok_or(ClientError::NoIdentity)?;
+        let c = self
+            .contact(identity)?
+            .ok_or_else(|| ClientError::NoSuchContact(hex_of(identity)))?;
+        Ok(safety_number(own.as_bytes(), &c.root_public))
+    }
+
+    /// Pin a contact after the two of you read the same number aloud.
+    pub fn contact_verify(
+        &self,
+        identity: &[u8],
+        number: &str,
+        now: i64,
+    ) -> Result<bool, ClientError> {
+        let expected = self.safety_number_with(identity)?;
+        if normalize_number(number) != normalize_number(&expected) {
+            return Ok(false);
+        }
+        self.conn.lock().execute(
+            "UPDATE contacts SET verified = 1, verified_at = ?2 WHERE identity_id = ?1",
+            params![identity, now],
+        )?;
+        Ok(true)
+    }
+
     /// Store a grant received over a pairing channel, together with the
     /// number the user has to compare. Nothing is applied until they do.
     pub fn pairing_pending_save(
@@ -1018,8 +1151,19 @@ impl Client {
     }
 
     /// Create or refresh a conversation row and upsert its peers; known
-    /// route fields are never overwritten with `None`.
+    /// route fields are never overwritten with `None`. Every peer's root is
+    /// checked against what this device already knows about that identity,
+    /// so a verified contact cannot be replaced by a route that names a
+    /// different root.
     pub fn conversation_save(&self, c: &Conversation) -> Result<(), ClientError> {
+        // Own other devices are peers but not contacts: there is nobody to
+        // read a number with.
+        let own = self.identity_id()?;
+        for p in &c.peers {
+            if !p.root_public.is_empty() && own.as_deref() != Some(p.identity.as_slice()) {
+                self.contact_seen(&p.identity, &p.root_public)?;
+            }
+        }
         let conn = self.conn.lock();
         conn.execute(
             "INSERT INTO conversations (group_id, creator) VALUES (?1, ?2)

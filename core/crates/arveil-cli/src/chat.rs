@@ -1104,13 +1104,17 @@ pub fn history(data_dir: &Path) -> Result<(), CliError> {
             conv.peers
                 .iter()
                 .map(|p| format!(
-                    "{}/{}{}{}",
+                    "{}/{}{}{}{}",
                     hex::encode(&p.identity[..4]),
                     hex::encode(&p.device_id[..4]),
                     if p.identity == s.identity_id {
                         " (own)"
                     } else {
                         ""
+                    },
+                    match s.client.contact(&p.identity) {
+                        Ok(Some(c)) if c.verified => " (verified)",
+                        _ => "",
                     },
                     if p.routable() { "" } else { " (no route)" }
                 ))

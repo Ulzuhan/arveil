@@ -613,3 +613,56 @@ pub fn fetch(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
         Ok(())
     })?
 }
+
+/// `arveil contact list --data-dir D`
+///
+/// Every identity this device has met in a conversation, with the number to
+/// read aloud and whether it has been verified.
+pub fn contact_list(data_dir: &Path) -> Result<(), CliError> {
+    let c = open_client(data_dir)?;
+    let contacts = c.contacts().map_err(err("contacts"))?;
+    if contacts.is_empty() {
+        println!("contacts: none yet; they appear once you share a conversation");
+        return Ok(());
+    }
+    for contact in contacts {
+        let number = c
+            .safety_number_with(&contact.identity_id)
+            .map_err(err("safety number"))?;
+        println!(
+            "contact {} [{}]",
+            hex::encode(&contact.identity_id),
+            if contact.verified {
+                "verified"
+            } else {
+                "not verified"
+            }
+        );
+        println!("  safety number: {number}");
+    }
+    Ok(())
+}
+
+/// `arveil contact verify --data-dir D <identity-id> <safety-number>`
+pub fn contact_verify(data_dir: &Path, identity_hex: &str, number: &str) -> Result<(), CliError> {
+    let c = open_client(data_dir)?;
+    let identity = hex::decode(identity_hex).map_err(err("identity id"))?;
+    let expected = c
+        .safety_number_with(&identity)
+        .map_err(err("safety number"))?;
+    if c.contact_verify(&identity, number, now() as i64)
+        .map_err(err("verify"))?
+    {
+        println!(
+            "verified: {} matches the number this device computes",
+            hex::encode(&identity)
+        );
+        println!("From now on a route naming a different root key for that identity is refused.");
+    } else {
+        return Err(CliError(format!(
+            "the number does not match: this device computes {expected}. \
+             Do not verify until both of you read the same one."
+        )));
+    }
+    Ok(())
+}

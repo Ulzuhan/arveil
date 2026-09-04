@@ -132,3 +132,82 @@ fn identity_id_is_domain_separated_hash_of_root() {
     assert_ne!(id, sha2::Sha256::digest(root.public().as_bytes()).to_vec());
     assert_eq!(id, identity_id(&root.public()));
 }
+
+/// M3.2: the safety number is order independent and pins a contact.
+#[cfg(test)]
+mod contacts {
+    use crate::client::{Client, Contact, Conversation, Peer, safety_number};
+    use crate::storage::SharedConn;
+
+    fn peer(identity: &[u8], root: &[u8]) -> Peer {
+        Peer {
+            identity: identity.to_vec(),
+            device_id: vec![1; 16],
+            credential_hash: vec![2; 32],
+            root_public: root.to_vec(),
+            mailbox: Some(vec![3; 16]),
+            write_cap: Some(vec![4; 32]),
+            hpke: Some(vec![5; 32]),
+            revoked: false,
+        }
+    }
+
+    #[test]
+    fn the_number_is_the_same_on_both_sides_and_changes_with_the_identity() {
+        let a = [1u8; 32];
+        let b = [2u8; 32];
+        assert_eq!(safety_number(&a, &b), safety_number(&b, &a));
+        assert_ne!(safety_number(&a, &b), safety_number(&a, &[3u8; 32]));
+        let n = safety_number(&a, &b);
+        assert_eq!(n.split(' ').count(), 8, "eight groups: {n}");
+        assert!(
+            n.split(' ')
+                .all(|g| g.len() == 5 && g.bytes().all(|c| c.is_ascii_digit()))
+        );
+    }
+
+    #[test]
+    fn a_verified_contact_is_not_replaced_by_a_route_with_another_root() {
+        let c = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        c.identity_new().unwrap();
+        let them = [9u8; 32];
+        let conv = Conversation {
+            group_id: vec![7; 32],
+            creator: true,
+            peers: vec![peer(&them, &[4u8; 32])],
+        };
+        c.conversation_save(&conv).unwrap();
+        let number = c.safety_number_with(&them).unwrap();
+        assert!(!c.contact_verify(&them, "00000 00000", 0).unwrap());
+        assert!(c.contact_verify(&them, &number, 0).unwrap());
+        assert_eq!(
+            c.contact(&them).unwrap(),
+            Some(Contact {
+                identity_id: them.to_vec(),
+                root_public: vec![4; 32],
+                verified: true
+            })
+        );
+        // The same identity arriving with a different root is refused, and
+        // the stored contact is untouched.
+        let forged = Conversation {
+            peers: vec![peer(&them, &[8u8; 32])],
+            ..conv.clone()
+        };
+        assert!(c.conversation_save(&forged).is_err());
+        assert_eq!(c.contact(&them).unwrap().unwrap().root_public, vec![4; 32]);
+        // Before verification, a changed root is accepted and shown as new.
+        let other = [10u8; 32];
+        c.conversation_save(&Conversation {
+            peers: vec![peer(&other, &[5u8; 32])],
+            ..conv.clone()
+        })
+        .unwrap();
+        c.conversation_save(&Conversation {
+            peers: vec![peer(&other, &[6u8; 32])],
+            ..conv.clone()
+        })
+        .unwrap();
+        assert_eq!(c.contact(&other).unwrap().unwrap().root_public, vec![6; 32]);
+    }
+}

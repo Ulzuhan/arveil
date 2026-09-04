@@ -113,4 +113,43 @@ expect_fail "$DATA/alice.expired" "$CLI" device pair-approve --data-dir "$DATA/a
 grep -q "expired" "$DATA/alice.expired" || fail "unexpected error for an expired rendezvous: $(cat "$DATA/alice.expired")"
 grep -q "pairing(s) removed" "$DATA/relay.err" || fail "the relay did not sweep the expired rendezvous"
 
+step "M3.2 contact verification: both sides read the same number and pin each other"
+"$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" > "$DATA/alice.sync1" 2>&1 || true
+"$CLI" contact list --data-dir "$DATA/alice" | tee "$DATA/alice.contacts"
+"$CLI" contact list --data-dir "$DATA/bob" | tee "$DATA/bob.contacts"
+ALICE_ID="$(sed -n 's/^identity: \([0-9a-f]*\).*/\1/p' "$DATA/alice.status")"
+BOB_ID="$(sed -n 's/^identity: //p' "$DATA/bob.enroll" | sed 's/ .*//' | head -1)"
+[ -n "$BOB_ID" ] || fail "could not read bob's identity"
+NUM_A="$(grep -A1 "^contact $BOB_ID" "$DATA/alice.contacts" | sed -n 's/^  safety number: //p')"
+NUM_B="$(grep -A1 "^contact $ALICE_ID" "$DATA/bob.contacts" | sed -n 's/^  safety number: //p')"
+[ -n "$NUM_A" ] || fail "alice has no safety number for bob"
+[ "$NUM_A" = "$NUM_B" ] || fail "the two sides show different numbers: '$NUM_A' vs '$NUM_B'"
+echo "both sides read $NUM_A"
+expect_fail "$DATA/alice.badverify" "$CLI" contact verify --data-dir "$DATA/alice" "$BOB_ID" "00000 00000 00000 00000 00000 00000 00000 00000" || fail "a wrong number verified a contact"
+grep -q "does not match" "$DATA/alice.badverify" || fail "unexpected refusal: $(cat "$DATA/alice.badverify")"
+"$CLI" contact verify --data-dir "$DATA/alice" "$BOB_ID" "$NUM_A" | tee "$DATA/alice.verify"
+grep -q "^verified: $BOB_ID" "$DATA/alice.verify" || fail "verification did not take"
+"$CLI" contact verify --data-dir "$DATA/bob" "$ALICE_ID" "$NUM_B" > "$DATA/bob.verify"
+"$CLI" contact list --data-dir "$DATA/alice" > "$DATA/alice.contacts2"
+grep -q "^contact $BOB_ID \[verified\]" "$DATA/alice.contacts2" || fail "the contact is not shown as verified"
+[ "$(grep -c '^contact ' "$DATA/alice.contacts2")" = 1 ] || fail "own devices must not appear as contacts"
+"$CLI" chat history --data-dir "$DATA/bob" | tee "$DATA/bob.history"
+grep -q "(verified)" "$DATA/bob.history" || fail "history does not mark verified peers"
+
+step "M3.2 the number belongs to the identities, not to the devices"
+# Alice's laptop, paired in M3.1, is a second device of the same identity:
+# bob reads the same number for her.
+"$CLI" contact list --data-dir "$DATA/bob" > "$DATA/bob.contacts2"
+[ "$(grep -c "^contact $ALICE_ID" "$DATA/bob.contacts2")" = 1 ] || fail "a second device of the same identity should not be a second contact"
+NUM_B2="$(grep -A1 "^contact $ALICE_ID" "$DATA/bob.contacts2" | sed -n 's/^  safety number: //p')"
+[ "$NUM_B2" = "$NUM_B" ] || fail "the number changed when a device was added"
+# A different identity gives a different number.
+"$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP2" "$(invite)" > "$DATA/carol.enroll"
+"$CLI" chat add --data-dir "$DATA/bob" "$BOOTSTRAP2" "$(route_of "$DATA/carol.enroll")" > "$DATA/bob.addcarol"
+CAROL_ID="$(sed -n 's/^identity: //p' "$DATA/carol.enroll" | sed 's/ .*//' | head -1)"
+"$CLI" contact list --data-dir "$DATA/bob" > "$DATA/bob.contacts3"
+NUM_C="$(grep -A1 "^contact $CAROL_ID" "$DATA/bob.contacts3" | sed -n 's/^  safety number: //p')"
+[ -n "$NUM_C" ] || fail "carol is not a contact of bob"
+[ "$NUM_C" != "$NUM_B" ] || fail "two identities produced the same number"
+
 step "phase 3 checks so far ok"
