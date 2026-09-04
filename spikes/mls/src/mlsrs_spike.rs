@@ -4,10 +4,9 @@
 //! Q1: mls-rs persists explicitly. `load_group` fails before
 //! `write_to_storage()` and succeeds after. The full answer, a
 //! `GroupStateStorage` over our own SQLite transaction, is in `mlsrs_sqlite.rs`.
-//! Q2: stub. mls-rs applies an incoming commit inside
-//! `process_incoming_message`; enforcing a committer policy must go through
-//! `MlsRules` (proposal filtering, commit options) or the identity provider,
-//! and the spike has to prove a rejected commit leaves state untouched.
+//! Q2: mls-rs applies an incoming commit inside `process_incoming_message`;
+//! the committer policy is enforced through `MlsRules::filter_proposals` in
+//! `mlsrs_policy.rs`.
 
 use mls_rs::client_builder::MlsConfig;
 use mls_rs::error::MlsError;
@@ -89,16 +88,5 @@ mod tests {
 
     // Q1 for mls-rs is answered in `mlsrs_sqlite.rs`.
 
-    /// Q2 for mls-rs: a valid commit from a non-authorized member must be
-    /// rejected before it changes state. Candidate mechanisms: `MlsRules`
-    /// (`filter_proposals` with `CommitSource`), or validating
-    /// `CommitMessageDescription::committer` and discarding the group handle
-    /// without `write_to_storage`. The test must show `current_epoch()` is
-    /// unchanged on the persisted state after a rejected commit.
-    /// Tracked in https://github.com/Ulzuhan/arveil/issues/16
-    #[test]
-    #[ignore = "M0.5 Q2: committer policy enforcement path not chosen yet"]
-    fn q2_unauthorized_commit_is_rejected_before_state_change() {
-        unimplemented!("see issue #16");
-    }
+    // Q2 for mls-rs is answered in `mlsrs_policy.rs`.
 }

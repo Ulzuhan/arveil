@@ -1,5 +1,6 @@
 //! Runs both spike baselines. The real evidence is in `cargo test`.
 
+mod mlsrs_policy;
 mod mlsrs_spike;
 mod mlsrs_sqlite;
 mod openmls_spike;
@@ -37,5 +38,17 @@ fn main() {
             o.after_rollback, o.after_commit
         ),
         Err(e) => println!("mls-rs 0.56  : Q1 failed: {e}"),
+    }
+
+    match mlsrs_policy::q2_reject_unauthorized_commit() {
+        Ok(o) => println!(
+            "mls-rs 0.56  : Q2 refused via MlsRules ({}); epoch {} -> {}; own commit -> {}; bob still reads = {}",
+            o.rejection,
+            o.epoch_before,
+            o.epoch_after,
+            o.epoch_after_own_commit,
+            o.bob_reads_later_message
+        ),
+        Err(e) => println!("mls-rs 0.56  : Q2 failed: {e}"),
     }
 }
