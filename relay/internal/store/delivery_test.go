@@ -107,3 +107,29 @@ func TestMailboxQueueBound(t *testing.T) {
 		t.Fatalf("queue bound: %v", err)
 	}
 }
+
+func TestSweepRemovesExpiredEnvelopesAndInvites(t *testing.T) {
+	s, ctx, now := memberStore(t)
+	mb, _ := s.CreateMailbox(ctx, []byte{1, 1}, []byte{1, 4}, now)
+	// Short requested expiry is honoured; a zero request gets the cap.
+	if _, err := s.PutEnvelope(ctx, mb.MailboxID, []byte("short"), []byte("e"), []byte("c"), now.Add(2*time.Second).Unix(), now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.PutEnvelope(ctx, mb.MailboxID, []byte("long"), []byte("e"), []byte("c"), 0, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CreateInvite(ctx, []byte("stale"), "member", now.Add(-time.Second), 1); err != nil {
+		t.Fatal(err)
+	}
+	r, err := s.Sweep(ctx, now.Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Envelopes != 1 || r.Invites != 2 { // "stale" plus the consumed invite from memberStore
+		t.Fatalf("sweep removed %+v", r)
+	}
+	left, _, _ := s.FetchEnvelopes(ctx, mb.MailboxID, 0, 10, now.Add(3*time.Second))
+	if len(left) != 1 || string(left[0].DeliveryID) != "long" {
+		t.Fatalf("after sweep: %+v", left)
+	}
+}

@@ -71,6 +71,7 @@ func serve() {
 		dataDir     = flag.String("data-dir", "./data", "directory holding realm.db, blobs/ and server-secrets/")
 		listen      = flag.String("listen", "127.0.0.1:8447", "address to listen on (plain WebSocket; TLS is the carrier's job)")
 		advertise   = flag.String("advertise", "", "comma-separated endpoints to sign, as kind=url (kinds: lan, tailnet, public, admin); default: lan=ws://<listen>"+server.ChannelPath)
+		sweepEvery  = flag.Duration("sweep-interval", 5*time.Minute, "how often expired envelopes and invites are removed")
 		showVersion = flag.Bool("version", false, "print version and exit")
 	)
 	flag.Parse()
@@ -124,6 +125,22 @@ func serve() {
 	if err != nil {
 		logger.Fatalf("listen: %v", err)
 	}
+
+	// Periodic cleanup: counts only in logs, never identifiers.
+	go func() {
+		t := time.NewTicker(*sweepEvery)
+		defer t.Stop()
+		for range t.C {
+			r, err := st.Sweep(context.Background(), time.Now())
+			if err != nil {
+				logger.Printf("sweep failed")
+				continue
+			}
+			if r.Envelopes > 0 || r.Invites > 0 {
+				logger.Printf("sweep: %d envelope(s), %d invite(s) removed", r.Envelopes, r.Invites)
+			}
+		}
+	}()
 
 	// Bootstrap line: what a device needs to reach and authenticate this
 	// realm. The QR of docs/PROTOCOL.md §3 will carry the same fields.

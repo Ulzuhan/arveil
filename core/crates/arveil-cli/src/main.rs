@@ -18,7 +18,8 @@ const USAGE: &str = "usage:
   arveil mailbox create --data-dir <dir> <bootstrap>
   arveil send --data-dir <dir> <bootstrap> <route> <text>
   arveil fetch --data-dir <dir> <bootstrap>
-  arveil chat start --data-dir <dir> <bootstrap> <peer-route>
+  arveil chat start --data-dir <dir> <bootstrap> <peer-route>...
+  arveil chat add --data-dir <dir> <bootstrap> <peer-route>
   arveil chat send --data-dir <dir> <bootstrap> <text>
   arveil chat sync --data-dir <dir> <bootstrap>
   arveil chat history --data-dir <dir>";
@@ -62,8 +63,12 @@ fn main() -> ExitCode {
             Some(d) => commands::fetch(&d, bootstrap),
             None => usage(),
         },
-        ["chat", "start", bootstrap, route] => match data_dir {
-            Some(d) => chat::start(&d, bootstrap, route),
+        ["chat", "start", bootstrap, routes @ ..] if !routes.is_empty() => match data_dir {
+            Some(d) => chat::start(&d, bootstrap, routes),
+            None => usage(),
+        },
+        ["chat", "add", bootstrap, route] => match data_dir {
+            Some(d) => chat::add(&d, bootstrap, route),
             None => usage(),
         },
         ["chat", "send", bootstrap, text] => match data_dir {

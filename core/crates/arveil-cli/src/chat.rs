@@ -1,26 +1,28 @@
-//! Phase 0 chat: MLS 1:1 conversations through the relay.
+//! Phase 1 chat: MLS groups of N devices through the relay.
 //!
-//! `chat start` claims the peer's KeyPackage from the relay, creates a group
-//! whose context carries the Arveil policy, adds the peer, seals the Welcome
-//! to the peer's mailbox and then sends its own route inside the group.
-//! `chat send` runs the send unit (MLS encrypt + persist + event + outbox in
-//! one transaction) and publishes what is pending. `chat sync` publishes
-//! pending envelopes, then fetches the mailbox and runs the receive unit per
-//! envelope (dedup, open, MLS process, persist, event) before ACKing.
+//! `chat start` claims one KeyPackage per peer, creates a group whose
+//! context carries the Arveil policy (creator = committer), adds every peer
+//! in one commit, seals the Welcome to each peer and then sends the roster
+//! (every member's route, including its own) inside the group.
+//! `chat add` (creator only) adds a member later: Welcome to the newcomer,
+//! commit to the existing members, updated roster to everyone.
+//! `chat send` runs the send unit once (MLS encrypt + persist + event) and
+//! enqueues one envelope per routable peer; peers without a route are
+//! visible as pending. `chat sync` publishes what is pending, then fetches
+//! the mailbox and runs the receive unit per envelope before ACKing.
 //!
 //! Set `ARVEIL_CRASH_AFTER_COMMIT=1` to make `chat send` exit right after
-//! the send unit committed and before anything is published: the next
-//! `chat sync` or `chat send` retransmits the stored bytes (I-04).
+//! the send unit committed and before anything is published (I-04).
 
 use std::path::Path;
 
 use arveil_core::channel::codec::Payload;
-use arveil_core::client::{Client, Conversation, StoredDevice, StoredRealm};
+use arveil_core::client::{Client, Conversation, Peer, StoredDevice, StoredRealm};
 use arveil_core::delivery::Delivery;
 use arveil_core::envelope::{self, EnvelopeContext, KIND_MLS};
 use arveil_core::mls::{self, Engine};
 use mls_rs::client_builder::MlsConfig;
-use mls_rs::group::ReceivedMessage;
+use mls_rs::group::{Group, ReceivedMessage};
 use mls_rs::{MlsMessage, WireFormat};
 use serde::{Deserialize, Serialize};
 
@@ -52,11 +54,17 @@ struct Session {
     device: StoredDevice,
     realm: StoredRealm,
     delivery: Delivery,
+    identity_id: Vec<u8>,
 }
 
 fn session(data_dir: &Path) -> Result<(Session, Engine<impl MlsConfig>), CliError> {
     let (client, device, realm) = enrolled(data_dir)?;
     let delivery = Delivery::open(client.conn.clone()).map_err(err("delivery"))?;
+    let identity_id = client
+        .root()
+        .map_err(err("identity"))?
+        .ok_or_else(|| CliError("no identity".into()))?
+        .identity_id();
     let engine = mls::open(client.conn.clone(), device.mls_identity());
     Ok((
         Session {
@@ -64,21 +72,57 @@ fn session(data_dir: &Path) -> Result<(Session, Engine<impl MlsConfig>), CliErro
             device,
             realm,
             delivery,
+            identity_id,
         },
         engine,
     ))
 }
 
-/// Seal `mls_bytes` for the peer of `conv` and enqueue it. Runs inside the
-/// caller's unit of work.
-fn enqueue_for_peer(
+fn own_route(s: &Session) -> Result<String, CliError> {
+    let m = s
+        .client
+        .mailbox_own()
+        .map_err(err("mailbox"))?
+        .ok_or_else(|| CliError("no mailbox; run `mailbox create` first".into()))?;
+    Ok(crate::commands::route_string(
+        &s.identity_id,
+        &m,
+        &s.device.keys.envelope_hpke.public,
+    ))
+}
+
+fn peer_from_route(r: &Route) -> Peer {
+    Peer {
+        identity: r.identity_id.clone(),
+        mailbox: Some(r.mailbox_id.clone()),
+        write_cap: Some(r.write_capability.clone()),
+        hpke: Some(r.hpke_public.clone()),
+    }
+}
+
+fn route_of_peer(p: &Peer) -> Option<String> {
+    match (&p.mailbox, &p.write_cap, &p.hpke) {
+        (Some(m), Some(w), Some(h)) => Some(format!(
+            "arveil-route:v0:{}:{}:{}:{}",
+            hex::encode(&p.identity),
+            hex::encode(m),
+            hex::encode(w),
+            hex::encode(h)
+        )),
+        _ => None,
+    }
+}
+
+/// Seal `mls_bytes` for one peer and enqueue it. Inside the unit of work.
+/// A peer without a route is skipped here and visible in `history`.
+fn enqueue_for(
     s: &Session,
-    conv: &Conversation,
+    peer: &Peer,
     event_id: Option<&[u8]>,
     mls_bytes: &[u8],
-) -> Result<Vec<u8>, rusqlite::Error> {
-    let (Some(mailbox), Some(hpke)) = (&conv.peer_mailbox, &conv.peer_hpke) else {
-        return Err(rusqlite::Error::InvalidQuery);
+) -> Result<bool, rusqlite::Error> {
+    let (Some(mailbox), Some(hpke)) = (&peer.mailbox, &peer.hpke) else {
+        return Ok(false);
     };
     let delivery_id = random_delivery_id().map_err(|_| rusqlite::Error::InvalidQuery)?;
     let ctx = EnvelopeContext::new(&s.realm.realm_id, mailbox, &delivery_id);
@@ -91,7 +135,56 @@ fn enqueue_for_peer(
         &sealed.enc,
         &sealed.ciphertext,
     )?;
-    Ok(delivery_id)
+    Ok(true)
+}
+
+/// Fan-out: one envelope per routable peer. Returns how many were skipped.
+fn enqueue_for_all(
+    s: &Session,
+    peers: &[Peer],
+    event_id: Option<&[u8]>,
+    mls_bytes: &[u8],
+) -> Result<usize, rusqlite::Error> {
+    let mut skipped = 0;
+    for p in peers {
+        if !enqueue_for(s, p, event_id, mls_bytes)? {
+            skipped += 1;
+        }
+    }
+    Ok(skipped)
+}
+
+/// Write capability for a mailbox, from any conversation that knows it.
+fn write_cap_for(s: &Session, mailbox: &[u8]) -> Result<Vec<u8>, CliError> {
+    for c in s.client.conversations().map_err(err("conversations"))? {
+        for p in c.peers {
+            if p.mailbox.as_deref() == Some(mailbox)
+                && let Some(cap) = p.write_cap
+            {
+                return Ok(cap);
+            }
+        }
+    }
+    Err(CliError(
+        "no write capability for a pending envelope".into(),
+    ))
+}
+
+/// Requested envelope expiry: `ARVEIL_ENVELOPE_TTL_SECS` from now, or 0
+/// to accept the relay's default. The relay may shorten it and reports the
+/// effective value, which the outbox records.
+fn requested_expiry() -> u64 {
+    std::env::var("ARVEIL_ENVELOPE_TTL_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|ttl| {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+                + ttl
+        })
+        .unwrap_or(0)
 }
 
 /// Publish every pending outbox row. Retransmissions reuse stored bytes.
@@ -99,23 +192,14 @@ async fn publish_pending(s: &Session, conn: &mut Connection) -> Result<usize, Cl
     let pending = s.delivery.pending().map_err(err("outbox"))?;
     let mut n = 0;
     for row in pending {
-        // The write capability belongs to the conversation whose peer owns
-        // this mailbox.
-        let cap = s
-            .client
-            .conversations()
-            .map_err(err("conversations"))?
-            .into_iter()
-            .find(|c| c.peer_mailbox.as_deref() == Some(row.mailbox_id.as_slice()))
-            .and_then(|c| c.peer_write_cap)
-            .ok_or_else(|| CliError("no write capability for a pending envelope".into()))?;
+        let cap = write_cap_for(s, &row.mailbox_id)?;
         s.delivery.mark_attempt(row.id).map_err(err("outbox"))?;
         match conn
             .request(Payload::EnvelopePut {
                 mailbox_id: row.mailbox_id.clone(),
                 write_capability: cap,
                 delivery_id: row.delivery_id.clone(),
-                requested_expiry: 0,
+                requested_expiry: requested_expiry(),
                 hpke_enc: row.hpke_enc.clone(),
                 ciphertext: row.ciphertext.clone(),
             })
@@ -133,79 +217,143 @@ async fn publish_pending(s: &Session, conn: &mut Connection) -> Result<usize, Cl
     Ok(n)
 }
 
-fn own_route(s: &Session) -> Result<String, CliError> {
-    let m = s
-        .client
-        .mailbox_own()
-        .map_err(err("mailbox"))?
-        .ok_or_else(|| CliError("no mailbox; run `mailbox create` first".into()))?;
-    let root = s
-        .client
-        .root()
-        .map_err(err("identity"))?
-        .ok_or_else(|| CliError("no identity".into()))?;
-    Ok(crate::commands::route_string(
-        &root.identity_id(),
-        &m,
-        &s.device.keys.envelope_hpke.public,
-    ))
-}
-
-/// `arveil chat start --data-dir D <bootstrap> <peer-route>`
-pub fn start(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let peer: Route = parse_route(peer_route)?;
-    let (s, engine) = session(data_dir)?;
-    let my_route = own_route(&s)?;
-
-    block_on(async {
-        let mut conn = Connection::open(
-            &b.url,
+/// Connect through the first endpoint that completes the handshake, in
+/// priority order from the stored signed list, with the bootstrap URL as
+/// the last resort. A dead or hostile endpoint costs one failed attempt.
+/// After connecting, the list is refreshed; a lower sequence is refused.
+async fn connect(s: &Session, b: &Bootstrap) -> Result<Connection, CliError> {
+    let mut candidates: Vec<String> = Vec::new();
+    if let Some(list) = &s.realm.endpoint_list {
+        let mut eps = list.endpoints.clone();
+        eps.sort_by_key(|e| e.priority);
+        candidates.extend(eps.into_iter().filter(|e| e.kind != "admin").map(|e| e.url));
+    }
+    if !candidates.contains(&b.url) {
+        candidates.push(b.url.clone());
+    }
+    let mut last = CliError("no endpoints".into());
+    for url in &candidates {
+        match Connection::open(
+            url,
             &b.realm_id,
-            &b.noise_public,
+            &s.realm.noise_public,
             &s.device.keys.transport_noise,
         )
-        .await?;
-        let kp = match conn
-            .request(Payload::KeyPackagesClaim {
-                identity_id: peer.identity_id.clone(),
-            })
-            .await?
+        .await
         {
-            Payload::KeyPackageClaimed { key_package } => {
-                MlsMessage::from_bytes(&key_package).map_err(err("key package"))?
+            Ok(mut conn) => {
+                if candidates.first() != Some(url) {
+                    println!("endpoint: {url} (earlier endpoints unreachable)");
+                }
+                if let Ok(Payload::EndpointList { signed }) =
+                    conn.request(Payload::EndpointListGet).await
+                {
+                    match s.client.realm_accept_endpoint_list(&b.realm_id, &signed) {
+                        Ok(list) => {
+                            if s.realm.endpoint_list.as_ref().map(|l| l.sequence)
+                                != Some(list.sequence)
+                            {
+                                println!(
+                                    "endpoint list: sequence {} with {} endpoint(s) stored",
+                                    list.sequence,
+                                    list.endpoints.len()
+                                );
+                            }
+                        }
+                        Err(e) => println!("endpoint list: refused ({e})"),
+                    }
+                }
+                return Ok(conn);
             }
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        };
+            Err(e) => {
+                println!("endpoint: {url} failed ({e}); trying the next one");
+                last = e;
+            }
+        }
+    }
+    Err(last)
+}
 
-        // Group creation is one unit of work: MLS state, conversation row,
-        // the Welcome and the route message in the outbox.
+async fn claim_key_package(conn: &mut Connection, identity: &[u8]) -> Result<MlsMessage, CliError> {
+    match conn
+        .request(Payload::KeyPackagesClaim {
+            identity_id: identity.to_vec(),
+        })
+        .await?
+    {
+        Payload::KeyPackageClaimed { key_package } => {
+            MlsMessage::from_bytes(&key_package).map_err(err("key package"))
+        }
+        other => Err(CliError(format!("unexpected reply: {other:?}"))),
+    }
+}
+
+/// The roster event: every member's route, this device's first.
+fn roster_message<C: MlsConfig>(
+    s: &Session,
+    group: &mut Group<C>,
+    peers: &[Peer],
+) -> Result<Vec<u8>, CliError> {
+    let mut routes = vec![own_route(s)?];
+    routes.extend(peers.iter().filter_map(route_of_peer));
+    group
+        .encrypt_application_message(
+            &encode_event("roster", routes.join("\n").as_bytes())?,
+            Default::default(),
+        )
+        .map_err(err("mls encrypt"))?
+        .to_bytes()
+        .map_err(err("mls encode"))
+}
+
+fn single_conversation(s: &Session) -> Result<Conversation, CliError> {
+    s.client
+        .conversations()
+        .map_err(err("conversations"))?
+        .into_iter()
+        .next()
+        .ok_or_else(|| CliError("no conversation; run `chat start` or `chat sync` first".into()))
+}
+
+/// `arveil chat start --data-dir D <bootstrap> <peer-route>...`
+pub fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let peers: Vec<Route> = peer_routes
+        .iter()
+        .map(|r| parse_route(r))
+        .collect::<Result<_, _>>()?;
+    if peers.is_empty() {
+        return Err(CliError("chat start needs at least one peer route".into()));
+    }
+    let (s, engine) = session(data_dir)?;
+
+    block_on(async {
+        let mut conn = connect(&s, &b).await?;
+        let mut kps = Vec::new();
+        for p in &peers {
+            kps.push(claim_key_package(&mut conn, &p.identity_id).await?);
+        }
+
         let mut group = engine.create_group().map_err(err("mls"))?;
-        let commit = group
-            .commit_builder()
-            .add_member(kp)
-            .map_err(err("mls add"))?
-            .build()
-            .map_err(err("mls commit"))?;
+        let mut cb = group.commit_builder();
+        for kp in kps {
+            cb = cb.add_member(kp).map_err(err("mls add"))?;
+        }
+        let commit = cb.build().map_err(err("mls commit"))?;
         group.apply_pending_commit().map_err(err("mls apply"))?;
         let conv = Conversation {
             group_id: group.group_id().to_vec(),
-            peer_identity: peer.identity_id.clone(),
-            peer_mailbox: Some(peer.mailbox_id.clone()),
-            peer_write_cap: Some(peer.write_capability.clone()),
-            peer_hpke: Some(peer.hpke_public.clone()),
+            creator: true,
+            peers: peers.iter().map(peer_from_route).collect(),
         };
-        let welcome = commit.welcome_messages[0]
+        let welcome = commit
+            .welcome_messages
+            .first()
+            .ok_or_else(|| CliError("no welcome produced".into()))?
             .to_bytes()
             .map_err(err("welcome"))?;
-        let route_msg = group
-            .encrypt_application_message(
-                &encode_event("route", my_route.as_bytes())?,
-                Default::default(),
-            )
-            .map_err(err("mls encrypt"))?
-            .to_bytes()
-            .map_err(err("mls encode"))?;
+        let roster = roster_message(&s, &mut group, &conv.peers)?;
+
         s.client
             .conn
             .unit_of_work(|_| {
@@ -215,14 +363,74 @@ pub fn start(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), C
                 s.client
                     .conversation_save(&conv)
                     .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                enqueue_for_peer(&s, &conv, None, &welcome)?;
-                enqueue_for_peer(&s, &conv, None, &route_msg)?;
+                enqueue_for_all(&s, &conv.peers, None, &welcome)?;
+                enqueue_for_all(&s, &conv.peers, None, &roster)?;
                 Ok::<_, rusqlite::Error>(())
             })
             .map_err(err("start unit"))?;
         println!(
-            "conversation: {} created (epoch {})",
+            "conversation: {} created with {} peer(s) (epoch {})",
             hex::encode(&conv.group_id),
+            conv.peers.len(),
+            group.current_epoch()
+        );
+        let n = publish_pending(&s, &mut conn).await?;
+        println!("published: {n} envelope(s)");
+        conn.close().await;
+        Ok(())
+    })?
+}
+
+/// `arveil chat add --data-dir D <bootstrap> <peer-route>` (creator only)
+pub fn add(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let newcomer = parse_route(peer_route)?;
+    let (s, engine) = session(data_dir)?;
+    let conv = single_conversation(&s)?;
+    let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
+
+    block_on(async {
+        let mut conn = connect(&s, &b).await?;
+        let kp = claim_key_package(&mut conn, &newcomer.identity_id).await?;
+        // On a non-creator device the policy refuses this before anything
+        // is produced ("only leaf 0 may commit").
+        let commit = group
+            .commit_builder()
+            .add_member(kp)
+            .map_err(err("mls add"))?
+            .build()
+            .map_err(err("mls commit"))?;
+        group.apply_pending_commit().map_err(err("mls apply"))?;
+        let new_peer = peer_from_route(&newcomer);
+        let mut all = conv.clone();
+        all.peers.push(new_peer.clone());
+        let welcome = commit
+            .welcome_messages
+            .first()
+            .ok_or_else(|| CliError("no welcome produced".into()))?
+            .to_bytes()
+            .map_err(err("welcome"))?;
+        let commit_bytes = commit.commit_message.to_bytes().map_err(err("commit"))?;
+        let roster = roster_message(&s, &mut group, &all.peers)?;
+
+        s.client
+            .conn
+            .unit_of_work(|_| {
+                group
+                    .write_to_storage()
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
+                s.client
+                    .conversation_save(&all)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
+                enqueue_for_all(&s, &conv.peers, None, &commit_bytes)?;
+                enqueue_for(&s, &new_peer, None, &welcome)?;
+                enqueue_for_all(&s, &all.peers, None, &roster)?;
+                Ok::<_, rusqlite::Error>(())
+            })
+            .map_err(err("add unit"))?;
+        println!(
+            "added: {} (epoch {})",
+            hex::encode(&newcomer.identity_id),
             group.current_epoch()
         );
         let n = publish_pending(&s, &mut conn).await?;
@@ -236,21 +444,13 @@ pub fn start(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), C
 pub fn send(data_dir: &Path, bootstrap: &str, text: &str) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let (s, engine) = session(data_dir)?;
-    let conv = s
-        .client
-        .conversations()
-        .map_err(err("conversations"))?
-        .into_iter()
-        .next()
-        .ok_or_else(|| CliError("no conversation; run `chat start` or `chat sync` first".into()))?;
-    if conv.peer_mailbox.is_none() {
-        return Err(CliError("peer route unknown yet; run `chat sync`".into()));
-    }
+    let conv = single_conversation(&s)?;
     let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
     let event_id = random_delivery_id()?;
 
     // Send unit: nothing leaves the device before this commits.
-    s.client
+    let skipped = s
+        .client
         .conn
         .unit_of_work(|_| {
             let msg = group
@@ -266,13 +466,18 @@ pub fn send(data_dir: &Path, bootstrap: &str, text: &str) -> Result<(), CliError
             s.delivery
                 .record_event(&conv.group_id, &event_id, "sent", text.as_bytes())?;
             let bytes = msg.to_bytes().map_err(|_| rusqlite::Error::InvalidQuery)?;
-            enqueue_for_peer(&s, &conv, Some(&event_id), &bytes)?;
-            Ok::<_, rusqlite::Error>(())
+            enqueue_for_all(&s, &conv.peers, Some(&event_id), &bytes)
         })
         .map_err(err("send unit"))?;
     println!(
-        "committed: message stored locally (epoch {})",
-        group.current_epoch()
+        "committed: message stored locally (epoch {}), {} envelope(s) queued{}",
+        group.current_epoch(),
+        conv.peers.len() - skipped,
+        if skipped > 0 {
+            format!(", {skipped} peer(s) without a route yet")
+        } else {
+            String::new()
+        }
     );
 
     if std::env::var_os("ARVEIL_CRASH_AFTER_COMMIT").is_some() {
@@ -283,18 +488,7 @@ pub fn send(data_dir: &Path, bootstrap: &str, text: &str) -> Result<(), CliError
     // Publishing is best effort: the message is already durable. A relay
     // that cannot be reached leaves it queued for the next send or sync.
     let outcome: Result<usize, CliError> = block_on(async {
-        let mut conn = match Connection::open(
-            &b.url,
-            &b.realm_id,
-            &b.noise_public,
-            &s.device.keys.transport_noise,
-        )
-        .await
-        {
-            Ok(c) => c,
-            Err(e) if e.0.starts_with("connect:") => return Err(e),
-            Err(e) => return Err(e),
-        };
+        let mut conn = connect(&s, &b).await?;
         let n = publish_pending(&s, &mut conn).await?;
         conn.close().await;
         Ok(n)
@@ -312,6 +506,88 @@ pub fn send(data_dir: &Path, bootstrap: &str, text: &str) -> Result<(), CliError
     Ok(())
 }
 
+/// Process one decrypted MLS message inside the receive unit.
+fn handle_mls<C: MlsConfig>(
+    s: &Session,
+    engine: &Engine<C>,
+    msg: MlsMessage,
+    delivery_id: &[u8],
+) -> Result<String, CliError> {
+    match msg.wire_format() {
+        WireFormat::Welcome => {
+            let mut group = engine.join(&msg).map_err(err("mls join"))?;
+            group.write_to_storage().map_err(err("mls persist"))?;
+            s.client
+                .conversation_save(&Conversation {
+                    group_id: group.group_id().to_vec(),
+                    creator: false,
+                    peers: Vec::new(),
+                })
+                .map_err(err("conversation"))?;
+            Ok(format!(
+                "joined conversation {} (epoch {})",
+                hex::encode(group.group_id()),
+                group.current_epoch()
+            ))
+        }
+        // Commits travel as PublicMessage; the HPKE envelope already hides
+        // them from the relay, so both wire formats are handled alike.
+        WireFormat::PrivateMessage | WireFormat::PublicMessage => {
+            let gid = msg
+                .group_id()
+                .ok_or_else(|| CliError("message without group id".into()))?
+                .to_vec();
+            let mut group = engine.load_group(&gid).map_err(err("mls load"))?;
+            let received = group
+                .process_incoming_message(msg)
+                .map_err(err("mls process"))?;
+            group.write_to_storage().map_err(err("mls persist"))?;
+            match received {
+                ReceivedMessage::ApplicationMessage(app) => {
+                    let ev = decode_event(app.data())?;
+                    match ev.kind.as_str() {
+                        "roster" => {
+                            let text = String::from_utf8_lossy(&ev.body);
+                            let mut peers = Vec::new();
+                            for line in text.lines() {
+                                let r = parse_route(line)?;
+                                if r.identity_id != s.identity_id {
+                                    peers.push(peer_from_route(&r));
+                                }
+                            }
+                            let n = peers.len();
+                            s.client
+                                .conversation_save(&Conversation {
+                                    group_id: gid,
+                                    creator: false,
+                                    peers,
+                                })
+                                .map_err(err("conversation"))?;
+                            Ok(format!(
+                                "roster: {n} peer route(s) learned inside the group"
+                            ))
+                        }
+                        "text" => {
+                            s.delivery
+                                .record_event(&gid, delivery_id, "received", &ev.body)
+                                .map_err(err("event"))?;
+                            Ok(format!("message: {}", String::from_utf8_lossy(&ev.body)))
+                        }
+                        other => Ok(format!("event of kind {other} ignored")),
+                    }
+                }
+                ReceivedMessage::Commit(c) => Ok(format!(
+                    "commit from leaf {} applied (epoch {})",
+                    c.committer,
+                    group.current_epoch()
+                )),
+                other => Ok(format!("mls message {other:?} processed")),
+            }
+        }
+        other => Err(CliError(format!("unexpected MLS wire format {other:?}"))),
+    }
+}
+
 /// `arveil chat sync --data-dir D <bootstrap>`
 pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
@@ -323,19 +599,13 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
         .ok_or_else(|| CliError("no mailbox".into()))?;
 
     block_on(async {
-        let mut conn = Connection::open(
-            &b.url,
-            &b.realm_id,
-            &b.noise_public,
-            &s.device.keys.transport_noise,
-        )
-        .await?;
+        let mut conn = connect(&s, &b).await?;
         let published = publish_pending(&s, &mut conn).await?;
         if published > 0 {
             println!("published: {published} pending envelope(s)");
         }
         let cursor = s.delivery.cursor(&m.mailbox_id).map_err(err("cursor"))? as u64;
-        let (items, next) = match conn
+        let (items, _fetched_next) = match conn
             .request(Payload::EnvelopeFetch {
                 mailbox_id: m.mailbox_id.clone(),
                 read_capability: m.read_capability.clone(),
@@ -348,7 +618,12 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
             other => return Err(CliError(format!("unexpected reply: {other:?}"))),
         };
 
+        // Envelopes are processed in sequence order. The first one that
+        // cannot be processed stops the pass: later ones may depend on it
+        // (a roster after a commit), and the cursor only advances past what
+        // was processed or deduplicated, so the rest is retried next time.
         let mut new = 0;
+        let mut advanced_to = cursor;
         for item in &items {
             let ctx = EnvelopeContext::new(&s.realm.realm_id, &m.mailbox_id, &item.delivery_id);
             let outcome: Result<Option<String>, CliError> = s.client.conn.unit_of_work(|_| {
@@ -369,92 +644,7 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
                 )
                 .map_err(err("open"))?;
                 let msg = MlsMessage::from_bytes(&inner.payload).map_err(err("mls parse"))?;
-                match msg.wire_format() {
-                    WireFormat::Welcome => {
-                        let mut group = engine.join(&msg).map_err(err("mls join"))?;
-                        group.write_to_storage().map_err(err("mls persist"))?;
-                        let peer_index = if group.current_member_index() == 0 {
-                            1
-                        } else {
-                            0
-                        };
-                        let peer_identity = group
-                            .member_at_index(peer_index)
-                            .and_then(|mbr| {
-                                mbr.signing_identity
-                                    .credential
-                                    .as_basic()
-                                    .map(|c| c.identifier.clone())
-                            })
-                            .unwrap_or_default();
-                        s.client
-                            .conversation_save(&Conversation {
-                                group_id: group.group_id().to_vec(),
-                                peer_identity,
-                                peer_mailbox: None,
-                                peer_write_cap: None,
-                                peer_hpke: None,
-                            })
-                            .map_err(err("conversation"))?;
-                        Ok(Some(format!(
-                            "joined conversation {} (epoch {})",
-                            hex::encode(group.group_id()),
-                            group.current_epoch()
-                        )))
-                    }
-                    WireFormat::PrivateMessage => {
-                        let gid = msg
-                            .group_id()
-                            .ok_or_else(|| CliError("message without group id".into()))?
-                            .to_vec();
-                        let mut group = engine.load_group(&gid).map_err(err("mls load"))?;
-                        let received = group
-                            .process_incoming_message(msg)
-                            .map_err(err("mls process"))?;
-                        group.write_to_storage().map_err(err("mls persist"))?;
-                        match received {
-                            ReceivedMessage::ApplicationMessage(app) => {
-                                let ev = decode_event(app.data())?;
-                                match ev.kind.as_str() {
-                                    "route" => {
-                                        let route =
-                                            parse_route(&String::from_utf8_lossy(&ev.body))?;
-                                        s.client
-                                            .conversation_save(&Conversation {
-                                                group_id: gid.clone(),
-                                                peer_identity: route.identity_id,
-                                                peer_mailbox: Some(route.mailbox_id),
-                                                peer_write_cap: Some(route.write_capability),
-                                                peer_hpke: Some(route.hpke_public),
-                                            })
-                                            .map_err(err("conversation"))?;
-                                        Ok(Some("peer route learned inside the group".into()))
-                                    }
-                                    "text" => {
-                                        s.delivery
-                                            .record_event(
-                                                &gid,
-                                                &item.delivery_id,
-                                                "received",
-                                                &ev.body,
-                                            )
-                                            .map_err(err("event"))?;
-                                        Ok(Some(format!(
-                                            "message: {}",
-                                            String::from_utf8_lossy(&ev.body)
-                                        )))
-                                    }
-                                    other => Ok(Some(format!("event of kind {other} ignored"))),
-                                }
-                            }
-                            ReceivedMessage::Commit(c) => {
-                                Ok(Some(format!("commit from leaf {} applied", c.committer)))
-                            }
-                            other => Ok(Some(format!("mls message {other:?} processed"))),
-                        }
-                    }
-                    other => Err(CliError(format!("unexpected MLS wire format {other:?}"))),
-                }
+                handle_mls(&s, &engine, msg, &item.delivery_id).map(Some)
             });
             match outcome {
                 Ok(Some(line)) => {
@@ -465,12 +655,17 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
                     "duplicate: delivery {} ignored",
                     hex::encode(&item.delivery_id)
                 ),
-                Err(e) => println!(
-                    "unprocessable: delivery {} left unacked ({e})",
-                    hex::encode(&item.delivery_id)
-                ),
+                Err(e) => {
+                    println!(
+                        "deferred: delivery {} could not be processed yet ({e}); retrying next sync",
+                        hex::encode(&item.delivery_id)
+                    );
+                    break;
+                }
             }
+            advanced_to = item.seq;
         }
+        let next = advanced_to;
         let unacked = s.delivery.unacked(&m.mailbox_id).map_err(err("inbox"))?;
         if !unacked.is_empty() {
             match conn
@@ -508,16 +703,25 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
 /// `arveil chat history --data-dir D`
 pub fn history(data_dir: &Path) -> Result<(), CliError> {
     let (s, _engine) = session(data_dir)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     for conv in s.client.conversations().map_err(err("conversations"))? {
         println!(
-            "conversation {} with {}",
+            "conversation {} ({}), peers: {}",
             hex::encode(&conv.group_id),
-            hex::encode(&conv.peer_identity)
+            if conv.creator { "creator" } else { "member" },
+            conv.peers
+                .iter()
+                .map(|p| format!(
+                    "{}{}",
+                    hex::encode(&p.identity[..4]),
+                    if p.routable() { "" } else { " (no route)" }
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
         );
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
         for (event_id, kind, body) in s.delivery.events(&conv.group_id).map_err(err("events"))? {
             println!("  [{kind:>8}] {}", String::from_utf8_lossy(&body));
             if kind == "sent" {

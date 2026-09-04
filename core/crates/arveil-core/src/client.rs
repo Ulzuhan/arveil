@@ -47,12 +47,17 @@ CREATE TABLE IF NOT EXISTS mailbox_own (
     created_at       INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE TABLE IF NOT EXISTS conversations (
-    group_id       BLOB PRIMARY KEY,
-    peer_identity  BLOB NOT NULL,
-    peer_mailbox   BLOB,
-    peer_write_cap BLOB,
-    peer_hpke      BLOB,
-    created_at     INTEGER NOT NULL DEFAULT (unixepoch())
+    group_id   BLOB PRIMARY KEY,
+    creator    INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE TABLE IF NOT EXISTS peers (
+    group_id      BLOB NOT NULL REFERENCES conversations(group_id),
+    peer_identity BLOB NOT NULL,
+    mailbox       BLOB,
+    write_cap     BLOB,
+    hpke          BLOB,
+    PRIMARY KEY (group_id, peer_identity)
 );
 CREATE TABLE IF NOT EXISTS realm (
     realm_id          BLOB PRIMARY KEY,
@@ -121,22 +126,36 @@ impl StoredDevice {
     }
 }
 
-/// A 1:1 conversation and the route of its peer device.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Conversation {
-    pub group_id: Vec<u8>,
-    pub peer_identity: Vec<u8>,
-    pub peer_mailbox: Option<Vec<u8>>,
-    pub peer_write_cap: Option<Vec<u8>>,
-    pub peer_hpke: Option<Vec<u8>>,
-}
-
 /// A mailbox this device owns on the realm.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OwnMailbox {
     pub mailbox_id: Vec<u8>,
     pub read_capability: Vec<u8>,
     pub write_capability: Vec<u8>,
+}
+
+/// A peer device in a conversation and, once learned, how to reach it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Peer {
+    pub identity: Vec<u8>,
+    pub mailbox: Option<Vec<u8>>,
+    pub write_cap: Option<Vec<u8>>,
+    pub hpke: Option<Vec<u8>>,
+}
+
+impl Peer {
+    pub fn routable(&self) -> bool {
+        self.mailbox.is_some() && self.write_cap.is_some() && self.hpke.is_some()
+    }
+}
+
+/// A conversation (one MLS group) and its peers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Conversation {
+    pub group_id: Vec<u8>,
+    /// True if this device created the group and is its committer.
+    pub creator: bool,
+    pub peers: Vec<Peer>,
 }
 
 /// A stored realm.
@@ -365,54 +384,80 @@ impl Client {
         Ok(list)
     }
 
+    /// Create or refresh a conversation row and upsert its peers; known
+    /// route fields are never overwritten with `None`.
     pub fn conversation_save(&self, c: &Conversation) -> Result<(), ClientError> {
-        self.conn.lock().execute(
-            "INSERT INTO conversations (group_id, peer_identity, peer_mailbox, peer_write_cap, peer_hpke)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT(group_id) DO UPDATE SET peer_identity = excluded.peer_identity,
-               peer_mailbox = COALESCE(excluded.peer_mailbox, peer_mailbox),
-               peer_write_cap = COALESCE(excluded.peer_write_cap, peer_write_cap),
-               peer_hpke = COALESCE(excluded.peer_hpke, peer_hpke)",
-            params![c.group_id, c.peer_identity, c.peer_mailbox, c.peer_write_cap, c.peer_hpke],
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO conversations (group_id, creator) VALUES (?1, ?2)
+             ON CONFLICT(group_id) DO UPDATE SET creator = MAX(creator, excluded.creator)",
+            params![c.group_id, c.creator as i64],
         )?;
+        for p in &c.peers {
+            conn.execute(
+                "INSERT INTO peers (group_id, peer_identity, mailbox, write_cap, hpke)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(group_id, peer_identity) DO UPDATE SET
+                   mailbox = COALESCE(excluded.mailbox, mailbox),
+                   write_cap = COALESCE(excluded.write_cap, write_cap),
+                   hpke = COALESCE(excluded.hpke, hpke)",
+                params![c.group_id, p.identity, p.mailbox, p.write_cap, p.hpke],
+            )?;
+        }
         Ok(())
     }
 
-    pub fn conversation(&self, group_id: &[u8]) -> Result<Option<Conversation>, ClientError> {
-        Ok(self
-            .conn
-            .lock()
-            .query_row(
-                "SELECT group_id, peer_identity, peer_mailbox, peer_write_cap, peer_hpke FROM conversations WHERE group_id = ?1",
-                params![group_id],
-                |r| {
-                    Ok(Conversation {
-                        group_id: r.get(0)?,
-                        peer_identity: r.get(1)?,
-                        peer_mailbox: r.get(2)?,
-                        peer_write_cap: r.get(3)?,
-                        peer_hpke: r.get(4)?,
-                    })
-                },
-            )
-            .optional()?)
-    }
-
-    pub fn conversations(&self) -> Result<Vec<Conversation>, ClientError> {
+    fn peers_of(&self, group_id: &[u8]) -> Result<Vec<Peer>, ClientError> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT group_id, peer_identity, peer_mailbox, peer_write_cap, peer_hpke FROM conversations ORDER BY created_at",
+            "SELECT peer_identity, mailbox, write_cap, hpke FROM peers WHERE group_id = ?1 ORDER BY peer_identity",
         )?;
-        let rows = stmt.query_map([], |r| {
-            Ok(Conversation {
-                group_id: r.get(0)?,
-                peer_identity: r.get(1)?,
-                peer_mailbox: r.get(2)?,
-                peer_write_cap: r.get(3)?,
-                peer_hpke: r.get(4)?,
+        let rows = stmt.query_map(params![group_id], |r| {
+            Ok(Peer {
+                identity: r.get(0)?,
+                mailbox: r.get(1)?,
+                write_cap: r.get(2)?,
+                hpke: r.get(3)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    pub fn conversation(&self, group_id: &[u8]) -> Result<Option<Conversation>, ClientError> {
+        let creator: Option<i64> = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT creator FROM conversations WHERE group_id = ?1",
+                params![group_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(creator) = creator else {
+            return Ok(None);
+        };
+        Ok(Some(Conversation {
+            group_id: group_id.to_vec(),
+            creator: creator != 0,
+            peers: self.peers_of(group_id)?,
+        }))
+    }
+
+    pub fn conversations(&self) -> Result<Vec<Conversation>, ClientError> {
+        let ids: Vec<Vec<u8>> = {
+            let conn = self.conn.lock();
+            let mut stmt =
+                conn.prepare("SELECT group_id FROM conversations ORDER BY created_at")?;
+            let rows = stmt.query_map([], |r| r.get(0))?;
+            rows.collect::<Result<_, _>>()?
+        };
+        let mut out = Vec::new();
+        for id in ids {
+            if let Some(c) = self.conversation(&id)? {
+                out.push(c);
+            }
+        }
+        Ok(out)
     }
 
     pub fn mailbox_save(&self, m: &OwnMailbox) -> Result<(), ClientError> {

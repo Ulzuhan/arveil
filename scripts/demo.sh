@@ -64,7 +64,7 @@ step "alice starts a conversation with bob (claims his KeyPackage, MLS group wit
 step "bob syncs: joins from the Welcome, learns alice's route inside the group"
 "$CLI" chat sync --data-dir "$DATA/bob" "$BOOTSTRAP" | tee "$DATA/bob.sync1"
 grep -q "joined conversation" "$DATA/bob.sync1" || fail "bob did not join"
-grep -q "peer route learned" "$DATA/bob.sync1" || fail "bob did not learn the route"
+grep -q "roster: 1 peer route(s)" "$DATA/bob.sync1" || fail "bob did not learn the route"
 
 step "bob -> alice, alice -> bob"
 "$CLI" chat send --data-dir "$DATA/bob" "$BOOTSTRAP" "hola alice, soy bob"
@@ -101,7 +101,8 @@ step "histories"
 "$CLI" chat history --data-dir "$DATA/alice" | tee "$DATA/alice.history"
 "$CLI" chat history --data-dir "$DATA/bob" | tee "$DATA/bob.history"
 [ "$(grep -c 'sobrevive' "$DATA/alice.history")" = 1 ] || fail "alice has the crash-test message more or less than once"
-GROUP_ID="$(sed -n 's/^conversation \([0-9a-f]*\) with.*/\1/p' "$DATA/alice.history" | head -1)"
+GROUP_ID="$(sed -n 's/^conversation \([0-9a-f]*\) .*/\1/p' "$DATA/alice.history" | head -1)"
+[ -n "$GROUP_ID" ] || fail "could not read the group id from the history"
 
 step "relay database inventory (I-01): tables, no plaintext, no MLS group id"
 stop_relay

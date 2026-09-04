@@ -51,6 +51,9 @@ CREATE TABLE IF NOT EXISTS events (
 );
 ";
 
+/// A local event: `(event_id, kind, body)`.
+pub type EventRow = (Vec<u8>, String, Vec<u8>);
+
 /// One sealed envelope waiting for, or accepted by, the relay.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OutboxRow {
@@ -241,10 +244,7 @@ impl Delivery {
     }
 
     /// Events of a group: `(event_id, kind, body)` in local order.
-    pub fn events(
-        &self,
-        group_id: &[u8],
-    ) -> Result<Vec<(Vec<u8>, String, Vec<u8>)>, rusqlite::Error> {
+    pub fn events(&self, group_id: &[u8]) -> Result<Vec<EventRow>, rusqlite::Error> {
         let conn = self.conn.lock();
         let mut stmt = conn
             .prepare("SELECT event_id, kind, body FROM events WHERE group_id = ?1 ORDER BY id")?;

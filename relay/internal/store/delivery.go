@@ -260,3 +260,26 @@ func (s *Store) ExpireEnvelopes(ctx context.Context, now time.Time) (int64, erro
 	}
 	return res.RowsAffected()
 }
+
+// SweepResult counts what a periodic sweep removed.
+type SweepResult struct {
+	Envelopes int64
+	Invites   int64
+}
+
+// Sweep removes expired envelopes and expired or exhausted invites. It is
+// idempotent and safe to run on a timer; the relay logs only the counts.
+func (s *Store) Sweep(ctx context.Context, now time.Time) (SweepResult, error) {
+	var r SweepResult
+	n, err := s.ExpireEnvelopes(ctx, now)
+	if err != nil {
+		return r, err
+	}
+	r.Envelopes = n
+	res, err := s.db.ExecContext(ctx, `DELETE FROM invites WHERE expires_at <= ? OR uses_left <= 0`, now.Unix())
+	if err != nil {
+		return r, err
+	}
+	r.Invites, _ = res.RowsAffected()
+	return r, nil
+}
