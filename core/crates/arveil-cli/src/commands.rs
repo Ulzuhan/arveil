@@ -415,7 +415,13 @@ pub fn send(data_dir: &Path, bootstrap: &str, route: &str, text: &str) -> Result
     c.conn
         .unit_of_work(|_| {
             delivery.record_event(&r.mailbox_id, &delivery_id, "sent", text.as_bytes())?;
-            delivery.enqueue(&r.mailbox_id, &delivery_id, &sealed.enc, &sealed.ciphertext)
+            delivery.enqueue(
+                &r.mailbox_id,
+                &delivery_id,
+                Some(&delivery_id),
+                &sealed.enc,
+                &sealed.ciphertext,
+            )
         })
         .map_err(err("send unit"))?;
     println!("queued: delivery {}", hex::encode(&delivery_id));
@@ -443,7 +449,9 @@ pub fn send(data_dir: &Path, bootstrap: &str, route: &str, text: &str) -> Result
                 .await?
             {
                 Payload::EnvelopeAccepted { effective_expiry } => {
-                    delivery.mark_accepted(row.id).map_err(err("outbox"))?;
+                    delivery
+                        .mark_accepted(row.id, Some(effective_expiry as i64))
+                        .map_err(err("outbox"))?;
                     println!(
                         "accepted: delivery {} (expires {effective_expiry})",
                         hex::encode(&row.delivery_id)

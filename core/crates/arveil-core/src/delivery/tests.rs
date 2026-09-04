@@ -85,6 +85,7 @@ fn send_unit<A: MlsConfig>(
         alice.delivery.enqueue(
             recipient_mailbox,
             delivery_id,
+            Some(delivery_id),
             &sealed.enc,
             &sealed.ciphertext,
         )?;
@@ -191,9 +192,17 @@ fn i04_send_unit_is_all_or_nothing_and_retransmits_stored_bytes() {
     assert_eq!(bob.delivery.event_count().unwrap(), 1);
 
     // Relay acceptance is recorded after the fact, idempotently.
-    alice.delivery.mark_accepted(pending[0].id).unwrap();
-    alice.delivery.mark_accepted(pending[0].id).unwrap();
+    alice
+        .delivery
+        .mark_accepted(pending[0].id, Some(2_000))
+        .unwrap();
+    alice.delivery.mark_accepted(pending[0].id, None).unwrap();
     assert!(alice.delivery.pending().unwrap().is_empty());
+    // Truthful states: accepted with the relay's expiry, then expired/unknown.
+    let states = alice.delivery.states_for_event(b"d1", 1_000).unwrap();
+    assert_eq!(states[0].1, "accepted (relay keeps it until 2000)");
+    let states = alice.delivery.states_for_event(b"d1", 3_000).unwrap();
+    assert_eq!(states[0].1, "expired/unknown");
 }
 
 #[test]

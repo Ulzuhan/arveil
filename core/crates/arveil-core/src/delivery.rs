@@ -20,10 +20,12 @@ CREATE TABLE IF NOT EXISTS outbox (
     id          INTEGER PRIMARY KEY,
     mailbox_id  BLOB NOT NULL,
     delivery_id BLOB NOT NULL,
+    event_id    BLOB,
     hpke_enc    BLOB NOT NULL,
     ciphertext  BLOB NOT NULL,
     state       TEXT NOT NULL DEFAULT 'sealed',
     attempts    INTEGER NOT NULL DEFAULT 0,
+    expires_at  INTEGER,
     created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
     UNIQUE (mailbox_id, delivery_id)
 );
@@ -71,19 +73,50 @@ impl Delivery {
         Ok(Self { conn })
     }
 
-    /// Enqueue one sealed envelope. Call inside the send unit of work.
+    /// Enqueue one sealed envelope for the event it carries. Call inside
+    /// the send unit of work.
     pub fn enqueue(
         &self,
         mailbox_id: &[u8],
         delivery_id: &[u8],
+        event_id: Option<&[u8]>,
         hpke_enc: &[u8],
         ciphertext: &[u8],
     ) -> Result<(), rusqlite::Error> {
         self.conn.lock().execute(
-            "INSERT INTO outbox (mailbox_id, delivery_id, hpke_enc, ciphertext) VALUES (?1, ?2, ?3, ?4)",
-            params![mailbox_id, delivery_id, hpke_enc, ciphertext],
+            "INSERT INTO outbox (mailbox_id, delivery_id, event_id, hpke_enc, ciphertext) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![mailbox_id, delivery_id, event_id, hpke_enc, ciphertext],
         )?;
         Ok(())
+    }
+
+    /// Delivery state of every envelope produced for an event, as the
+    /// sender can truthfully know it: `queued`, `accepted` (with the relay's
+    /// effective expiry) or `expired-unknown` once that expiry has passed.
+    /// Relay acceptance never becomes "delivered" or "read" (DOMAIN_MODEL §6).
+    pub fn states_for_event(
+        &self,
+        event_id: &[u8],
+        now: i64,
+    ) -> Result<Vec<(Vec<u8>, String)>, rusqlite::Error> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT mailbox_id, state, expires_at FROM outbox WHERE event_id = ?1 ORDER BY id",
+        )?;
+        let rows = stmt.query_map(params![event_id], |r| {
+            let mailbox: Vec<u8> = r.get(0)?;
+            let state: String = r.get(1)?;
+            let expires: Option<i64> = r.get(2)?;
+            let label = match (state.as_str(), expires) {
+                ("sealed", _) => "queued".to_string(),
+                ("accepted", Some(t)) if t <= now => "expired/unknown".to_string(),
+                ("accepted", Some(t)) => format!("accepted (relay keeps it until {t})"),
+                ("accepted", None) => "accepted".to_string(),
+                (other, _) => other.to_string(),
+            };
+            Ok((mailbox, label))
+        })?;
+        rows.collect()
     }
 
     /// Record a local event. Call inside the send or receive unit of work.
@@ -131,11 +164,11 @@ impl Delivery {
         Ok(())
     }
 
-    /// The relay confirmed durable custody. Idempotent.
-    pub fn mark_accepted(&self, id: i64) -> Result<(), rusqlite::Error> {
+    /// The relay confirmed durable custody until `expires_at`. Idempotent.
+    pub fn mark_accepted(&self, id: i64, expires_at: Option<i64>) -> Result<(), rusqlite::Error> {
         self.conn.lock().execute(
-            "UPDATE outbox SET state = 'accepted' WHERE id = ?1",
-            params![id],
+            "UPDATE outbox SET state = 'accepted', expires_at = COALESCE(?2, expires_at) WHERE id = ?1",
+            params![id, expires_at],
         )?;
         Ok(())
     }
@@ -207,11 +240,15 @@ impl Delivery {
         self.conn.count("events")
     }
 
-    pub fn events(&self, group_id: &[u8]) -> Result<Vec<(String, Vec<u8>)>, rusqlite::Error> {
+    /// Events of a group: `(event_id, kind, body)` in local order.
+    pub fn events(
+        &self,
+        group_id: &[u8],
+    ) -> Result<Vec<(Vec<u8>, String, Vec<u8>)>, rusqlite::Error> {
         let conn = self.conn.lock();
-        let mut stmt =
-            conn.prepare("SELECT kind, body FROM events WHERE group_id = ?1 ORDER BY id")?;
-        let rows = stmt.query_map(params![group_id], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        let mut stmt = conn
+            .prepare("SELECT event_id, kind, body FROM events WHERE group_id = ?1 ORDER BY id")?;
+        let rows = stmt.query_map(params![group_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
         rows.collect()
     }
 }

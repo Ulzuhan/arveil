@@ -205,7 +205,7 @@ fn group_state_and_outbox_share_the_unit_of_work() {
     let id = g.group_id().to_vec();
 
     let failed: Result<(), rusqlite::Error> = alice.conn.unit_of_work(|_| {
-        delivery.enqueue(b"mailbox", b"d1", b"enc", b"ct")?;
+        delivery.enqueue(b"mailbox", b"d1", None, b"enc", b"ct")?;
         g.write_to_storage().unwrap();
         Err(rusqlite::Error::InvalidQuery)
     });
@@ -216,7 +216,7 @@ fn group_state_and_outbox_share_the_unit_of_work() {
     alice
         .conn
         .unit_of_work(|_| {
-            delivery.enqueue(b"mailbox", b"d1", b"enc", b"ct")?;
+            delivery.enqueue(b"mailbox", b"d1", None, b"enc", b"ct")?;
             g.write_to_storage().unwrap();
             Ok::<_, rusqlite::Error>(())
         })

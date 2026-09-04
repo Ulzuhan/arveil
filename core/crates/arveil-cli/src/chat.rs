@@ -74,6 +74,7 @@ fn session(data_dir: &Path) -> Result<(Session, Engine<impl MlsConfig>), CliErro
 fn enqueue_for_peer(
     s: &Session,
     conv: &Conversation,
+    event_id: Option<&[u8]>,
     mls_bytes: &[u8],
 ) -> Result<Vec<u8>, rusqlite::Error> {
     let (Some(mailbox), Some(hpke)) = (&conv.peer_mailbox, &conv.peer_hpke) else {
@@ -83,8 +84,13 @@ fn enqueue_for_peer(
     let ctx = EnvelopeContext::new(&s.realm.realm_id, mailbox, &delivery_id);
     let sealed = envelope::seal(hpke, &ctx, KIND_MLS, mls_bytes)
         .map_err(|_| rusqlite::Error::InvalidQuery)?;
-    s.delivery
-        .enqueue(mailbox, &delivery_id, &sealed.enc, &sealed.ciphertext)?;
+    s.delivery.enqueue(
+        mailbox,
+        &delivery_id,
+        event_id,
+        &sealed.enc,
+        &sealed.ciphertext,
+    )?;
     Ok(delivery_id)
 }
 
@@ -115,8 +121,10 @@ async fn publish_pending(s: &Session, conn: &mut Connection) -> Result<usize, Cl
             })
             .await?
         {
-            Payload::EnvelopeAccepted { .. } => {
-                s.delivery.mark_accepted(row.id).map_err(err("outbox"))?;
+            Payload::EnvelopeAccepted { effective_expiry } => {
+                s.delivery
+                    .mark_accepted(row.id, Some(effective_expiry as i64))
+                    .map_err(err("outbox"))?;
                 n += 1;
             }
             other => return Err(CliError(format!("unexpected reply: {other:?}"))),
@@ -207,8 +215,8 @@ pub fn start(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), C
                 s.client
                     .conversation_save(&conv)
                     .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                enqueue_for_peer(&s, &conv, &welcome)?;
-                enqueue_for_peer(&s, &conv, &route_msg)?;
+                enqueue_for_peer(&s, &conv, None, &welcome)?;
+                enqueue_for_peer(&s, &conv, None, &route_msg)?;
                 Ok::<_, rusqlite::Error>(())
             })
             .map_err(err("start unit"))?;
@@ -258,7 +266,7 @@ pub fn send(data_dir: &Path, bootstrap: &str, text: &str) -> Result<(), CliError
             s.delivery
                 .record_event(&conv.group_id, &event_id, "sent", text.as_bytes())?;
             let bytes = msg.to_bytes().map_err(|_| rusqlite::Error::InvalidQuery)?;
-            enqueue_for_peer(&s, &conv, &bytes)?;
+            enqueue_for_peer(&s, &conv, Some(&event_id), &bytes)?;
             Ok::<_, rusqlite::Error>(())
         })
         .map_err(err("send unit"))?;
@@ -272,19 +280,36 @@ pub fn send(data_dir: &Path, bootstrap: &str, text: &str) -> Result<(), CliError
         std::process::exit(3);
     }
 
-    block_on(async {
-        let mut conn = Connection::open(
+    // Publishing is best effort: the message is already durable. A relay
+    // that cannot be reached leaves it queued for the next send or sync.
+    let outcome: Result<usize, CliError> = block_on(async {
+        let mut conn = match Connection::open(
             &b.url,
             &b.realm_id,
             &b.noise_public,
             &s.device.keys.transport_noise,
         )
-        .await?;
+        .await
+        {
+            Ok(c) => c,
+            Err(e) if e.0.starts_with("connect:") => return Err(e),
+            Err(e) => return Err(e),
+        };
         let n = publish_pending(&s, &mut conn).await?;
-        println!("published: {n} envelope(s)");
         conn.close().await;
-        Ok(())
-    })?
+        Ok(n)
+    })?;
+    match outcome {
+        Ok(n) => println!("published: {n} envelope(s)"),
+        Err(e) if e.0.starts_with("connect:") => {
+            let pending = s.delivery.pending().map_err(err("outbox"))?.len();
+            println!(
+                "queued: relay unreachable ({e}); {pending} envelope(s) pending for the next sync"
+            );
+        }
+        Err(e) => return Err(e),
+    }
+    Ok(())
 }
 
 /// `arveil chat sync --data-dir D <bootstrap>`
@@ -489,8 +514,24 @@ pub fn history(data_dir: &Path) -> Result<(), CliError> {
             hex::encode(&conv.group_id),
             hex::encode(&conv.peer_identity)
         );
-        for (kind, body) in s.delivery.events(&conv.group_id).map_err(err("events"))? {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        for (event_id, kind, body) in s.delivery.events(&conv.group_id).map_err(err("events"))? {
             println!("  [{kind:>8}] {}", String::from_utf8_lossy(&body));
+            if kind == "sent" {
+                for (mailbox, state) in s
+                    .delivery
+                    .states_for_event(&event_id, now)
+                    .map_err(err("states"))?
+                {
+                    println!(
+                        "             -> mailbox {}: {state}",
+                        hex::encode(&mailbox[..4])
+                    );
+                }
+            }
         }
     }
     Ok(())
