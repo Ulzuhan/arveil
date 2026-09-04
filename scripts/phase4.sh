@@ -188,8 +188,16 @@ step "M4.1 packaging: the unit and the compose file are valid, and the image ser
 [ -f "$ROOT/relay/compose.yaml" ] || fail "no compose file"
 [ -f "$ROOT/relay/packaging/arveil-relay.service" ] || fail "no systemd unit"
 if command -v systemd-analyze >/dev/null; then
-  systemd-analyze verify "$ROOT/relay/packaging/arveil-relay.service" 2>&1 | tee "$DATA/unit.verify"
-  grep -qiE "error|not found|failed" "$DATA/unit.verify" && fail "systemd-analyze rejected the unit"
+  # Verify a copy whose ExecStart points at the binary just built: the unit
+  # ships with the installed path, which is not there on a build machine,
+  # and that absence would be the only thing verify complained about.
+  sed "s#^ExecStart=/usr/local/bin/arveil-relay#ExecStart=$RELAY#" \
+    "$ROOT/relay/packaging/arveil-relay.service" > "$DATA/arveil-relay.service"
+  systemd-analyze verify "$DATA/arveil-relay.service" > "$DATA/unit.verify" 2>&1 || true
+  if [ -s "$DATA/unit.verify" ]; then
+    cat "$DATA/unit.verify"
+    fail "systemd-analyze had something to say about the unit"
+  fi
   echo "systemd unit verified"
 else
   echo "systemd-analyze not installed: unit checked for its required directives only"
