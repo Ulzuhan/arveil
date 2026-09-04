@@ -87,6 +87,27 @@ impl Initiator {
         Ok(buf)
     }
 
+    /// Message 2 carrying a payload from the responder. Used by device
+    /// pairing, where the responder's first authenticated act is to state
+    /// which keys it wants signed (M3.1); the realm channel keeps the
+    /// payload-free form below.
+    pub fn read_message_2_payload(
+        mut self,
+        message: &[u8],
+    ) -> Result<(Vec<u8>, Transport), NoiseError> {
+        let mut buf = vec![0u8; MAX_NOISE_MESSAGE];
+        let n = self.state.read_message(message, &mut buf)?;
+        buf.truncate(n);
+        let handshake_hash = self.state.get_handshake_hash().to_vec();
+        Ok((
+            buf,
+            Transport {
+                state: self.state.into_transport_mode()?,
+                handshake_hash,
+            },
+        ))
+    }
+
     /// Message 2 from the responder; on success the channel is established.
     pub fn read_message_2(mut self, message: &[u8]) -> Result<Transport, NoiseError> {
         let mut buf = vec![0u8; MAX_NOISE_MESSAGE];
@@ -94,8 +115,10 @@ impl Initiator {
         if n != 0 {
             return Err(NoiseError::UnexpectedHandshakePayload);
         }
+        let handshake_hash = self.state.get_handshake_hash().to_vec();
         Ok(Transport {
             state: self.state.into_transport_mode()?,
+            handshake_hash,
         })
     }
 }
@@ -130,14 +153,27 @@ impl Responder {
     }
 
     /// Message 2; on success the channel is established.
-    pub fn write_message_2(mut self) -> Result<(Vec<u8>, Transport), NoiseError> {
+    pub fn write_message_2(self) -> Result<(Vec<u8>, Transport), NoiseError> {
+        self.write_message_2_payload(&[])
+    }
+
+    /// Message 2 with a payload (device pairing, M3.1).
+    pub fn write_message_2_payload(
+        mut self,
+        payload: &[u8],
+    ) -> Result<(Vec<u8>, Transport), NoiseError> {
+        if payload.len() > MAX_NOISE_PAYLOAD {
+            return Err(NoiseError::PayloadTooLarge(payload.len()));
+        }
         let mut buf = vec![0u8; MAX_NOISE_MESSAGE];
-        let n = self.state.write_message(&[], &mut buf)?;
+        let n = self.state.write_message(payload, &mut buf)?;
         buf.truncate(n);
+        let handshake_hash = self.state.get_handshake_hash().to_vec();
         Ok((
             buf,
             Transport {
                 state: self.state.into_transport_mode()?,
+                handshake_hash,
             },
         ))
     }
@@ -146,9 +182,18 @@ impl Responder {
 /// Established Noise transport. One `seal` produces one wire message.
 pub struct Transport {
     state: TransportState,
+    handshake_hash: Vec<u8>,
 }
 
 impl Transport {
+    /// The handshake hash both sides computed. Equal on both ends of an
+    /// uninterrupted handshake and different for anything in the middle,
+    /// which is what makes it usable as a short authentication string
+    /// (`crate::pairing::short_authentication_string`).
+    pub fn handshake_hash(&self) -> &[u8] {
+        &self.handshake_hash
+    }
+
     pub fn remote_static(&self) -> &[u8] {
         self.state
             .get_remote_static()

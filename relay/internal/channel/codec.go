@@ -24,6 +24,11 @@ const (
 	KindManifestPut      = "ManifestPut"
 	KindManifestGet      = "ManifestGet"
 	KindRecoverIdentity  = "RecoverIdentity"
+	KindPairBegin        = "PairBegin"
+	KindPairStarted      = "PairStarted"
+	KindPairPut          = "PairPut"
+	KindPairGet          = "PairGet"
+	KindPairFetched      = "PairFetched"
 	KindRecovered        = "Recovered"
 	KindManifestLatest   = "ManifestLatest"
 	KindAck              = "Ack"
@@ -109,10 +114,15 @@ type Payload struct {
 	Ciphertext       []byte
 	Cursor           uint64
 	PreviousSequence uint64
-	NextCursor       uint64
-	Limit            uint16
-	Items            []EnvelopeItem
-	DeliveryIDs      [][]byte
+	// Pairing rendezvous
+	PairID      []byte
+	Capability  []byte
+	Slot        string
+	ExpiresAt   uint64
+	NextCursor  uint64
+	Limit       uint16
+	Items       []EnvelopeItem
+	DeliveryIDs [][]byte
 	// KeyPackages
 	KeyPackages [][]byte
 	KeyPackage  []byte
@@ -231,6 +241,29 @@ type manifestPutBody struct {
 	Manifest []byte `cbor:"manifest"`
 }
 
+type pairStartedBody struct {
+	PairID     []byte `cbor:"pair_id"`
+	Capability []byte `cbor:"capability"`
+	ExpiresAt  uint64 `cbor:"expires_at"`
+}
+
+type pairPutBody struct {
+	PairID     []byte `cbor:"pair_id"`
+	Capability []byte `cbor:"capability"`
+	Slot       string `cbor:"slot"`
+	Data       []byte `cbor:"data"`
+}
+
+type pairGetBody struct {
+	PairID     []byte `cbor:"pair_id"`
+	Capability []byte `cbor:"capability"`
+	Slot       string `cbor:"slot"`
+}
+
+type pairFetchedBody struct {
+	Data []byte `cbor:"data"`
+}
+
 type recoverIdentityBody struct {
 	Credential []byte `cbor:"credential"`
 	Manifest   []byte `cbor:"manifest"`
@@ -273,8 +306,16 @@ func init() {
 func Encode(f Frame) ([]byte, error) {
 	var payload any
 	switch f.Payload.Kind {
-	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate:
+	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin:
 		payload = f.Payload.Kind
+	case KindPairStarted:
+		payload = map[string]pairStartedBody{KindPairStarted: {PairID: f.Payload.PairID, Capability: f.Payload.Capability, ExpiresAt: f.Payload.ExpiresAt}}
+	case KindPairPut:
+		payload = map[string]pairPutBody{KindPairPut: {PairID: f.Payload.PairID, Capability: f.Payload.Capability, Slot: f.Payload.Slot, Data: nonNil(f.Payload.Data)}}
+	case KindPairGet:
+		payload = map[string]pairGetBody{KindPairGet: {PairID: f.Payload.PairID, Capability: f.Payload.Capability, Slot: f.Payload.Slot}}
+	case KindPairFetched:
+		payload = map[string]pairFetchedBody{KindPairFetched: {Data: nonNil(f.Payload.Data)}}
 	case KindBlobUploadBegin:
 		payload = map[string]blobUploadBeginBody{KindBlobUploadBegin: {Size: f.Payload.Size}}
 	case KindBlobUploadStarted:
@@ -371,7 +412,7 @@ func Decode(b []byte) (Frame, error) {
 	var kind string
 	if err := cbor.Unmarshal(w.Payload, &kind); err == nil {
 		switch kind {
-		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate:
+		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin:
 			f.Payload.Kind = kind
 			return f, nil
 		}
@@ -418,6 +459,30 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Credential: v.Credential}
+		case KindPairStarted:
+			var v pairStartedBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, PairID: v.PairID, Capability: v.Capability, ExpiresAt: v.ExpiresAt}
+		case KindPairPut:
+			var v pairPutBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, PairID: v.PairID, Capability: v.Capability, Slot: v.Slot, Data: v.Data}
+		case KindPairGet:
+			var v pairGetBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, PairID: v.PairID, Capability: v.Capability, Slot: v.Slot}
+		case KindPairFetched:
+			var v pairFetchedBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Data: v.Data}
 		case KindRecoverIdentity:
 			var v recoverIdentityBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

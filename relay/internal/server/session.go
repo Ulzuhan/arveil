@@ -59,6 +59,12 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.manifestGet(ctx, s, f)
 	case channel.KindRecoverIdentity:
 		return srv.recoverIdentity(ctx, s, f, now)
+	case channel.KindPairBegin:
+		return srv.pairBegin(ctx, f, now)
+	case channel.KindPairPut:
+		return srv.pairPut(ctx, f, now)
+	case channel.KindPairGet:
+		return srv.pairGet(ctx, f, now)
 	case channel.KindBlobUploadBegin:
 		return srv.blobUploadBegin(ctx, s, f, now)
 	case channel.KindBlobChunk:
@@ -202,6 +208,63 @@ func (srv *Server) manifestPut(ctx context.Context, s *session, f channel.Frame)
 	}
 	srv.Logger.Printf("manifest %d for identity %x: %d active, %d revoked (%d newly revoked)", m.ManifestSequence, s.device.IdentityID[:4], len(m.ActiveCredentialHashes), len(m.RevokedCredentialHashes), revoked)
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
+}
+
+// Pairing rendezvous (M3.1). A provisional session may use these frames:
+// the device being paired has no credential yet. The capability is the only
+// authorization, and the realm never learns what the blobs mean.
+func (srv *Server) pairBegin(ctx context.Context, f channel.Frame, now time.Time) channel.Frame {
+	if srv.Store == nil {
+		return errFrame(f.ID, channel.CodeInternal, "no store")
+	}
+	id, capability, expires, err := srv.Store.BeginPair(ctx, now, srv.PairTTL)
+	if errors.Is(err, store.ErrPairBusy) {
+		return errFrame(f.ID, channel.CodeQuota, "too many pairings in progress")
+	}
+	if err != nil {
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{
+		Kind: channel.KindPairStarted, PairID: id, Capability: capability, ExpiresAt: uint64(expires),
+	}}
+}
+
+func pairError(id uint64, err error) (channel.Frame, bool) {
+	switch {
+	case errors.Is(err, store.ErrPairUnknown):
+		return errFrame(id, channel.CodeGone, "unknown rendezvous, wrong capability or expired"), true
+	case errors.Is(err, store.ErrPairSlot):
+		return errFrame(id, channel.CodeBadRequest, "unknown slot"), true
+	case errors.Is(err, store.ErrPairSize):
+		return errFrame(id, channel.CodeTooLarge, "payload too large for a rendezvous slot"), true
+	case errors.Is(err, store.ErrPairTaken):
+		return errFrame(id, channel.CodeConflict, "that slot already holds different bytes"), true
+	case err != nil:
+		return errFrame(id, channel.CodeInternal, "store error"), true
+	}
+	return channel.Frame{}, false
+}
+
+func (srv *Server) pairPut(ctx context.Context, f channel.Frame, now time.Time) channel.Frame {
+	if srv.Store == nil {
+		return errFrame(f.ID, channel.CodeInternal, "no store")
+	}
+	err := srv.Store.PutPair(ctx, f.Payload.PairID, f.Payload.Capability, f.Payload.Slot, f.Payload.Data, now)
+	if frame, bad := pairError(f.ID, err); bad {
+		return frame
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
+}
+
+func (srv *Server) pairGet(ctx context.Context, f channel.Frame, now time.Time) channel.Frame {
+	if srv.Store == nil {
+		return errFrame(f.ID, channel.CodeInternal, "no store")
+	}
+	data, err := srv.Store.GetPair(ctx, f.Payload.PairID, f.Payload.Capability, f.Payload.Slot, now)
+	if frame, bad := pairError(f.ID, err); bad {
+		return frame
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindPairFetched, Data: data}}
 }
 
 // recoverIdentity is the only way a provisional session becomes a member

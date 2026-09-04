@@ -69,6 +69,39 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         manifest: Vec<u8>,
     },
+    /// Open a pairing rendezvous (M3.1). Allowed on a provisional session:
+    /// the device that is pairing is not a member yet.
+    PairBegin,
+    PairStarted {
+        #[serde(with = "serde_bytes")]
+        pair_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        capability: Vec<u8>,
+        expires_at: u64,
+    },
+    /// Write one slot of a rendezvous. Same bytes twice is idempotent;
+    /// different bytes under a written slot is a conflict.
+    PairPut {
+        #[serde(with = "serde_bytes")]
+        pair_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        capability: Vec<u8>,
+        slot: String,
+        #[serde(with = "serde_bytes")]
+        data: Vec<u8>,
+    },
+    PairGet {
+        #[serde(with = "serde_bytes")]
+        pair_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        capability: Vec<u8>,
+        slot: String,
+    },
+    /// Empty `data` means the slot has not been written yet.
+    PairFetched {
+        #[serde(with = "serde_bytes")]
+        data: Vec<u8>,
+    },
     /// Recover an identity on a clean device (Phase 2, M2.5). The only
     /// frame a provisional session may use to become a member without an
     /// invite: the credential must bind this session's Noise key and the
@@ -293,6 +326,39 @@ mod vector_dump {
                     identity_id: vec![9, 9],
                     previous_sequence: 2,
                 },
+            },
+            Frame {
+                id: 5,
+                payload: Payload::PairBegin,
+            },
+            Frame {
+                id: 5,
+                payload: Payload::PairStarted {
+                    pair_id: vec![1, 2],
+                    capability: vec![3],
+                    expires_at: 9,
+                },
+            },
+            Frame {
+                id: 6,
+                payload: Payload::PairPut {
+                    pair_id: vec![1, 2],
+                    capability: vec![3],
+                    slot: "a".into(),
+                    data: vec![4, 5],
+                },
+            },
+            Frame {
+                id: 7,
+                payload: Payload::PairGet {
+                    pair_id: vec![1, 2],
+                    capability: vec![3],
+                    slot: "b".into(),
+                },
+            },
+            Frame {
+                id: 7,
+                payload: Payload::PairFetched { data: vec![6] },
             },
         ];
         for f in &frames {

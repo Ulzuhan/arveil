@@ -21,6 +21,9 @@ const USAGE: &str = "usage:
   arveil device authorize --data-dir <dir> <bootstrap> <link-request>
   arveil device link --data-dir <dir> <bootstrap> <link-grant>
   arveil device revoke --data-dir <dir> <bootstrap> <device-id>
+  arveil device pair --data-dir <dir> <bootstrap>
+  arveil device pair-approve --data-dir <dir> <bootstrap> <pairing-code>
+  arveil device pair-confirm --data-dir <dir> <bootstrap> <verification-code>
   arveil kit export --data-dir <dir> <path>
   arveil kit restore --data-dir <dir> <bootstrap> <path> <secret>
   arveil archive export --data-dir <dir> <path>
@@ -73,6 +76,18 @@ fn main() -> ExitCode {
         },
         ["device", "link", bootstrap, grant] => match data_dir {
             Some(d) => link::link(&d, bootstrap, grant),
+            None => usage(),
+        },
+        ["device", "pair", bootstrap] => match data_dir {
+            Some(d) => link::pair(&d, bootstrap),
+            None => usage(),
+        },
+        ["device", "pair-approve", bootstrap, code] => match data_dir {
+            Some(d) => link::pair_approve(&d, bootstrap, code),
+            None => usage(),
+        },
+        ["device", "pair-confirm", bootstrap, sas] => match data_dir {
+            Some(d) => link::pair_confirm(&d, bootstrap, sas),
             None => usage(),
         },
         ["device", "revoke", bootstrap, device] => match data_dir {

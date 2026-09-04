@@ -157,7 +157,7 @@ ARVEIL_BLOB_TTL_SECS=2 "$CLI" chat send-file --data-dir "$DATA/alice" "$BOOTSTRA
 sleep 4
 "$CLI" chat sync --data-dir "$DATA/bob" "$BOOTSTRAP" > "$DATA/f5"
 grep -q "file unavailable: photo.bin" "$DATA/f5" || { cat "$DATA/f5"; fail "expired blob not reported"; }
-grep -q "sweep: .* 1 blob(s) removed" "$DATA/relay.err" || { tail -3 "$DATA/relay.err"; fail "blob sweep not logged"; }
+grep -q "sweep: .* 1 blob(s)" "$DATA/relay.err" || { tail -3 "$DATA/relay.err"; fail "blob sweep not logged"; }
 "$CLI" chat history --data-dir "$DATA/bob" > "$DATA/f6"
 grep -q "file-unavailable" "$DATA/f6" || fail "history lacks the unavailable file"
 echo "expired blob swept and reported as unavailable"

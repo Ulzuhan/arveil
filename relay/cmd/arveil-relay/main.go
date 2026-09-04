@@ -71,7 +71,8 @@ func serve() {
 		dataDir     = flag.String("data-dir", "./data", "directory holding realm.db, blobs/ and server-secrets/")
 		listen      = flag.String("listen", "127.0.0.1:8447", "address to listen on (plain WebSocket; TLS is the carrier's job)")
 		advertise   = flag.String("advertise", "", "comma-separated endpoints to sign, as kind=url (kinds: lan, tailnet, public, admin); default: lan=ws://<listen>"+server.ChannelPath)
-		sweepEvery  = flag.Duration("sweep-interval", 5*time.Minute, "how often expired envelopes and invites are removed")
+		sweepEvery  = flag.Duration("sweep-interval", 5*time.Minute, "how often expired envelopes, invites, blobs and pairings are removed")
+		pairTTL     = flag.Duration("pair-ttl", store.DefaultPairTTL, "how long a pairing rendezvous stays open")
 		showVersion = flag.Bool("version", false, "print version and exit")
 	)
 	flag.Parse()
@@ -122,6 +123,7 @@ func serve() {
 		Blobs:        blobs,
 		SignedList:   signed,
 		Logger:       logger,
+		PairTTL:      *pairTTL,
 		ReadTimeout:  90 * time.Second,
 		HandshakeTTL: 10 * time.Second,
 	}
@@ -145,8 +147,12 @@ func serve() {
 			if err != nil {
 				logger.Printf("blob sweep failed")
 			}
-			if r.Envelopes > 0 || r.Invites > 0 || nb > 0 {
-				logger.Printf("sweep: %d envelope(s), %d invite(s), %d blob(s) removed", r.Envelopes, r.Invites, nb)
+			np, err := st.SweepPairs(context.Background(), time.Now())
+			if err != nil {
+				logger.Printf("pairing sweep failed")
+			}
+			if r.Envelopes > 0 || r.Invites > 0 || nb > 0 || np > 0 {
+				logger.Printf("sweep: %d envelope(s), %d invite(s), %d blob(s), %d pairing(s) removed", r.Envelopes, r.Invites, nb, np)
 			}
 		}
 	}()

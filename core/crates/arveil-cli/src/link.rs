@@ -183,3 +183,303 @@ pub fn link(data_dir: &Path, bootstrap: &str, grant: &str) -> Result<(), CliErro
         Ok::<_, CliError>(())
     })?
 }
+
+// ---------------------------------------------------------------------------
+// M3.1: pairing over a live channel
+// ---------------------------------------------------------------------------
+
+use arveil_core::channel::noise::{Initiator, Responder, prologue};
+use arveil_core::pairing::{
+    self, PairedDeviceKeys, PairingCode, PairingGrant, SLOT_GRANT, SLOT_HANDSHAKE_1,
+    SLOT_HANDSHAKE_2,
+};
+
+/// How long a device waits for the other side before giving up.
+fn pair_timeout() -> std::time::Duration {
+    let secs = std::env::var("ARVEIL_PAIR_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(90);
+    std::time::Duration::from_secs(secs)
+}
+
+/// Poll one rendezvous slot until it holds something, or give up.
+async fn wait_for_slot(
+    conn: &mut Connection,
+    code: &PairingCode,
+    slot: &str,
+    what: &str,
+) -> Result<Vec<u8>, CliError> {
+    let deadline = std::time::Instant::now() + pair_timeout();
+    loop {
+        match conn
+            .request(Payload::PairGet {
+                pair_id: code.pair_id.clone(),
+                capability: code.capability.clone(),
+                slot: slot.to_string(),
+            })
+            .await?
+        {
+            Payload::PairFetched { data } if !data.is_empty() => return Ok(data),
+            Payload::PairFetched { .. } => {}
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(CliError(format!(
+                "gave up waiting for {what}; the other device never answered"
+            )));
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+}
+
+async fn put_slot(
+    conn: &mut Connection,
+    code: &PairingCode,
+    slot: &str,
+    data: Vec<u8>,
+) -> Result<(), CliError> {
+    match conn
+        .request(Payload::PairPut {
+            pair_id: code.pair_id.clone(),
+            capability: code.capability.clone(),
+            slot: slot.to_string(),
+            data,
+        })
+        .await?
+    {
+        Payload::Ack => Ok(()),
+        other => Err(CliError(format!("unexpected reply: {other:?}"))),
+    }
+}
+
+/// `arveil device pair --data-dir NEW <bootstrap>`
+///
+/// Opens a rendezvous, prints the code the user carries to the other device,
+/// answers the handshake, receives the grant and stores it pending. Nothing
+/// is applied until `device pair-confirm` is run with the number both
+/// devices show.
+pub fn pair(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let c = open_client(data_dir)?;
+    let device = c.device_pending_new().map_err(err("device"))?;
+    let public = device.keys.public();
+
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &device.keys.transport_noise,
+        )
+        .await?;
+        let (pair_id, capability, expires_at) = match conn.request(Payload::PairBegin).await? {
+            Payload::PairStarted {
+                pair_id,
+                capability,
+                expires_at,
+            } => (pair_id, capability, expires_at),
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        };
+        let code = PairingCode {
+            realm_id: b.realm_id.clone(),
+            pair_id,
+            capability,
+            static_public: device.keys.transport_noise.public.clone(),
+        };
+        println!(
+            "device: {} (keys generated, not yet linked)",
+            hex::encode(device.keys.device_id)
+        );
+        println!("code: {}", code.to_string_code());
+        println!(
+            "waiting: show that code on the administration device (it expires at {expires_at})"
+        );
+
+        let msg1 = wait_for_slot(&mut conn, &code, SLOT_HANDSHAKE_1, "the other device").await?;
+        let mut responder = Responder::new(&device.keys.transport_noise, &prologue(&b.realm_id))
+            .map_err(err("pairing handshake"))?;
+        responder
+            .read_message_1(&msg1)
+            .map_err(err("pairing handshake"))?;
+        let keys = arveil_core::signed::canonical(&PairedDeviceKeys::from(&public))
+            .map_err(err("device keys"))?;
+        let (msg2, mut transport) = responder
+            .write_message_2_payload(&keys)
+            .map_err(err("pairing handshake"))?;
+        put_slot(&mut conn, &code, SLOT_HANDSHAKE_2, msg2).await?;
+
+        let sealed = wait_for_slot(&mut conn, &code, SLOT_GRANT, "the signed grant").await?;
+        let plain = transport.open(&sealed).map_err(err("pairing channel"))?;
+        let grant: PairingGrant = ciborium::from_reader(plain.as_slice()).map_err(err("grant"))?;
+        let sas = pairing::short_authentication_string(transport.handshake_hash());
+        c.pairing_pending_save(&sas, &grant.credential, &grant.manifest, &grant.root_public)
+            .map_err(err("pairing"))?;
+        println!("verification code: {sas}");
+        println!(
+            "confirm with `arveil device pair-confirm --data-dir <dir> <bootstrap> {sas}` only if \
+             the administration device shows the same number"
+        );
+        conn.close().await;
+        Ok::<_, CliError>(())
+    })?
+}
+
+/// `arveil device pair-approve --data-dir ADMIN <bootstrap> <code>`
+pub fn pair_approve(data_dir: &Path, bootstrap: &str, code: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let code = PairingCode::parse(code).map_err(err("code"))?;
+    code.check_realm(&b.realm_id).map_err(err("code"))?;
+    let (c, admin, _realm) = crate::commands::enrolled(data_dir)?;
+
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &admin.keys.transport_noise,
+        )
+        .await?;
+        let mut initiator = Initiator::new(
+            &admin.keys.transport_noise,
+            &code.static_public,
+            &prologue(&b.realm_id),
+        )
+        .map_err(err("pairing handshake"))?;
+        let msg1 = initiator
+            .write_message_1()
+            .map_err(err("pairing handshake"))?;
+        match put_slot(&mut conn, &code, SLOT_HANDSHAKE_1, msg1).await {
+            Ok(()) => {}
+            Err(e) if e.0.contains("(409)") => {
+                return Err(CliError(format!(
+                    "{e}. Someone else already answered this code: abandon it and start a new \
+                     pairing on the other device"
+                )));
+            }
+            Err(e) => return Err(e),
+        }
+        let msg2 = wait_for_slot(&mut conn, &code, SLOT_HANDSHAKE_2, "the new device").await?;
+        let (payload, mut transport) = initiator
+            .read_message_2_payload(&msg2)
+            .map_err(err("pairing handshake"))?;
+        let keys: PairedDeviceKeys =
+            ciborium::from_reader(payload.as_slice()).map_err(err("device keys"))?;
+        // The credential must bind the very key this handshake authenticated.
+        if keys.transport_noise_public_key != code.static_public {
+            return Err(CliError(
+                "the new device asked to sign a transport key other than the one it paired with"
+                    .into(),
+            ));
+        }
+        let sas = pairing::short_authentication_string(transport.handshake_hash());
+        println!("verification code: {sas}");
+
+        let public = arveil_core::identity::DevicePublicKeys::from(&keys);
+        let (credential, manifest) = c
+            .device_authorize(&public, now())
+            .map_err(err("authorize"))?;
+        let seq = c
+            .manifest_state()
+            .map_err(err("manifest"))?
+            .map(|m| m.sequence)
+            .unwrap_or(0);
+        match conn
+            .request(Payload::ManifestPut {
+                manifest: manifest.clone(),
+            })
+            .await?
+        {
+            Payload::Ack => println!("published: manifest {seq}"),
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+        match conn
+            .request(Payload::CredentialPut {
+                credential: credential.clone(),
+            })
+            .await?
+        {
+            Payload::Ack => println!("published: credential registered by the relay"),
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+        let root_public = c
+            .root_public()
+            .map_err(err("identity"))?
+            .ok_or_else(|| CliError("no identity".into()))?
+            .as_bytes()
+            .to_vec();
+        let grant = arveil_core::signed::canonical(&PairingGrant {
+            credential,
+            manifest,
+            root_public,
+        })
+        .map_err(err("grant"))?;
+        let sealed = transport.seal(&grant).map_err(err("pairing channel"))?;
+        put_slot(&mut conn, &code, SLOT_GRANT, sealed).await?;
+        println!(
+            "sent: the grant is on its way; the other device must show {sas} before it applies it"
+        );
+        conn.close().await;
+        Ok::<_, CliError>(())
+    })?
+}
+
+/// `arveil device pair-confirm --data-dir NEW <bootstrap> <verification-code>`
+pub fn pair_confirm(data_dir: &Path, bootstrap: &str, sas: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let c = open_client(data_dir)?;
+    let pending = c
+        .pairing_pending()
+        .map_err(err("pairing"))?
+        .ok_or_else(|| CliError("no pairing is waiting on this device".into()))?;
+    let given = sas.trim().replace(' ', "");
+    if given != pending.sas {
+        return Err(CliError(format!(
+            "this device shows {}, not {given}: the two screens are not talking to each other, \
+             so nothing was applied. Start a new pairing.",
+            pending.sas
+        )));
+    }
+    let identity_id = c
+        .device_link_complete(
+            &pending.credential,
+            &pending.manifest,
+            &pending.root_public,
+            now(),
+        )
+        .map_err(err("link"))?;
+    c.pairing_pending_clear().map_err(err("pairing"))?;
+    let device = c
+        .device()
+        .map_err(err("device"))?
+        .ok_or_else(|| CliError("no device".into()))?;
+    println!(
+        "linked: device {} now belongs to identity {}",
+        hex::encode(device.keys.device_id),
+        hex::encode(&identity_id)
+    );
+    c.realm_save(&b.realm_id, &b.signing_key, &b.noise_public, &b.url)
+        .map_err(err("realm"))?;
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &device.keys.transport_noise,
+        )
+        .await?;
+        match conn.request(Payload::EndpointListGet).await? {
+            Payload::EndpointList { signed } => {
+                let list = c
+                    .realm_accept_endpoint_list(&b.realm_id, &signed)
+                    .map_err(err("endpoint list"))?;
+                println!("endpoint list: sequence {} stored", list.sequence);
+            }
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+        c.realm_mark_enrolled(&b.realm_id).map_err(err("realm"))?;
+        finish_enrollment(&c, &mut conn, &device).await?;
+        conn.close().await;
+        Ok::<_, CliError>(())
+    })?
+}

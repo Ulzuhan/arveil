@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS identity_devices (
     credential_hash BLOB NOT NULL,
     revoked         INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS pairing_pending (
+    id          INTEGER PRIMARY KEY CHECK (id = 1),
+    sas         TEXT NOT NULL,
+    credential  BLOB NOT NULL,
+    manifest    BLOB NOT NULL,
+    root_public BLOB NOT NULL
+);
 CREATE TABLE IF NOT EXISTS archived_events (
     group_id   BLOB NOT NULL,
     event_id   BLOB NOT NULL,
@@ -166,6 +173,16 @@ impl StoredDevice {
             &self.keys.mls_signing_public_key,
         )
     }
+}
+
+/// A grant received over a pairing channel, waiting for the user to compare
+/// the number both devices show.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingPairing {
+    pub sas: String,
+    pub credential: Vec<u8>,
+    pub manifest: Vec<u8>,
+    pub root_public: Vec<u8>,
 }
 
 /// One device of this identity, as its own client knows it.
@@ -635,6 +652,50 @@ impl Client {
         )?;
         let rows = stmt.query_map([], |r| r.get(0))?;
         Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Store a grant received over a pairing channel, together with the
+    /// number the user has to compare. Nothing is applied until they do.
+    pub fn pairing_pending_save(
+        &self,
+        sas: &str,
+        credential: &[u8],
+        manifest: &[u8],
+        root_public: &[u8],
+    ) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT OR REPLACE INTO pairing_pending (id, sas, credential, manifest, root_public)
+             VALUES (1, ?1, ?2, ?3, ?4)",
+            params![sas, credential, manifest, root_public],
+        )?;
+        Ok(())
+    }
+
+    /// The pending grant: (sas, credential, manifest, root public key).
+    pub fn pairing_pending(&self) -> Result<Option<PendingPairing>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT sas, credential, manifest, root_public FROM pairing_pending WHERE id = 1",
+                [],
+                |r| {
+                    Ok(PendingPairing {
+                        sas: r.get(0)?,
+                        credential: r.get(1)?,
+                        manifest: r.get(2)?,
+                        root_public: r.get(3)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn pairing_pending_clear(&self) -> Result<(), ClientError> {
+        self.conn
+            .lock()
+            .execute("DELETE FROM pairing_pending WHERE id = 1", [])?;
+        Ok(())
     }
 
     /// Is this device id known to be revoked, as a peer or as one of our

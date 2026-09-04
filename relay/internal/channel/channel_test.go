@@ -368,3 +368,32 @@ func TestCodecMatchesRustVectorsManifests(t *testing.T) {
 		}
 	}
 }
+
+func TestCodecMatchesRustVectorsPairing(t *testing.T) {
+	vectors := []struct {
+		hex   string
+		frame Frame
+	}{
+		{"a262696405677061796c6f61646950616972426567696e", Frame{ID: 5, Payload: Payload{Kind: KindPairBegin}}},
+		{"a262696405677061796c6f6164a16b5061697253746172746564a367706169725f69644201026a6361706162696c69747941036a657870697265735f617409", Frame{ID: 5, Payload: Payload{Kind: KindPairStarted, PairID: []byte{1, 2}, Capability: []byte{3}, ExpiresAt: 9}}},
+		{"a262696406677061796c6f6164a16750616972507574a4646461746142040564736c6f74616167706169725f69644201026a6361706162696c6974794103", Frame{ID: 6, Payload: Payload{Kind: KindPairPut, PairID: []byte{1, 2}, Capability: []byte{3}, Slot: "a", Data: []byte{4, 5}}}},
+		{"a262696407677061796c6f6164a16750616972476574a364736c6f74616267706169725f69644201026a6361706162696c6974794103", Frame{ID: 7, Payload: Payload{Kind: KindPairGet, PairID: []byte{1, 2}, Capability: []byte{3}, Slot: "b"}}},
+		{"a262696407677061796c6f6164a16b5061697246657463686564a164646174614106", Frame{ID: 7, Payload: Payload{Kind: KindPairFetched, Data: []byte{6}}}},
+	}
+	for _, v := range vectors {
+		want, _ := hex.DecodeString(v.hex)
+		got, err := Encode(v.frame)
+		if err != nil || !bytes.Equal(got, want) {
+			t.Errorf("%s: encode mismatch (%v)\n got %x\nwant %x", v.frame.Payload.Kind, err, got, want)
+		}
+		dec, err := Decode(want)
+		if err != nil || dec.Payload.Kind != v.frame.Payload.Kind ||
+			!bytes.Equal(dec.Payload.PairID, v.frame.Payload.PairID) ||
+			!bytes.Equal(dec.Payload.Capability, v.frame.Payload.Capability) ||
+			dec.Payload.Slot != v.frame.Payload.Slot ||
+			!bytes.Equal(dec.Payload.Data, v.frame.Payload.Data) ||
+			dec.Payload.ExpiresAt != v.frame.Payload.ExpiresAt {
+			t.Errorf("%s: decode mismatch (%v): %+v", v.frame.Payload.Kind, err, dec.Payload)
+		}
+	}
+}

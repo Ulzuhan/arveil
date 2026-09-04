@@ -28,11 +28,13 @@ const ChannelPath = "/v1/channel"
 
 // Server holds what a connection needs.
 type Server struct {
-	Identity     *realm.Identity
-	Store        *store.Store // nil only in carrier-level tests
-	Blobs        *store.BlobStore
-	SignedList   []byte // current signed RealmEndpointList
-	Logger       *log.Logger
+	Identity   *realm.Identity
+	Store      *store.Store // nil only in carrier-level tests
+	Blobs      *store.BlobStore
+	SignedList []byte // current signed RealmEndpointList
+	Logger     *log.Logger
+	// PairTTL is how long a pairing rendezvous lives.
+	PairTTL      time.Duration
 	ReadTimeout  time.Duration // per message; keepalive pings must arrive within it
 	HandshakeTTL time.Duration
 }
