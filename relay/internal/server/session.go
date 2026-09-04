@@ -59,6 +59,8 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.manifestGet(ctx, s, f)
 	case channel.KindRecoverIdentity:
 		return srv.recoverIdentity(ctx, s, f, now)
+	case channel.KindNotifyHintSet:
+		return srv.notifyHintSet(ctx, s, f, now)
 	case channel.KindPairBegin:
 		return srv.pairBegin(ctx, f, now)
 	case channel.KindPairPut:
@@ -209,6 +211,20 @@ func (srv *Server) manifestPut(ctx context.Context, s *session, f channel.Frame)
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
 	srv.Logger.Printf("manifest %d for identity %x: %d active, %d revoked (%d newly revoked)", m.ManifestSequence, s.device.IdentityID[:4], len(m.ActiveCredentialHashes), len(m.RevokedCredentialHashes), revoked)
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
+}
+
+// notifyHintSet stores or clears this device's notification endpoint.
+func (srv *Server) notifyHintSet(ctx context.Context, s *session, f channel.Frame, now time.Time) channel.Frame {
+	if !s.member() {
+		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
+	}
+	if f.Payload.URL != "" && !validHintURL(f.Payload.URL) {
+		return errFrame(f.ID, channel.CodeBadRequest, "a hint endpoint must be an http or https URL without credentials")
+	}
+	if err := srv.Store.SetNotifyHint(ctx, s.device.DeviceID, f.Payload.URL, now); err != nil {
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
 

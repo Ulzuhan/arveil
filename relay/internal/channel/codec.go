@@ -24,6 +24,7 @@ const (
 	KindManifestPut      = "ManifestPut"
 	KindManifestGet      = "ManifestGet"
 	KindRecoverIdentity  = "RecoverIdentity"
+	KindNotifyHintSet    = "NotifyHintSet"
 	KindPairBegin        = "PairBegin"
 	KindPairStarted      = "PairStarted"
 	KindPairPut          = "PairPut"
@@ -120,6 +121,7 @@ type Payload struct {
 	PairID      []byte
 	Capability  []byte
 	Slot        string
+	URL         string
 	ExpiresAt   uint64
 	NextCursor  uint64
 	Limit       uint16
@@ -251,6 +253,10 @@ type manifestPutBody struct {
 	Manifest []byte `cbor:"manifest"`
 }
 
+type notifyHintSetBody struct {
+	URL string `cbor:"url"`
+}
+
 type pairStartedBody struct {
 	PairID     []byte `cbor:"pair_id"`
 	Capability []byte `cbor:"capability"`
@@ -318,6 +324,8 @@ func Encode(f Frame) ([]byte, error) {
 	switch f.Payload.Kind {
 	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin:
 		payload = f.Payload.Kind
+	case KindNotifyHintSet:
+		payload = map[string]notifyHintSetBody{KindNotifyHintSet: {URL: f.Payload.URL}}
 	case KindPairStarted:
 		payload = map[string]pairStartedBody{KindPairStarted: {PairID: f.Payload.PairID, Capability: f.Payload.Capability, ExpiresAt: f.Payload.ExpiresAt}}
 	case KindPairPut:
@@ -473,6 +481,12 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Credential: v.Credential}
+		case KindNotifyHintSet:
+			var v notifyHintSetBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, URL: v.URL}
 		case KindPairStarted:
 			var v pairStartedBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

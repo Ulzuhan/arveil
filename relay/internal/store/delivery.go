@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS capabilities (
     expires_at INTEGER NOT NULL,
     revoked    INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS notify_hints (
+    device_id  BLOB PRIMARY KEY,
+    url        TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS envelopes (
     seq         INTEGER PRIMARY KEY AUTOINCREMENT,
     mailbox_id  BLOB NOT NULL REFERENCES mailboxes(mailbox_id),
@@ -147,6 +152,38 @@ func (s *Store) CheckCapability(ctx context.Context, mailboxID, capability []byt
 type PutResult struct {
 	EffectiveExpiry int64
 	Duplicate       bool // same delivery id and same body: idempotent retry
+	// WasEmpty is true when this envelope is the first one waiting in that
+	// mailbox. Only that transition is worth a notification hint (M3.4):
+	// anything finer would let whoever runs the notifier count messages.
+	WasEmpty bool
+}
+
+// SetNotifyHint stores, replaces or (with an empty url) removes the
+// notification endpoint of one device. The realm learns nothing new from
+// it: it already knows that mailbox received an envelope.
+func (s *Store) SetNotifyHint(ctx context.Context, deviceID []byte, url string, now time.Time) error {
+	if url == "" {
+		_, err := s.db.ExecContext(ctx, `DELETE FROM notify_hints WHERE device_id = ?`, deviceID)
+		return err
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO notify_hints (device_id, url, created_at) VALUES (?, ?, ?)
+		 ON CONFLICT(device_id) DO UPDATE SET url = excluded.url, created_at = excluded.created_at`,
+		deviceID, url, now.Unix())
+	return err
+}
+
+// NotifyHintForMailbox returns the endpoint configured by the device that
+// owns a mailbox, or "" when there is none.
+func (s *Store) NotifyHintForMailbox(ctx context.Context, mailboxID []byte) (string, error) {
+	var url string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT h.url FROM notify_hints h JOIN mailboxes m ON m.owner_device = h.device_id WHERE m.mailbox_id = ?`,
+		mailboxID).Scan(&url)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return url, err
 }
 
 // PutEnvelope stores an envelope durably. A retry with identical bytes is
@@ -200,7 +237,7 @@ func (s *Store) PutEnvelope(ctx context.Context, mailboxID, deliveryID, hpkeEnc,
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return &PutResult{EffectiveExpiry: expiry}, nil
+	return &PutResult{EffectiveExpiry: expiry, WasEmpty: queued == 0}, nil
 }
 
 // Envelope is one queued item as returned to the owner.

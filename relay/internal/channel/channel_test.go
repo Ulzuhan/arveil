@@ -329,6 +329,7 @@ func TestCodecMatchesRustVectorsBlobs(t *testing.T) {
 		{"a262696404677061796c6f6164a168426c6f6244617461a264646174614203046a746f74616c5f73697a6502", Frame{ID: 4, Payload: Payload{Kind: KindBlobData, TotalSize: 2, Data: []byte{3, 4}}}},
 		{"a262696408677061796c6f6164a16a426c6f62526573756d65a167626c6f625f6964420102", Frame{ID: 8, Payload: Payload{Kind: KindBlobResume, BlobID: []byte{1, 2}}}},
 		{"a262696408677061796c6f6164a16a426c6f624f6666736574a1666f6666736574183c", Frame{ID: 8, Payload: Payload{Kind: KindBlobOffset, Offset: 60}}},
+		{"a262696409677061796c6f6164a16d4e6f7469667948696e74536574a16375726c781968747470733a2f2f6578616d706c652e696e76616c69642f78", Frame{ID: 9, Payload: Payload{Kind: KindNotifyHintSet, URL: "https://example.invalid/x"}}},
 	}
 	for _, v := range vectors {
 		want, _ := hex.DecodeString(v.hex)

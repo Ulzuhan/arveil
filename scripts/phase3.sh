@@ -13,6 +13,7 @@ RELAY_PID=""
 step() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 fail() { echo "FAIL: $*"; exit 1; }
 cleanup() {
+  if [ -n "${SINK_PID:-}" ]; then kill "$SINK_PID" 2>/dev/null || true; wait "$SINK_PID" 2>/dev/null || true; fi
   if [ -n "$RELAY_PID" ]; then kill "$RELAY_PID" 2>/dev/null || true; wait "$RELAY_PID" 2>/dev/null || true; fi
   [ -n "${ARVEIL_P3_KEEP:-}" ] && echo "data kept in $DATA" || rm -rf "$DATA"
 }
@@ -35,7 +36,7 @@ wait_for() {
   fail "timed out waiting for '$2' in $1"
 }
 
-(cd "$ROOT/relay" && go build -o bin/arveil-relay ./cmd/arveil-relay)
+(cd "$ROOT/relay" && go build -o bin/arveil-relay ./cmd/arveil-relay && go build -o bin/arveil-hintsink ./cmd/arveil-hintsink)
 (cd "$ROOT/core" && cargo build -q -p arveil-cli)
 
 start_relay
@@ -185,5 +186,49 @@ head -c 400000 /dev/urandom > "$DATA/foto.bin"
 grep -q "changed since the interrupted attempt; starting again" "$DATA/bob.upload4" || fail "a changed file was resumed as if it were the same"
 "$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" > "$DATA/alice.dl3"
 cmp "$DATA/foto.bin" "$DATA/alice/downloads/foto.bin" || fail "the second file does not match"
+
+step "M3.4 push hint: the realm pokes an endpoint that learns only that mail exists"
+SINK_PORT=$((PORT + 10))
+"$ROOT/relay/bin/arveil-hintsink" -listen "127.0.0.1:$SINK_PORT" -out "$DATA/hints.log" > "$DATA/sink.out" 2>&1 &
+SINK_PID=$!
+for _ in $(seq 1 50); do grep -q "listening" "$DATA/sink.out" && break; sleep 0.1; done
+grep -q "listening" "$DATA/sink.out" || fail "the hint sink did not start"
+"$CLI" notify set --data-dir "$DATA/alice" "$BOOTSTRAP2" "http://127.0.0.1:$SINK_PORT/alice-token" | tee "$DATA/alice.notify"
+grep -q "^notify: the realm will poke" "$DATA/alice.notify" || fail "the hint was not accepted"
+expect_fail "$DATA/alice.badnotify" "$CLI" notify set --data-dir "$DATA/alice" "$BOOTSTRAP2" "ftp://nope/x" || fail "a non-http endpoint was accepted"
+
+# Alice's mailbox is empty right now: the first envelope fires one hint.
+"$CLI" chat send --data-dir "$DATA/bob" "$BOOTSTRAP2" "primero" > /dev/null
+sleep 1
+[ "$(wc -l < "$DATA/hints.log")" -ge 1 ] || fail "no hint was sent for the first envelope"
+FIRST="$(wc -l < "$DATA/hints.log")"
+# A second envelope into a mailbox that is no longer empty fires nothing.
+"$CLI" chat send --data-dir "$DATA/bob" "$BOOTSTRAP2" "segundo" > /dev/null
+sleep 1
+[ "$(wc -l < "$DATA/hints.log")" = "$FIRST" ] || fail "a hint was sent for a mailbox that was already holding mail"
+# After alice reads and acknowledges, the next envelope fires again.
+"$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" > "$DATA/alice.sync3"
+"$CLI" chat send --data-dir "$DATA/bob" "$BOOTSTRAP2" "tercero" > /dev/null
+sleep 1
+[ "$(wc -l < "$DATA/hints.log")" -gt "$FIRST" ] || fail "no hint after the mailbox was emptied"
+cat "$DATA/hints.log"
+grep -q 'body="arveil-hint/v1"' "$DATA/hints.log" || fail "the hint body is not the fixed marker"
+grep -q 'query=""' "$DATA/hints.log" || fail "the realm added something to the URL"
+for word in "primero" "segundo" "tercero" "$BOB_ID" "$ALICE_ID"; do
+  grep -qa "$word" "$DATA/hints.log" && fail "'$word' reached the notification endpoint"
+done
+echo "the endpoint learned only that mail exists"
+
+step "M3.4 with no endpoint configured nothing is sent and nothing is stored"
+LINES="$(wc -l < "$DATA/hints.log")"
+"$CLI" notify clear --data-dir "$DATA/alice" "$BOOTSTRAP2" | tee "$DATA/alice.notifyclear"
+grep -q "hint removed" "$DATA/alice.notifyclear" || fail "the hint was not removed"
+"$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" > /dev/null
+"$CLI" chat send --data-dir "$DATA/bob" "$BOOTSTRAP2" "cuarto" > /dev/null
+sleep 1
+[ "$(wc -l < "$DATA/hints.log")" = "$LINES" ] || fail "a hint was sent after the endpoint was removed"
+if command -v sqlite3 >/dev/null; then
+  [ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) FROM notify_hints')" = 0 ] || fail "the realm still stores an endpoint"
+fi
 
 step "phase 3 checks so far ok"

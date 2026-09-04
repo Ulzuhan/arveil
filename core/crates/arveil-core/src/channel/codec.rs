@@ -69,6 +69,11 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         manifest: Vec<u8>,
     },
+    /// Set or clear this device's notification endpoint (M3.4). An empty
+    /// url removes it; nothing is stored and nothing is sent without one.
+    NotifyHintSet {
+        url: String,
+    },
     /// How much of an interrupted upload the realm already holds (M3.3).
     BlobResume {
         #[serde(with = "serde_bytes")]
@@ -377,6 +382,12 @@ mod vector_dump {
             Frame {
                 id: 8,
                 payload: Payload::BlobOffset { offset: 60 },
+            },
+            Frame {
+                id: 9,
+                payload: Payload::NotifyHintSet {
+                    url: "https://example.invalid/x".into(),
+                },
             },
         ];
         for f in &frames {

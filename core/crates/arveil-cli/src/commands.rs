@@ -666,3 +666,41 @@ pub fn contact_verify(data_dir: &Path, identity_hex: &str, number: &str) -> Resu
     }
     Ok(())
 }
+
+/// `arveil notify set --data-dir D <bootstrap> <url>` and
+/// `arveil notify clear --data-dir D <bootstrap>`
+///
+/// Gives the realm one endpoint to poke when this device's mailbox stops
+/// being empty. The request carries nothing else, and only that transition
+/// is signalled. What it costs: whoever runs that endpoint learns it was
+/// poked, and when.
+pub fn notify_set(data_dir: &Path, bootstrap: &str, url: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let (_c, d, _r) = enrolled(data_dir)?;
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &d.keys.transport_noise,
+        )
+        .await?;
+        match conn
+            .request(Payload::NotifyHintSet {
+                url: url.to_string(),
+            })
+            .await?
+        {
+            Payload::Ack if url.is_empty() => println!("notify: hint removed from the realm"),
+            Payload::Ack => {
+                println!("notify: the realm will poke {url} when this mailbox stops being empty");
+                println!(
+                    "It sends no sender, no size and no conversation, and only that transition."
+                );
+            }
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+        conn.close().await;
+        Ok::<_, CliError>(())
+    })?
+}

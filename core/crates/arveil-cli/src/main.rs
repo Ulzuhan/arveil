@@ -28,6 +28,8 @@ const USAGE: &str = "usage:
   arveil kit restore --data-dir <dir> <bootstrap> <path> <secret>
   arveil archive export --data-dir <dir> <path>
   arveil archive import --data-dir <dir> <path> <secret>
+  arveil notify set --data-dir <dir> <bootstrap> <url>
+  arveil notify clear --data-dir <dir> <bootstrap>
   arveil contact list --data-dir <dir>
   arveil contact verify --data-dir <dir> <identity-id> <safety-number>
   arveil mailbox create --data-dir <dir> <bootstrap>
@@ -110,6 +112,14 @@ fn main() -> ExitCode {
         },
         ["archive", "import", path, secret] => match data_dir {
             Some(d) => kit::archive_import(&d, std::path::Path::new(path), secret),
+            None => usage(),
+        },
+        ["notify", "set", bootstrap, url] => match data_dir {
+            Some(d) => commands::notify_set(&d, bootstrap, url),
+            None => usage(),
+        },
+        ["notify", "clear", bootstrap] => match data_dir {
+            Some(d) => commands::notify_set(&d, bootstrap, ""),
             None => usage(),
         },
         ["contact", "list"] => match data_dir {
