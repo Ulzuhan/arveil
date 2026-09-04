@@ -9,6 +9,9 @@
 //! the relay never links this crate, and the UI never decides whether a
 //! signature, device or commit is valid.
 
+pub mod mls;
+pub mod storage;
+
 /// Wire protocol major version carried in every frame and in the Noise prologue.
 ///
 /// `0` means "pre-release, no compatibility promise". It becomes `1` when the

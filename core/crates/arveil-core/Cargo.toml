@@ -8,6 +8,14 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+maybe-async = "0.2"
+mls-rs = "0.56"
+mls-rs-codec = "0.7"
+mls-rs-core = "0.27"
+mls-rs-crypto-rustcrypto = "0.22"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+thiserror = "2.0.20"
+zeroize = "1.9.0"
 
 [lints]
 workspace = true
