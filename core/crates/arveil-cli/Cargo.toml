@@ -13,6 +13,11 @@ path = "src/main.rs"
 
 [dependencies]
 arveil-core = { path = "../arveil-core" }
+ed25519-dalek = "3"
+futures-util = "0.3.34"
+hex = "0.4.3"
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros"] }
+tokio-tungstenite = "0.30"
 
 [lints]
 workspace = true

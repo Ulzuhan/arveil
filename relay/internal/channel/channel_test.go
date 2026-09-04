@@ -1,0 +1,223 @@
+package channel
+
+import (
+	"bytes"
+	"encoding/hex"
+	"testing"
+)
+
+// Vectors produced by arveil-core (ciborium) for the same frames. They are
+// the interop contract for the codec.
+var rustVectors = []struct {
+	name  string
+	hex   string
+	frame Frame
+}{
+	{"ping", "a262696407677061796c6f61646450696e67", Frame{ID: 7, Payload: Payload{Kind: KindPing}}},
+	{"endpoint_list_get", "a262696407677061796c6f61646f456e64706f696e744c697374476574", Frame{ID: 7, Payload: Payload{Kind: KindEndpointListGet}}},
+	{"endpoint_list", "a262696409677061796c6f6164a16c456e64706f696e744c697374a1667369676e656443010203", Frame{ID: 9, Payload: Payload{Kind: KindEndpointList, Signed: []byte{1, 2, 3}}}},
+	{"error", "a262696403677061796c6f6164a1654572726f72a264636f6465190194676d657373616765646e6f7065", Frame{ID: 3, Payload: Payload{Kind: KindError, Code: 404, Message: "nope"}}},
+}
+
+func TestCodecMatchesRustVectors(t *testing.T) {
+	for _, v := range rustVectors {
+		want, _ := hex.DecodeString(v.hex)
+		got, err := Encode(v.frame)
+		if err != nil {
+			t.Fatalf("%s: encode: %v", v.name, err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s: encode mismatch\n got %x\nwant %x", v.name, got, want)
+		}
+		dec, err := Decode(want)
+		if err != nil {
+			t.Fatalf("%s: decode: %v", v.name, err)
+		}
+		if dec.ID != v.frame.ID || dec.Payload.Kind != v.frame.Payload.Kind ||
+			!bytes.Equal(dec.Payload.Signed, v.frame.Payload.Signed) ||
+			dec.Payload.Code != v.frame.Payload.Code || dec.Payload.Message != v.frame.Payload.Message {
+			t.Errorf("%s: decode mismatch: %+v", v.name, dec)
+		}
+	}
+}
+
+func TestDecodeRejectsGarbageAndOversize(t *testing.T) {
+	if _, err := Decode(make([]byte, MaxFrameBytes+1)); err == nil {
+		t.Fatal("oversize accepted")
+	}
+	for _, g := range [][]byte{nil, {0xff}, {0xa1, 0x62, 0x69, 0x64}, []byte("hello")} {
+		if _, err := Decode(g); err == nil {
+			t.Errorf("garbage %x accepted", g)
+		}
+	}
+}
+
+func TestFragmentRoundTrip(t *testing.T) {
+	for _, n := range []int{0, 1, FragmentData, FragmentData + 1, 3*FragmentData + 5} {
+		in := bytes.Repeat([]byte{0xab}, n)
+		r := NewReassembler(MaxFrameBytes)
+		var out []byte
+		var done bool
+		for _, f := range Fragments(in) {
+			var err error
+			out, done, err = r.Push(f)
+			if err != nil {
+				t.Fatalf("n=%d: %v", n, err)
+			}
+		}
+		if !done || !bytes.Equal(out, in) {
+			t.Errorf("n=%d: round trip failed (done=%v, len=%d)", n, done, len(out))
+		}
+	}
+}
+
+func TestReassemblerBound(t *testing.T) {
+	r := NewReassembler(3 * FragmentData)
+	frag := append([]byte{0}, bytes.Repeat([]byte{1}, FragmentData)...)
+	for i := 0; i < 3; i++ {
+		if _, _, err := r.Push(frag); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, _, err := r.Push(frag); err == nil {
+		t.Fatal("fourth fragment accepted past the limit")
+	}
+	if r.MidFrame() {
+		t.Fatal("buffer not dropped after violation")
+	}
+}
+
+func establish(t *testing.T) (dev, rlm *Channel, devPub, rlmPub []byte) {
+	t.Helper()
+	realm, _ := GenerateStaticKeypair()
+	device, _ := GenerateStaticKeypair()
+	pro := Prologue([]byte("realm-test"))
+
+	init, err := NewInitiator(device, realm.Public, pro)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m1, err := init.WriteMessage1()
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := NewResponder(realm, pro)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen, err := resp.ReadMessage1(m1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(seen, device.Public) {
+		t.Fatal("responder did not learn the device static")
+	}
+	m2, rt, err := resp.WriteMessage2()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dt, err := init.ReadMessage2(m2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewChannel(dt), NewChannel(rt), device.Public, realm.Public
+}
+
+func TestHandshakeAndFramesBothWays(t *testing.T) {
+	dev, rlm, devPub, rlmPub := establish(t)
+	if !bytes.Equal(rlm.RemoteStatic(), devPub) || !bytes.Equal(dev.RemoteStatic(), rlmPub) {
+		t.Fatal("remote statics wrong")
+	}
+	msgs, err := dev.Seal(Frame{ID: 7, Payload: Payload{Kind: KindEndpointListGet}})
+	if err != nil || len(msgs) != 1 {
+		t.Fatalf("seal: %v (%d msgs)", err, len(msgs))
+	}
+	f, ok, err := rlm.Open(msgs[0])
+	if err != nil || !ok || f.ID != 7 || f.Payload.Kind != KindEndpointListGet {
+		t.Fatalf("open: %v ok=%v %+v", err, ok, f)
+	}
+	big := Frame{ID: 1, Payload: Payload{Kind: KindEndpointList, Signed: bytes.Repeat([]byte{0xcd}, 200_000)}}
+	msgs, err = rlm.Seal(big)
+	if err != nil || len(msgs) < 4 {
+		t.Fatalf("seal big: %v (%d msgs)", err, len(msgs))
+	}
+	for i, m := range msgs {
+		f, ok, err := dev.Open(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok != (i == len(msgs)-1) {
+			t.Fatalf("fragment %d: ok=%v", i, ok)
+		}
+		if ok && !bytes.Equal(f.Payload.Signed, big.Payload.Signed) {
+			t.Fatal("big frame mismatch")
+		}
+	}
+}
+
+func TestWrongStaticOrPrologueFailsOnMessage1(t *testing.T) {
+	realm, _ := GenerateStaticKeypair()
+	impostor, _ := GenerateStaticKeypair()
+	device, _ := GenerateStaticKeypair()
+	pro := Prologue([]byte("realm-test"))
+
+	init, _ := NewInitiator(device, impostor.Public, pro)
+	m1, _ := init.WriteMessage1()
+	resp, _ := NewResponder(realm, pro)
+	if _, err := resp.ReadMessage1(m1); err == nil {
+		t.Fatal("message 1 for another realm was accepted")
+	}
+
+	init, _ = NewInitiator(device, realm.Public, Prologue([]byte("other")))
+	m1, _ = init.WriteMessage1()
+	resp, _ = NewResponder(realm, pro)
+	if _, err := resp.ReadMessage1(m1); err == nil {
+		t.Fatal("message 1 with another prologue was accepted")
+	}
+}
+
+func TestReplayedMessage1HasNoEffect(t *testing.T) {
+	realm, _ := GenerateStaticKeypair()
+	device, _ := GenerateStaticKeypair()
+	pro := Prologue([]byte("realm-test"))
+	init, _ := NewInitiator(device, realm.Public, pro)
+	m1, _ := init.WriteMessage1()
+
+	resp, _ := NewResponder(realm, pro)
+	if _, err := resp.ReadMessage1(m1); err != nil {
+		t.Fatal(err)
+	}
+	m2, _, _ := resp.WriteMessage2()
+	if _, err := init.ReadMessage2(m2); err != nil {
+		t.Fatal(err)
+	}
+
+	// Replay against a fresh responder.
+	resp2, _ := NewResponder(realm, pro)
+	if _, err := resp2.ReadMessage1(m1); err != nil {
+		t.Fatal("IK cannot detect the replay by itself; read must succeed")
+	}
+	m2r, rt2, _ := resp2.WriteMessage2()
+	other, _ := NewInitiator(device, realm.Public, pro)
+	_, _ = other.WriteMessage1()
+	if _, err := other.ReadMessage2(m2r); err == nil {
+		t.Fatal("replayer opened message 2 without the original ephemeral")
+	}
+	if _, err := rt2.Open(make([]byte, 64)); err == nil {
+		t.Fatal("forged transport message opened")
+	}
+	if _, err := rt2.Open(m1); err == nil {
+		t.Fatal("message 1 opened as transport")
+	}
+}
+
+func TestStaticKeypairFromPrivateMatchesGenerated(t *testing.T) {
+	kp, _ := GenerateStaticKeypair()
+	re, err := StaticKeypairFromPrivate(kp.Private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(re.Public, kp.Public) {
+		t.Fatal("public key derivation mismatch")
+	}
+}

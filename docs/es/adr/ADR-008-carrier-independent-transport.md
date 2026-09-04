@@ -31,7 +31,7 @@ El protocolo, por tanto, no era independiente del transporte. Esta decisión cor
 
 | Elemento | Especificación propuesta |
 |---|---|
-| Patrón | `Noise_IK_25519_ChaChaPoly_BLAKE2s` o `Noise_IK_25519_AESGCM_SHA256`; se fija uno tras el spike y se declara en el prólogo |
+| Patrón | `Noise_IK_25519_ChaChaPoly_BLAKE2s`, fijado en M0.2 e implementado en ambos lados (`snow` 0.10 en el core, `flynn/noise` 1.1 en el relay); el prólogo es `arveil/<protocol_version>/<realm_id>` |
 | Claves estáticas | Dispositivo: `transport_noise_public_key` en `DeviceCredential`. Realm: `realm_noise_public_key` firmada por la clave de firma del realm. No se derivan de claves Ed25519 |
 | Primer mensaje | Sin datos de aplicación. `IK` no ofrece forward secrecy ni protección contra replay para el payload del primer mensaje; el servidor no actúa sobre nada anterior a completar el handshake |
 | Autorización | Tras el handshake, el realm comprueba que la clave estática pertenece a una credencial activa de un miembro; si no, cierra. Las capabilities de mailbox y blob se presentan como campos de frame |

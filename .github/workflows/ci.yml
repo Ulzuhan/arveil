@@ -63,3 +63,20 @@ jobs:
       - name: Test
         working-directory: spikes/mls
         run: cargo test
+
+  interop:
+    name: Channel interop (Go relay vs Rust client)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - run: ./scripts/interop.sh

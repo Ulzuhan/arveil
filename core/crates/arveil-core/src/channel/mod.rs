@@ -14,6 +14,7 @@
 //! - [`Channel`]: the composition used by the core and the CLI.
 
 pub mod codec;
+pub mod endpoints;
 pub mod fragment;
 pub mod noise;
 

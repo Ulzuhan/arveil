@@ -39,7 +39,7 @@ pub enum Payload {
     EndpointListGet,
     /// The signed `RealmEndpointList` bytes (deterministic CBOR, signed).
     EndpointList {
-        #[serde(with = "serde_bytes_compat")]
+        #[serde(with = "serde_bytes")]
         signed: Vec<u8>,
     },
     /// Generic failure reply.
@@ -65,41 +65,4 @@ pub fn decode(bytes: &[u8]) -> Result<Frame, CodecError> {
         return Err(CodecError::TooLarge(bytes.len()));
     }
     ciborium::from_reader(bytes).map_err(|e| CodecError::Decode(e.to_string()))
-}
-
-/// Encode `Vec<u8>` as a CBOR byte string rather than an array of integers,
-/// so the Go side sees `[]byte`.
-mod serde_bytes_compat {
-    use serde::{Deserializer, Serializer};
-
-    pub fn serialize<S: Serializer>(v: &[u8], s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_bytes(v)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
-        struct V;
-        impl<'de> serde::de::Visitor<'de> for V {
-            type Value = Vec<u8>;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("bytes")
-            }
-            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Vec<u8>, E> {
-                Ok(v.to_vec())
-            }
-            fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<Vec<u8>, E> {
-                Ok(v)
-            }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(
-                self,
-                mut seq: A,
-            ) -> Result<Vec<u8>, A::Error> {
-                let mut out = Vec::new();
-                while let Some(b) = seq.next_element::<u8>()? {
-                    out.push(b);
-                }
-                Ok(out)
-            }
-        }
-        d.deserialize_byte_buf(V)
-    }
 }

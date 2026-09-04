@@ -45,7 +45,9 @@ The spike lives in `spikes/mls`, outside the main workspace so its dependencies 
 
 **Integration (M0.5 step 4) — done** (2026-09-04). `arveil-core` has `storage` (shared connection, ADR-004 pragmas, unit of work, bundled SQLite ≥ 3.51.3 gate) and `mls` (SQLite stores for group state, key packages and PSKs; `GroupPolicy` GroupContext extension type 0xF000; `PolicyRules` failing closed; engine). Nine core tests cover 1:1 both ways, 3-member add and remove with the removed member unable to read the new epoch, unauthorized commits refused by sender and every receiver, missing policy failing closed, and the shared unit of work. Conformance evidence: `spikes/mls/src/interop.rs` joins an OpenMLS member to a group created by `arveil-core`, exchanges messages both ways, and the policy refuses the OpenMLS member's commit. mls-rs runs the official RFC 9420 vectors in its own CI; running them here is deferred to the relay-integrated tests of M0.6.
 
-**Q3 — open.** Needs the channel (M0.2) and the demo (M0.6).
+**M0.2 Channel — done** (2026-09-04). `arveil-core::channel` (Noise IK over `snow`, CBOR frames, fragmentation, signed endpoint list verification) and the relay's `internal/channel`, `internal/endpoints`, `internal/realm` and `internal/server` (WebSocket carrier). Acceptance rows #2 to #6 are covered by unit and property tests on both sides, with the Rust CBOR encodings as vectors in the Go tests, and by `scripts/interop.sh`: the Go relay serves the channel, the Rust CLI completes the handshake, verifies the signed list and exchanges a ping; a tampered realm id is refused before any frame. CI runs the script.
+
+**Q3 — partially answered.** The channel works across implementations over plain WebSocket. The remaining evidence is the capture behind a TLS-terminating proxy, scheduled with the demo (M0.6).
 
 ## Evidence required at exit
 

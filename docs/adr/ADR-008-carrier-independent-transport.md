@@ -31,7 +31,7 @@ The protocol, therefore, was not transport-independent. This decision corrects t
 
 | Element | Proposed specification |
 |---|---|
-| Pattern | `Noise_IK_25519_ChaChaPoly_BLAKE2s` or `Noise_IK_25519_AESGCM_SHA256`; one is fixed after the spike and declared in the prologue |
+| Pattern | `Noise_IK_25519_ChaChaPoly_BLAKE2s`, fixed in M0.2 and implemented on both sides (`snow` 0.10 in the core, `flynn/noise` 1.1 in the relay); the prologue is `arveil/<protocol_version>/<realm_id>` |
 | Static keys | Device: `transport_noise_public_key` in `DeviceCredential`. Realm: `realm_noise_public_key` signed by the realm's signing key. Not derived from Ed25519 keys |
 | First message | No application data. `IK` offers neither forward secrecy nor replay protection for the first message's payload; the server acts on nothing before the handshake completes |
 | Authorization | After the handshake, the realm checks that the static key belongs to an active credential of a member; if not, it closes. Mailbox and blob capabilities are presented as frame fields |
