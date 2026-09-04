@@ -189,6 +189,23 @@ fn arb_payload() -> impl Strategy<Value = Payload> {
         proptest::collection::vec(any::<u8>(), 0..4096)
             .prop_map(|signed| Payload::EndpointList { signed }),
         (any::<u16>(), ".{0,64}").prop_map(|(code, message)| Payload::Error { code, message }),
+        Just(Payload::Ack),
+        (
+            proptest::collection::vec(any::<u8>(), 0..64),
+            proptest::collection::vec(any::<u8>(), 0..256),
+            proptest::collection::vec(any::<u8>(), 0..256),
+        )
+            .prop_map(|(token, credential, manifest)| Payload::InviteRedeem {
+                token,
+                credential,
+                manifest,
+            }),
+        proptest::collection::vec(any::<u8>(), 0..64)
+            .prop_map(|identity_id| Payload::InviteRedeemed { identity_id }),
+        proptest::collection::vec(any::<u8>(), 0..256)
+            .prop_map(|credential| Payload::CredentialPut { credential }),
+        proptest::collection::vec(any::<u8>(), 0..256)
+            .prop_map(|manifest| Payload::ManifestPut { manifest }),
     ]
 }
 

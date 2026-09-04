@@ -221,3 +221,36 @@ func TestStaticKeypairFromPrivateMatchesGenerated(t *testing.T) {
 		t.Fatal("public key derivation mismatch")
 	}
 }
+
+var rustVectorsM03 = []struct {
+	hex   string
+	frame Frame
+}{
+	{"a262696401677061796c6f6164a16c496e7669746552656465656da365746f6b656e420102686d616e6966657374430405066a63726564656e7469616c4103", Frame{ID: 1, Payload: Payload{Kind: KindInviteRedeem, Token: []byte{1, 2}, Credential: []byte{3}, Manifest: []byte{4, 5, 6}}}},
+	{"a262696401677061796c6f6164a16e496e7669746552656465656d6564a16b6964656e746974795f69644409090909", Frame{ID: 1, Payload: Payload{Kind: KindInviteRedeemed, IdentityID: []byte{9, 9, 9, 9}}}},
+	{"a262696402677061796c6f6164a16d43726564656e7469616c507574a16a63726564656e7469616c4107", Frame{ID: 2, Payload: Payload{Kind: KindCredentialPut, Credential: []byte{7}}}},
+	{"a262696403677061796c6f6164a16b4d616e6966657374507574a1686d616e69666573744108", Frame{ID: 3, Payload: Payload{Kind: KindManifestPut, Manifest: []byte{8}}}},
+	{"a262696404677061796c6f61646341636b", Frame{ID: 4, Payload: Payload{Kind: KindAck}}},
+}
+
+func TestCodecMatchesRustVectorsM03(t *testing.T) {
+	for _, v := range rustVectorsM03 {
+		want, _ := hex.DecodeString(v.hex)
+		got, err := Encode(v.frame)
+		if err != nil {
+			t.Fatalf("%s: encode: %v", v.frame.Payload.Kind, err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s: encode mismatch\n got %x\nwant %x", v.frame.Payload.Kind, got, want)
+		}
+		dec, err := Decode(want)
+		if err != nil {
+			t.Fatalf("%s: decode: %v", v.frame.Payload.Kind, err)
+		}
+		if dec.Payload.Kind != v.frame.Payload.Kind || !bytes.Equal(dec.Payload.Token, v.frame.Payload.Token) ||
+			!bytes.Equal(dec.Payload.Credential, v.frame.Payload.Credential) || !bytes.Equal(dec.Payload.Manifest, v.frame.Payload.Manifest) ||
+			!bytes.Equal(dec.Payload.IdentityID, v.frame.Payload.IdentityID) {
+			t.Errorf("%s: decode mismatch: %+v", v.frame.Payload.Kind, dec.Payload)
+		}
+	}
+}

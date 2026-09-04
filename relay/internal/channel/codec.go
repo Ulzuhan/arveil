@@ -18,7 +18,22 @@ const (
 	KindPong            = "Pong"
 	KindEndpointListGet = "EndpointListGet"
 	KindEndpointList    = "EndpointList"
+	KindInviteRedeem    = "InviteRedeem"
+	KindInviteRedeemed  = "InviteRedeemed"
+	KindCredentialPut   = "CredentialPut"
+	KindManifestPut     = "ManifestPut"
+	KindAck             = "Ack"
 	KindError           = "Error"
+)
+
+// Error codes carried in Error frames (mirrors arveil-core codec::error_code).
+const (
+	CodeBadRequest   uint16 = 400
+	CodeUnauthorized uint16 = 401
+	CodeForbidden    uint16 = 403
+	CodeConflict     uint16 = 409
+	CodeGone         uint16 = 410
+	CodeInternal     uint16 = 500
 )
 
 var ErrFrameTooLarge = errors.New("codec: frame exceeds the size limit")
@@ -37,6 +52,30 @@ type Payload struct {
 	// Error
 	Code    uint16
 	Message string
+	// InviteRedeem / CredentialPut / ManifestPut
+	Token      []byte
+	Credential []byte
+	Manifest   []byte
+	// InviteRedeemed
+	IdentityID []byte
+}
+
+type inviteRedeemBody struct {
+	Token      []byte `cbor:"token"`
+	Credential []byte `cbor:"credential"`
+	Manifest   []byte `cbor:"manifest"`
+}
+
+type inviteRedeemedBody struct {
+	IdentityID []byte `cbor:"identity_id"`
+}
+
+type credentialPutBody struct {
+	Credential []byte `cbor:"credential"`
+}
+
+type manifestPutBody struct {
+	Manifest []byte `cbor:"manifest"`
 }
 
 type endpointListBody struct {
@@ -67,8 +106,16 @@ func init() {
 func Encode(f Frame) ([]byte, error) {
 	var payload any
 	switch f.Payload.Kind {
-	case KindPing, KindPong, KindEndpointListGet:
+	case KindPing, KindPong, KindEndpointListGet, KindAck:
 		payload = f.Payload.Kind
+	case KindInviteRedeem:
+		payload = map[string]inviteRedeemBody{KindInviteRedeem: {Token: f.Payload.Token, Credential: f.Payload.Credential, Manifest: f.Payload.Manifest}}
+	case KindInviteRedeemed:
+		payload = map[string]inviteRedeemedBody{KindInviteRedeemed: {IdentityID: f.Payload.IdentityID}}
+	case KindCredentialPut:
+		payload = map[string]credentialPutBody{KindCredentialPut: {Credential: f.Payload.Credential}}
+	case KindManifestPut:
+		payload = map[string]manifestPutBody{KindManifestPut: {Manifest: f.Payload.Manifest}}
 	case KindEndpointList:
 		payload = map[string]endpointListBody{KindEndpointList: {Signed: f.Payload.Signed}}
 	case KindError:
@@ -105,7 +152,7 @@ func Decode(b []byte) (Frame, error) {
 	var kind string
 	if err := cbor.Unmarshal(w.Payload, &kind); err == nil {
 		switch kind {
-		case KindPing, KindPong, KindEndpointListGet:
+		case KindPing, KindPong, KindEndpointListGet, KindAck:
 			f.Payload.Kind = kind
 			return f, nil
 		}
@@ -134,6 +181,30 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Code: v.Code, Message: v.Message}
+		case KindInviteRedeem:
+			var v inviteRedeemBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Token: v.Token, Credential: v.Credential, Manifest: v.Manifest}
+		case KindInviteRedeemed:
+			var v inviteRedeemedBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, IdentityID: v.IdentityID}
+		case KindCredentialPut:
+			var v credentialPutBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Credential: v.Credential}
+		case KindManifestPut:
+			var v manifestPutBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Manifest: v.Manifest}
 		default:
 			return Frame{}, fmt.Errorf("codec: unknown variant %q", name)
 		}

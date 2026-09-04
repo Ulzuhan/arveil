@@ -2,9 +2,11 @@
 //
 // One WebSocket connection carries one Noise IK session. Every binary
 // WebSocket message is exactly one Noise message. The server processes no
-// frame before the handshake completes, and in Phase 0 milestone M0.2 it
-// answers only Ping and EndpointListGet; M0.3 adds the credential check on
-// the initiator's static key.
+// frame before the handshake completes. The initiator's static key decides
+// the session state (see session.go): unknown keys get a provisional session
+// that may only redeem an invite; keys bound to an active credential get a
+// member session; revoked or expired credentials are refused before
+// message 2.
 package server
 
 import (
@@ -18,6 +20,7 @@ import (
 
 	"github.com/Ulzuhan/arveil/relay/internal/channel"
 	"github.com/Ulzuhan/arveil/relay/internal/realm"
+	"github.com/Ulzuhan/arveil/relay/internal/store"
 )
 
 // ChannelPath is the only WebSocket route.
@@ -26,7 +29,8 @@ const ChannelPath = "/v1/channel"
 // Server holds what a connection needs.
 type Server struct {
 	Identity     *realm.Identity
-	SignedList   []byte // current signed RealmEndpointList
+	Store        *store.Store // nil only in carrier-level tests
+	SignedList   []byte       // current signed RealmEndpointList
 	Logger       *log.Logger
 	ReadTimeout  time.Duration // per message; keepalive pings must arrive within it
 	HandshakeTTL time.Duration
@@ -52,7 +56,7 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 	c.SetReadLimit(channel.MaxNoiseMessage)
 
 	ctx := r.Context()
-	ch, err := s.handshake(ctx, c)
+	ch, sess, err := s.handshake(ctx, c)
 	if err != nil {
 		// Deliberately terse: no identifiers, no key material in logs.
 		s.Logger.Printf("handshake failed")
@@ -71,41 +75,46 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			continue
 		}
-		reply := s.dispatch(frame)
+		reply := s.dispatchSession(ctx, sess, frame, time.Now())
 		if err := s.writeFrame(ctx, c, ch, reply); err != nil {
 			return
 		}
 	}
 }
 
-func (s *Server) handshake(ctx context.Context, c *websocket.Conn) (*channel.Channel, error) {
+func (s *Server) handshake(ctx context.Context, c *websocket.Conn) (*channel.Channel, *session, error) {
 	hctx, cancel := context.WithTimeout(ctx, s.HandshakeTTL)
 	defer cancel()
 
 	typ, m1, err := c.Read(hctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if typ != websocket.MessageBinary {
-		return nil, errors.New("handshake: text frame")
+		return nil, nil, errors.New("handshake: text frame")
 	}
 	resp, err := channel.NewResponder(s.Identity.NoiseKey, channel.Prologue(s.Identity.ID))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	// M0.2: any static key may complete the handshake. M0.3 looks the key up
-	// in device_credentials here and refuses unknown or revoked devices.
-	if _, err := resp.ReadMessage1(m1); err != nil {
-		return nil, err
+	remoteStatic, err := resp.ReadMessage1(m1)
+	if err != nil {
+		return nil, nil, err
+	}
+	// Unknown keys get a provisional session (they may only redeem an
+	// invite); revoked or expired credentials are refused before message 2.
+	sess, err := s.authorize(hctx, remoteStatic, time.Now())
+	if err != nil {
+		return nil, nil, err
 	}
 	m2, t, err := resp.WriteMessage2()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := c.Write(hctx, websocket.MessageBinary, m2); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return channel.NewChannel(t), nil
+	return channel.NewChannel(t), sess, nil
 }
 
 func (s *Server) readFrame(ctx context.Context, c *websocket.Conn, ch *channel.Channel) (channel.Frame, bool, error) {
@@ -135,17 +144,6 @@ func (s *Server) writeFrame(ctx context.Context, c *websocket.Conn, ch *channel.
 		}
 	}
 	return nil
-}
-
-func (s *Server) dispatch(f channel.Frame) channel.Frame {
-	switch f.Payload.Kind {
-	case channel.KindPing:
-		return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindPong}}
-	case channel.KindEndpointListGet:
-		return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindEndpointList, Signed: s.SignedList}}
-	default:
-		return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindError, Code: 400, Message: "unsupported frame"}}
-	}
 }
 
 // errKind strips anything that could carry identifiers from an error before logging.

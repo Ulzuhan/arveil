@@ -10,6 +10,7 @@
 //! signature, device or commit is valid.
 
 pub mod channel;
+pub mod client;
 pub mod identity;
 pub mod mls;
 pub mod signed;

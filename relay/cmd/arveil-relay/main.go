@@ -7,6 +7,9 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -14,16 +17,56 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Ulzuhan/arveil/relay/internal/endpoints"
 	"github.com/Ulzuhan/arveil/relay/internal/realm"
 	"github.com/Ulzuhan/arveil/relay/internal/server"
+	"github.com/Ulzuhan/arveil/relay/internal/store"
 	"github.com/Ulzuhan/arveil/relay/internal/version"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "invite" {
+		os.Exit(inviteCommand(os.Args[2:]))
+	}
+	serve()
+}
+
+// inviteCommand creates a one-use invite and prints its token. The relay
+// stores only the token hash. Run on the admin side (loopback/LAN/tailnet).
+func inviteCommand(args []string) int {
+	fs := flag.NewFlagSet("invite", flag.ContinueOnError)
+	dataDir := fs.String("data-dir", "./data", "relay data directory")
+	ttl := fs.Duration("ttl", 24*time.Hour, "invite validity")
+	uses := fs.Int("uses", 1, "number of enrollments the invite allows")
+	role := fs.String("role", "member", "role granted (member or admin)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	st, err := store.Open(filepath.Join(*dataDir, "realm.db"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "store: %v\n", err)
+		return 1
+	}
+	defer st.Close()
+	token := make([]byte, 32)
+	if _, err := rand.Read(token); err != nil {
+		fmt.Fprintf(os.Stderr, "random: %v\n", err)
+		return 1
+	}
+	h := sha256.Sum256(token)
+	if err := st.CreateInvite(context.Background(), h[:], *role, time.Now().Add(*ttl), *uses); err != nil {
+		fmt.Fprintf(os.Stderr, "create invite: %v\n", err)
+		return 1
+	}
+	fmt.Printf("invite: %s\n", hex.EncodeToString(token))
+	return 0
+}
+
+func serve() {
 	var (
 		dataDir     = flag.String("data-dir", "./data", "directory holding realm.db, blobs/ and server-secrets/")
 		listen      = flag.String("listen", "127.0.0.1:8447", "address to listen on (plain WebSocket; TLS is the carrier's job)")
@@ -43,6 +86,11 @@ func main() {
 	if err != nil {
 		logger.Fatalf("identity: %v", err)
 	}
+	st, err := store.Open(filepath.Join(*dataDir, "realm.db"))
+	if err != nil {
+		logger.Fatalf("store: %v", err)
+	}
+	defer st.Close()
 	seq, err := id.NextSequence()
 	if err != nil {
 		logger.Fatalf("endpoint sequence: %v", err)
@@ -65,6 +113,7 @@ func main() {
 
 	srv := &server.Server{
 		Identity:     id,
+		Store:        st,
 		SignedList:   signed,
 		Logger:       logger,
 		ReadTimeout:  90 * time.Second,

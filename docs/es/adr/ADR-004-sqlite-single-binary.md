@@ -45,6 +45,10 @@ El backup del servidor contiene metadatos y secretos operativos y necesita cifra
 
 Migración con backup y acceso exclusivo; rollback mediante snapshot compatible. La retención, las cuotas y la caducidad se muestran al operador y al cliente. El espacio agotado produce error, nunca una aceptación de entrega no durable.
 
+## Decisión de driver (M0.3)
+
+El relay usa `modernc.org/sqlite` (Go puro, binario estático sin cgo). La versión 1.58.0 embebe SQLite 3.53.4, que incluye el arreglo de WAL-reset; el almacén comprueba la versión embebida al abrir y un test falla por debajo de 3.51.3. El core cliente usa `rusqlite` con SQLite empaquetado y la misma comprobación. La integración de SQLCipher en el cliente es tarea de la fase 2.
+
 ## Criterios de aceptación
 
 Instalar y arrancar sin DB externa; probar corte de proceso, disco lleno, WAL grande, expiración y backup/restore aislado. Medir carga representativa sobre hardware doméstico, sin afirmar rendimiento de Raspberry Pi antes de medirlo. Validar permisos del directorio y actualización entre dos versiones de esquema.

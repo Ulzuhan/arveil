@@ -45,6 +45,10 @@ The server backup contains metadata and operational secrets and needs external e
 
 Migration with backup and exclusive access; rollback via a compatible snapshot. Retention, quotas and expiry are shown to the operator and the client. Exhausted space produces an error, never a non-durable acceptance of delivery.
 
+## Driver decision (M0.3)
+
+The relay uses `modernc.org/sqlite` (pure Go, static binary without cgo). Version 1.58.0 embeds SQLite 3.53.4, which carries the WAL-reset fix; the store asserts the embedded version at open and a test fails below 3.51.3. The client core uses `rusqlite` with the bundled SQLite and the same assertion. SQLCipher integration on the client is a Phase 2 task.
+
 ## Acceptance criteria
 
 Install and start without an external DB; test process kill, full disk, large WAL, expiry and isolated backup/restore. Measure representative load on household hardware, without claiming Raspberry Pi performance before measuring it. Validate directory permissions and upgrade between two schema versions.

@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Cross-language check for milestone M0.2: the Go relay serves the Noise
-# channel over WebSocket; the Rust CLI connects, verifies the signed endpoint
-# list and exchanges a ping. Exit 0 only if every step succeeds.
+# Cross-language check for milestones M0.2 and M0.3: the Go relay serves the
+# Noise channel over WebSocket; the Rust CLI enrolls a device with an invite,
+# reconnects as a member, and the negative cases are refused.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="$(mktemp -d)"
 PORT="${ARVEIL_INTEROP_PORT:-18447}"
+RELAY="$ROOT/relay/bin/arveil-relay"
+CLI="$ROOT/core/target/debug/arveil"
+
 cleanup() {
   if [ -n "${RELAY_PID:-}" ]; then kill "$RELAY_PID" 2>/dev/null || true; wait "$RELAY_PID" 2>/dev/null || true; fi
   rm -rf "$DATA"
@@ -16,7 +19,7 @@ trap cleanup EXIT
 (cd "$ROOT/relay" && go build -o bin/arveil-relay ./cmd/arveil-relay)
 (cd "$ROOT/core" && cargo build -q -p arveil-cli)
 
-"$ROOT/relay/bin/arveil-relay" -data-dir "$DATA" -listen "127.0.0.1:$PORT" > "$DATA/relay.out" 2> "$DATA/relay.err" &
+"$RELAY" -data-dir "$DATA/relay" -listen "127.0.0.1:$PORT" > "$DATA/relay.out" 2> "$DATA/relay.err" &
 RELAY_PID=$!
 
 BOOTSTRAP=""
@@ -30,12 +33,43 @@ if [ -z "$BOOTSTRAP" ]; then
 fi
 echo "relay: $BOOTSTRAP"
 
-"$ROOT/core/target/debug/arveil" probe "$BOOTSTRAP"
+echo "--- M0.2: provisional probe"
+"$CLI" probe "$BOOTSTRAP"
 
-# Negative check: a tampered realm id must fail before any frame.
+echo "--- M0.2: tampered realm id refused"
 TAMPERED="$(echo "$BOOTSTRAP" | awk -F: 'BEGIN{OFS=":"} {$3=substr($3,1,62)"ff"; print}')"
-if "$ROOT/core/target/debug/arveil" probe "$TAMPERED" >/dev/null 2>&1; then
+if "$CLI" probe "$TAMPERED" >/dev/null 2>&1; then
   echo "probe with tampered realm id unexpectedly succeeded"; exit 1
 fi
-echo "tampered realm id: refused as expected"
+echo "refused as expected"
+
+echo "--- M0.3: invite, identity, enrollment"
+INVITE="$("$RELAY" invite -data-dir "$DATA/relay" -uses 1 | sed -n 's/^invite: //p')"
+[ -n "$INVITE" ] || { echo "no invite token"; exit 1; }
+"$CLI" identity new --data-dir "$DATA/alice"
+"$CLI" enroll --data-dir "$DATA/alice" "$BOOTSTRAP" "$INVITE"
+"$CLI" status --data-dir "$DATA/alice"
+
+echo "--- M0.3: member probe with the enrolled device key"
+"$CLI" probe --data-dir "$DATA/alice" "$BOOTSTRAP"
+
+echo "--- M0.3: consumed invite refused for a second identity"
+if "$CLI" enroll --data-dir "$DATA/bob" "$BOOTSTRAP" "$INVITE" > "$DATA/bob.out" 2>&1; then
+  echo "second enrollment with a consumed invite unexpectedly succeeded"; cat "$DATA/bob.out"; exit 1
+fi
+grep -q "(410)" "$DATA/bob.out" || { echo "expected a 410 refusal, got:"; cat "$DATA/bob.out"; exit 1; }
+echo "refused with 410 as expected"
+
+echo "--- M0.3: forged invite token refused"
+if "$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP" "$(printf '00%.0s' $(seq 1 32))" > "$DATA/carol.out" 2>&1; then
+  echo "enrollment with a forged token unexpectedly succeeded"; exit 1
+fi
+grep -q "(410)" "$DATA/carol.out" || { echo "expected a 410 refusal, got:"; cat "$DATA/carol.out"; exit 1; }
+echo "refused with 410 as expected"
+
+echo "--- relay database inventory (I-01 spot check)"
+if command -v sqlite3 >/dev/null; then
+  sqlite3 "$DATA/relay/realm.db" '.tables'
+  sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) AS memberships FROM realm_memberships; SELECT COUNT(*) AS credentials FROM device_credentials; SELECT COUNT(*) AS manifests FROM device_manifests; SELECT uses_left FROM invites;'
+fi
 echo "interop ok"
