@@ -57,7 +57,7 @@ impl IntoAnyError for SqliteStorageError {
 }
 
 /// Shared handle to one SQLite connection. Cloning shares the connection.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SharedConn(Arc<Mutex<Connection>>);
 
 impl SharedConn {

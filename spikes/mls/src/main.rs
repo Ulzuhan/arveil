@@ -4,6 +4,7 @@ mod mlsrs_policy;
 mod mlsrs_spike;
 mod mlsrs_sqlite;
 mod openmls_spike;
+mod openmls_sqlite;
 
 fn main() {
     let (epoch, plaintext) = openmls_spike::baseline();
@@ -51,4 +52,10 @@ fn main() {
         ),
         Err(e) => println!("mls-rs 0.56  : Q2 failed: {e}"),
     }
+
+    let o = openmls_sqlite::q1_shared_transaction();
+    println!(
+        "openmls 0.9  : Q1 (kv rows, outbox rows, loadable) before = {}, after rollback = {:?}, after commit = {:?}, loaded epoch = {:?}",
+        o.kv_rows_before, o.after_rollback, o.after_commit, o.loaded_epoch
+    );
 }

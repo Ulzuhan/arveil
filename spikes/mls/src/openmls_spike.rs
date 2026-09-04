@@ -3,10 +3,9 @@
 //! Baseline: a two-member group and one application message.
 //! Q2: a valid commit from an unauthorized member is inspected as a
 //! `StagedCommit` and dropped before merge; the receiver's epoch is unchanged.
-//! Q1: stub. OpenMLS writes through `StorageProvider` during every operation,
-//! so answering Q1 means implementing that trait over a SQLite connection that
-//! already holds our transaction, then proving rollback discards both the
-//! group write and our own row.
+//! Q1: OpenMLS writes through `StorageProvider` during every operation; the
+//! SQLite-backed provider and the shared-transaction test are in
+//! `openmls_sqlite.rs`.
 
 use openmls::prelude::tls_codec::{Deserialize, Serialize};
 use openmls::prelude::*;
@@ -198,14 +197,5 @@ mod tests {
         );
     }
 
-    /// Q1 for OpenMLS: implement `openmls_traits::storage::StorageProvider`
-    /// over a `rusqlite::Connection` that already has an open transaction,
-    /// perform `add_members` + insert an outbox row, roll back, and assert
-    /// neither the group state nor the row exists; commit, and assert both do.
-    /// Tracked in https://github.com/Ulzuhan/arveil/issues/15
-    #[test]
-    #[ignore = "M0.5 Q1: SQLite-backed StorageProvider not implemented yet"]
-    fn q1_group_state_and_outbox_row_commit_or_roll_back_together() {
-        unimplemented!("see issue #15");
-    }
+    // Q1 for OpenMLS is answered in `openmls_sqlite.rs`.
 }
