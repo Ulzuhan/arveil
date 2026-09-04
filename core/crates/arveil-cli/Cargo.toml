@@ -20,10 +20,13 @@ getrandom = "0.4.3"
 hex = "0.4.3"
 mls-rs = "0.56"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+rustls = "0.23.43"
+rustls-pemfile = "2.2.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_bytes = "0.11.19"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros"] }
-tokio-tungstenite = "0.30"
+tokio-tungstenite = { version = "0.30", features = ["rustls-tls-webpki-roots"] }
+webpki-roots = "1.0.9"
 
 [lints]
 workspace = true

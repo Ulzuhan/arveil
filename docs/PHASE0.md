@@ -1,6 +1,6 @@
 # Phase 0 plan: viability slice
 
-**Status:** plan v1 · **Date:** 2026-09-04 · Exit condition from [Architecture §8](ARCHITECTURE.md#8-scope-and-engineering-gates): *real MLS, verified identity and atomic persistence demonstrated*.
+**Status:** plan v1, **all six milestones complete on 2026-09-04** · Exit condition from [Architecture §8](ARCHITECTURE.md#8-scope-and-engineering-gates): *real MLS, verified identity and atomic persistence demonstrated*.
 
 Phase 0 exists to turn the documentation into evidence with the smallest possible surface. It is deliberately ugly: two command-line clients on a desktop, one relay on localhost, no UI, no mobile, no pairing. When it ends, the repository has a demo recording, a passing CI and answers to the three questions the design cannot answer on paper.
 
@@ -51,14 +51,16 @@ The spike lives in `spikes/mls`, outside the main workspace so its dependencies 
 
 **M0.4 Delivery — done** (2026-09-04). Core: `envelope` (HPKE DHKEM(X25519)/HKDF-SHA256/AES-128-GCM, AAD bound to realm, mailbox and delivery id, bucketed padding 256 B to 256 KiB), `delivery` (outbox with stored sealed bytes, inbox deduplication with ACK state, cursors, local events) and tests that drive two MLS peers through send and receive units failing before commit: nothing persists, the group is reloaded and retried exactly once, retransmission reuses the stored bytes, duplicates never reach MLS, ACK follows the commit (I-04, I-05). Relay: mailboxes with hashed read/write capabilities, envelopes unique per (mailbox, delivery id) with body hash for idempotent retries and conflict on a different body, size and queue bounds, cursor fetch, ACK delete, expiry sweep; frames `mailbox_create`, `envelope_put`, `envelope_fetch`, `envelope_ack` on member sessions only. CLI: `mailbox create`, `send`, `fetch`. `scripts/interop.sh` sends a sealed envelope from one enrolled device to another through the Go relay, fetches, decrypts and ACKs it, verifies the second fetch is empty, that an unenrolled sender is refused, and that the relay database holds no plaintext.
 
-**Q3 — partially answered.** The channel works across implementations over plain WebSocket. The remaining evidence is the capture behind a TLS-terminating proxy, scheduled with the demo (M0.6).
+**M0.6 Demo — done** (2026-09-04). `scripts/demo.sh` runs two CLI clients with real MLS through the Go relay: enrollment, KeyPackage claim, group with the Arveil policy, Welcome and route sealed to the peer, messages both ways, relay restart mid-conversation, a client crash after committing and before publishing followed by retransmission received exactly once, and the relay database inventory (no plaintext, no MLS group id, no conversation table). Transcript: [evidence/demo-transcript.txt](evidence/demo-transcript.txt). Runs in CI.
+
+**Q3 — answered yes** (2026-09-04). `scripts/q3-capture.sh` puts a TLS-terminating proxy (`relay/cmd/arveil-tlsproxy`, a test tool that records every WebSocket frame unmasked) between the Rust client and the Go relay, runs enrollment and a chat through it, and asserts the capture holds no frame names, identifiers, capabilities or message text; the proxy sees the HTTP upgrade path, the number of connections, and the sizes and timing of opaque binary frames. Excerpt: [evidence/q3-capture-excerpt.txt](evidence/q3-capture-excerpt.txt). Runs in CI. ADR-008 acceptance criterion 1 is met.
 
 ## Evidence required at exit
 
 - Test suite covering every acceptance row above, runnable with `make test`.
-- A short written answer to Q1, Q2 and Q3 with links to the tests, appended to this document.
-- A capture from the origin side of a TLS-terminating proxy (a local reverse proxy is enough for Phase 0) showing only opaque frames, attached to the ADR-008 acceptance record.
-- The demo recording linked from the repository README.
+- A short written answer to Q1, Q2 and Q3 with links to the tests, appended to this document. **Done, see "Answers so far".**
+- A capture from the origin side of a TLS-terminating proxy (a local reverse proxy is enough for Phase 0) showing only opaque frames, attached to the ADR-008 acceptance record. **Done: `evidence/q3-capture-excerpt.txt`.**
+- The demo recording linked from the repository README. **Done as a text transcript: `evidence/demo-transcript.txt`; a terminal recording can replace it later.**
 
 ## What Phase 0 does not prove
 

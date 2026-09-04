@@ -3,8 +3,8 @@
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 One Go binary, one SQLite file, one data directory. Runs on a Raspberry Pi in your home and stays reachable over LAN, Tailscale, or a Cloudflare Tunnel, without changing a single security guarantee.
 
-> **Status: design phase (docs v0.4). Phase 0 in progress. There is no runnable messenger yet.**
-> What exists today is a complete architecture, threat model, protocol draft and eight decision records, plus the repository skeleton. See the [Phase 0 plan](docs/PHASE0.md) for what lands next and when a demo appears here.
+> **Status: Phase 0 complete (2026-09-04). Not a usable messenger yet.**
+> Two command-line clients chat with real MLS through the Go relay; the relay never sees plaintext, a group id or a conversation table; a client crash between commit and publish is recovered by retransmission; and a TLS-terminating proxy between client and relay records nothing but opaque frames. Every claim runs in CI: [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Transcript: [docs/evidence/demo-transcript.txt](docs/evidence/demo-transcript.txt). Phases 1 to 3 (attachments, multi-device, recovery, mobile) are ahead; see the [Phase 0 plan](docs/PHASE0.md) and the [roadmap](#roadmap).
 
 ## Why another messenger
 
@@ -70,6 +70,16 @@ La documentación completa también está disponible en español en [`docs/es/`]
 ├── mkdocs.yml  Documentation site
 └── Makefile    build, test, lint, docs
 ```
+
+## Try the Phase 0 demo
+
+Requires Go 1.27.x, Rust 1.98.1 and `sqlite3` on the PATH.
+
+```bash
+./scripts/demo.sh
+```
+
+It starts a relay, enrolls two devices with one-use invites, opens an MLS conversation, exchanges messages, restarts the relay, crashes a client after it committed a message, shows the retransmission arriving exactly once, and inventories the relay database.
 
 ## Building
 

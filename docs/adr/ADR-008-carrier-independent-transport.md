@@ -83,6 +83,10 @@ Intermediaries that terminate TLS are reduced to traffic observers. Cloudflare T
 6. Reconnection after a cut with durable cursors: no loss or visible duplicates.
 7. Administration via a public endpoint: rejected even if the credential is valid.
 
+## Acceptance record (M0.2, M0.6)
+
+Criteria 1 to 6 are exercised in CI: `scripts/q3-capture.sh` (criterion 1: capture behind a TLS-terminating proxy shows only opaque frames; excerpt in `docs/evidence/q3-capture-excerpt.txt`), the core and relay channel tests (criteria 2, 4 and 5: wrong static key, replayed first message, malformed and oversized frames), `scripts/interop.sh` (criterion 3 partially: signed list with rollback checks; carrier switching between several live endpoints remains to be scripted) and `scripts/demo.sh` (criterion 6: reconnection across a relay restart with durable cursors). Criterion 7 (administration refused on public endpoints) awaits the first administrative frame.
+
 ## Reopen
 
 If a polling HTTP carrier proves necessary in production; if a need arises for a sender unauthenticated to the relay, which would require a different profile; or if the ADR-007 study selects a shared-state cluster and frames need to be routed between nodes.

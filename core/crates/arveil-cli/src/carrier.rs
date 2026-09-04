@@ -82,9 +82,14 @@ impl Connection {
         realm_noise_public: &[u8],
         device: &StaticKeypair,
     ) -> Result<Self, CliError> {
-        let (mut ws, _) = tokio_tungstenite::connect_async(url)
-            .await
-            .map_err(err("connect"))?;
+        let (mut ws, _) = tokio_tungstenite::connect_async_tls_with_config(
+            url,
+            None,
+            false,
+            Some(tls_connector()?),
+        )
+        .await
+        .map_err(err("connect"))?;
         let mut init = Initiator::new(device, realm_noise_public, &prologue(realm_id))
             .map_err(err("noise"))?;
         let m1 = init.write_message_1().map_err(err("noise"))?;
@@ -132,6 +137,26 @@ impl Connection {
     pub async fn close(mut self) {
         let _ = self.ws.close(None).await;
     }
+}
+
+/// TLS is the carrier's concern (ADR-008): WebPKI roots, plus an extra CA
+/// from `ARVEIL_TLS_CA` (PEM) for self-signed test proxies.
+fn tls_connector() -> Result<tokio_tungstenite::Connector, CliError> {
+    let mut roots =
+        rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    if let Ok(path) = std::env::var("ARVEIL_TLS_CA") {
+        let pem = std::fs::read(&path).map_err(err("ARVEIL_TLS_CA"))?;
+        for cert in rustls_pemfile::certs(&mut pem.as_slice()) {
+            let cert = cert.map_err(err("ARVEIL_TLS_CA"))?;
+            roots.add(cert).map_err(err("ARVEIL_TLS_CA"))?;
+        }
+    }
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    Ok(tokio_tungstenite::Connector::Rustls(std::sync::Arc::new(
+        config,
+    )))
 }
 
 async fn next_binary(ws: &mut Ws) -> Result<Vec<u8>, CliError> {

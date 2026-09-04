@@ -1,0 +1,76 @@
+
+== relay starts; prints the bootstrap string (realm id, signing key, noise key, endpoint)
+arveil-bootstrap:v0:cf2804b9a5512a8f191e9089809423e9c2e44405c4c552fe2d2c7ca8ac8dba2f:57ce6b4f732e8e86b9fa3b39032d9dd5b8e7932bcb7272ccd6de3e51cbab0ca3:39ebf21088f1ea0b3e7153db7828ee28eae0b082607d06a0c72cacc9a9467365:ws://127.0.0.1:18448/v1/channel
+
+== operator creates two one-use invites
+
+== alice enrolls: root key, device credential, first manifest, mailbox, 5 KeyPackages
+identity: c93f29512fa5775ec5252e767fbeb42b57dc24318c4a9e1970cb32b5b6cfaa33 (created)
+device: 8cd853d137d0748eeaed268168906d75
+enrolled: identity c93f29512fa5775ec5252e767fbeb42b57dc24318c4a9e1970cb32b5b6cfaa33 accepted by the realm
+endpoint list: sequence 1 stored
+key packages: 5 published
+route: arveil-route:v0:c93f29512fa5775ec5252e767fbeb42b57dc24318c4a9e1970cb32b5b6cfaa33:20e25bc11ac2af6e5b114c7ec339e3c1:958708b847eb7e706ca5779fafc5970f45cf48f43b1a424c549ca16694fb90a9:b48729675530c689bc6466cb397617f0dbd75d7e439d1a910199c89bc6c0aa33
+
+== bob enrolls
+identity: 5e2055c3cc8e0d2d3f34752a4e71f6230000123947c026c2a050375b346275d6 (created)
+device: 0826d62da813eeaee975dc09092a89cc
+enrolled: identity 5e2055c3cc8e0d2d3f34752a4e71f6230000123947c026c2a050375b346275d6 accepted by the realm
+endpoint list: sequence 1 stored
+key packages: 5 published
+route: arveil-route:v0:5e2055c3cc8e0d2d3f34752a4e71f6230000123947c026c2a050375b346275d6:e50f7e488dad27c70d1bdbc95945d696:345eb9b312fa4e429be1b417fb7aa6c3b24dfd48af757517f9bfd35cff0fff70:87eb3d794c0d1761f331d31b3c2feae868741463c6cf08bab6078a0f8e88a83c
+
+== alice starts a conversation with bob (claims his KeyPackage, MLS group with policy, Welcome + route sealed to his mailbox)
+conversation: 29ccc72b7216fc97d45783ea8a1f5ff47e9e09d1de9ec4602890d0cadd04bcad created (epoch 1)
+published: 2 envelope(s)
+
+== bob syncs: joins from the Welcome, learns alice's route inside the group
+joined conversation 29ccc72b7216fc97d45783ea8a1f5ff47e9e09d1de9ec4602890d0cadd04bcad (epoch 1)
+peer route learned inside the group
+synced: 2 envelope(s), 2 new, 2 acked
+
+== bob -> alice, alice -> bob
+committed: message stored locally (epoch 1)
+published: 1 envelope(s)
+message: hola alice, soy bob
+synced: 1 envelope(s), 1 new, 1 acked
+committed: message stored locally (epoch 1)
+published: 1 envelope(s)
+
+== relay restarts mid-conversation (same data directory)
+message: hola bob, soy alice
+synced: 1 envelope(s), 1 new, 1 acked
+
+== bob crashes after committing a message and before publishing (I-04)
+committed: message stored locally (epoch 1)
+simulated crash after commit, before publishing
+synced: 0 envelope(s), 0 new, 0 acked
+
+== bob comes back: the stored envelope is retransmitted, alice receives it exactly once
+published: 1 pending envelope(s)
+synced: 0 envelope(s), 0 new, 0 acked
+message: este mensaje sobrevive a la caída
+synced: 1 envelope(s), 1 new, 1 acked
+synced: 0 envelope(s), 0 new, 0 acked
+
+== histories
+conversation 29ccc72b7216fc97d45783ea8a1f5ff47e9e09d1de9ec4602890d0cadd04bcad with 5e2055c3cc8e0d2d3f34752a4e71f6230000123947c026c2a050375b346275d6
+  [received] hola alice, soy bob
+  [    sent] hola bob, soy alice
+  [received] este mensaje sobrevive a la caída
+conversation 29ccc72b7216fc97d45783ea8a1f5ff47e9e09d1de9ec4602890d0cadd04bcad with c93f29512fa5775ec5252e767fbeb42b57dc24318c4a9e1970cb32b5b6cfaa33
+  [    sent] hola alice, soy bob
+  [received] hola bob, soy alice
+  [    sent] este mensaje sobrevive a la caída
+
+== relay database inventory (I-01): tables, no plaintext, no MLS group id
+capabilities        envelopes           mailboxes         
+device_credentials  invites             realm_memberships 
+device_manifests    key_packages        schema_migrations 
+no plaintext, no group id (29ccc72b7216fc97d45783ea8a1f5ff47e9e09d1de9ec4602890d0cadd04bcad), no conversation table
+memberships|2
+mailboxes|2
+envelopes left|0
+key packages consumed|1
+
+== demo ok

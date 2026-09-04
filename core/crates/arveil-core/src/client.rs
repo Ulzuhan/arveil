@@ -492,9 +492,7 @@ mod tests {
         assert!(matches!(c.identity_new(), Err(ClientError::IdentityExists)));
         assert_eq!(c.root().unwrap().unwrap().identity_id(), root.identity_id());
 
-        let (dev, manifest) = c
-            .device_new(vec![1; 32], vec![2; 32], 1_800_000_000)
-            .unwrap();
+        let (dev, manifest) = c.device_new(1_800_000_000).unwrap();
         let reloaded = c.device().unwrap().unwrap();
         assert_eq!(reloaded.keys.device_id, dev.keys.device_id);
         assert_eq!(reloaded.credential, dev.credential);

@@ -83,6 +83,10 @@ Los intermediarios que terminan TLS quedan reducidos a observadores de tráfico.
 6. Reconexión tras corte con cursores durables: sin pérdida ni duplicados visibles.
 7. Administración por endpoint público: rechazada aunque la credencial sea válida.
 
+## Registro de aceptación (M0.2, M0.6)
+
+Los criterios 1 a 6 se ejercitan en CI: `scripts/q3-capture.sh` (criterio 1: la captura tras un proxy que termina TLS muestra solo frames opacos; extracto en `docs/evidence/q3-capture-excerpt.txt`), los tests del canal en core y relay (criterios 2, 4 y 5: clave estática errónea, primer mensaje repetido, frames malformados y sobredimensionados), `scripts/interop.sh` (criterio 3 parcialmente: lista firmada con comprobación de retrocesos; la conmutación entre varios endpoints vivos queda por guionizar) y `scripts/demo.sh` (criterio 6: reconexión tras reinicio del relay con cursores durables). El criterio 7 (administración rechazada en endpoints públicos) espera al primer frame administrativo.
+
 ## Reabrir
 
 Si un carrier HTTP de sondeo resulta necesario en producción; si aparece una necesidad de sender no autenticado ante el relay, que exigiría un perfil distinto; o si el estudio de ADR-007 selecciona un clúster con estado compartido y hace falta enrutar frames entre nodos.
