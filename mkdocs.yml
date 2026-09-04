@@ -63,8 +63,9 @@ nav:
       - ADR-006 Local-first, recovery-first: adr/ADR-006-local-first-recovery-first.md
       - ADR-007 Optional realm redundancy: adr/ADR-007-optional-realm-redundancy.md
       - ADR-008 Carrier-independent transport: adr/ADR-008-carrier-independent-transport.md
-  - Reviews:
+  - Reviews and spikes:
       - Viability review v0.3: REVIEW-v0.3.md
+      - M0.5 MLS library comparison: spikes/M0.5-mls-library-comparison.md
   - Articles:
       - Why Cloudflare cannot read our API: articles/noise-inside-a-cloudflare-tunnel.md
       - Why the server has no rooms table: articles/no-rooms-table.md

@@ -11,9 +11,12 @@ The written comparison and the ADR-002 update are issue [#17](https://github.com
 
 | File | Contents |
 |---|---|
-| `src/openmls_spike.rs` | OpenMLS 0.9 baseline (2-member group, one message) and the Q2 flow: a valid commit from an unauthorized member is inspected as a `StagedCommit` and dropped before merge. Q1 is a stub: OpenMLS writes through the `StorageProvider` trait during every operation, so Q1 means implementing that trait over a SQLite connection that already holds our transaction. |
-| `src/mlsrs_spike.rs` | mls-rs 0.56 baseline and the explicit-write model: `load_group` fails before `write_to_storage()` and succeeds after. Q2 is a stub: mls-rs applies incoming commits immediately; policy must go through `MlsRules` or the identity provider, and the spike has to show that a rejected commit leaves state untouched. |
-| `src/main.rs` | Runs both baselines and prints epochs, for a quick eyeball check. |
+| `src/openmls_spike.rs` | OpenMLS 0.9 baseline (2-member group, one message) and Q2: a valid commit from an unauthorized member is inspected as a `StagedCommit` and dropped before merge. |
+| `src/openmls_sqlite.rs` | OpenMLS Q1: `StorageProvider` generated from the in-memory reference, writing to a key-value table on the application's connection; create + add + merge inside one transaction commit or roll back together with an outbox row. |
+| `src/mlsrs_spike.rs` | mls-rs 0.56 baseline and the explicit-write model: `load_group` fails before `write_to_storage()` and succeeds after. |
+| `src/mlsrs_sqlite.rs` | mls-rs Q1: `GroupStateStorage` over the shared connection; `write_to_storage` inside the application's transaction. |
+| `src/mlsrs_policy.rs` | mls-rs Q2: `CommitterPolicy` implementing `MlsRules`; a valid commit from a non-authorized leaf fails in `process_incoming_message`, epoch unchanged, group still usable. |
+| `src/main.rs` | Runs every experiment and prints the outcomes. |
 
 ## Running
 
@@ -25,7 +28,7 @@ cargo test
 cargo run
 ```
 
-Tests marked `#[ignore]` are the open questions. Removing the attribute and making them pass is the milestone.
+All seven tests pass and none is ignored. The written comparison is [docs/spikes/M0.5-mls-library-comparison.md](../../docs/spikes/M0.5-mls-library-comparison.md).
 
 ## Notes to carry into the comparison
 

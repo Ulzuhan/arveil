@@ -1,8 +1,8 @@
 # ADR-002 — MLS for E2EE messaging and multi-device groups
 
-- **Status:** proposed; library adoption pending a spike.
+- **Status:** proposed; **mls-rs selected as the library to integrate** after the M0.5 spike, subject to the mobile crypto-provider gate below.
 - **Date:** 2026-09-04.
-- **Documentation edition:** v0.2; verification scope in the [index](../README.md#references-and-traceability).
+- **Documentation edition:** v0.5; verification scope in the [index](../README.md#references-and-traceability).
 
 *Versión en español: [../es/adr/ADR-002-mls.md](../es/adr/ADR-002-mls.md)*
 
@@ -12,7 +12,7 @@ Groups, independent devices, joining, removal and key evolution are needed. Crea
 
 ## Decision
 
-Use MLS per RFC 9420, via an existing library. Model each conversation as a group and each device as a leaf. Evaluate OpenMLS first and mls-rs as an alternative; record version, provider, platforms, maintenance status and security review before selecting.
+Use MLS per RFC 9420, via an existing library. Model each conversation as a group and each device as a leaf. After the M0.5 spike, integrate **mls-rs 0.56** for Phase 0; OpenMLS 0.9 remains the fallback with an integration surface the spike showed to be equivalent. Version, provider, platforms, maintenance status and security review are recorded in the [spike report](../spikes/M0.5-mls-library-comparison.md).
 
 MLS provides group key mechanisms, not the whole application. We must define identity, authorization, delivery, commit ordering, persistence, application replay, archiving and recovery. Do not present the adoption of MLS as evidence of audited product security.
 
@@ -35,9 +35,15 @@ Forward secrecy depends on deleting secrets and does not protect archived plaint
 
 The coordinator simplifies races, but introduces an availability dependency for state changes. It is not hidden from the user nor confused with a guarantee of the standard. A malicious coordinator must also be unable to substitute others' identities without valid credentials; enrollments permitted by policy are always visible.
 
+## Spike result (M0.5)
+
+Both libraries answered the two blocking questions with passing tests in `spikes/mls`: group state can be written inside the application's own SQLite transaction (mls-rs through its explicit `write_to_storage`, OpenMLS through a `StorageProvider` bound to the transaction's connection), and a valid commit from an unauthorized leaf can be refused before any state change (mls-rs through `MlsRules::filter_proposals` on send and receive, OpenMLS by not merging the `StagedCommit`). Details and the full comparison table: [M0.5 spike report](../spikes/M0.5-mls-library-comparison.md).
+
+mls-rs is selected because its explicit write model matches the transactional units of the [domain model](../DOMAIN_MODEL.md#5-local-state-and-atomicity) directly, its rules trait enforces the committer policy symmetrically with roster and group context available, and custom proposals and extensions are supported features. **Gate before Phase 3:** a stable mls-rs crypto provider (AWS-LC or OpenSSL) must build and pass the MLS test vectors on iOS and Android, or the RustCrypto provider must be promoted to stable upstream. If neither holds, switch to OpenMLS, whose persistence and policy paths the spike already exercised.
+
 ## Verified dependency conditions
 
-OpenMLS declares the project's candidate suite and offers storage providers, but that does not demonstrate a joint transaction with our outbox. The `content-debug` and `crypto-debug` features, which allow printing content or keys, are prohibited in distributed builds. The check must include transitive features. [Source: OpenMLS](https://github.com/openmls/openmls#features).
+OpenMLS declares the project's candidate suite and offers storage providers; the spike demonstrated a joint transaction with our outbox through a provider bound to the application's connection. The `content-debug` and `crypto-debug` features, which allow printing content or keys, are prohibited in distributed builds. The check must include transitive features. [Source: OpenMLS](https://github.com/openmls/openmls#features).
 
 The mls-rs README declares that it has not yet received a complete third-party security audit; it also marks aspects of Rust Crypto and Web Crypto as experimental. Its conformance with RFC 9420 does not replace that review. A concrete version and provider are compared, not just the library name. [Source: mls-rs](https://github.com/awslabs/mls-rs#security-notice).
 
@@ -47,6 +53,6 @@ The single coordinator remains a prototype hypothesis. Its removal or revocation
 
 Official vectors and library tests; groups with several devices; Add/Remove/Update; repeated packages; concurrent or unauthorized commits; out-of-order messages; crash between encryption and local commit; rejoin after losing epochs. Set limits on retained old secrets.
 
-Reopen if the policy cannot be enforced or atomicity cannot be guaranteed with the library, or if the coordinator experience makes daily use unviable. Do not patch those problems by restoring old epochs.
+Reopen if the mobile crypto-provider gate fails, if the coordinator experience makes daily use unviable, or if an independent security audit of one library changes the review parity assumed in the spike report. Policy enforcement and atomicity are no longer reopen conditions: both were demonstrated. Do not patch persistence problems by restoring old epochs.
 
 References: [protocol](../PROTOCOL.md), [RFC 9420](https://www.rfc-editor.org/rfc/rfc9420), [RFC 9750](https://www.rfc-editor.org/rfc/rfc9750). Review scope: [index](../README.md#references-and-traceability).

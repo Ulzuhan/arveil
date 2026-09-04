@@ -33,7 +33,17 @@ A negative answer to Q1 or Q2 reopens ADR-002 before any further work. A negativ
 
 Milestones M0.2 to M0.4 can proceed in parallel with the M0.5 spike, since the channel and delivery layers do not depend on the MLS library choice. The recommended order for a single developer is M0.5 first: a negative answer to Q1 or Q2 changes the domain model, and it is cheaper to learn that before building the channel and delivery layers.
 
-The spike lives in `spikes/mls`, outside the main workspace so its dependencies do not weigh on the core build. It already contains passing baselines for both libraries, the OpenMLS answer to Q2 (a valid commit from an unauthorized leaf is inspected as a `StagedCommit` and dropped before merge), and evidence of the mls-rs explicit-write model (`load_group` fails before `write_to_storage`). The Q1 tests for both libraries and the Q2 test for mls-rs are marked `#[ignore]`; making them pass is the milestone. Progress is tracked in the [M0.5 milestone](https://github.com/Ulzuhan/arveil/milestone/5).
+The spike lives in `spikes/mls`, outside the main workspace so its dependencies do not weigh on the core build. It contains passing baselines for both libraries and the Q1 and Q2 tests for both, none ignored; see the answers below. Progress is tracked in the [M0.5 milestone](https://github.com/Ulzuhan/arveil/milestone/5).
+
+## Answers so far
+
+**Q1 — answered yes for both libraries** (2026-09-04). mls-rs: `GroupStateStorage` over the application's connection, one `write_to_storage` inside the transaction; rollback leaves nothing, commit leaves the group loadable. OpenMLS: `StorageProvider` ported from the in-memory reference onto the same connection; create + add + merge inside the transaction behave the same way. Tests: `spikes/mls/src/mlsrs_sqlite.rs`, `spikes/mls/src/openmls_sqlite.rs`.
+
+**Q2 — answered yes for both libraries** (2026-09-04). mls-rs: `MlsRules::filter_proposals` refuses a commit whose `CommitSource` is not the authorized leaf, on send and receive; epoch unchanged, group still usable. OpenMLS: the receiver inspects the `StagedCommit` and does not merge it. Tests: `spikes/mls/src/mlsrs_policy.rs`, `spikes/mls/src/openmls_spike.rs`.
+
+**Library decision:** mls-rs, with a mobile crypto-provider gate before Phase 3. Rationale and comparison table in the [M0.5 spike report](spikes/M0.5-mls-library-comparison.md); recorded in [ADR-002](adr/ADR-002-mls.md).
+
+**Q3 — open.** Needs the channel (M0.2) and the demo (M0.6).
 
 ## Evidence required at exit
 
