@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["crates/arveil-core", "crates/arveil-cli"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.98"
+license = "UNLICENSED"
+repository = "https://github.com/Ulzuhan/arveil"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"

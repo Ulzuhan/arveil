@@ -1,0 +1,26 @@
+# OS
+.DS_Store
+
+# Rust
+core/target/
+**/*.rs.bk
+
+# Go
+relay/bin/
+relay/arveil-relay
+
+# Docs site
+site/
+.cache/
+
+# Local data and secrets
+data/
+*.db
+*.db-wal
+*.db-shm
+server-secrets/
+
+# Editors
+.idea/
+.vscode/
+*.swp

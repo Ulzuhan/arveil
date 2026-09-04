@@ -1,0 +1,18 @@
+[package]
+name = "arveil-cli"
+description = "Arveil command-line client used for Phase 0 demos and tests"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "arveil"
+path = "src/main.rs"
+
+[dependencies]
+arveil-core = { path = "../arveil-core" }
+
+[lints]
+workspace = true

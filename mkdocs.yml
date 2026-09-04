@@ -1,0 +1,91 @@
+site_name: Arveil
+site_description: Self-hosted, end-to-end encrypted messenger for families and small circles. Architecture documentation.
+site_url: https://ulzuhan.github.io/arveil/
+repo_url: https://github.com/Ulzuhan/arveil
+repo_name: Ulzuhan/arveil
+edit_uri: edit/main/docs/
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - tables
+  - admonition
+  - attr_list
+  - toc:
+      permalink: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Overview: README.md
+  - Architecture: ARCHITECTURE.md
+  - Threat model: THREAT_MODEL.md
+  - Protocol: PROTOCOL.md
+  - Domain model: DOMAIN_MODEL.md
+  - Phase 0 plan: PHASE0.md
+  - Decision records:
+      - ADR-001 Go server, Rust core: adr/ADR-001-go-server-rust-core.md
+      - ADR-002 MLS: adr/ADR-002-mls.md
+      - ADR-003 Zero-trust server: adr/ADR-003-zero-trust-server.md
+      - ADR-004 SQLite, single binary: adr/ADR-004-sqlite-single-binary.md
+      - ADR-005 Cryptographic identity: adr/ADR-005-cryptographic-identity.md
+      - ADR-006 Local-first, recovery-first: adr/ADR-006-local-first-recovery-first.md
+      - ADR-007 Optional realm redundancy: adr/ADR-007-optional-realm-redundancy.md
+      - ADR-008 Carrier-independent transport: adr/ADR-008-carrier-independent-transport.md
+  - Reviews:
+      - Viability review v0.3: REVIEW-v0.3.md
+  - Articles:
+      - Why Cloudflare cannot read our API: articles/noise-inside-a-cloudflare-tunnel.md
+      - Why the server has no rooms table: articles/no-rooms-table.md
+  - Español:
+      - Índice: es/README.md
+      - Arquitectura: es/ARCHITECTURE.md
+      - Modelo de amenazas: es/THREAT_MODEL.md
+      - Protocolo: es/PROTOCOL.md
+      - Modelo de dominio: es/DOMAIN_MODEL.md
+      - Revisión v0.3: es/REVIEW-v0.3.md
+      - ADR-001: es/adr/ADR-001-go-server-rust-core.md
+      - ADR-002: es/adr/ADR-002-mls.md
+      - ADR-003: es/adr/ADR-003-zero-trust-server.md
+      - ADR-004: es/adr/ADR-004-sqlite-single-binary.md
+      - ADR-005: es/adr/ADR-005-cryptographic-identity.md
+      - ADR-006: es/adr/ADR-006-local-first-recovery-first.md
+      - ADR-007: es/adr/ADR-007-optional-realm-redundancy.md
+      - ADR-008: es/adr/ADR-008-carrier-independent-transport.md
+
+validation:
+  anchors: warn
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
