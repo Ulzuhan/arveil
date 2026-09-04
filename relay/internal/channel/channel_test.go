@@ -314,3 +314,32 @@ func TestCodecMatchesRustVectorsKeyPackages(t *testing.T) {
 		}
 	}
 }
+
+func TestCodecMatchesRustVectorsBlobs(t *testing.T) {
+	vectors := []struct {
+		hex   string
+		frame Frame
+	}{
+		{"a262696401677061796c6f6164a16f426c6f6255706c6f6164426567696ea16473697a651903e8", Frame{ID: 1, Payload: Payload{Kind: KindBlobUploadBegin, Size: 1000}}},
+		{"a262696401677061796c6f6164a171426c6f6255706c6f616453746172746564a267626c6f625f696441016f726561645f6361706162696c6974794102", Frame{ID: 1, Payload: Payload{Kind: KindBlobUploadStarted, BlobID: []byte{1}, ReadCapability: []byte{2}}}},
+		{"a262696402677061796c6f6164a169426c6f624368756e6ba36464617461420304666f66667365740067626c6f625f69644101", Frame{ID: 2, Payload: Payload{Kind: KindBlobChunk, BlobID: []byte{1}, Offset: 0, Data: []byte{3, 4}}}},
+		{"a262696403677061796c6f6164a16a426c6f62436f6d6d6974a367626c6f625f696441016f636970686572746578745f686173684105707265717565737465645f65787069727907", Frame{ID: 3, Payload: Payload{Kind: KindBlobCommit, BlobID: []byte{1}, CiphertextHash: []byte{5}, RequestedExpiry: 7}}},
+		{"a262696403677061796c6f6164a16d426c6f62436f6d6d6974746564a1706566666563746976655f65787069727908", Frame{ID: 3, Payload: Payload{Kind: KindBlobCommitted, EffectiveExpiry: 8}}},
+		{"a262696404677061796c6f6164a169426c6f624665746368a4666c656e6774680a666f66667365740067626c6f625f696441016f726561645f6361706162696c6974794102", Frame{ID: 4, Payload: Payload{Kind: KindBlobFetch, BlobID: []byte{1}, ReadCapability: []byte{2}, Offset: 0, Length: 10}}},
+		{"a262696404677061796c6f6164a168426c6f6244617461a264646174614203046a746f74616c5f73697a6502", Frame{ID: 4, Payload: Payload{Kind: KindBlobData, TotalSize: 2, Data: []byte{3, 4}}}},
+	}
+	for _, v := range vectors {
+		want, _ := hex.DecodeString(v.hex)
+		got, err := Encode(v.frame)
+		if err != nil || !bytes.Equal(got, want) {
+			t.Errorf("%s: encode mismatch (%v)\n got %x\nwant %x", v.frame.Payload.Kind, err, got, want)
+		}
+		dec, err := Decode(want)
+		if err != nil || dec.Payload.Kind != v.frame.Payload.Kind || dec.Payload.Size != v.frame.Payload.Size ||
+			!bytes.Equal(dec.Payload.BlobID, v.frame.Payload.BlobID) || !bytes.Equal(dec.Payload.Data, v.frame.Payload.Data) ||
+			dec.Payload.Offset != v.frame.Payload.Offset || dec.Payload.Length != v.frame.Payload.Length ||
+			dec.Payload.TotalSize != v.frame.Payload.TotalSize || dec.Payload.EffectiveExpiry != v.frame.Payload.EffectiveExpiry {
+			t.Errorf("%s: decode mismatch (%v): %+v", v.frame.Payload.Kind, err, dec.Payload)
+		}
+	}
+}

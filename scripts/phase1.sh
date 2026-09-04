@@ -20,7 +20,7 @@ cleanup() {
 trap cleanup EXIT
 
 start_relay() {
-  "$RELAY" -data-dir "$DATA/relay" -listen "127.0.0.1:$PORT" "$@" > "$DATA/relay.out" 2>> "$DATA/relay.err" &
+  "$RELAY" -data-dir "$DATA/relay" -listen "127.0.0.1:$PORT" -sweep-interval 1s "$@" > "$DATA/relay.out" 2>> "$DATA/relay.err" &
   RELAY_PID=$!
   for _ in $(seq 1 50); do grep -q '^bootstrap: ' "$DATA/relay.out" && return; sleep 0.1; done
   fail "relay did not start"
@@ -108,7 +108,7 @@ echo "refused as expected: $(grep -o 'only leaf 0 may commit[^)]*' "$DATA/bob.ad
 
 step "M1.3 TTL: a 2-second envelope is swept before the receiver syncs; the sender shows expired/unknown"
 stop_relay
-start_relay -sweep-interval 1s
+start_relay
 ARVEIL_ENVELOPE_TTL_SECS=2 "$CLI" chat send --data-dir "$DATA/bob" "$BOOTSTRAP" "mensaje efímero" > "$DATA/ttl.send"
 grep -q "published: 1" "$DATA/ttl.send" || fail "ephemeral message not published"
 sleep 4
@@ -135,4 +135,31 @@ grep -q "published: 1" "$DATA/ep2" || fail "message not published through the fa
 grep -q "message: llego por el segundo endpoint" "$DATA/ep3" || fail "bob did not receive through the fallback"
 "$CLI" status --data-dir "$DATA/bob" | tee "$DATA/ep4" | grep -q "$DEAD_PORT" || fail "status does not list both endpoints"
 
-step "phase 1 checks so far ok"
+step "M1.5 attachments: a 1 MiB file round-trips with matching hash; the relay stores only ciphertext"
+head -c 1048576 /dev/urandom > "$DATA/photo.bin"
+"$CLI" chat send-file --data-dir "$DATA/alice" "$BOOTSTRAP" "$DATA/photo.bin" > "$DATA/f1"
+grep -q "blob: .* uploaded" "$DATA/f1" || { cat "$DATA/f1"; fail "upload failed"; }
+grep -q "published: 1" "$DATA/f1" || fail "descriptor not published"
+"$CLI" chat sync --data-dir "$DATA/bob" "$BOOTSTRAP" > "$DATA/f2"
+grep -q "file: photo.bin saved to" "$DATA/f2" || { cat "$DATA/f2"; fail "bob did not download the file"; }
+cmp "$DATA/photo.bin" "$DATA/bob/downloads/photo.bin" || fail "downloaded file differs"
+BLOB_FILE="$(ls "$DATA/relay/blobs" | head -1)"
+[ -n "$BLOB_FILE" ] || fail "no blob file on the relay"
+if grep -q "$(head -c 48 "$DATA/photo.bin" | xxd -p | tr -d '\n')" <(xxd -p "$DATA/relay/blobs/$BLOB_FILE" | tr -d '\n'); then
+  fail "plaintext bytes found in the relay blob"
+fi
+"$CLI" chat history --data-dir "$DATA/bob" > "$DATA/f3"
+grep -q "received-file" "$DATA/f3" || fail "history lacks the received file"
+echo "1 MiB file delivered and verified; relay blob holds ciphertext only"
+
+step "M1.5 attachments: an expired blob is reported as unavailable, never silently skipped"
+ARVEIL_BLOB_TTL_SECS=2 "$CLI" chat send-file --data-dir "$DATA/alice" "$BOOTSTRAP" "$DATA/photo.bin" > "$DATA/f4"
+sleep 4
+"$CLI" chat sync --data-dir "$DATA/bob" "$BOOTSTRAP" > "$DATA/f5"
+grep -q "file unavailable: photo.bin" "$DATA/f5" || { cat "$DATA/f5"; fail "expired blob not reported"; }
+grep -q "sweep: .* 1 blob(s) removed" "$DATA/relay.err" || { tail -3 "$DATA/relay.err"; fail "blob sweep not logged"; }
+"$CLI" chat history --data-dir "$DATA/bob" > "$DATA/f6"
+grep -q "file-unavailable" "$DATA/f6" || fail "history lacks the unavailable file"
+echo "expired blob swept and reported as unavailable"
+
+step "phase 1 ok"

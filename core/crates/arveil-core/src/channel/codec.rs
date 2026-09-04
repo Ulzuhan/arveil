@@ -130,6 +130,46 @@ pub enum Payload {
         read_capability: Vec<u8>,
         delivery_ids: Vec<serde_bytes::ByteBuf>,
     },
+    /// Blobs (PROTOCOL §7): staging upload, commit, fetch. Member sessions.
+    BlobUploadBegin {
+        size: u64,
+    },
+    BlobUploadStarted {
+        #[serde(with = "serde_bytes")]
+        blob_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        read_capability: Vec<u8>,
+    },
+    BlobChunk {
+        #[serde(with = "serde_bytes")]
+        blob_id: Vec<u8>,
+        offset: u64,
+        #[serde(with = "serde_bytes")]
+        data: Vec<u8>,
+    },
+    BlobCommit {
+        #[serde(with = "serde_bytes")]
+        blob_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        ciphertext_hash: Vec<u8>,
+        requested_expiry: u64,
+    },
+    BlobCommitted {
+        effective_expiry: u64,
+    },
+    BlobFetch {
+        #[serde(with = "serde_bytes")]
+        blob_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        read_capability: Vec<u8>,
+        offset: u64,
+        length: u32,
+    },
+    BlobData {
+        total_size: u64,
+        #[serde(with = "serde_bytes")]
+        data: Vec<u8>,
+    },
     /// Generic success reply.
     Ack,
     /// Generic failure reply.

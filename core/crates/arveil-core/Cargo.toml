@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+aes-gcm = "0.10"
 ciborium = "0.2"
 ed25519-dalek = "3"
 getrandom = "0.4.3"

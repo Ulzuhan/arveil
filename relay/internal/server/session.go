@@ -55,6 +55,14 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.credentialPut(ctx, s, f, now)
 	case channel.KindManifestPut:
 		return srv.manifestPut(ctx, s, f)
+	case channel.KindBlobUploadBegin:
+		return srv.blobUploadBegin(ctx, s, f, now)
+	case channel.KindBlobChunk:
+		return srv.blobChunk(ctx, s, f)
+	case channel.KindBlobCommit:
+		return srv.blobCommit(ctx, s, f, now)
+	case channel.KindBlobFetch:
+		return srv.blobFetch(ctx, s, f, now)
 	case channel.KindKeyPackagesPublish:
 		return srv.keyPackagesPublish(ctx, s, f, now)
 	case channel.KindKeyPackagesClaim:

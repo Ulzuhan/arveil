@@ -53,6 +53,17 @@ type EnvelopeItem struct {
 	Ciphertext []byte `cbor:"ciphertext"`
 }
 
+// Blob frames (PROTOCOL §7).
+const (
+	KindBlobUploadBegin   = "BlobUploadBegin"
+	KindBlobUploadStarted = "BlobUploadStarted"
+	KindBlobChunk         = "BlobChunk"
+	KindBlobCommit        = "BlobCommit"
+	KindBlobCommitted     = "BlobCommitted"
+	KindBlobFetch         = "BlobFetch"
+	KindBlobData          = "BlobData"
+)
+
 // KeyPackage frames (PROTOCOL §5).
 const (
 	KindKeyPackagesPublish = "KeyPackagesPublish"
@@ -99,6 +110,51 @@ type Payload struct {
 	// KeyPackages
 	KeyPackages [][]byte
 	KeyPackage  []byte
+	// Blobs
+	Size           uint64
+	BlobID         []byte
+	Offset         uint64
+	Data           []byte
+	CiphertextHash []byte
+	Length         uint32
+	TotalSize      uint64
+}
+
+type blobUploadBeginBody struct {
+	Size uint64 `cbor:"size"`
+}
+
+type blobUploadStartedBody struct {
+	BlobID         []byte `cbor:"blob_id"`
+	ReadCapability []byte `cbor:"read_capability"`
+}
+
+type blobChunkBody struct {
+	BlobID []byte `cbor:"blob_id"`
+	Offset uint64 `cbor:"offset"`
+	Data   []byte `cbor:"data"`
+}
+
+type blobCommitBody struct {
+	BlobID          []byte `cbor:"blob_id"`
+	CiphertextHash  []byte `cbor:"ciphertext_hash"`
+	RequestedExpiry uint64 `cbor:"requested_expiry"`
+}
+
+type blobCommittedBody struct {
+	EffectiveExpiry uint64 `cbor:"effective_expiry"`
+}
+
+type blobFetchBody struct {
+	BlobID         []byte `cbor:"blob_id"`
+	ReadCapability []byte `cbor:"read_capability"`
+	Offset         uint64 `cbor:"offset"`
+	Length         uint32 `cbor:"length"`
+}
+
+type blobDataBody struct {
+	TotalSize uint64 `cbor:"total_size"`
+	Data      []byte `cbor:"data"`
 }
 
 type keyPackagesPublishBody struct {
@@ -198,6 +254,20 @@ func Encode(f Frame) ([]byte, error) {
 	switch f.Payload.Kind {
 	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate:
 		payload = f.Payload.Kind
+	case KindBlobUploadBegin:
+		payload = map[string]blobUploadBeginBody{KindBlobUploadBegin: {Size: f.Payload.Size}}
+	case KindBlobUploadStarted:
+		payload = map[string]blobUploadStartedBody{KindBlobUploadStarted: {BlobID: f.Payload.BlobID, ReadCapability: f.Payload.ReadCapability}}
+	case KindBlobChunk:
+		payload = map[string]blobChunkBody{KindBlobChunk: {BlobID: f.Payload.BlobID, Offset: f.Payload.Offset, Data: f.Payload.Data}}
+	case KindBlobCommit:
+		payload = map[string]blobCommitBody{KindBlobCommit: {BlobID: f.Payload.BlobID, CiphertextHash: f.Payload.CiphertextHash, RequestedExpiry: f.Payload.RequestedExpiry}}
+	case KindBlobCommitted:
+		payload = map[string]blobCommittedBody{KindBlobCommitted: {EffectiveExpiry: f.Payload.EffectiveExpiry}}
+	case KindBlobFetch:
+		payload = map[string]blobFetchBody{KindBlobFetch: {BlobID: f.Payload.BlobID, ReadCapability: f.Payload.ReadCapability, Offset: f.Payload.Offset, Length: f.Payload.Length}}
+	case KindBlobData:
+		payload = map[string]blobDataBody{KindBlobData: {TotalSize: f.Payload.TotalSize, Data: f.Payload.Data}}
 	case KindKeyPackagesPublish:
 		kps := f.Payload.KeyPackages
 		if kps == nil {
@@ -325,6 +395,48 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Manifest: v.Manifest}
+		case KindBlobUploadBegin:
+			var v blobUploadBeginBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Size: v.Size}
+		case KindBlobUploadStarted:
+			var v blobUploadStartedBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, BlobID: v.BlobID, ReadCapability: v.ReadCapability}
+		case KindBlobChunk:
+			var v blobChunkBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, BlobID: v.BlobID, Offset: v.Offset, Data: v.Data}
+		case KindBlobCommit:
+			var v blobCommitBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, BlobID: v.BlobID, CiphertextHash: v.CiphertextHash, RequestedExpiry: v.RequestedExpiry}
+		case KindBlobCommitted:
+			var v blobCommittedBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, EffectiveExpiry: v.EffectiveExpiry}
+		case KindBlobFetch:
+			var v blobFetchBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, BlobID: v.BlobID, ReadCapability: v.ReadCapability, Offset: v.Offset, Length: v.Length}
+		case KindBlobData:
+			var v blobDataBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, TotalSize: v.TotalSize, Data: v.Data}
 		case KindKeyPackagesPublish:
 			var v keyPackagesPublishBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

@@ -9,6 +9,7 @@
 //! the relay never links this crate, and the UI never decides whether a
 //! signature, device or commit is valid.
 
+pub mod attachments;
 pub mod channel;
 pub mod client;
 pub mod delivery;

@@ -72,6 +72,7 @@ dependencies = [
 name = "arveil-core"
 version = "0.0.1"
 dependencies = [
+ "aes-gcm",
  "ciborium",
  "ed25519-dalek 3.0.0",
  "getrandom 0.4.3",

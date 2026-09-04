@@ -16,6 +16,7 @@
 
 use std::path::Path;
 
+use arveil_core::attachments::{self, FileDescriptor};
 use arveil_core::channel::codec::Payload;
 use arveil_core::client::{Client, Conversation, Peer, StoredDevice, StoredRealm};
 use arveil_core::delivery::Delivery;
@@ -573,6 +574,17 @@ fn handle_mls<C: MlsConfig>(
                                 .map_err(err("event"))?;
                             Ok(format!("message: {}", String::from_utf8_lossy(&ev.body)))
                         }
+                        "file" => {
+                            let d = FileDescriptor::decode(&ev.body).map_err(err("file"))?;
+                            s.delivery
+                                .record_event(&gid, delivery_id, "file-pending", &ev.body)
+                                .map_err(err("event"))?;
+                            Ok(format!(
+                                "file: {} ({} bytes) announced; downloading after this pass",
+                                d.safe_name(),
+                                d.size
+                            ))
+                        }
                         other => Ok(format!("event of kind {other} ignored")),
                     }
                 }
@@ -666,6 +678,7 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
             advanced_to = item.seq;
         }
         let next = advanced_to;
+        download_pending(&s, &mut conn, data_dir).await?;
         let unacked = s.delivery.unacked(&m.mailbox_id).map_err(err("inbox"))?;
         if !unacked.is_empty() {
             match conn
@@ -735,6 +748,241 @@ pub fn history(data_dir: &Path) -> Result<(), CliError> {
                         hex::encode(&mailbox[..4])
                     );
                 }
+            }
+        }
+    }
+    Ok(())
+}
+
+const BLOB_CHUNK: usize = 60 * 1024;
+
+fn blob_expiry() -> u64 {
+    std::env::var("ARVEIL_BLOB_TTL_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|ttl| {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+                + ttl
+        })
+        .unwrap_or(0)
+}
+
+/// `arveil chat send-file --data-dir D <bootstrap> <path>`
+///
+/// Encrypts the whole file with a fresh FileKey, uploads the ciphertext in
+/// chunks, commits it with its hash, then sends the descriptor inside MLS
+/// exactly like a text message (same send unit, same fan-out).
+pub fn send_file(data_dir: &Path, bootstrap: &str, path: &Path) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let (s, engine) = session(data_dir)?;
+    let conv = single_conversation(&s)?;
+    let plaintext = std::fs::read(path).map_err(err("read file"))?;
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "file".into());
+    let enc = attachments::encrypt(&plaintext).map_err(err("encrypt"))?;
+
+    let (blob_id, read_capability, expiry) = block_on(async {
+        let mut conn = connect(&s, &b).await?;
+        let (blob_id, read_capability) = match conn
+            .request(Payload::BlobUploadBegin {
+                size: enc.ciphertext.len() as u64,
+            })
+            .await?
+        {
+            Payload::BlobUploadStarted {
+                blob_id,
+                read_capability,
+            } => (blob_id, read_capability),
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        };
+        for (i, chunk) in enc.ciphertext.chunks(BLOB_CHUNK).enumerate() {
+            match conn
+                .request(Payload::BlobChunk {
+                    blob_id: blob_id.clone(),
+                    offset: (i * BLOB_CHUNK) as u64,
+                    data: chunk.to_vec(),
+                })
+                .await?
+            {
+                Payload::Ack => {}
+                other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+            }
+        }
+        let expiry = match conn
+            .request(Payload::BlobCommit {
+                blob_id: blob_id.clone(),
+                ciphertext_hash: enc.ciphertext_hash.clone(),
+                requested_expiry: blob_expiry(),
+            })
+            .await?
+        {
+            Payload::BlobCommitted { effective_expiry } => effective_expiry,
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        };
+        conn.close().await;
+        Ok((blob_id, read_capability, expiry))
+    })??;
+    println!(
+        "blob: {} uploaded ({} bytes of ciphertext, relay keeps it until {expiry})",
+        hex::encode(&blob_id),
+        enc.ciphertext.len()
+    );
+
+    let descriptor = FileDescriptor {
+        version: attachments::VERSION,
+        blob_id,
+        read_capability,
+        file_key: enc.file_key,
+        nonce: enc.nonce,
+        ciphertext_hash: enc.ciphertext_hash,
+        size: plaintext.len() as u64,
+        name: name.clone(),
+        mime: "application/octet-stream".into(),
+    };
+    let body = descriptor.encode().map_err(err("descriptor"))?;
+    let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
+    let event_id = random_delivery_id()?;
+    let skipped = s
+        .client
+        .conn
+        .unit_of_work(|_| {
+            let msg = group
+                .encrypt_application_message(
+                    &encode_event("file", &body).map_err(|_| rusqlite::Error::InvalidQuery)?,
+                    Default::default(),
+                )
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+            group
+                .write_to_storage()
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+            s.delivery.record_event(
+                &conv.group_id,
+                &event_id,
+                "sent-file",
+                format!("{name} ({} bytes)", plaintext.len()).as_bytes(),
+            )?;
+            let bytes = msg.to_bytes().map_err(|_| rusqlite::Error::InvalidQuery)?;
+            enqueue_for_all(&s, &conv.peers, Some(&event_id), &bytes)
+        })
+        .map_err(err("send unit"))?;
+    println!(
+        "committed: file descriptor stored locally, {} envelope(s) queued{}",
+        conv.peers.len() - skipped,
+        if skipped > 0 {
+            format!(", {skipped} peer(s) without a route yet")
+        } else {
+            String::new()
+        }
+    );
+    let n = block_on(async {
+        let mut conn = connect(&s, &b).await?;
+        let n = publish_pending(&s, &mut conn).await?;
+        conn.close().await;
+        Ok::<_, CliError>(n)
+    })??;
+    println!("published: {n} envelope(s)");
+    Ok(())
+}
+
+/// Download every announced file, verify hash and AEAD, write it under
+/// `<data-dir>/downloads`, and record the outcome as an event. An expired
+/// or unknown blob becomes a visible `file-unavailable` event, never a
+/// silent skip.
+async fn download_pending(
+    s: &Session,
+    conn: &mut Connection,
+    data_dir: &Path,
+) -> Result<(), CliError> {
+    let pending = s
+        .delivery
+        .events_of_kind("file-pending")
+        .map_err(err("events"))?;
+    if pending.is_empty() {
+        return Ok(());
+    }
+    let dir = data_dir.join("downloads");
+    std::fs::create_dir_all(&dir).map_err(err("downloads dir"))?;
+    for (event_id, _, body) in pending {
+        let d = match FileDescriptor::decode(&body) {
+            Ok(d) => d,
+            Err(e) => {
+                s.delivery
+                    .update_event(
+                        &event_id,
+                        "file-unavailable",
+                        format!("bad descriptor: {e}").as_bytes(),
+                    )
+                    .map_err(err("event"))?;
+                continue;
+            }
+        };
+        let mut ciphertext = Vec::new();
+        let mut failure: Option<String> = None;
+        loop {
+            match conn
+                .request(Payload::BlobFetch {
+                    blob_id: d.blob_id.clone(),
+                    read_capability: d.read_capability.clone(),
+                    offset: ciphertext.len() as u64,
+                    length: BLOB_CHUNK as u32,
+                })
+                .await
+            {
+                Ok(Payload::BlobData { total_size, data }) => {
+                    if data.is_empty() {
+                        break;
+                    }
+                    ciphertext.extend_from_slice(&data);
+                    if ciphertext.len() as u64 >= total_size {
+                        break;
+                    }
+                }
+                Ok(other) => {
+                    failure = Some(format!("unexpected reply {other:?}"));
+                    break;
+                }
+                Err(e) => {
+                    failure = Some(e.0);
+                    break;
+                }
+            }
+        }
+        let outcome = match failure {
+            Some(reason) => Err(reason),
+            None => attachments::decrypt(&d, &ciphertext)
+                .map_err(|e| e.to_string())
+                .and_then(|plain| {
+                    let target = dir.join(d.safe_name());
+                    std::fs::write(&target, &plain)
+                        .map(|_| target)
+                        .map_err(|e| e.to_string())
+                }),
+        };
+        match outcome {
+            Ok(target) => {
+                s.delivery
+                    .update_event(
+                        &event_id,
+                        "received-file",
+                        target.to_string_lossy().as_bytes(),
+                    )
+                    .map_err(err("event"))?;
+                println!("file: {} saved to {}", d.safe_name(), target.display());
+            }
+            Err(reason) => {
+                s.delivery
+                    .update_event(
+                        &event_id,
+                        "file-unavailable",
+                        format!("{} ({reason})", d.safe_name()).as_bytes(),
+                    )
+                    .map_err(err("event"))?;
+                println!("file unavailable: {} ({reason})", d.safe_name());
             }
         }
     }

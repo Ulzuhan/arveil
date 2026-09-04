@@ -92,6 +92,10 @@ func serve() {
 		logger.Fatalf("store: %v", err)
 	}
 	defer st.Close()
+	blobs, err := st.Blobs(*dataDir)
+	if err != nil {
+		logger.Fatalf("blobs: %v", err)
+	}
 	seq, err := id.NextSequence()
 	if err != nil {
 		logger.Fatalf("endpoint sequence: %v", err)
@@ -115,6 +119,7 @@ func serve() {
 	srv := &server.Server{
 		Identity:     id,
 		Store:        st,
+		Blobs:        blobs,
 		SignedList:   signed,
 		Logger:       logger,
 		ReadTimeout:  90 * time.Second,
@@ -136,8 +141,12 @@ func serve() {
 				logger.Printf("sweep failed")
 				continue
 			}
-			if r.Envelopes > 0 || r.Invites > 0 {
-				logger.Printf("sweep: %d envelope(s), %d invite(s) removed", r.Envelopes, r.Invites)
+			nb, err := blobs.Sweep(context.Background(), time.Now())
+			if err != nil {
+				logger.Printf("blob sweep failed")
+			}
+			if r.Envelopes > 0 || r.Invites > 0 || nb > 0 {
+				logger.Printf("sweep: %d envelope(s), %d invite(s), %d blob(s) removed", r.Envelopes, r.Invites, nb)
 			}
 		}
 	}()

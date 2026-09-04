@@ -21,6 +21,7 @@ const USAGE: &str = "usage:
   arveil chat start --data-dir <dir> <bootstrap> <peer-route>...
   arveil chat add --data-dir <dir> <bootstrap> <peer-route>
   arveil chat send --data-dir <dir> <bootstrap> <text>
+  arveil chat send-file --data-dir <dir> <bootstrap> <path>
   arveil chat sync --data-dir <dir> <bootstrap>
   arveil chat history --data-dir <dir>";
 
@@ -69,6 +70,10 @@ fn main() -> ExitCode {
         },
         ["chat", "add", bootstrap, route] => match data_dir {
             Some(d) => chat::add(&d, bootstrap, route),
+            None => usage(),
+        },
+        ["chat", "send-file", bootstrap, path] => match data_dir {
+            Some(d) => chat::send_file(&d, bootstrap, std::path::Path::new(path)),
             None => usage(),
         },
         ["chat", "send", bootstrap, text] => match data_dir {

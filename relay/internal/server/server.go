@@ -30,7 +30,8 @@ const ChannelPath = "/v1/channel"
 type Server struct {
 	Identity     *realm.Identity
 	Store        *store.Store // nil only in carrier-level tests
-	SignedList   []byte       // current signed RealmEndpointList
+	Blobs        *store.BlobStore
+	SignedList   []byte // current signed RealmEndpointList
 	Logger       *log.Logger
 	ReadTimeout  time.Duration // per message; keepalive pings must arrive within it
 	HandshakeTTL time.Duration

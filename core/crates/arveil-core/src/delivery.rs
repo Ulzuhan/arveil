@@ -243,6 +243,30 @@ impl Delivery {
         self.conn.count("events")
     }
 
+    /// Events of one kind across all groups: `(event_id, kind, body)`.
+    pub fn events_of_kind(&self, kind: &str) -> Result<Vec<EventRow>, rusqlite::Error> {
+        let conn = self.conn.lock();
+        let mut stmt =
+            conn.prepare("SELECT event_id, kind, body FROM events WHERE kind = ?1 ORDER BY id")?;
+        let rows = stmt.query_map(params![kind], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+        rows.collect()
+    }
+
+    /// Move an event to another kind with a new body (a pending file that
+    /// was downloaded, or found unavailable).
+    pub fn update_event(
+        &self,
+        event_id: &[u8],
+        kind: &str,
+        body: &[u8],
+    ) -> Result<(), rusqlite::Error> {
+        self.conn.lock().execute(
+            "UPDATE events SET kind = ?2, body = ?3 WHERE event_id = ?1",
+            params![event_id, kind, body],
+        )?;
+        Ok(())
+    }
+
     /// Events of a group: `(event_id, kind, body)` in local order.
     pub fn events(&self, group_id: &[u8]) -> Result<Vec<EventRow>, rusqlite::Error> {
         let conn = self.conn.lock();
