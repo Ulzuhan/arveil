@@ -11,11 +11,17 @@ ARG REVISION=""
 RUN cd relay && CGO_ENABLED=0 go build -trimpath \
       -ldflags "-s -w -X github.com/Ulzuhan/arveil/relay/internal/version.Revision=${REVISION}" \
       -o /out/arveil-relay ./cmd/arveil-relay
+# An empty data directory to copy in with the right owner: the final image
+# has no shell to mkdir with, and the relay does not run as root.
+RUN mkdir -p /out/data
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/arveil-relay /arveil-relay
 # The data directory holds realm.db, the realm's keys and the blobs. Mount a
-# volume here or the realm is new on every restart.
+# volume here or the realm is new on every restart. It ships owned by the
+# unprivileged user the relay runs as, so an anonymous or named volume
+# inherits that ownership instead of coming up owned by root.
+COPY --from=build --chown=65532:65532 /out/data /data
 VOLUME ["/data"]
 EXPOSE 8447 9090
 USER nonroot:nonroot
