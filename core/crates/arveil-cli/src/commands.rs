@@ -17,14 +17,14 @@ const KIND_PLAIN_TEXT: u8 = 250;
 
 use crate::carrier::{Bootstrap, CliError, Connection, block_on, err};
 
-fn now() -> u64 {
+pub fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
 
-fn open_client(data_dir: &Path) -> Result<Client, CliError> {
+pub fn open_client(data_dir: &Path) -> Result<Client, CliError> {
     std::fs::create_dir_all(data_dir).map_err(err("data dir"))?;
     let conn = SharedConn::open_file(&data_dir.join("client.db")).map_err(err("storage"))?;
     Client::open(conn).map_err(err("client"))
@@ -99,52 +99,59 @@ pub fn enroll(data_dir: &Path, bootstrap: &str, invite_hex: &str) -> Result<(), 
             other => return Err(CliError(format!("unexpected reply: {other:?}"))),
         }
         c.realm_mark_enrolled(&b.realm_id).map_err(err("realm"))?;
-
-        // Phase 0 convenience: a mailbox and a first batch of KeyPackages
-        // right away, so the contact card can be printed.
-        let identity_id = c
-            .root()
-            .map_err(err("identity"))?
-            .ok_or_else(|| CliError("no identity".into()))?
-            .identity_id();
-        let m = match conn.request(Payload::MailboxCreate).await? {
-            Payload::MailboxCreated {
-                mailbox_id,
-                read_capability,
-                write_capability,
-            } => {
-                let m = OwnMailbox {
-                    mailbox_id,
-                    read_capability,
-                    write_capability,
-                };
-                c.mailbox_save(&m).map_err(err("mailbox"))?;
-                m
-            }
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        };
-        let engine = mls::open(c.conn.clone(), device.mls_identity());
-        let mut key_packages = Vec::new();
-        for _ in 0..5 {
-            let kp = engine.key_package().map_err(err("key package"))?;
-            key_packages.push(serde_bytes::ByteBuf::from(
-                kp.to_bytes().map_err(err("key package"))?,
-            ));
-        }
-        match conn
-            .request(Payload::KeyPackagesPublish { key_packages })
-            .await?
-        {
-            Payload::Ack => println!("key packages: 5 published"),
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        }
-        println!(
-            "route: {}",
-            route_string(&identity_id, &m, &device.keys.envelope_hpke.public)
-        );
+        finish_enrollment(&c, &mut conn, &device).await?;
         conn.close().await;
         Ok(())
     })?
+}
+
+/// After the realm accepted the device: a mailbox and a first batch of
+/// KeyPackages right away, so the contact card can be printed.
+pub async fn finish_enrollment(
+    c: &Client,
+    conn: &mut Connection,
+    device: &arveil_core::client::StoredDevice,
+) -> Result<(), CliError> {
+    let identity_id = c
+        .identity_id()
+        .map_err(err("identity"))?
+        .ok_or_else(|| CliError("no identity".into()))?;
+    let m = match conn.request(Payload::MailboxCreate).await? {
+        Payload::MailboxCreated {
+            mailbox_id,
+            read_capability,
+            write_capability,
+        } => {
+            let m = OwnMailbox {
+                mailbox_id,
+                read_capability,
+                write_capability,
+            };
+            c.mailbox_save(&m).map_err(err("mailbox"))?;
+            m
+        }
+        other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+    };
+    let engine = mls::open(c.conn.clone(), device.mls_identity());
+    let mut key_packages = Vec::new();
+    for _ in 0..5 {
+        let kp = engine.key_package().map_err(err("key package"))?;
+        key_packages.push(serde_bytes::ByteBuf::from(
+            kp.to_bytes().map_err(err("key package"))?,
+        ));
+    }
+    match conn
+        .request(Payload::KeyPackagesPublish { key_packages })
+        .await?
+    {
+        Payload::Ack => println!("key packages: 5 published"),
+        other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+    }
+    println!(
+        "route: {}",
+        route_string(&identity_id, &m, &device.keys.envelope_hpke.public)
+    );
+    Ok(())
 }
 
 /// `arveil probe [--data-dir D] <bootstrap>`: with a data dir, connect as
@@ -241,8 +248,16 @@ pub fn probe(data_dir: Option<&Path>, bootstrap: &str) -> Result<(), CliError> {
 /// `arveil status --data-dir D`
 pub fn status(data_dir: &Path) -> Result<(), CliError> {
     let c = open_client(data_dir)?;
-    match c.root().map_err(err("identity"))? {
-        Some(root) => println!("identity: {}", hex::encode(root.identity_id())),
+    match c.identity_id().map_err(err("identity"))? {
+        Some(id) => println!(
+            "identity: {} ({})",
+            hex::encode(id),
+            if c.root().map_err(err("identity"))?.is_some() {
+                "root key on this device"
+            } else {
+                "linked device, no root key"
+            }
+        ),
         None => println!("identity: none"),
     }
     match c.device().map_err(err("device"))? {
@@ -356,10 +371,9 @@ pub fn mailbox_create(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> 
     let b = Bootstrap::parse(bootstrap)?;
     let (c, d, _) = enrolled(data_dir)?;
     let identity_id = c
-        .root()
+        .identity_id()
         .map_err(err("identity"))?
-        .ok_or_else(|| CliError("no identity".into()))?
-        .identity_id();
+        .ok_or_else(|| CliError("no identity".into()))?;
     if let Some(m) = c.mailbox_own().map_err(err("mailbox"))? {
         println!(
             "route: {}",

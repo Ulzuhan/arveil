@@ -145,6 +145,16 @@ func (srv *Server) credentialPut(ctx context.Context, s *session, f channel.Fram
 	if err != nil || string(root) != string(v.Root) {
 		return errFrame(f.ID, channel.CodeForbidden, "credential is not signed by this member's root")
 	}
+	// Enrollment is never silent: the newest manifest, signed by the root,
+	// must already list this credential as active.
+	seq, signed, err := srv.Store.LatestManifest(ctx, s.device.IdentityID)
+	if err != nil || signed == nil {
+		return errFrame(f.ID, channel.CodeBadRequest, "no manifest for this identity")
+	}
+	m, err := identity.VerifyManifest(signed, root)
+	if err != nil || !containsHash(m.ActiveCredentialHashes, v.Hash) {
+		return errFrame(f.ID, channel.CodeBadRequest, "credential not listed active in the newest manifest")
+	}
 	err = srv.Store.PutCredential(ctx, store.Enrollment{
 		IdentityID:     v.IdentityID,
 		CredentialHash: v.Hash,
@@ -159,6 +169,7 @@ func (srv *Server) credentialPut(ctx context.Context, s *session, f channel.Fram
 	if err != nil {
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
+	srv.Logger.Printf("device linked: identity %x device %x under manifest %d", s.device.IdentityID[:4], v.Credential.DeviceID[:4], seq)
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
 
@@ -181,6 +192,11 @@ func (srv *Server) manifestPut(ctx context.Context, s *session, f channel.Frame)
 	if err != nil {
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
+	revoked, err := srv.Store.SetCredentialStatus(ctx, s.device.IdentityID, m.RevokedCredentialHashes, "revoked")
+	if err != nil {
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
+	srv.Logger.Printf("manifest %d for identity %x: %d active, %d revoked (%d newly revoked)", m.ManifestSequence, s.device.IdentityID[:4], len(m.ActiveCredentialHashes), len(m.RevokedCredentialHashes), revoked)
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
 

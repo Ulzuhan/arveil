@@ -8,6 +8,7 @@ use std::process::ExitCode;
 mod carrier;
 mod chat;
 mod commands;
+mod link;
 
 const USAGE: &str = "usage:
   arveil version
@@ -15,6 +16,9 @@ const USAGE: &str = "usage:
   arveil enroll --data-dir <dir> <bootstrap> <invite-token-hex>
   arveil probe [--data-dir <dir>] <bootstrap>
   arveil status --data-dir <dir>
+  arveil device request --data-dir <dir>
+  arveil device authorize --data-dir <dir> <bootstrap> <link-request>
+  arveil device link --data-dir <dir> <bootstrap> <link-grant>
   arveil mailbox create --data-dir <dir> <bootstrap>
   arveil send --data-dir <dir> <bootstrap> <route> <text>
   arveil fetch --data-dir <dir> <bootstrap>
@@ -50,6 +54,18 @@ fn main() -> ExitCode {
         ["probe", bootstrap] => commands::probe(data_dir.as_deref(), bootstrap),
         ["status"] => match data_dir {
             Some(d) => commands::status(&d),
+            None => usage(),
+        },
+        ["device", "request"] => match data_dir {
+            Some(d) => link::request(&d),
+            None => usage(),
+        },
+        ["device", "authorize", bootstrap, request] => match data_dir {
+            Some(d) => link::authorize(&d, bootstrap, request),
+            None => usage(),
+        },
+        ["device", "link", bootstrap, grant] => match data_dir {
+            Some(d) => link::link(&d, bootstrap, grant),
             None => usage(),
         },
         ["mailbox", "create", bootstrap] => match data_dir {

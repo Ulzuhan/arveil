@@ -19,7 +19,8 @@ use crate::storage::SharedConn;
 pub const CLIENT_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS identity (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
-    root_seed   BLOB NOT NULL,
+    root_seed   BLOB,
+    root_public BLOB NOT NULL,
     identity_id BLOB NOT NULL
 );
 CREATE TABLE IF NOT EXISTS device (
@@ -86,6 +87,14 @@ pub enum ClientError {
     NoDevice,
     #[error("client: mls error: {0}")]
     Mls(String),
+    #[error("client: this device holds no root key; run this on the administration device")]
+    NoRoot,
+    #[error("client: link grant does not name this device's keys")]
+    GrantMismatch,
+    #[error("client: link grant manifest does not list the credential as active")]
+    GrantManifest,
+    #[error("client: device already linked or enrolled")]
+    DeviceExists,
 }
 
 /// Default credential validity for Phase 0: one year.
@@ -182,21 +191,50 @@ impl Client {
         }
         let root = RootKey::generate()?;
         self.conn.lock().execute(
-            "INSERT INTO identity (id, root_seed, identity_id) VALUES (1, ?1, ?2)",
-            params![root.signing.to_bytes().to_vec(), root.identity_id()],
+            "INSERT INTO identity (id, root_seed, root_public, identity_id) VALUES (1, ?1, ?2, ?3)",
+            params![
+                root.signing.to_bytes().to_vec(),
+                root.public().as_bytes().to_vec(),
+                root.identity_id()
+            ],
         )?;
         Ok(root)
     }
 
+    /// The identity this device belongs to, with or without the root key.
+    pub fn identity_id(&self) -> Result<Option<Vec<u8>>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row("SELECT identity_id FROM identity WHERE id = 1", [], |r| {
+                r.get(0)
+            })
+            .optional()?)
+    }
+
+    pub fn root_public(&self) -> Result<Option<VerifyingKey>, ClientError> {
+        let pk: Option<Vec<u8>> = self
+            .conn
+            .lock()
+            .query_row("SELECT root_public FROM identity WHERE id = 1", [], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        Ok(pk.map(|p| {
+            let p: [u8; 32] = p.as_slice().try_into().expect("32-byte key");
+            VerifyingKey::from_bytes(&p).expect("stored key valid")
+        }))
+    }
+
     pub fn root(&self) -> Result<Option<RootKey>, ClientError> {
-        let seed: Option<Vec<u8>> = self
+        let seed: Option<Option<Vec<u8>>> = self
             .conn
             .lock()
             .query_row("SELECT root_seed FROM identity WHERE id = 1", [], |r| {
                 r.get(0)
             })
             .optional()?;
-        Ok(seed.map(|s| {
+        Ok(seed.flatten().map(|s| {
             let seed: [u8; 32] = s.as_slice().try_into().expect("32-byte seed");
             RootKey::from_seed(&seed)
         }))
@@ -315,6 +353,165 @@ impl Client {
                 credential_hash: hash,
             },
         ))
+    }
+
+    /// Phase 2 (M2.1): keys for a device that will be linked by the
+    /// administration device. No root, no credential yet; the row holds an
+    /// empty credential until [`Client::device_link_complete`].
+    pub fn device_pending_new(&self) -> Result<StoredDevice, ClientError> {
+        if self.device()?.is_some() {
+            return Err(ClientError::DeviceExists);
+        }
+        let mut device_id = [0u8; 16];
+        getrandom::fill(&mut device_id).map_err(|_| identity::IdentityError::Random)?;
+        let mls =
+            MlsIdentity::generate_for(&device_id).map_err(|e| ClientError::Mls(e.to_string()))?;
+        let mls_signing_public = mls.signing_identity.signature_key.to_vec();
+        let mls_signing_secret = mls.secret.as_bytes().to_vec();
+        let mut keys = DeviceKeys::generate(mls_signing_public.clone())?;
+        keys.device_id = device_id;
+        self.conn.lock().execute(
+            "INSERT INTO device (device_id, noise_private, noise_public, hpke_private, hpke_public,
+             mls_signing_secret, mls_signing_public, credential, credential_hash)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, X'', X'')",
+            params![
+                keys.device_id.to_vec(),
+                keys.transport_noise.private,
+                keys.transport_noise.public,
+                keys.envelope_hpke.private,
+                keys.envelope_hpke.public,
+                mls_signing_secret,
+                mls_signing_public,
+            ],
+        )?;
+        Ok(StoredDevice {
+            keys,
+            mls_signing_secret,
+            credential: Vec::new(),
+            credential_hash: Vec::new(),
+        })
+    }
+
+    /// Body of the newest manifest this client stored.
+    pub fn latest_manifest_body(&self) -> Result<Option<identity::DeviceManifest>, ClientError> {
+        let Some(signed) = self.latest_manifest()? else {
+            return Ok(None);
+        };
+        let root = self.root_public()?.ok_or(ClientError::NoIdentity)?;
+        let (body, _) = identity::accept_manifest(&signed, &root, None)?;
+        Ok(Some(body))
+    }
+
+    /// Administration device: sign a credential for `public` and the next
+    /// manifest that lists it active alongside the current devices. Both are
+    /// stored and returned; the root never leaves this device.
+    pub fn device_authorize(
+        &self,
+        public: &DevicePublicKeys,
+        now: u64,
+    ) -> Result<(Vec<u8>, Vec<u8>), ClientError> {
+        let root = self.root()?.ok_or(ClientError::NoRoot)?;
+        let credential = identity::issue_credential(
+            &root,
+            public,
+            Validity {
+                not_before: now.saturating_sub(300),
+                not_after: now + DEFAULT_VALIDITY_SECS,
+            },
+            USE_MLS_LEAF | USE_TRANSPORT | USE_ENVELOPE,
+        )?;
+        let hash = identity::credential_hash(&credential);
+        let previous = self.manifest_state()?;
+        let body = self.latest_manifest_body()?;
+        let mut active: Vec<Vec<u8>> = body
+            .as_ref()
+            .map(|b| {
+                b.active_credential_hashes
+                    .iter()
+                    .map(|h| h.to_vec())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let revoked: Vec<Vec<u8>> = body
+            .as_ref()
+            .map(|b| {
+                b.revoked_credential_hashes
+                    .iter()
+                    .map(|h| h.to_vec())
+                    .collect()
+            })
+            .unwrap_or_default();
+        active.push(hash);
+        let manifest = identity::issue_manifest(&root, previous.as_ref(), &active, &revoked)?;
+        let (mbody, state) =
+            identity::accept_manifest(&manifest, &root.public(), previous.as_ref())?;
+        self.conn.lock().execute(
+            "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                mbody.identity_id,
+                state.sequence as i64,
+                manifest,
+                state.hash
+            ],
+        )?;
+        Ok((credential, manifest))
+    }
+
+    /// New device: accept a grant only if the credential names exactly this
+    /// device's keys, verifies under `root_public`, and the manifest (under
+    /// the same root) lists it active. Stores identity (without root),
+    /// credential and manifest in one unit of work. Returns the identity id.
+    pub fn device_link_complete(
+        &self,
+        credential: &[u8],
+        manifest: &[u8],
+        root_public: &[u8],
+        now: u64,
+    ) -> Result<Vec<u8>, ClientError> {
+        let device = self.device()?.ok_or(ClientError::NoDevice)?;
+        if !device.credential.is_empty() || self.identity_id()?.is_some() {
+            return Err(ClientError::DeviceExists);
+        }
+        let pk: [u8; 32] = root_public
+            .try_into()
+            .map_err(|_| ClientError::GrantMismatch)?;
+        let root = VerifyingKey::from_bytes(&pk).map_err(|_| ClientError::GrantMismatch)?;
+        let v = identity::verify_credential(credential, Some(&root), now)?;
+        let c = &v.credential;
+        let mine = device.keys.public();
+        if c.device_id != mine.device_id
+            || c.mls_signature_public_key != mine.mls_signature_public_key
+            || c.transport_noise_public_key != mine.transport_noise_public_key
+            || c.envelope_hpke_public_key != mine.envelope_hpke_public_key
+        {
+            return Err(ClientError::GrantMismatch);
+        }
+        let (body, state) = identity::accept_manifest(manifest, &root, None)?;
+        if !body
+            .active_credential_hashes
+            .iter()
+            .any(|h| h.as_slice() == v.hash.as_slice())
+        {
+            return Err(ClientError::GrantManifest);
+        }
+        let identity_id = identity::identity_id(&root);
+        self.conn.unit_of_work(|c| {
+            let conn = c.lock();
+            conn.execute(
+                "INSERT INTO identity (id, root_seed, root_public, identity_id) VALUES (1, NULL, ?1, ?2)",
+                params![root_public, identity_id],
+            )?;
+            conn.execute(
+                "UPDATE device SET credential = ?1, credential_hash = ?2 WHERE device_id = ?3",
+                params![credential, v.hash, device.keys.device_id.to_vec()],
+            )?;
+            conn.execute(
+                "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
+                params![body.identity_id, state.sequence as i64, manifest, state.hash],
+            )?;
+            Ok::<_, rusqlite::Error>(())
+        })?;
+        Ok(identity_id)
     }
 
     pub fn manifest_state(&self) -> Result<Option<ManifestState>, ClientError> {

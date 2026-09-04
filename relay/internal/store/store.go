@@ -299,6 +299,32 @@ func (s *Store) PutManifest(ctx context.Context, identityID []byte, seq uint64, 
 	return tx.Commit()
 }
 
+// LatestManifest returns the newest stored manifest for an identity (nil if none).
+func (s *Store) LatestManifest(ctx context.Context, identityID []byte) (uint64, []byte, error) {
+	var seq uint64
+	var signed []byte
+	err := s.db.QueryRowContext(ctx, `SELECT sequence, signed FROM device_manifests WHERE identity_id = ? ORDER BY sequence DESC LIMIT 1`, identityID).Scan(&seq, &signed)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil, nil
+	}
+	return seq, signed, err
+}
+
+// SetCredentialStatus marks credentials (by hash) of one identity; used when
+// a manifest revokes them. Returns how many rows changed.
+func (s *Store) SetCredentialStatus(ctx context.Context, identityID []byte, hashes [][]byte, status string) (int64, error) {
+	var n int64
+	for _, h := range hashes {
+		res, err := s.db.ExecContext(ctx, `UPDATE device_credentials SET status = ? WHERE identity_id = ? AND credential_hash = ? AND status != ?`, status, identityID, h, status)
+		if err != nil {
+			return n, err
+		}
+		k, _ := res.RowsAffected()
+		n += k
+	}
+	return n, nil
+}
+
 // PutCredential registers an additional credential for a member.
 func (s *Store) PutCredential(ctx context.Context, e Enrollment) error {
 	tx, err := s.db.BeginTx(ctx, nil)

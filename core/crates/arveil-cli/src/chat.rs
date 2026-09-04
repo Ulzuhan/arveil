@@ -62,10 +62,9 @@ fn session(data_dir: &Path) -> Result<(Session, Engine<impl MlsConfig>), CliErro
     let (client, device, realm) = enrolled(data_dir)?;
     let delivery = Delivery::open(client.conn.clone()).map_err(err("delivery"))?;
     let identity_id = client
-        .root()
+        .identity_id()
         .map_err(err("identity"))?
-        .ok_or_else(|| CliError("no identity".into()))?
-        .identity_id();
+        .ok_or_else(|| CliError("no identity".into()))?;
     let engine = mls::open(client.conn.clone(), device.mls_identity());
     Ok((
         Session {

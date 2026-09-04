@@ -103,3 +103,28 @@ func TestRedeemInviteIsAtomic(t *testing.T) {
 		t.Fatalf("duplicate transport key: %v", err)
 	}
 }
+
+func TestLatestManifestAndCredentialStatus(t *testing.T) {
+	s, ctx, _ := memberStore(t)
+	e := enrollment(1)
+	seq, signed, err := s.LatestManifest(ctx, e.IdentityID)
+	if err != nil || seq != e.ManifestSeq || string(signed) != string(e.SignedManifest) {
+		t.Fatalf("latest manifest: %d %v", seq, err)
+	}
+	if _, _, err := s.LatestManifest(ctx, []byte("nobody")); err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.SetCredentialStatus(ctx, e.IdentityID, [][]byte{e.CredentialHash}, "revoked")
+	if err != nil || n != 1 {
+		t.Fatalf("revoke: %d %v", n, err)
+	}
+	d, err := s.DeviceByTransportKey(ctx, e.TransportKey)
+	if err != nil || d == nil || d.Status != "revoked" {
+		t.Fatalf("status not applied: %+v %v", d, err)
+	}
+	// Idempotent and scoped to the identity.
+	n, _ = s.SetCredentialStatus(ctx, e.IdentityID, [][]byte{e.CredentialHash}, "revoked")
+	if n != 0 {
+		t.Fatalf("second revoke changed %d rows", n)
+	}
+}
