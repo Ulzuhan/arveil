@@ -11,8 +11,10 @@
 //! The device verifies with the realm signing key it learned at bootstrap,
 //! keeps the highest sequence it has accepted, and refuses rollbacks.
 
-use ed25519_dalek::{Signature, VerifyingKey};
+use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
+
+use crate::signed::{self, SignedError};
 
 pub const CONTEXT: &str = "arveil/endpoint-list/v1";
 pub const VERSION: u8 = 1;
@@ -53,23 +55,7 @@ pub struct RealmEndpointList {
     pub endpoints: Vec<Endpoint>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SignedObject {
-    pub context: String,
-    #[serde(with = "serde_bytes")]
-    pub body: Vec<u8>,
-    #[serde(with = "serde_bytes")]
-    pub signature: Vec<u8>,
-}
-
-/// Bytes covered by the signature.
-pub fn signing_input(context: &str, body: &[u8]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(2 + context.len() + body.len());
-    out.extend_from_slice(&(context.len() as u16).to_be_bytes());
-    out.extend_from_slice(context.as_bytes());
-    out.extend_from_slice(body);
-    out
-}
+pub use crate::signed::{SignedObject, signing_input};
 
 /// Verify a signed list against the realm signing key and the expected
 /// realm id; `known_sequence` is the highest sequence accepted so far.
@@ -79,23 +65,12 @@ pub fn verify(
     expected_realm_id: &[u8],
     known_sequence: Option<u64>,
 ) -> Result<RealmEndpointList, EndpointListError> {
-    let so: SignedObject =
-        ciborium::from_reader(signed).map_err(|e| EndpointListError::Decode(e.to_string()))?;
-    if so.context != CONTEXT {
-        return Err(EndpointListError::WrongContext(so.context));
-    }
-    let sig_bytes: [u8; 64] = so
-        .signature
-        .as_slice()
-        .try_into()
-        .map_err(|_| EndpointListError::BadSignature)?;
-    let sig = Signature::from_bytes(&sig_bytes);
-    realm_signing_key
-        .verify_strict(&signing_input(&so.context, &so.body), &sig)
-        .map_err(|_| EndpointListError::BadSignature)?;
-
-    let list: RealmEndpointList = ciborium::from_reader(so.body.as_slice())
-        .map_err(|e| EndpointListError::Decode(e.to_string()))?;
+    let list: RealmEndpointList = signed::verify_value(signed, CONTEXT, realm_signing_key)
+        .map_err(|e| match e {
+            SignedError::WrongContext { got, .. } => EndpointListError::WrongContext(got),
+            SignedError::BadSignature => EndpointListError::BadSignature,
+            other => EndpointListError::Decode(other.to_string()),
+        })?;
     if list.version != VERSION {
         return Err(EndpointListError::UnsupportedVersion(list.version));
     }

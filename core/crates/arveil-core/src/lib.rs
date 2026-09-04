@@ -10,7 +10,9 @@
 //! signature, device or commit is valid.
 
 pub mod channel;
+pub mod identity;
 pub mod mls;
+pub mod signed;
 pub mod storage;
 
 /// Wire protocol major version carried in every frame and in the Noise prologue.
