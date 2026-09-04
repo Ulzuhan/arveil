@@ -24,3 +24,6 @@ server-secrets/
 .idea/
 .vscode/
 *.swp
+
+# Spikes
+spikes/*/target/

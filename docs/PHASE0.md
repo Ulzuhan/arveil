@@ -31,7 +31,9 @@ A negative answer to Q1 or Q2 reopens ADR-002 before any further work. A negativ
 | **M0.5 MLS spike** | OpenMLS and mls-rs evaluated against Q1 and Q2 with a written comparison; winner integrated for a 1:1 group and a 3-member group with Add and Remove | Q1 and Q2 answered with test evidence; official MLS test vectors pass; a valid-but-unauthorized commit is rejected before merge |
 | **M0.6 Demo** | Two `arveil` CLI processes chat through the relay; relay restarted mid-conversation; one client killed mid-send; recording in the README | Demo reproducible from a script in `scripts/demo.sh`; no message lost, none duplicated, relay database contains no plaintext, no group identifiers and no conversation table |
 
-Milestones M0.2 to M0.4 can proceed in parallel with the M0.5 spike, since the channel and delivery layers do not depend on the MLS library choice.
+Milestones M0.2 to M0.4 can proceed in parallel with the M0.5 spike, since the channel and delivery layers do not depend on the MLS library choice. The recommended order for a single developer is M0.5 first: a negative answer to Q1 or Q2 changes the domain model, and it is cheaper to learn that before building the channel and delivery layers.
+
+The spike lives in `spikes/mls`, outside the main workspace so its dependencies do not weigh on the core build. It already contains passing baselines for both libraries, the OpenMLS answer to Q2 (a valid commit from an unauthorized leaf is inspected as a `StagedCommit` and dropped before merge), and evidence of the mls-rs explicit-write model (`load_group` fails before `write_to_storage`). The Q1 tests for both libraries and the Q2 test for mls-rs are marked `#[ignore]`; making them pass is the milestone. Progress is tracked in the [M0.5 milestone](https://github.com/Ulzuhan/arveil/milestone/5).
 
 ## Evidence required at exit
 

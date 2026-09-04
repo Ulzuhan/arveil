@@ -48,3 +48,18 @@ jobs:
       - name: Test
         working-directory: core
         run: cargo test --workspace
+
+  mls-spike:
+    name: MLS spike (M0.5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: spikes/mls
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: spikes/mls
+      - name: Test
+        working-directory: spikes/mls
+        run: cargo test

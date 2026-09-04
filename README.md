@@ -65,6 +65,7 @@ La documentación completa también está disponible en español en [`docs/es/`]
 .
 ├── core/       Rust workspace: arveil-core (library) and arveil-cli
 ├── relay/      Go module: arveil-relay server
+├── spikes/     Throwaway investigations; spikes/mls compares OpenMLS and mls-rs (M0.5)
 ├── docs/       Architecture docs (English), docs/es/ (Spanish), MkDocs site source
 ├── mkdocs.yml  Documentation site
 └── Makefile    build, test, lint, docs
