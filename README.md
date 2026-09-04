@@ -3,8 +3,8 @@
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 One Go binary, one SQLite file, one data directory. Runs on a Raspberry Pi in your home and stays reachable over LAN, Tailscale, or a Cloudflare Tunnel, without changing a single security guarantee.
 
-> **Status: Phases 0 to 2 complete, and the protocol half of Phase 3 (2026-09-04). A CLI messenger a family could run; the graphical clients are still ahead.**
-> Command-line clients chat in groups with real MLS through the Go relay, with several devices per person, encrypted files, messages written while the relay is down, and honest expiry. A device is paired over a live channel with a number both screens show, and never silently; people verify each other with a safety number; revoking a device stops it at the realm and inside every group; losing the group's creator no longer means recreating the group, because the lowest active leaf takes over; a lost identity comes back from its `age` kit and its history from its archive, with a rolled-back realm reported rather than believed; interrupted uploads and downloads resume; an optional push hint tells a device it has mail and nothing else; the local database is encrypted at rest. The relay never sees plaintext, a group id or a conversation table, and a TLS-terminating proxy records nothing but opaque frames. Every claim runs in CI: [`scripts/phase3.sh`](scripts/phase3.sh), [`scripts/phase2.sh`](scripts/phase2.sh), [`scripts/phase1.sh`](scripts/phase1.sh), [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Transcript: [docs/evidence/demo-transcript.txt](docs/evidence/demo-transcript.txt). The Flutter clients and the verified platform matrix are what remains of Phase 3; see the [Phase 3 plan](docs/PHASE3.md) and the [roadmap](#roadmap).
+> **Status: everything except the graphical clients (2026-09-04). Installable, operable and used from the command line.**
+> Command-line clients chat in groups with real MLS through the Go relay, with several devices per person, several conversations, encrypted files, messages written while the relay is down, and honest expiry. A device is paired over a live channel with a number both screens show, and never silently; people verify each other with a safety number and name each other locally; revoking a device stops it at the realm and inside every group; losing the group's creator no longer means recreating the group; a lost identity comes back from its `age` kit and its history from its archive, with a rolled-back realm reported rather than believed; interrupted transfers resume; the local database is encrypted at rest. The realm ships as a container image, a compose file and a systemd unit, with limits per address, health and metrics on their own listener, TLS of its own or through your tunnel, and a backup that restores into a working realm. The relay never sees plaintext, a group id or a conversation table, and a TLS-terminating proxy records nothing but opaque frames. Every claim runs in CI: [`scripts/phase4.sh`](scripts/phase4.sh), [`scripts/phase3.sh`](scripts/phase3.sh), [`scripts/phase2.sh`](scripts/phase2.sh), [`scripts/phase1.sh`](scripts/phase1.sh), [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Start here: [Running a realm](docs/OPERATIONS.md). What is left is the mobile and desktop clients and an external review; see the [roadmap](#roadmap).
 
 ## Why another messenger
 
@@ -45,10 +45,12 @@ Full documentation, in reading order:
 | [Protocol](docs/PROTOCOL.md) | Layers, objects, bootstrap, MLS groups, durable delivery, frame catalog, recovery |
 | [Domain model](docs/DOMAIN_MODEL.md) | Entities, key lifecycle, server schema, local atomicity, state machines |
 | [Decision records](docs/adr/) | ADR-001 to ADR-008: Go + Rust, MLS, zero-trust server, SQLite, identity, local-first, redundancy, carrier-independent transport |
+| [Running a realm](docs/OPERATIONS.md) | Install, tunnels, limits, health and metrics, backups and restore |
 | [Phase 0 plan](docs/PHASE0.md) | Milestones, acceptance criteria and results of the viability slice |
 | [Phase 1 plan](docs/PHASE1.md) | Groups, offline outbox, TTL, endpoint fallback, attachments: milestones and results |
 | [Phase 2 plan](docs/PHASE2.md) | Multi-device, revocation, coordinator succession, identity kit and archive, encryption at rest |
 | [Phase 3 plan](docs/PHASE3.md) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds |
+| [Phase 4 plan](docs/PHASE4.md) | Packaging, limits per address, health and metrics, TLS, backups, and the client gaps |
 | [Viability review v0.3](docs/REVIEW-v0.3.md) | External-style review with verified references and open risks |
 
 La documentación completa también está disponible en español en [`docs/es/`](docs/es/README.md).
@@ -66,8 +68,9 @@ It does **not** do platform code signing: there is no Apple notarization and no 
 | 0: viability (done) | Rust core without full UI, two CLI clients, minimal relay | Real MLS, verified identity and atomic persistence demonstrated |
 | 1: LAN vertical (done) | 1:1 and group chat, offline outbox, queues, attachments, Noise channel with endpoint list | Restarts, duplicates, TTL, network loss and carrier switching with no silent loss |
 | 2: personal use (done) | Multi-device, identity kit, history archive, revocation | Total-loss and restore drills; enrollment is never silent |
-| 3: ready to hand out (done) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds | Every claim in `scripts/phase3.sh`; builds a stranger can check |
-| 3: distribution | Mobile and desktop UI, signed updates, optional push | Signed builds, external review, verified platform matrix |
+| 3a: ready to hand out (done) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds | Every claim in `scripts/phase3.sh`; builds a stranger can check |
+| 4: operable (done) | Container image, compose and systemd, limits per address, health and metrics, TLS, backups; KeyPackage replenishment, several conversations, contact names | Somebody else can install it, watch it, back it up and restore it |
+| 3b: distribution | Mobile and desktop clients, signed updates, optional push | Signed builds, external review, verified platform matrix |
 
 ## Repository layout
 

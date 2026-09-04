@@ -80,6 +80,8 @@ const (
 const (
 	KindKeyPackagesPublish = "KeyPackagesPublish"
 	KindKeyPackagesClaim   = "KeyPackagesClaim"
+	KindKeyPackagesStatus  = "KeyPackagesStatus"
+	KindKeyPackagesAvail   = "KeyPackagesAvailable"
 	KindKeyPackageClaimed  = "KeyPackageClaimed"
 )
 
@@ -122,6 +124,7 @@ type Payload struct {
 	Capability  []byte
 	Slot        string
 	URL         string
+	Count       uint32
 	ExpiresAt   uint64
 	NextCursor  uint64
 	Limit       uint16
@@ -187,6 +190,10 @@ type blobDataBody struct {
 
 type keyPackagesPublishBody struct {
 	KeyPackages [][]byte `cbor:"key_packages"`
+}
+
+type keyPackagesAvailableBody struct {
+	Count uint32 `cbor:"count"`
 }
 
 type keyPackagesClaimBody struct {
@@ -322,8 +329,10 @@ func init() {
 func Encode(f Frame) ([]byte, error) {
 	var payload any
 	switch f.Payload.Kind {
-	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin:
+	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin, KindKeyPackagesStatus:
 		payload = f.Payload.Kind
+	case KindKeyPackagesAvail:
+		payload = map[string]keyPackagesAvailableBody{KindKeyPackagesAvail: {Count: f.Payload.Count}}
 	case KindNotifyHintSet:
 		payload = map[string]notifyHintSetBody{KindNotifyHintSet: {URL: f.Payload.URL}}
 	case KindPairStarted:
@@ -434,7 +443,7 @@ func Decode(b []byte) (Frame, error) {
 	var kind string
 	if err := cbor.Unmarshal(w.Payload, &kind); err == nil {
 		switch kind {
-		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin:
+		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin, KindKeyPackagesStatus:
 			f.Payload.Kind = kind
 			return f, nil
 		}
@@ -595,6 +604,12 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, KeyPackages: v.KeyPackages}
+		case KindKeyPackagesAvail:
+			var v keyPackagesAvailableBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Count: v.Count}
 		case KindKeyPackagesClaim:
 			var v keyPackagesClaimBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

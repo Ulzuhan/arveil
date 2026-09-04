@@ -32,20 +32,24 @@ const USAGE: &str = "usage:
   arveil notify clear --data-dir <dir> <bootstrap>
   arveil contact list --data-dir <dir>
   arveil contact verify --data-dir <dir> <identity-id> <safety-number>
+  arveil contact name --data-dir <dir> <identity-id> <name>
   arveil mailbox create --data-dir <dir> <bootstrap>
   arveil send --data-dir <dir> <bootstrap> <route> <text>
   arveil fetch --data-dir <dir> <bootstrap>
   arveil chat start --data-dir <dir> <bootstrap> <peer-route>...
-  arveil chat add --data-dir <dir> <bootstrap> <peer-route>
+  arveil chat list --data-dir <dir>
+  arveil chat add --data-dir <dir> <bootstrap> <peer-route> [--group <prefix>]
   arveil chat remove --data-dir <dir> <bootstrap> <device-id>
-  arveil chat send --data-dir <dir> <bootstrap> <text>
-  arveil chat send-file --data-dir <dir> <bootstrap> <path>
+  arveil chat send --data-dir <dir> <bootstrap> <text> [--group <prefix>]
+  arveil chat send-file --data-dir <dir> <bootstrap> <path> [--group <prefix>]
   arveil chat sync --data-dir <dir> <bootstrap>
   arveil chat history --data-dir <dir>";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (data_dir, rest) = commands::data_dir_arg(&args);
+    let (group, rest) = commands::flag_arg(&rest, "--group");
+    let group = group.as_deref();
     let words: Vec<&str> = rest.iter().map(String::as_str).collect();
 
     let result = match words.as_slice() {
@@ -133,6 +137,10 @@ fn main() -> ExitCode {
             Some(d) => commands::contact_list(&d),
             None => usage(),
         },
+        ["contact", "name", identity, name] => match data_dir {
+            Some(d) => commands::contact_name(&d, identity, name),
+            None => usage(),
+        },
         ["contact", "verify", identity, number] => match data_dir {
             Some(d) => commands::contact_verify(&d, identity, number),
             None => usage(),
@@ -153,20 +161,24 @@ fn main() -> ExitCode {
             Some(d) => chat::start(&d, bootstrap, routes),
             None => usage(),
         },
+        ["chat", "list"] => match data_dir {
+            Some(d) => chat::list(&d),
+            None => usage(),
+        },
         ["chat", "add", bootstrap, route] => match data_dir {
-            Some(d) => chat::add(&d, bootstrap, route),
+            Some(d) => chat::add(&d, bootstrap, route, group),
             None => usage(),
         },
         ["chat", "remove", bootstrap, device] => match data_dir {
-            Some(d) => chat::remove(&d, bootstrap, device),
+            Some(d) => chat::remove(&d, bootstrap, device, group),
             None => usage(),
         },
         ["chat", "send-file", bootstrap, path] => match data_dir {
-            Some(d) => chat::send_file(&d, bootstrap, std::path::Path::new(path)),
+            Some(d) => chat::send_file(&d, bootstrap, std::path::Path::new(path), group),
             None => usage(),
         },
         ["chat", "send", bootstrap, text] => match data_dir {
-            Some(d) => chat::send(&d, bootstrap, text),
+            Some(d) => chat::send(&d, bootstrap, text, group),
             None => usage(),
         },
         ["chat", "sync", bootstrap] => match data_dir {

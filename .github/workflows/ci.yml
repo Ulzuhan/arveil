@@ -168,3 +168,20 @@ jobs:
         with:
           workspaces: core
       - run: ./scripts/phase3.sh
+
+  phase4:
+    name: Phase 4 acceptance (packaging, limits, health, TLS, backups, client gaps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - run: ./scripts/phase4.sh

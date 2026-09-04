@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Ulzuhan/arveil/relay/internal/channel"
+	"github.com/Ulzuhan/arveil/relay/internal/metrics"
 	"github.com/Ulzuhan/arveil/relay/internal/store"
 )
 
@@ -45,6 +46,7 @@ func (srv *Server) envelopePut(ctx context.Context, s *session, f channel.Frame,
 	case err != nil:
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
+	metrics.EnvelopesStored.Add(1)
 	// Only the empty to non-empty transition is worth a hint (M3.4).
 	if res.WasEmpty && !res.Duplicate {
 		srv.notifyMailbox(ctx, p.MailboxID)
@@ -99,6 +101,19 @@ func (srv *Server) keyPackagesPublish(ctx context.Context, s *session, f channel
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
+}
+
+// keyPackagesStatus lets a device see how close it is to running out, so a
+// client can top up before somebody is refused a conversation (M4.6).
+func (srv *Server) keyPackagesStatus(ctx context.Context, s *session, f channel.Frame) channel.Frame {
+	if !s.member() {
+		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
+	}
+	n, err := srv.Store.AvailableKeyPackages(ctx, s.device.DeviceID)
+	if err != nil {
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindKeyPackagesAvail, Count: uint32(n)}}
 }
 
 func (srv *Server) keyPackagesClaim(ctx context.Context, s *session, f channel.Frame) channel.Frame {

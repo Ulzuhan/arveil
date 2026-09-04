@@ -300,6 +300,8 @@ func TestCodecMatchesRustVectorsKeyPackages(t *testing.T) {
 		{"a262696401677061796c6f6164a1724b65795061636b616765735075626c697368a16c6b65795f7061636b61676573824201024103", Frame{ID: 1, Payload: Payload{Kind: KindKeyPackagesPublish, KeyPackages: [][]byte{{1, 2}, {3}}}}},
 		{"a262696402677061796c6f6164a1704b65795061636b61676573436c61696da2696465766963655f69644204046b6964656e746974795f69644409090909", Frame{ID: 2, Payload: Payload{Kind: KindKeyPackagesClaim, IdentityID: []byte{9, 9, 9, 9}, DeviceID: []byte{4, 4}}}},
 		{"a262696402677061796c6f6164a1714b65795061636b616765436c61696d6564a16b6b65795f7061636b616765420102", Frame{ID: 2, Payload: Payload{Kind: KindKeyPackageClaimed, KeyPackage: []byte{1, 2}}}},
+		{"a26269640a677061796c6f6164714b65795061636b61676573537461747573", Frame{ID: 10, Payload: Payload{Kind: KindKeyPackagesStatus}}},
+		{"a26269640a677061796c6f6164a1744b65795061636b61676573417661696c61626c65a165636f756e7403", Frame{ID: 10, Payload: Payload{Kind: KindKeyPackagesAvail, Count: 3}}},
 	}
 	for _, v := range vectors {
 		want, _ := hex.DecodeString(v.hex)
@@ -309,7 +311,8 @@ func TestCodecMatchesRustVectorsKeyPackages(t *testing.T) {
 		}
 		dec, err := Decode(want)
 		if err != nil || dec.Payload.Kind != v.frame.Payload.Kind || len(dec.Payload.KeyPackages) != len(v.frame.Payload.KeyPackages) ||
-			!bytes.Equal(dec.Payload.KeyPackage, v.frame.Payload.KeyPackage) || !bytes.Equal(dec.Payload.IdentityID, v.frame.Payload.IdentityID) {
+			!bytes.Equal(dec.Payload.KeyPackage, v.frame.Payload.KeyPackage) || !bytes.Equal(dec.Payload.IdentityID, v.frame.Payload.IdentityID) ||
+			dec.Payload.Count != v.frame.Payload.Count {
 			t.Errorf("%s: decode mismatch (%v): %+v", v.frame.Payload.Kind, err, dec.Payload)
 		}
 	}

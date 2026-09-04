@@ -433,13 +433,73 @@ fn roster_message<C: MlsConfig>(
         .map_err(err("mls encode"))
 }
 
-fn single_conversation(s: &Session) -> Result<Conversation, CliError> {
-    s.client
-        .conversations()
-        .map_err(err("conversations"))?
-        .into_iter()
-        .next()
-        .ok_or_else(|| CliError("no conversation; run `chat start` or `chat sync` first".into()))
+/// Pick the conversation a command acts on (M4.7).
+///
+/// With one conversation nothing has to be said. With several, a hex prefix
+/// of the group id selects one, and anything ambiguous is refused with the
+/// candidates rather than guessed.
+fn select_conversation(s: &Session, prefix: Option<&str>) -> Result<Conversation, CliError> {
+    let all = s.client.conversations().map_err(err("conversations"))?;
+    if all.is_empty() {
+        return Err(CliError(
+            "no conversation; run `chat start` or `chat sync` first".into(),
+        ));
+    }
+    let describe = |list: &[Conversation]| {
+        list.iter()
+            .map(|c| hex::encode(&c.group_id[..6]))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    match prefix {
+        None if all.len() == 1 => Ok(all.into_iter().next().expect("one conversation")),
+        None => Err(CliError(format!(
+            "{} conversations here; choose one with --group <prefix>: {}",
+            all.len(),
+            describe(&all)
+        ))),
+        Some(p) => {
+            let p = p.trim().to_ascii_lowercase();
+            let matches: Vec<Conversation> = all
+                .into_iter()
+                .filter(|c| hex::encode(&c.group_id).starts_with(&p))
+                .collect();
+            match matches.len() {
+                1 => Ok(matches.into_iter().next().expect("one match")),
+                0 => Err(CliError(format!("no conversation starts with {p}"))),
+                _ => Err(CliError(format!(
+                    "{p} matches {} conversations: {}",
+                    matches.len(),
+                    describe(&matches)
+                ))),
+            }
+        }
+    }
+}
+
+/// `arveil chat list --data-dir D`
+pub fn list(data_dir: &Path) -> Result<(), CliError> {
+    let (s, _engine) = session(data_dir)?;
+    let all = s.client.conversations().map_err(err("conversations"))?;
+    if all.is_empty() {
+        println!("conversations: none yet");
+        return Ok(());
+    }
+    for c in all {
+        let events = s.delivery.events(&c.group_id).map_err(err("events"))?;
+        let last = events
+            .last()
+            .map(|(_, kind, body)| format!("{kind}: {}", String::from_utf8_lossy(body)))
+            .unwrap_or_else(|| "no messages yet".into());
+        println!(
+            "{} ({}, {} peer device(s), {} event(s)) {last}",
+            hex::encode(&c.group_id),
+            if c.creator { "creator" } else { "member" },
+            c.peers.len(),
+            events.len()
+        );
+    }
+    Ok(())
 }
 
 /// `arveil chat start --data-dir D <bootstrap> <peer-route>...`
@@ -509,11 +569,16 @@ pub fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result<(
 }
 
 /// `arveil chat add --data-dir D <bootstrap> <peer-route>` (creator only)
-pub fn add(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), CliError> {
+pub fn add(
+    data_dir: &Path,
+    bootstrap: &str,
+    peer_route: &str,
+    group: Option<&str>,
+) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let newcomer = parse_route(peer_route)?;
     let (s, engine) = session(data_dir)?;
-    let conv = single_conversation(&s)?;
+    let conv = select_conversation(&s, group)?;
     let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
 
     block_on(async {
@@ -574,11 +639,16 @@ pub fn add(data_dir: &Path, bootstrap: &str, peer_route: &str) -> Result<(), Cli
 /// manifest it verified under that identity's root. A device that is not
 /// revoked is never removed this way: revocation is the authority, the
 /// commit only enacts it.
-pub fn remove(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<(), CliError> {
+pub fn remove(
+    data_dir: &Path,
+    bootstrap: &str,
+    device_hex: &str,
+    group: Option<&str>,
+) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let device_id = hex::decode(device_hex).map_err(err("device id"))?;
     let (s, engine) = session(data_dir)?;
-    let conv = single_conversation(&s)?;
+    let conv = select_conversation(&s, group)?;
     if !conv
         .peers
         .iter()
@@ -636,10 +706,15 @@ pub fn remove(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<(), 
 }
 
 /// `arveil chat send --data-dir D <bootstrap> <text>`
-pub fn send(data_dir: &Path, bootstrap: &str, text: &str) -> Result<(), CliError> {
+pub fn send(
+    data_dir: &Path,
+    bootstrap: &str,
+    text: &str,
+    group: Option<&str>,
+) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let (s, engine) = session(data_dir)?;
-    let conv = single_conversation(&s)?;
+    let conv = select_conversation(&s, group)?;
     let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
     guard_revoked(&conv, &group)?;
     let event_id = random_delivery_id()?;
@@ -838,6 +913,7 @@ pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
         // acceptable once this device has verified the manifest that
         // revoked it.
         refresh_manifests(&s, &mut conn).await?;
+        replenish_key_packages(&s, &mut conn).await?;
         let cursor = s.delivery.cursor(&m.mailbox_id).map_err(err("cursor"))? as u64;
         let (items, _fetched_next) = match conn
             .request(Payload::EnvelopeFetch {
@@ -1080,6 +1156,41 @@ pub fn revoke(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<(), 
     })?
 }
 
+/// Top up the KeyPackages the realm holds for this device (M4.6).
+///
+/// Each is consumed by one person starting a conversation with this device.
+/// Without this, the batch published at enrolment runs out and the next
+/// person is refused, which looks like a broken realm rather than an empty
+/// shelf.
+async fn replenish_key_packages(s: &Session, conn: &mut Connection) -> Result<(), CliError> {
+    const FLOOR: u32 = 3;
+    const TARGET: u32 = 10;
+    let available = match conn.request(Payload::KeyPackagesStatus).await? {
+        Payload::KeyPackagesAvailable { count } => count,
+        other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+    };
+    if available > FLOOR {
+        return Ok(());
+    }
+    let engine = mls::open(s.client.conn.clone(), s.device.mls_identity());
+    let mut key_packages = Vec::new();
+    for _ in 0..(TARGET - available) {
+        let kp = engine.key_package().map_err(err("key package"))?;
+        key_packages.push(serde_bytes::ByteBuf::from(
+            kp.to_bytes().map_err(err("key package"))?,
+        ));
+    }
+    let n = key_packages.len();
+    match conn
+        .request(Payload::KeyPackagesPublish { key_packages })
+        .await?
+    {
+        Payload::Ack => println!("key packages: {available} left at the realm, {n} more published"),
+        other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+    }
+    Ok(())
+}
+
 /// `arveil chat history --data-dir D`
 pub fn history(data_dir: &Path) -> Result<(), CliError> {
     let (s, _engine) = session(data_dir)?;
@@ -1105,7 +1216,10 @@ pub fn history(data_dir: &Path) -> Result<(), CliError> {
                 .iter()
                 .map(|p| format!(
                     "{}/{}{}{}{}",
-                    hex::encode(&p.identity[..4]),
+                    match s.client.contact(&p.identity) {
+                        Ok(Some(c)) => c.label(),
+                        _ => hex::encode(&p.identity[..4]),
+                    },
                     hex::encode(&p.device_id[..4]),
                     if p.identity == s.identity_id {
                         " (own)"
@@ -1195,10 +1309,15 @@ fn blob_expiry() -> u64 {
 /// Encrypts the whole file with a fresh FileKey, uploads the ciphertext in
 /// chunks, commits it with its hash, then sends the descriptor inside MLS
 /// exactly like a text message (same send unit, same fan-out).
-pub fn send_file(data_dir: &Path, bootstrap: &str, path: &Path) -> Result<(), CliError> {
+pub fn send_file(
+    data_dir: &Path,
+    bootstrap: &str,
+    path: &Path,
+    group: Option<&str>,
+) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let (s, engine) = session(data_dir)?;
-    let conv = single_conversation(&s)?;
+    let conv = select_conversation(&s, group)?;
     let plaintext = std::fs::read(path).map_err(err("read file"))?;
     let name = path
         .file_name()

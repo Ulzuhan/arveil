@@ -297,6 +297,23 @@ pub fn status(data_dir: &Path) -> Result<(), CliError> {
     Ok(())
 }
 
+/// Pull `--name value` out of the arguments, leaving the rest in order.
+pub fn flag_arg(args: &[String], flag: &str) -> (Option<String>, Vec<String>) {
+    let mut value = None;
+    let mut rest = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        if args[i] == flag && i + 1 < args.len() {
+            value = Some(args[i + 1].clone());
+            i += 2;
+        } else {
+            rest.push(args[i].clone());
+            i += 1;
+        }
+    }
+    (value, rest)
+}
+
 pub fn data_dir_arg(args: &[String]) -> (Option<PathBuf>, Vec<String>) {
     let mut dir = None;
     let mut rest = Vec::new();
@@ -630,12 +647,16 @@ pub fn contact_list(data_dir: &Path) -> Result<(), CliError> {
             .safety_number_with(&contact.identity_id)
             .map_err(err("safety number"))?;
         println!(
-            "contact {} [{}]",
+            "contact {} [{}]{}",
             hex::encode(&contact.identity_id),
             if contact.verified {
                 "verified"
             } else {
                 "not verified"
+            },
+            match &contact.name {
+                Some(n) => format!(" {n}"),
+                None => String::new(),
             }
         );
         println!("  safety number: {number}");
@@ -703,4 +724,24 @@ pub fn notify_set(data_dir: &Path, bootstrap: &str, url: &str) -> Result<(), Cli
         conn.close().await;
         Ok::<_, CliError>(())
     })?
+}
+
+/// `arveil contact name --data-dir D <identity-id> <name>`
+///
+/// A local label, to stop reading hexadecimal. It never leaves this device
+/// and never authenticates anybody: the safety number does that.
+pub fn contact_name(data_dir: &Path, identity_hex: &str, name: &str) -> Result<(), CliError> {
+    let c = open_client(data_dir)?;
+    let identity = hex::decode(identity_hex).map_err(err("identity id"))?;
+    c.contact_rename(&identity, name).map_err(err("contact"))?;
+    if name.trim().is_empty() {
+        println!("contact {}: name removed", hex::encode(&identity));
+    } else {
+        println!(
+            "contact {}: shown as {} on this device only",
+            hex::encode(&identity),
+            name.trim()
+        );
+    }
+    Ok(())
 }

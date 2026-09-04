@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/Ulzuhan/arveil/relay/internal/endpoints"
+	"github.com/Ulzuhan/arveil/relay/internal/limits"
+	"github.com/Ulzuhan/arveil/relay/internal/metrics"
 	"github.com/Ulzuhan/arveil/relay/internal/realm"
 	"github.com/Ulzuhan/arveil/relay/internal/server"
 	"github.com/Ulzuhan/arveil/relay/internal/store"
@@ -29,8 +31,17 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "invite" {
-		os.Exit(inviteCommand(os.Args[2:]))
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "invite":
+			os.Exit(inviteCommand(os.Args[2:]))
+		case "backup":
+			os.Exit(backupCommand(os.Args[2:]))
+		case "restore":
+			os.Exit(restoreCommand(os.Args[2:]))
+		case "healthcheck":
+			os.Exit(healthcheckCommand(os.Args[2:]))
+		}
 	}
 	serve()
 }
@@ -66,6 +77,37 @@ func inviteCommand(args []string) int {
 	return 0
 }
 
+// healthcheckCommand asks the admin listener whether the relay is usable.
+// It exists so a container image without a shell can still have a health
+// check: the binary is the only thing in there.
+func healthcheckCommand(args []string) int {
+	fs := flag.NewFlagSet("healthcheck", flag.ContinueOnError)
+	admin := fs.String("admin", "http://127.0.0.1:9090", "admin listener to ask")
+	timeout := fs.Duration("timeout", 3*time.Second, "how long to wait")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(*admin, "/")+server.HealthPath, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "healthcheck: %v\n", err)
+		return 2
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "healthcheck: %v\n", err)
+		return 1
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "healthcheck: status %d\n", resp.StatusCode)
+		return 1
+	}
+	fmt.Println("ok")
+	return 0
+}
+
 func serve() {
 	var (
 		dataDir     = flag.String("data-dir", "./data", "directory holding realm.db, blobs/ and server-secrets/")
@@ -74,6 +116,16 @@ func serve() {
 		sweepEvery  = flag.Duration("sweep-interval", 5*time.Minute, "how often expired envelopes, invites, blobs and pairings are removed")
 		pairTTL     = flag.Duration("pair-ttl", store.DefaultPairTTL, "how long a pairing rendezvous stays open")
 		showVersion = flag.Bool("version", false, "print version and exit")
+
+		adminListen = flag.String("admin-listen", "", "address for /healthz and /metrics (empty: not served); keep it off the tunnel")
+		tlsCert     = flag.String("tls-cert", "", "certificate for serving wss:// directly (empty: plain ws, TLS is the carrier's job)")
+		tlsKey      = flag.String("tls-key", "", "private key matching -tls-cert")
+
+		maxConns     = flag.Int("max-conns", limits.Default().MaxTotal, "concurrent channels on the whole relay (0: unlimited)")
+		maxPerAddr   = flag.Int("max-conns-per-addr", limits.Default().MaxPerAddr, "concurrent channels from one address (0: unlimited)")
+		maxPairings  = flag.Int("max-pairings-per-addr", limits.Default().PairingsPerAddr, "pairing rendezvous one address may open per window (0: unlimited)")
+		pairWindow   = flag.Duration("pairing-window", limits.Default().PairingWindow, "window for -max-pairings-per-addr")
+		trustForward = flag.Bool("trust-forwarded-for", false, "read the client address from X-Forwarded-For; only with a proxy of yours that overwrites it")
 	)
 	flag.Parse()
 
@@ -102,7 +154,7 @@ func serve() {
 		logger.Fatalf("endpoint sequence: %v", err)
 	}
 
-	eps, err := parseAdvertise(*advertise, *listen)
+	eps, err := parseAdvertise(*advertise, *listen, *tlsCert != "")
 	if err != nil {
 		logger.Fatalf("advertise: %v", err)
 	}
@@ -118,14 +170,21 @@ func serve() {
 	}
 
 	srv := &server.Server{
-		Identity:     id,
-		Store:        st,
-		Blobs:        blobs,
-		SignedList:   signed,
-		Logger:       logger,
-		PairTTL:      *pairTTL,
-		ReadTimeout:  90 * time.Second,
-		HandshakeTTL: 10 * time.Second,
+		Identity:   id,
+		Store:      st,
+		Blobs:      blobs,
+		SignedList: signed,
+		Logger:     logger,
+		PairTTL:    *pairTTL,
+		Limits: limits.New(limits.Config{
+			MaxTotal:        *maxConns,
+			MaxPerAddr:      *maxPerAddr,
+			PairingsPerAddr: *maxPairings,
+			PairingWindow:   *pairWindow,
+		}),
+		TrustForwardedFor: *trustForward,
+		ReadTimeout:       90 * time.Second,
+		HandshakeTTL:      10 * time.Second,
 	}
 
 	ln, err := net.Listen("tcp", *listen)
@@ -151,6 +210,8 @@ func serve() {
 			if err != nil {
 				logger.Printf("pairing sweep failed")
 			}
+			metrics.EnvelopesSwept.Add(r.Envelopes)
+			metrics.BlobsSwept.Add(nb)
 			if r.Envelopes > 0 || r.Invites > 0 || nb > 0 || np > 0 {
 				logger.Printf("sweep: %d envelope(s), %d invite(s), %d blob(s), %d pairing(s) removed", r.Envelopes, r.Invites, nb, np)
 			}
@@ -166,18 +227,47 @@ func serve() {
 		eps[0].URL)
 	logger.Printf("listening on %s, endpoint list sequence %d", ln.Addr(), seq)
 
+	// Health and metrics on their own listener, only when asked for.
+	if *adminListen != "" {
+		adminLn, err := net.Listen("tcp", *adminListen)
+		if err != nil {
+			logger.Fatalf("admin listen: %v", err)
+		}
+		adminSrv := &http.Server{Handler: srv.AdminHandler(), ReadHeaderTimeout: 5 * time.Second}
+		go func() {
+			if err := adminSrv.Serve(adminLn); err != nil && err != http.ErrServerClosed {
+				logger.Printf("admin listener stopped")
+			}
+		}()
+		logger.Printf("admin listening on %s (%s, %s)", adminLn.Addr(), server.HealthPath, server.MetricsPath)
+	}
+
 	httpSrv := &http.Server{
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
-		logger.Fatalf("serve: %v", err)
+	var serveErr error
+	if *tlsCert != "" {
+		// TLS served here, for a realm reached directly instead of through
+		// a tunnel that terminates it. The Noise channel protects the
+		// content either way; this only protects the metadata a passive
+		// observer of the network would otherwise see.
+		serveErr = httpSrv.ServeTLS(ln, *tlsCert, *tlsKey)
+	} else {
+		serveErr = httpSrv.Serve(ln)
+	}
+	if serveErr != nil && serveErr != http.ErrServerClosed {
+		logger.Fatalf("serve: %v", serveErr)
 	}
 }
 
-func parseAdvertise(spec, listen string) ([]endpoints.Endpoint, error) {
+func parseAdvertise(spec, listen string, tls bool) ([]endpoints.Endpoint, error) {
 	if spec == "" {
-		return []endpoints.Endpoint{{Kind: endpoints.KindLAN, URL: "ws://" + listen + server.ChannelPath, Priority: 0}}, nil
+		scheme := "ws://"
+		if tls {
+			scheme = "wss://"
+		}
+		return []endpoints.Endpoint{{Kind: endpoints.KindLAN, URL: scheme + listen + server.ChannelPath, Priority: 0}}, nil
 	}
 	var out []endpoints.Endpoint
 	for i, item := range strings.Split(spec, ",") {

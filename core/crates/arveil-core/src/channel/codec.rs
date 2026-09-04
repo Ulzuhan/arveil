@@ -147,6 +147,12 @@ pub enum Payload {
     KeyPackagesPublish {
         key_packages: Vec<serde_bytes::ByteBuf>,
     },
+    /// How many KeyPackages the realm still holds for this session's
+    /// device, so the client can top them up before they run out (M4.6).
+    KeyPackagesStatus,
+    KeyPackagesAvailable {
+        count: u32,
+    },
     /// Claim one KeyPackage of one device of an identity (consumed
     /// atomically). An empty `device_id` accepts any device (Phase 1 use).
     KeyPackagesClaim {
@@ -388,6 +394,14 @@ mod vector_dump {
                 payload: Payload::NotifyHintSet {
                     url: "https://example.invalid/x".into(),
                 },
+            },
+            Frame {
+                id: 10,
+                payload: Payload::KeyPackagesStatus,
+            },
+            Frame {
+                id: 10,
+                payload: Payload::KeyPackagesAvailable { count: 3 },
             },
         ];
         for f in &frames {

@@ -1,0 +1,39 @@
+# A realm on one machine, with its data on a named volume.
+#
+#   docker compose -f relay/compose.yaml up -d
+#   docker compose -f relay/compose.yaml logs --no-log-prefix arveil-relay | head -1   # bootstrap
+#   docker compose -f relay/compose.yaml exec arveil-relay /arveil-relay invite -data-dir /data
+#
+# The channel port is the only one anything outside needs. The admin
+# listener stays on loopback inside the container: put it behind nothing.
+services:
+  arveil-relay:
+    build:
+      context: ..
+      dockerfile: relay/Dockerfile
+    image: arveil-relay:local
+    restart: unless-stopped
+    command:
+      - -data-dir=/data
+      - -listen=0.0.0.0:8447
+      - -admin-listen=127.0.0.1:9090
+      # Replace with the address your family actually reaches, otherwise
+      # clients are handed a URL that only works inside the container.
+      - -advertise=lan=ws://127.0.0.1:8447/v1/channel
+    ports:
+      - "127.0.0.1:8447:8447"
+    volumes:
+      - arveil-data:/data
+    healthcheck:
+      test: ["CMD", "/arveil-relay", "healthcheck", "-admin", "http://127.0.0.1:9090"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  arveil-data:

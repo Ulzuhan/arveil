@@ -9,6 +9,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -425,6 +427,20 @@ func (s *Store) PutCredential(ctx context.Context, e Enrollment) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// BackupTo writes a consistent copy of the database to path while the relay
+// keeps serving. `VACUUM INTO` reads one transaction, so the copy is a point
+// in time under WAL, and it never blocks writers for the whole file.
+func (s *Store) BackupTo(ctx context.Context, path string) error {
+	if strings.ContainsAny(path, "'\x00") {
+		return fmt.Errorf("backup path must not contain quotes or NUL")
+	}
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("%s already exists", path)
+	}
+	_, err := s.db.ExecContext(ctx, "VACUUM INTO '"+path+"'")
+	return err
 }
 
 // Count is a test and diagnostics helper.

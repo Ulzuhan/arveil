@@ -13,12 +13,16 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
 
 	"github.com/Ulzuhan/arveil/relay/internal/channel"
+	"github.com/Ulzuhan/arveil/relay/internal/limits"
+	"github.com/Ulzuhan/arveil/relay/internal/metrics"
 	"github.com/Ulzuhan/arveil/relay/internal/realm"
 	"github.com/Ulzuhan/arveil/relay/internal/store"
 )
@@ -37,6 +41,13 @@ type Server struct {
 	PairTTL      time.Duration
 	ReadTimeout  time.Duration // per message; keepalive pings must arrive within it
 	HandshakeTTL time.Duration
+	// Limits bounds what one address can take. Nil allows everything.
+	Limits *limits.Gate
+	// TrustForwardedFor reads the client address from X-Forwarded-For.
+	// Only turn it on when the proxy in front is yours and overwrites that
+	// header, otherwise a client sets its own address and the limits stop
+	// meaning anything.
+	TrustForwardedFor bool
 }
 
 // Handler returns the HTTP handler mounting the channel route.
@@ -46,7 +57,36 @@ func (s *Server) Handler() http.Handler {
 	return mux
 }
 
+// clientAddr is what the limits are keyed on: the peer address, or the
+// first entry of X-Forwarded-For when the operator says the proxy is theirs.
+func (s *Server) clientAddr(r *http.Request) string {
+	if s.TrustForwardedFor {
+		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+			if first, _, found := strings.Cut(fwd, ","); found {
+				return strings.TrimSpace(first)
+			}
+			return strings.TrimSpace(fwd)
+		}
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
 func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
+	addr := s.clientAddr(r)
+	release, ok := s.Limits.Acquire(addr)
+	if !ok {
+		metrics.ConnectionsRefused.Add(1)
+		// The address is not logged: a refusal says a limit bit, not who.
+		s.Logger.Printf("connection refused by a limit")
+		http.Error(w, "too many connections", http.StatusTooManyRequests)
+		return
+	}
+	defer release()
+	metrics.ConnectionsTotal.Add(1)
+
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		// Native clients send no Origin; browsers are not a supported client.
 		OriginPatterns: nil,
@@ -61,6 +101,7 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	ch, sess, err := s.handshake(ctx, c)
 	if err != nil {
+		metrics.HandshakesFailed.Add(1)
 		// Deliberately terse: no identifiers, no key material in logs.
 		s.Logger.Printf("handshake failed")
 		c.Close(websocket.StatusPolicyViolation, "handshake")
@@ -78,6 +119,8 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			continue
 		}
+		sess.addr = addr
+		metrics.FramesHandled.Add(1)
 		reply := s.dispatchSession(ctx, sess, frame, time.Now())
 		if err := s.writeFrame(ctx, c, ch, reply); err != nil {
 			return

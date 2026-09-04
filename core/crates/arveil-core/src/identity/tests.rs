@@ -185,7 +185,8 @@ mod contacts {
             Some(Contact {
                 identity_id: them.to_vec(),
                 root_public: vec![4; 32],
-                verified: true
+                verified: true,
+                name: None
             })
         );
         // The same identity arriving with a different root is refused, and
@@ -196,6 +197,16 @@ mod contacts {
         };
         assert!(c.conversation_save(&forged).is_err());
         assert_eq!(c.contact(&them).unwrap().unwrap().root_public, vec![4; 32]);
+        // A local name changes what is shown and nothing else.
+        c.contact_rename(&them, "  Ana  ").unwrap();
+        let named = c.contact(&them).unwrap().unwrap();
+        assert_eq!(named.name.as_deref(), Some("Ana"));
+        assert_eq!(named.label(), "Ana");
+        assert_eq!(c.safety_number_with(&them).unwrap(), number);
+        c.contact_rename(&them, "").unwrap();
+        assert_eq!(c.contact(&them).unwrap().unwrap().name, None);
+        assert!(c.contact_rename(&[0u8; 32], "nadie").is_err());
+
         // Before verification, a changed root is accepted and shown as new.
         let other = [10u8; 32];
         c.conversation_save(&Conversation {

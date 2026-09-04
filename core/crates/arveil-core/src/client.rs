@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS outgoing_files (
 CREATE TABLE IF NOT EXISTS contacts (
     identity_id BLOB PRIMARY KEY,
     root_public BLOB NOT NULL,
+    name        TEXT,
     verified    INTEGER NOT NULL DEFAULT 0,
     verified_at INTEGER,
     first_seen  INTEGER NOT NULL DEFAULT (unixepoch())
@@ -216,6 +217,19 @@ pub struct Contact {
     pub identity_id: Vec<u8>,
     pub root_public: Vec<u8>,
     pub verified: bool,
+    /// A local label. It never travels, never authenticates anything and
+    /// never takes part in a check: the safety number does that (M4.8).
+    pub name: Option<String>,
+}
+
+impl Contact {
+    /// What to show: the name if there is one, else a short identity.
+    pub fn label(&self) -> String {
+        match &self.name {
+            Some(n) => n.clone(),
+            None => hex_of(&self.identity_id[..4.min(self.identity_id.len())]),
+        }
+    }
 }
 
 /// Safety number over two root keys (M3.2): eight groups of five digits,
@@ -810,13 +824,14 @@ impl Client {
     pub fn contacts(&self) -> Result<Vec<Contact>, ClientError> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT identity_id, root_public, verified FROM contacts ORDER BY first_seen, identity_id",
+            "SELECT identity_id, root_public, verified, name FROM contacts ORDER BY first_seen, identity_id",
         )?;
         let rows = stmt.query_map([], |r| {
             Ok(Contact {
                 identity_id: r.get(0)?,
                 root_public: r.get(1)?,
                 verified: r.get::<_, i64>(2)? != 0,
+                name: r.get(3)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -838,6 +853,23 @@ impl Client {
             .contact(identity)?
             .ok_or_else(|| ClientError::NoSuchContact(hex_of(identity)))?;
         Ok(safety_number(own.as_bytes(), &c.root_public))
+    }
+
+    /// Give a contact a local name, or remove it with an empty string.
+    pub fn contact_rename(&self, identity: &[u8], name: &str) -> Result<(), ClientError> {
+        if self.contact(identity)?.is_none() {
+            return Err(ClientError::NoSuchContact(hex_of(identity)));
+        }
+        let value = if name.trim().is_empty() {
+            None
+        } else {
+            Some(name.trim().to_string())
+        };
+        self.conn.lock().execute(
+            "UPDATE contacts SET name = ?2 WHERE identity_id = ?1",
+            params![identity, value],
+        )?;
+        Ok(())
     }
 
     /// Pin a contact after the two of you read the same number aloud.

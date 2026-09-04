@@ -6,6 +6,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Ulzuhan/arveil/relay/internal/metrics"
+
 	"github.com/Ulzuhan/arveil/relay/internal/channel"
 	"github.com/Ulzuhan/arveil/relay/internal/identity"
 	"github.com/Ulzuhan/arveil/relay/internal/store"
@@ -19,6 +21,9 @@ import (
 type session struct {
 	remoteStatic []byte
 	device       *store.Device // nil while provisional
+	// addr is what the per-address limits are keyed on. It never reaches
+	// the database and never reaches a log line.
+	addr string
 }
 
 func (s *session) member() bool { return s.device != nil }
@@ -62,7 +67,7 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 	case channel.KindNotifyHintSet:
 		return srv.notifyHintSet(ctx, s, f, now)
 	case channel.KindPairBegin:
-		return srv.pairBegin(ctx, f, now)
+		return srv.pairBegin(ctx, s, f, now)
 	case channel.KindPairPut:
 		return srv.pairPut(ctx, f, now)
 	case channel.KindPairGet:
@@ -79,6 +84,8 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.blobResume(ctx, s, f)
 	case channel.KindKeyPackagesPublish:
 		return srv.keyPackagesPublish(ctx, s, f, now)
+	case channel.KindKeyPackagesStatus:
+		return srv.keyPackagesStatus(ctx, s, f)
 	case channel.KindKeyPackagesClaim:
 		return srv.keyPackagesClaim(ctx, s, f)
 	case channel.KindMailboxCreate:
@@ -231,17 +238,26 @@ func (srv *Server) notifyHintSet(ctx context.Context, s *session, f channel.Fram
 // Pairing rendezvous (M3.1). A provisional session may use these frames:
 // the device being paired has no credential yet. The capability is the only
 // authorization, and the realm never learns what the blobs mean.
-func (srv *Server) pairBegin(ctx context.Context, f channel.Frame, now time.Time) channel.Frame {
+func (srv *Server) pairBegin(ctx context.Context, s *session, f channel.Frame, now time.Time) channel.Frame {
 	if srv.Store == nil {
 		return errFrame(f.ID, channel.CodeInternal, "no store")
 	}
+	// The one surface a stranger can touch: bounded per address before the
+	// global cap, so one address cannot take everyone else's pairings.
+	if !srv.Limits.AllowPairing(s.addr, now) {
+		metrics.PairingsRefused.Add(1)
+		srv.Logger.Printf("pairing refused by a per-address limit")
+		return errFrame(f.ID, channel.CodeQuota, "too many pairings from this address; wait and try again")
+	}
 	id, capability, expires, err := srv.Store.BeginPair(ctx, now, srv.PairTTL)
 	if errors.Is(err, store.ErrPairBusy) {
+		metrics.PairingsRefused.Add(1)
 		return errFrame(f.ID, channel.CodeQuota, "too many pairings in progress")
 	}
 	if err != nil {
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
+	metrics.PairingsOpened.Add(1)
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{
 		Kind: channel.KindPairStarted, PairID: id, Capability: capability, ExpiresAt: uint64(expires),
 	}}

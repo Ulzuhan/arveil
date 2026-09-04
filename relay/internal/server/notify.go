@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"net/http"
+
+	"github.com/Ulzuhan/arveil/relay/internal/metrics"
 	"net/url"
 	"strings"
 	"time"
@@ -52,11 +54,13 @@ func (srv *Server) sendHint(target string) {
 	req.Header.Set("User-Agent", "arveil-relay")
 	resp, err := (&http.Client{Timeout: HintTimeout}).Do(req)
 	if err != nil {
+		metrics.HintsFailed.Add(1)
 		// The endpoint is not named in the log: it belongs to the member.
 		srv.Logger.Printf("notification hint failed")
 		return
 	}
 	resp.Body.Close()
+	metrics.HintsSent.Add(1)
 	srv.Logger.Printf("notification hint sent")
 }
 

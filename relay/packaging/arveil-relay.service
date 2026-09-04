@@ -1,0 +1,55 @@
+# systemd unit for a realm on a home server.
+#
+#   sudo useradd --system --home /var/lib/arveil --shell /usr/sbin/nologin arveil
+#   sudo install -m0755 arveil-relay /usr/local/bin/arveil-relay
+#   sudo install -m0644 arveil-relay.service /etc/systemd/system/
+#   sudo systemctl enable --now arveil-relay
+#
+# The data directory is created by systemd as /var/lib/arveil. Back it up
+# with `arveil-relay backup`; it holds the realm's private keys.
+[Unit]
+Description=Arveil realm relay
+Documentation=https://ulzuhan.github.io/arveil/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=arveil
+Group=arveil
+StateDirectory=arveil
+StateDirectoryMode=0700
+ExecStart=/usr/local/bin/arveil-relay \
+    -data-dir /var/lib/arveil \
+    -listen 127.0.0.1:8447 \
+    -admin-listen 127.0.0.1:9090
+Restart=on-failure
+RestartSec=5s
+
+# It needs to read its data directory, listen on a port and reach a
+# notification endpoint if one is configured. Nothing else.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
