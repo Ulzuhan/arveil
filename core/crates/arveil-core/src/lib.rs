@@ -11,6 +11,8 @@
 
 pub mod channel;
 pub mod client;
+pub mod delivery;
+pub mod envelope;
 pub mod identity;
 pub mod mls;
 pub mod signed;

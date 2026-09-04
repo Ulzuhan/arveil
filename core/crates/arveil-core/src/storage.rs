@@ -40,12 +40,6 @@ CREATE TABLE IF NOT EXISTS mls_psk (
     id  BLOB PRIMARY KEY,
     psk BLOB NOT NULL
 );
-CREATE TABLE IF NOT EXISTS outbox (
-    id         INTEGER PRIMARY KEY,
-    group_id   BLOB NOT NULL,
-    ciphertext BLOB NOT NULL,
-    created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
 ";
 
 #[derive(Debug, thiserror::Error)]
@@ -148,11 +142,12 @@ mod tests {
     #[test]
     fn unit_of_work_commits_or_rolls_back() {
         let conn = SharedConn::open_in_memory().unwrap();
+        conn.lock()
+            .execute_batch("CREATE TABLE scratch (v BLOB)")
+            .unwrap();
         let insert = |c: &SharedConn| {
-            c.lock().execute(
-                "INSERT INTO outbox (group_id, ciphertext) VALUES (x'01', x'02')",
-                [],
-            )
+            c.lock()
+                .execute("INSERT INTO scratch (v) VALUES (x'01')", [])
         };
 
         let failed: Result<(), rusqlite::Error> = conn.unit_of_work(|c| {
@@ -160,9 +155,9 @@ mod tests {
             Err(rusqlite::Error::InvalidQuery)
         });
         assert!(failed.is_err());
-        assert_eq!(conn.count("outbox").unwrap(), 0);
+        assert_eq!(conn.count("scratch").unwrap(), 0);
 
         conn.unit_of_work(|c| insert(c).map(|_| ())).unwrap();
-        assert_eq!(conn.count("outbox").unwrap(), 1);
+        assert_eq!(conn.count("scratch").unwrap(), 1);
     }
 }

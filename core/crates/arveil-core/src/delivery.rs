@@ -1,0 +1,220 @@
+//! Durable outbox and inbox (DOMAIN_MODEL §5, invariants I-04 and I-05).
+//!
+//! **Send unit**: the caller opens one unit of work, advances MLS
+//! (`write_to_storage`), records the local event and enqueues one outbox row
+//! per recipient device with the *sealed bytes*. Nothing is sent before that
+//! transaction commits; retransmissions reuse the stored bytes and never
+//! re-run MLS encryption from an older state.
+//!
+//! **Receive unit**: the caller opens one unit of work, records the delivery
+//! in the inbox (deduplication), processes the MLS message and stores the
+//! event. Only after the commit is the relay ACKed. A duplicate delivery is
+//! detected before any MLS processing.
+
+use rusqlite::{OptionalExtension, params};
+
+use crate::storage::SharedConn;
+
+pub const DELIVERY_SCHEMA: &str = "
+CREATE TABLE IF NOT EXISTS outbox (
+    id          INTEGER PRIMARY KEY,
+    mailbox_id  BLOB NOT NULL,
+    delivery_id BLOB NOT NULL,
+    hpke_enc    BLOB NOT NULL,
+    ciphertext  BLOB NOT NULL,
+    state       TEXT NOT NULL DEFAULT 'sealed',
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE (mailbox_id, delivery_id)
+);
+CREATE TABLE IF NOT EXISTS inbox (
+    mailbox_id  BLOB NOT NULL,
+    delivery_id BLOB NOT NULL,
+    seq         INTEGER NOT NULL,
+    received_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    acked       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (mailbox_id, delivery_id)
+);
+CREATE TABLE IF NOT EXISTS mailbox_cursor (
+    mailbox_id BLOB PRIMARY KEY,
+    cursor     INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS events (
+    id         INTEGER PRIMARY KEY,
+    group_id   BLOB NOT NULL,
+    event_id   BLOB NOT NULL UNIQUE,
+    kind       TEXT NOT NULL,
+    body       BLOB NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+";
+
+/// One sealed envelope waiting for, or accepted by, the relay.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OutboxRow {
+    pub id: i64,
+    pub mailbox_id: Vec<u8>,
+    pub delivery_id: Vec<u8>,
+    pub hpke_enc: Vec<u8>,
+    pub ciphertext: Vec<u8>,
+    pub state: String,
+    pub attempts: i64,
+}
+
+pub struct Delivery {
+    conn: SharedConn,
+}
+
+impl Delivery {
+    pub fn open(conn: SharedConn) -> Result<Self, rusqlite::Error> {
+        conn.lock().execute_batch(DELIVERY_SCHEMA)?;
+        Ok(Self { conn })
+    }
+
+    /// Enqueue one sealed envelope. Call inside the send unit of work.
+    pub fn enqueue(
+        &self,
+        mailbox_id: &[u8],
+        delivery_id: &[u8],
+        hpke_enc: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<(), rusqlite::Error> {
+        self.conn.lock().execute(
+            "INSERT INTO outbox (mailbox_id, delivery_id, hpke_enc, ciphertext) VALUES (?1, ?2, ?3, ?4)",
+            params![mailbox_id, delivery_id, hpke_enc, ciphertext],
+        )?;
+        Ok(())
+    }
+
+    /// Record a local event. Call inside the send or receive unit of work.
+    pub fn record_event(
+        &self,
+        group_id: &[u8],
+        event_id: &[u8],
+        kind: &str,
+        body: &[u8],
+    ) -> Result<(), rusqlite::Error> {
+        self.conn.lock().execute(
+            "INSERT INTO events (group_id, event_id, kind, body) VALUES (?1, ?2, ?3, ?4)",
+            params![group_id, event_id, kind, body],
+        )?;
+        Ok(())
+    }
+
+    /// Rows still to be published, oldest first. The bytes are the ones to
+    /// retransmit; they are never regenerated.
+    pub fn pending(&self) -> Result<Vec<OutboxRow>, rusqlite::Error> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, mailbox_id, delivery_id, hpke_enc, ciphertext, state, attempts
+             FROM outbox WHERE state = 'sealed' ORDER BY id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(OutboxRow {
+                id: r.get(0)?,
+                mailbox_id: r.get(1)?,
+                delivery_id: r.get(2)?,
+                hpke_enc: r.get(3)?,
+                ciphertext: r.get(4)?,
+                state: r.get(5)?,
+                attempts: r.get(6)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn mark_attempt(&self, id: i64) -> Result<(), rusqlite::Error> {
+        self.conn.lock().execute(
+            "UPDATE outbox SET attempts = attempts + 1 WHERE id = ?1",
+            params![id],
+        )?;
+        Ok(())
+    }
+
+    /// The relay confirmed durable custody. Idempotent.
+    pub fn mark_accepted(&self, id: i64) -> Result<(), rusqlite::Error> {
+        self.conn.lock().execute(
+            "UPDATE outbox SET state = 'accepted' WHERE id = ?1",
+            params![id],
+        )?;
+        Ok(())
+    }
+
+    /// Record an incoming delivery. Returns `false` if it was already
+    /// recorded (duplicate). Call inside the receive unit of work, before
+    /// any MLS processing.
+    pub fn record_incoming(
+        &self,
+        mailbox_id: &[u8],
+        delivery_id: &[u8],
+        seq: i64,
+    ) -> Result<bool, rusqlite::Error> {
+        let n = self.conn.lock().execute(
+            "INSERT OR IGNORE INTO inbox (mailbox_id, delivery_id, seq) VALUES (?1, ?2, ?3)",
+            params![mailbox_id, delivery_id, seq],
+        )?;
+        Ok(n == 1)
+    }
+
+    /// Deliveries recorded but not yet ACKed to the relay.
+    pub fn unacked(&self, mailbox_id: &[u8]) -> Result<Vec<Vec<u8>>, rusqlite::Error> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT delivery_id FROM inbox WHERE mailbox_id = ?1 AND acked = 0 ORDER BY seq",
+        )?;
+        let rows = stmt.query_map(params![mailbox_id], |r| r.get(0))?;
+        rows.collect()
+    }
+
+    pub fn mark_acked(
+        &self,
+        mailbox_id: &[u8],
+        delivery_ids: &[Vec<u8>],
+    ) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock();
+        for d in delivery_ids {
+            conn.execute(
+                "UPDATE inbox SET acked = 1 WHERE mailbox_id = ?1 AND delivery_id = ?2",
+                params![mailbox_id, d],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn cursor(&self, mailbox_id: &[u8]) -> Result<i64, rusqlite::Error> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT cursor FROM mailbox_cursor WHERE mailbox_id = ?1",
+                params![mailbox_id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .unwrap_or(0))
+    }
+
+    pub fn set_cursor(&self, mailbox_id: &[u8], cursor: i64) -> Result<(), rusqlite::Error> {
+        self.conn.lock().execute(
+            "INSERT INTO mailbox_cursor (mailbox_id, cursor) VALUES (?1, ?2)
+             ON CONFLICT(mailbox_id) DO UPDATE SET cursor = excluded.cursor",
+            params![mailbox_id, cursor],
+        )?;
+        Ok(())
+    }
+
+    pub fn event_count(&self) -> Result<i64, rusqlite::Error> {
+        self.conn.count("events")
+    }
+
+    pub fn events(&self, group_id: &[u8]) -> Result<Vec<(String, Vec<u8>)>, rusqlite::Error> {
+        let conn = self.conn.lock();
+        let mut stmt =
+            conn.prepare("SELECT kind, body FROM events WHERE group_id = ?1 ORDER BY id")?;
+        let rows = stmt.query_map(params![group_id], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        rows.collect()
+    }
+}
+
+#[cfg(test)]
+mod tests;
