@@ -3,8 +3,8 @@
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 One Go binary, one SQLite file, one data directory. Runs on a Raspberry Pi in your home and stays reachable over LAN, Tailscale, or a Cloudflare Tunnel, without changing a single security guarantee.
 
-> **Status: Phases 0 and 1 complete (2026-09-04). A CLI messenger for a LAN, not a product yet.**
-> Command-line clients chat in groups with real MLS through the Go relay, send encrypted files, write messages while the relay is down and publish them later, survive relay restarts and client crashes without losing or duplicating anything, fall back between advertised endpoints, and see expired envelopes and blobs reported honestly. The relay never sees plaintext, a group id or a conversation table, and a TLS-terminating proxy between client and relay records nothing but opaque frames. Every claim runs in CI: [`scripts/phase1.sh`](scripts/phase1.sh), [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Transcript: [docs/evidence/demo-transcript.txt](docs/evidence/demo-transcript.txt). Phases 2 and 3 (multi-device, recovery, mobile) are ahead; see the [Phase 1 plan](docs/PHASE1.md) and the [roadmap](#roadmap).
+> **Status: Phases 0, 1 and 2 complete (2026-09-04). A CLI messenger a family could actually run, without a GUI.**
+> Command-line clients chat in groups with real MLS through the Go relay, with several devices per person, encrypted files, messages written while the relay is down, and honest expiry. A device is linked by the root on the administration device and never silently; revoking one stops it at the realm and inside every group; losing the group's creator no longer means recreating the group, because the lowest active leaf takes over; a lost identity comes back from its `age` kit, its history from its archive, and a realm restored from an older snapshot is reported rather than believed; the local database is encrypted at rest with SQLCipher. The relay never sees plaintext, a group id or a conversation table, and a TLS-terminating proxy records nothing but opaque frames. Every claim runs in CI: [`scripts/phase2.sh`](scripts/phase2.sh), [`scripts/phase1.sh`](scripts/phase1.sh), [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Transcript: [docs/evidence/demo-transcript.txt](docs/evidence/demo-transcript.txt). Phase 3 (mobile and desktop UI, pairing over a live channel, push) is ahead; see the [Phase 2 plan](docs/PHASE2.md) and the [roadmap](#roadmap).
 
 ## Why another messenger
 
@@ -47,6 +47,7 @@ Full documentation, in reading order:
 | [Decision records](docs/adr/) | ADR-001 to ADR-008: Go + Rust, MLS, zero-trust server, SQLite, identity, local-first, redundancy, carrier-independent transport |
 | [Phase 0 plan](docs/PHASE0.md) | Milestones, acceptance criteria and results of the viability slice |
 | [Phase 1 plan](docs/PHASE1.md) | Groups, offline outbox, TTL, endpoint fallback, attachments: milestones and results |
+| [Phase 2 plan](docs/PHASE2.md) | Multi-device, revocation, coordinator succession, identity kit and archive, encryption at rest |
 | [Viability review v0.3](docs/REVIEW-v0.3.md) | External-style review with verified references and open risks |
 
 La documentación completa también está disponible en español en [`docs/es/`](docs/es/README.md).
@@ -57,7 +58,7 @@ La documentación completa también está disponible en español en [`docs/es/`]
 |---|---|---|
 | 0: viability (done) | Rust core without full UI, two CLI clients, minimal relay | Real MLS, verified identity and atomic persistence demonstrated |
 | 1: LAN vertical (done) | 1:1 and group chat, offline outbox, queues, attachments, Noise channel with endpoint list | Restarts, duplicates, TTL, network loss and carrier switching with no silent loss |
-| 2: personal use | Multi-device, identity kit, history archive, revocation | Total-loss and restore drills; enrollment is never silent |
+| 2: personal use (done) | Multi-device, identity kit, history archive, revocation | Total-loss and restore drills; enrollment is never silent |
 | 3: distribution | Mobile and desktop UI, signed updates, optional push | Signed builds, external review, verified platform matrix |
 
 ## Repository layout

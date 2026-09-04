@@ -282,4 +282,4 @@ expect_fail "$DATA/bob6.nokey" "$CLI" status --data-dir "$DATA/bob6" || fail "th
 "$CLI" status --data-dir "$DATA/alice2-phone" | tee "$DATA/plain.status"
 grep -q "database: NOT encrypted at rest" "$DATA/plain.status" || fail "an unkeyed database must say so"
 
-step "phase 2 checks so far ok"
+step "phase 2 ok"

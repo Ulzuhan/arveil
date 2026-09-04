@@ -132,3 +132,20 @@ jobs:
         with:
           workspaces: core
       - run: ./scripts/phase1.sh
+
+  phase2:
+    name: Phase 2 acceptance (linking, multi-device, revocation, succession, recovery, at rest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - run: ./scripts/phase2.sh
