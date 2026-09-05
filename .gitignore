@@ -27,3 +27,10 @@ server-secrets/
 
 # Spikes
 spikes/*/target/
+
+# Flutter client
+clients/flutter/build/
+clients/flutter/.dart_tool/
+clients/flutter/**/Pods/
+clients/flutter/**/.gradle/
+clients/flutter/**/*.iml
