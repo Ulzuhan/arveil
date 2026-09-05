@@ -1,0 +1,30 @@
+[package]
+# Underscored on purpose: the Flutter native build looks for the library
+# file under the package name verbatim, and cargo writes `libarveil_flutter`.
+name = "arveil_flutter"
+description = "Flutter adapter over the Arveil application layer: bindings and contract translation only"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# The bindings are linked into the application, so the adapter ships as a
+# dynamic and a static library besides the usual rlib.
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+arveil-app = { path = "../arveil-app" }
+flutter_rust_bridge = "=2.13.0"
+
+# This crate does not inherit the workspace lints. Generated bindings carry
+# `unsafe` of their own, and `forbid` cannot be relaxed from the inside, so
+# the exception lives here and nowhere else: handwritten modules deny it,
+# and only the generated module may allow it (ADR-009, M3b.0).
+[lints.rust]
+unsafe_code = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+[lints.clippy]
+all = "warn"
