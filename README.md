@@ -1,6 +1,6 @@
 # Arveil
 
-**Client update:** the reusable `arveil-app` layer, cooperative profile executor, resumable linking and process lock are implemented locally. Flutter is selected for all five client platforms, with macOS and Android first; no GUI or Dart/Rust bridge exists yet. See the [implementation record](docs/CLIENT_FOUNDATION.md), [Flutter plan](docs/PHASE3B.md) and [ADR-009](docs/adr/ADR-009-flutter-first.md).
+**Client update:** the reusable `arveil-app` layer, cooperative profile executor, resumable linking and process lock are implemented locally. Flutter is selected for all five client platforms, with macOS and Android first. The bridge and a technical client exist: a profile opens, answers a query and closes, verified on macOS. There is no messaging interface yet. See the [implementation record](docs/CLIENT_FOUNDATION.md), [Flutter plan](docs/PHASE3B.md) and [ADR-009](docs/adr/ADR-009-flutter-first.md).
 
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 One Go binary, one SQLite file, one data directory. Runs on a Raspberry Pi in your home and stays reachable over LAN, Tailscale, or a Cloudflare Tunnel, without changing a single security guarantee.

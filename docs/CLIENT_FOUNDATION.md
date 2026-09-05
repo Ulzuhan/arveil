@@ -4,7 +4,7 @@ Status: local implementation reviewed during the September 5, 2026 iterations. T
 
 ## Architecture and evidence
 
-CLI → `arveil-app` → `arveil-core`; the planned Flutter/bridge will call the same application layer. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. No graphical client or Dart/Rust bridge exists yet.
+CLI → `arveil-app` → `arveil-core`; the planned Flutter/bridge will call the same application layer. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. A Flutter client and its bridge now exist and open, query and close a profile; no messaging interface does.
 
 | Change | Implementation and verification |
 |---|---|
@@ -26,7 +26,7 @@ GUI and CLI may alternate ownership, not access the profile concurrently. Future
 
 ## Test provenance
 
-The last workspace `cargo test --workspace --locked` run passed 72 tests, including a helper process test, with one ignored; demo, interop, q3-capture and phases 1–4 also ran locally. `git diff --check` passed. These are local-checkout results at that time, not cross-platform or remote CI certification.
+The last workspace `cargo test --workspace --locked` run passed 72 tests, including a helper process test, with one ignored; demo, interop, q3-capture and phases 1–4 also ran locally. The M3b.0 acceptance flow ran on the device on macOS and on an Android emulator (Android 15, API 35, arm64); no physical phone yet. The [platform matrix](PLATFORMS.md) records the pinned toolchain and the commands. `git diff --check` passed. These are local-checkout results at that time, not cross-platform or remote CI certification.
 
 Coverage includes `overlapping_pairing_confirmations_share_one_mailbox_and_route`, `direct_grant_completion_resumes_after_network_failure`, and `late_response_cannot_contaminate_a_second_request`. [Application lock tests](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-app/tests/profile_lock.rs) cover normal closure, abrupt termination, distinct profiles and Unix symlink aliases; [CLI tests](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-cli/tests/profile_lock.rs) cover legacy protection.
 
@@ -34,7 +34,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 
 ## Remaining limits
 
-- No GUI, Flutter bindings, graphical installers or physical mobile validation.
+- The graphical client opens, queries and closes a profile and nothing else: enrollment, pairing, conversation, attachments and device management have no interface. No graphical installers, and no validation on a physical mobile device.
 - Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key stores remain pending (M3b.1).
 - Blocking API requires an asynchronous Dart adapter. Events return at operation completion; streaming and general cancellation need contracts.
 - File/membership events need further correlation identifiers; history needs pagination.

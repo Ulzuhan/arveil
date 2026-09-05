@@ -1,6 +1,6 @@
 # Arveil — architecture documentation
 
-**Current client status:** see the [implemented client foundation](CLIENT_FOUNDATION.md), [Flutter implementation plan](PHASE3B.md) and [accepted ADR-009](adr/ADR-009-flutter-first.md). These updates supersede the earlier client proposals below. Flutter is selected; `mls-rs` is already in use. No graphical client exists yet. Earlier unresolved-item lists are historical, not the current backlog.
+**Current client status:** see the [implemented client foundation](CLIENT_FOUNDATION.md), [Flutter implementation plan](PHASE3B.md) and [accepted ADR-009](adr/ADR-009-flutter-first.md). These updates supersede the earlier client proposals below. Flutter is selected; `mls-rs` is already in use. A Flutter client opens, queries and closes a profile through the Rust core, verified on macOS; there is no messaging interface yet. Earlier unresolved-item lists are historical, not the current backlog.
 
 **Status:** design proposal v0.4 · **Date:** 2026-09-04 · **Language:** English.
 

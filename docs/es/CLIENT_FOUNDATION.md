@@ -11,7 +11,7 @@ Flutter → puente Rust (pendientes) ─┴→ arveil-app → arveil-core
                                       └→ transporte Noise/WebSocket → relay Go
 ```
 
-`arveil-app` coordina operaciones y devuelve resultados estructurados. `arveil-core` conserva identidad, MLS, persistencia y primitivas de entrega. El relay sigue siendo un proceso Go independiente; no contiene las claves E2EE de los clientes. No existe todavía cliente gráfico ni puente Dart/Rust.
+`arveil-app` coordina operaciones y devuelve resultados estructurados. `arveil-core` conserva identidad, MLS, persistencia y primitivas de entrega. El relay sigue siendo un proceso Go independiente; no contiene las claves E2EE de los clientes. Ya existen cliente Flutter y puente: abren, consultan y cierran un perfil. No existe interfaz de mensajería.
 
 ## Cambios realizados y evidencia
 
@@ -38,7 +38,7 @@ Los enlaces a código siguen `main` del repositorio; este registro local debe in
 
 ## Evidencia de revisión
 
-La última ejecución de `cargo test --workspace --locked` terminó con 72 pruebas correctas (incluida una prueba auxiliar de procesos) y una ignorada; demo, interop, q3-capture y las fases 1–4 también se ejecutaron en local. `git diff --check` pasó. Es un resultado del checkout local en ese momento, no una afirmación sobre todas las plataformas o la CI remota.
+La última ejecución de `cargo test --workspace --locked` terminó con 72 pruebas correctas (incluida una prueba auxiliar de procesos) y una ignorada; demo, interop, q3-capture y las fases 1–4 también se ejecutaron en local. La aceptación de M3b.0 se ejecutó sobre el propio sistema en macOS y en un emulador Android (Android 15, API 35, arm64); todavía sin teléfono físico. La [matriz de plataformas](PLATFORMS.md) recoge el toolchain fijado y los comandos. `git diff --check` pasó. Es un resultado del checkout local en ese momento, no una afirmación sobre todas las plataformas o la CI remota.
 
 Pruebas destacadas:
 
@@ -51,7 +51,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 
 ## Límites que permanecen
 
-- No hay GUI, bindings Flutter, instaladores gráficos ni validación del cliente en dispositivos móviles.
+- El cliente gráfico abre, consulta y cierra un perfil y nada más: alta, emparejamiento, conversación, adjuntos y gestión de dispositivos no tienen interfaz. No hay instaladores gráficos ni validación en un dispositivo móvil físico.
 - Solo la CLI lee ya variables de entorno, y sigue eligiendo perfil sin cifrar cuando no hay clave. La integración con los almacenes de claves del sistema sigue pendiente (M3b.1).
 - La API bloqueante necesita un adaptador asíncrono para Dart. Los eventos se devuelven por operación; una suscripción continua y cancelación general todavía requieren contrato.
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. Las consultas de historial necesitan paginación para uso continuado.
