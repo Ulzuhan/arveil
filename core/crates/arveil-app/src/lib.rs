@@ -654,19 +654,213 @@ pub enum CommandOutput {
     History(Vec<ConversationHistory>),
 }
 
+/// Everything a profile needs that used to arrive through the process
+/// environment: where it lives, the key that opens it, and the transport and
+/// expiry policies. A graphical client builds one explicitly and keeps its
+/// key in the platform store; the command line translates its own variables
+/// into one. This crate reads none of them itself.
+#[derive(Clone)]
+pub struct ProfileConfig {
+    dir: PathBuf,
+    key: Option<String>,
+    tls_ca: Option<PathBuf>,
+    envelope_ttl: Option<u64>,
+    blob_ttl: Option<u64>,
+    pairing_timeout: Option<u64>,
+}
+
+/// The key never reaches a log, an event or a panic message.
+impl std::fmt::Debug for ProfileConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProfileConfig")
+            .field("dir", &self.dir)
+            .field(
+                "key",
+                if self.key.is_some() {
+                    &"<set>"
+                } else {
+                    &"<none>"
+                },
+            )
+            .field("tls_ca", &self.tls_ca)
+            .field("envelope_ttl", &self.envelope_ttl)
+            .field("blob_ttl", &self.blob_ttl)
+            .field("pairing_timeout", &self.pairing_timeout)
+            .finish()
+    }
+}
+
+impl ProfileConfig {
+    /// A profile encrypted at rest, with 32 bytes as 64 hexadecimal
+    /// characters. The shape is checked here so a caller hears about a bad
+    /// key before anything is created, not from the storage layer after.
+    pub fn encrypted(
+        dir: impl Into<PathBuf>,
+        key: impl Into<String>,
+    ) -> Result<Self, ApplicationOpenError> {
+        let key = key.into();
+        if key.len() != 64 || !key.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(ApplicationOpenError::BadKey);
+        }
+        let mut config = Self::unencrypted(dir);
+        config.key = Some(key);
+        Ok(config)
+    }
+
+    /// A profile with nothing encrypting it at rest. Explicit on purpose: a
+    /// graphical client must never arrive here by forgetting a key.
+    pub fn unencrypted(dir: impl Into<PathBuf>) -> Self {
+        Self {
+            dir: dir.into(),
+            key: None,
+            tls_ca: None,
+            envelope_ttl: None,
+            blob_ttl: None,
+            pairing_timeout: None,
+        }
+    }
+
+    /// An extra PEM certificate authority for the carrier, beyond WebPKI
+    /// roots, which is how a self-signed proxy is trusted in a test.
+    pub fn with_tls_ca(mut self, path: impl Into<PathBuf>) -> Self {
+        self.tls_ca = Some(path.into());
+        self
+    }
+
+    /// Requested envelope expiry in seconds; the relay applies its own
+    /// default when this is absent.
+    pub fn with_envelope_ttl(mut self, seconds: u64) -> Self {
+        self.envelope_ttl = Some(seconds);
+        self
+    }
+
+    /// Requested blob expiry in seconds, on the same terms.
+    pub fn with_blob_ttl(mut self, seconds: u64) -> Self {
+        self.blob_ttl = Some(seconds);
+        self
+    }
+
+    /// How long a pairing wait may block before it gives up.
+    pub fn with_pairing_timeout(mut self, seconds: u64) -> Self {
+        self.pairing_timeout = Some(seconds);
+        self
+    }
+
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
+    pub fn is_encrypted(&self) -> bool {
+        self.key.is_some()
+    }
+
+    pub(crate) fn key(&self) -> Option<&str> {
+        self.key.as_deref()
+    }
+
+    pub(crate) fn tls_ca(&self) -> Option<&Path> {
+        self.tls_ca.as_deref()
+    }
+
+    pub(crate) fn envelope_ttl(&self) -> Option<u64> {
+        self.envelope_ttl
+    }
+
+    pub(crate) fn blob_ttl(&self) -> Option<u64> {
+        self.blob_ttl
+    }
+
+    pub(crate) fn pairing_timeout(&self) -> Option<u64> {
+        self.pairing_timeout
+    }
+
+    /// The registry keys on the canonical directory, so two spellings of one
+    /// profile meet the same executor and the same lock.
+    fn canonicalized(mut self) -> Result<Self, ApplicationOpenError> {
+        self.dir = profile_path(self.dir)?;
+        Ok(self)
+    }
+}
+
 struct Request {
     command: ClientCommand,
     reply: mpsc::SyncSender<Result<CommandOutput, ApplicationError>>,
 }
 
+/// One profile's state executor. Admission stops when the sender is taken,
+/// and the worker holds the operating-system lock until its loop ends, so
+/// the profile is never free while work of its own is still in flight.
 #[derive(Debug)]
 struct SerialExecutor {
-    sender: tokio::sync::mpsc::UnboundedSender<Request>,
-    _profile_lock: Arc<ProfileLock>,
+    dir: PathBuf,
+    sender: Mutex<Option<tokio::sync::mpsc::UnboundedSender<Request>>>,
+    worker: Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
-static EXECUTORS: OnceLock<Mutex<HashMap<PathBuf, Weak<SerialExecutor>>>> = OnceLock::new();
+impl SerialExecutor {
+    fn submit(&self, request: Request) -> Result<(), ()> {
+        match self
+            .sender
+            .lock()
+            .expect("executor sender poisoned")
+            .as_ref()
+        {
+            Some(sender) => sender.send(request).map_err(|_| ()),
+            None => Err(()),
+        }
+    }
+
+    /// Stop admission, wait for what is already running, and only then let
+    /// the worker drop the lock. Idempotent: a second call finds nothing
+    /// left to close.
+    fn shutdown(&self) {
+        self.sender.lock().expect("executor sender poisoned").take();
+        let worker = self.worker.lock().expect("executor worker poisoned").take();
+        if let Some(worker) = worker {
+            mark_closing(&self.dir);
+            let _ = worker.join();
+            forget_session(&self.dir);
+        }
+    }
+}
+
+impl Drop for SerialExecutor {
+    /// Abandoning the last handle closes the profile on the same terms as
+    /// `close`, instead of releasing the lock while the worker still writes.
+    fn drop(&mut self) {
+        self.shutdown();
+    }
+}
+
+#[derive(Debug)]
+enum SessionSlot {
+    Open(Weak<SerialExecutor>),
+    Closing,
+}
+
+static SESSIONS: OnceLock<Mutex<HashMap<PathBuf, SessionSlot>>> = OnceLock::new();
 static PROFILE_LOCKS: OnceLock<Mutex<HashMap<PathBuf, Weak<ProfileLock>>>> = OnceLock::new();
+
+fn sessions() -> &'static Mutex<HashMap<PathBuf, SessionSlot>> {
+    SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn mark_closing(dir: &Path) {
+    if let Some(slot) = sessions()
+        .lock()
+        .expect("session registry poisoned")
+        .get_mut(dir)
+    {
+        *slot = SessionSlot::Closing;
+    }
+}
+
+fn forget_session(dir: &Path) {
+    sessions()
+        .lock()
+        .expect("session registry poisoned")
+        .remove(dir);
+}
 
 #[derive(Debug)]
 struct ProfileLock {
@@ -685,6 +879,18 @@ pub struct ProfileGuard {
 pub enum ApplicationOpenError {
     #[error("client profile {} is already in use by another process", path.display())]
     ProfileInUse { path: PathBuf },
+    #[error("client profile {} is already open in this process", path.display())]
+    AlreadyOpen { path: PathBuf },
+    #[error("client profile {} is closing", path.display())]
+    Closing { path: PathBuf },
+    #[error("the profile key must be 32 bytes as 64 hexadecimal characters")]
+    BadKey,
+    #[error("cannot open client profile {}: {source}", path.display())]
+    Unusable {
+        path: PathBuf,
+        #[source]
+        source: CliError,
+    },
     #[error("cannot {action} client profile {}: {source}", path.display())]
     Io {
         action: &'static str,
@@ -758,7 +964,7 @@ fn profile_lock(path: PathBuf) -> Result<Arc<ProfileLock>, ApplicationOpenError>
 type CommandFuture = Pin<Box<dyn Future<Output = ()> + 'static>>;
 
 fn command_future(
-    data_dir: Arc<PathBuf>,
+    config: Arc<ProfileConfig>,
     sync_lock: Rc<tokio::sync::Mutex<()>>,
     link_completion_lock: Rc<tokio::sync::Mutex<()>>,
     request: Request,
@@ -768,7 +974,7 @@ fn command_future(
             // A second sync waits cooperatively here: network waits from the
             // active sync still yield to queries and non-sync commands.
             let _single_flight = sync_lock.lock().await;
-            run_command(&data_dir, request.command).await
+            run_command(&config, request.command).await
         } else if matches!(
             &request.command,
             ClientCommand::CompleteLink { .. } | ClientCommand::ConfirmPairing { .. }
@@ -777,16 +983,16 @@ fn command_future(
             // Only one finalizer may cross those phases for this profile;
             // followers resume from the phase written by their predecessor.
             let _single_finalizer = link_completion_lock.lock().await;
-            run_command(&data_dir, request.command).await
+            run_command(&config, request.command).await
         } else {
-            run_command(&data_dir, request.command).await
+            run_command(&config, request.command).await
         };
         let _ = request.reply.send(result);
     })
 }
 
 async fn run_executor(
-    data_dir: Arc<PathBuf>,
+    config: Arc<ProfileConfig>,
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<Request>,
 ) {
     let mut active = FuturesUnordered::<CommandFuture>::new();
@@ -797,7 +1003,7 @@ async fn run_executor(
         if active.is_empty() {
             match receiver.recv().await {
                 Some(request) => active.push(command_future(
-                    data_dir.clone(),
+                    config.clone(),
                     sync_lock.clone(),
                     link_completion_lock.clone(),
                     request,
@@ -808,7 +1014,7 @@ async fn run_executor(
             tokio::select! {
                 request = receiver.recv() => match request {
                     Some(request) => active.push(command_future(
-                        data_dir.clone(),
+                        config.clone(),
                         sync_lock.clone(),
                         link_completion_lock.clone(),
                         request,
@@ -823,45 +1029,57 @@ async fn run_executor(
     }
 }
 
-fn executor_for(data_dir: PathBuf) -> Result<Arc<SerialExecutor>, ApplicationOpenError> {
-    let data_dir = profile_path(data_dir)?;
-    let profile_lock = profile_lock(data_dir.clone())?;
-    let executors = EXECUTORS.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut executors = executors.lock().expect("executor registry poisoned");
-    executors.retain(|_, executor| executor.strong_count() > 0);
-    if let Some(executor) = executors.get(&data_dir).and_then(Weak::upgrade) {
-        return Ok(executor);
+fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, ApplicationOpenError> {
+    let config = config.canonicalized()?;
+    let dir = config.dir().to_path_buf();
+    let mut sessions = sessions().lock().expect("session registry poisoned");
+    match sessions.get(&dir) {
+        Some(SessionSlot::Closing) => return Err(ApplicationOpenError::Closing { path: dir }),
+        // Never upgrade the weak handle here: dropping that strong reference
+        // under this lock would re-enter the registry through `Drop`.
+        Some(SessionSlot::Open(executor)) if executor.strong_count() > 0 => {
+            return Err(ApplicationOpenError::AlreadyOpen { path: dir });
+        }
+        _ => {}
     }
+
+    let profile_lock = profile_lock(dir.clone())?;
+    // Opening the database here is what makes a wrong or absent key a failure
+    // of `open`, before any handle exists to hand a caller.
+    open_client(&config).map_err(|source| ApplicationOpenError::Unusable {
+        path: dir.clone(),
+        source,
+    })?;
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .map_err(|source| ApplicationOpenError::Io {
             action: "start executor for",
-            path: data_dir.clone(),
+            path: dir.clone(),
             source,
         })?;
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<Request>();
-    let executor = Arc::new(SerialExecutor {
-        sender,
-        _profile_lock: profile_lock,
-    });
-    executors.insert(data_dir.clone(), Arc::downgrade(&executor));
-    let executor_path = data_dir.clone();
-    if let Err(source) = std::thread::Builder::new()
+    let worker = std::thread::Builder::new()
         .name("arveil-client-state".into())
         .stack_size(8 * 1024 * 1024)
         .spawn(move || {
-            runtime.block_on(run_executor(Arc::new(data_dir), receiver));
+            // The lock belongs to the worker, so it outlives every command
+            // this executor still has to finish.
+            let _profile_lock = profile_lock;
+            runtime.block_on(run_executor(Arc::new(config), receiver));
         })
-    {
-        executors.remove(&executor_path);
-        return Err(ApplicationOpenError::Io {
+        .map_err(|source| ApplicationOpenError::Io {
             action: "start executor for",
-            path: executor_path,
+            path: dir.clone(),
             source,
-        });
-    }
+        })?;
+    let executor = Arc::new(SerialExecutor {
+        dir: dir.clone(),
+        sender: Mutex::new(Some(sender)),
+        worker: Mutex::new(Some(worker)),
+    });
+    sessions.insert(dir, SessionSlot::Open(Arc::downgrade(&executor)));
     Ok(executor)
 }
 
@@ -876,10 +1094,21 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn open(data_dir: impl Into<PathBuf>) -> Result<Self, ApplicationOpenError> {
+    /// Open one session over a profile. A second independent open of the
+    /// same canonical directory is refused with `AlreadyOpen`, even when it
+    /// carries another key or policy; sharing is explicit, by cloning this
+    /// handle.
+    pub fn open(config: ProfileConfig) -> Result<Self, ApplicationOpenError> {
         Ok(Self {
-            executor: executor_for(data_dir.into())?,
+            executor: executor_for(config)?,
         })
+    }
+
+    /// Stop admitting work, wait for what is running and release the
+    /// profile. Idempotent, and shared by every clone: afterwards a command
+    /// fails with a typed error instead of reopening anything.
+    pub fn close(&self) {
+        self.executor.shutdown();
     }
 
     /// Submit a typed command to this profile's serial state executor.
@@ -887,9 +1116,8 @@ impl Application {
         let operation = command.operation();
         let (reply, result) = mpsc::sync_channel(1);
         self.executor
-            .sender
-            .send(Request { command, reply })
-            .map_err(|_| executor_stopped(operation))?;
+            .submit(Request { command, reply })
+            .map_err(|()| executor_stopped(operation))?;
         result.recv().map_err(|_| executor_stopped(operation))?
     }
 
@@ -1167,14 +1395,14 @@ impl Application {
 }
 
 async fn run_command(
-    data_dir: &Path,
+    config: &ProfileConfig,
     command: ClientCommand,
 ) -> Result<CommandOutput, ApplicationError> {
     match command {
         ClientCommand::CreateIdentity => {
             onboarding_command(
                 Operation::CreateIdentity,
-                onboarding::create_identity(data_dir),
+                onboarding::create_identity(config),
                 OnboardingOutput::Identity,
             )
             .await
@@ -1182,7 +1410,7 @@ async fn run_command(
         ClientCommand::Enroll { bootstrap, invite } => {
             onboarding_command(
                 Operation::Enroll,
-                onboarding::enroll(data_dir, &bootstrap, &invite),
+                onboarding::enroll(config, &bootstrap, &invite),
                 OnboardingOutput::Enrollment,
             )
             .await
@@ -1190,7 +1418,7 @@ async fn run_command(
         ClientCommand::CreateLinkRequest => {
             onboarding_command(
                 Operation::CreateLinkRequest,
-                onboarding::create_link_request(data_dir),
+                onboarding::create_link_request(config),
                 OnboardingOutput::LinkRequest,
             )
             .await
@@ -1198,7 +1426,7 @@ async fn run_command(
         ClientCommand::AuthorizeLink { bootstrap, request } => {
             onboarding_command(
                 Operation::AuthorizeLink,
-                onboarding::authorize_link(data_dir, &bootstrap, &request),
+                onboarding::authorize_link(config, &bootstrap, &request),
                 OnboardingOutput::LinkAuthorization,
             )
             .await
@@ -1206,7 +1434,7 @@ async fn run_command(
         ClientCommand::CompleteLink { bootstrap, grant } => {
             onboarding_command(
                 Operation::CompleteLink,
-                onboarding::complete_link(data_dir, &bootstrap, &grant),
+                onboarding::complete_link(config, &bootstrap, &grant),
                 OnboardingOutput::LinkedDevice,
             )
             .await
@@ -1214,7 +1442,7 @@ async fn run_command(
         ClientCommand::BeginPairing { bootstrap } => {
             onboarding_command(
                 Operation::BeginPairing,
-                onboarding::begin_pairing(data_dir, &bootstrap),
+                onboarding::begin_pairing(config, &bootstrap),
                 OnboardingOutput::PairingSession,
             )
             .await
@@ -1222,7 +1450,7 @@ async fn run_command(
         ClientCommand::AwaitPairing { bootstrap, session } => {
             onboarding_command(
                 Operation::AwaitPairing,
-                onboarding::await_pairing(data_dir, &bootstrap, session),
+                onboarding::await_pairing(config, &bootstrap, session),
                 OnboardingOutput::PairingVerification,
             )
             .await
@@ -1230,7 +1458,7 @@ async fn run_command(
         ClientCommand::ApprovePairing { bootstrap, code } => {
             onboarding_command(
                 Operation::ApprovePairing,
-                onboarding::approve_pairing(data_dir, &bootstrap, &code),
+                onboarding::approve_pairing(config, &bootstrap, &code),
                 OnboardingOutput::PairingVerification,
             )
             .await
@@ -1242,7 +1470,7 @@ async fn run_command(
         } => {
             onboarding_command(
                 Operation::ConfirmPairing,
-                onboarding::confirm_pairing(data_dir, &bootstrap, &session_id, &verification_code),
+                onboarding::confirm_pairing(config, &bootstrap, &session_id, &verification_code),
                 OnboardingOutput::LinkedDevice,
             )
             .await
@@ -1250,12 +1478,12 @@ async fn run_command(
         ClientCommand::CancelPairing { session_id } => {
             onboarding_command(
                 Operation::CancelPairing,
-                onboarding::cancel_pairing(data_dir, &session_id),
+                onboarding::cancel_pairing(config, &session_id),
                 OnboardingOutput::PairingCancellation,
             )
             .await
         }
-        ClientCommand::QueryPendingPairing => onboarding::pending_pairing(data_dir)
+        ClientCommand::QueryPendingPairing => onboarding::pending_pairing(config)
             .map(CommandOutput::PendingPairing)
             .map_err(|source| application_error(Operation::QueryPendingPairing, source)),
         ClientCommand::CreateConversation {
@@ -1265,7 +1493,7 @@ async fn run_command(
             let routes = peer_routes.iter().map(String::as_str).collect::<Vec<_>>();
             run_operation(
                 Operation::CreateConversation,
-                start(data_dir, &bootstrap, &routes),
+                start(config, &bootstrap, &routes),
             )
             .await
             .map(CommandOutput::Operation)
@@ -1276,7 +1504,7 @@ async fn run_command(
             group,
         } => run_operation(
             Operation::AddDevice,
-            add(data_dir, &bootstrap, &peer_route, group.as_deref()),
+            add(config, &bootstrap, &peer_route, group.as_deref()),
         )
         .await
         .map(CommandOutput::Operation),
@@ -1286,7 +1514,7 @@ async fn run_command(
             group,
         } => run_operation(
             Operation::RemoveDevice,
-            remove(data_dir, &bootstrap, &device_id, group.as_deref()),
+            remove(config, &bootstrap, &device_id, group.as_deref()),
         )
         .await
         .map(CommandOutput::Operation),
@@ -1296,7 +1524,7 @@ async fn run_command(
             group,
         } => run_operation(
             Operation::SendMessage,
-            send(data_dir, &bootstrap, &text, group.as_deref()),
+            send(config, &bootstrap, &text, group.as_deref()),
         )
         .await
         .map(CommandOutput::Operation),
@@ -1306,12 +1534,12 @@ async fn run_command(
             group,
         } => run_operation(
             Operation::SendFile,
-            send_file(data_dir, &bootstrap, &path, group.as_deref()),
+            send_file(config, &bootstrap, &path, group.as_deref()),
         )
         .await
         .map(CommandOutput::Operation),
         ClientCommand::Sync { bootstrap } => {
-            run_operation(Operation::Sync, sync(data_dir, &bootstrap))
+            run_operation(Operation::Sync, sync(config, &bootstrap))
                 .await
                 .map(CommandOutput::Operation)
         }
@@ -1320,14 +1548,14 @@ async fn run_command(
             device_id,
         } => run_operation(
             Operation::RevokeDevice,
-            revoke(data_dir, &bootstrap, &device_id),
+            revoke(config, &bootstrap, &device_id),
         )
         .await
         .map(CommandOutput::Operation),
-        ClientCommand::QueryConversations => conversation_summaries(data_dir)
+        ClientCommand::QueryConversations => conversation_summaries(config)
             .map(CommandOutput::Conversations)
             .map_err(|source| application_error(Operation::QueryConversations, source)),
-        ClientCommand::QueryHistory => conversation_history(data_dir)
+        ClientCommand::QueryHistory => conversation_history(config)
             .map(CommandOutput::History)
             .map_err(|source| application_error(Operation::QueryHistory, source)),
     }
@@ -1437,8 +1665,8 @@ fn classified_error(
     }
 }
 
-fn conversation_summaries(data_dir: &Path) -> Result<Vec<ConversationSummary>, CliError> {
-    let (session, _engine) = session(data_dir)?;
+fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSummary>, CliError> {
+    let (session, _engine) = session(config)?;
     session
         .client
         .conversations()
@@ -1466,8 +1694,8 @@ fn conversation_summaries(data_dir: &Path) -> Result<Vec<ConversationSummary>, C
         .collect()
 }
 
-fn conversation_history(data_dir: &Path) -> Result<Vec<ConversationHistory>, CliError> {
-    let (session, _engine) = session(data_dir)?;
+fn conversation_history(config: &ProfileConfig) -> Result<Vec<ConversationHistory>, CliError> {
+    let (session, _engine) = session(config)?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_secs() as i64)
@@ -1571,15 +1799,9 @@ fn conversation_history(data_dir: &Path) -> Result<Vec<ConversationHistory>, Cli
     Ok(result)
 }
 
-fn db_key() -> Option<String> {
-    std::env::var("ARVEIL_DB_KEY")
-        .ok()
-        .filter(|key| !key.is_empty())
-}
-
-fn open_client(data_dir: &Path) -> Result<Client, CliError> {
-    std::fs::create_dir_all(data_dir).map_err(filesystem_error("data dir"))?;
-    let conn = SharedConn::open_file_keyed(&data_dir.join("client.db"), db_key().as_deref())
+fn open_client(config: &ProfileConfig) -> Result<Client, CliError> {
+    std::fs::create_dir_all(config.dir()).map_err(filesystem_error("data dir"))?;
+    let conn = SharedConn::open_file_keyed(&config.dir().join("client.db"), config.key())
         .map_err(storage_error("storage"))?;
     Client::open(conn).map_err(storage_error("client"))
 }
@@ -1649,8 +1871,8 @@ fn route_string(
     ))
 }
 
-fn enrolled(data_dir: &Path) -> Result<(Client, StoredDevice, StoredRealm), CliError> {
-    let client = open_client(data_dir)?;
+fn enrolled(config: &ProfileConfig) -> Result<(Client, StoredDevice, StoredRealm), CliError> {
+    let client = open_client(config)?;
     let device = client
         .device()
         .map_err(storage_error("device"))?
@@ -1697,8 +1919,8 @@ struct Session {
     identity_id: Vec<u8>,
 }
 
-fn session(data_dir: &Path) -> Result<(Session, Engine<impl MlsConfig>), CliError> {
-    let (client, device, realm) = enrolled(data_dir)?;
+fn session(config: &ProfileConfig) -> Result<(Session, Engine<impl MlsConfig>), CliError> {
+    let (client, device, realm) = enrolled(config)?;
     let delivery = client.delivery().map_err(storage_error("delivery"))?;
     let identity_id = client
         .identity_id()
@@ -1860,13 +2082,12 @@ fn write_cap_for(s: &Session, mailbox: &[u8]) -> Result<Vec<u8>, CliError> {
     ))
 }
 
-/// Requested envelope expiry: `ARVEIL_ENVELOPE_TTL_SECS` from now, or 0
-/// to accept the relay's default. The relay may shorten it and reports the
+/// Requested envelope expiry: the configured seconds from now, or 0 to
+/// accept the relay's default. The relay may shorten it and reports the
 /// effective value, which the outbox records.
-fn requested_expiry() -> u64 {
-    std::env::var("ARVEIL_ENVELOPE_TTL_SECS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
+fn requested_expiry(config: &ProfileConfig) -> u64 {
+    config
+        .envelope_ttl()
         .map(|ttl| {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1878,7 +2099,11 @@ fn requested_expiry() -> u64 {
 }
 
 /// Publish every pending outbox row. Retransmissions reuse stored bytes.
-async fn publish_pending(s: &Session, conn: &mut Connection) -> Result<usize, CliError> {
+async fn publish_pending(
+    config: &ProfileConfig,
+    s: &Session,
+    conn: &mut Connection,
+) -> Result<usize, CliError> {
     let pending = s.delivery.pending().map_err(storage_error("outbox"))?;
     let mut n = 0;
     for row in pending {
@@ -1891,7 +2116,7 @@ async fn publish_pending(s: &Session, conn: &mut Connection) -> Result<usize, Cl
                 mailbox_id: row.mailbox_id.clone(),
                 write_capability: cap,
                 delivery_id: row.delivery_id.clone(),
-                requested_expiry: requested_expiry(),
+                requested_expiry: requested_expiry(config),
                 hpke_enc: row.hpke_enc.clone(),
                 ciphertext: row.ciphertext.clone(),
             })
@@ -2016,7 +2241,11 @@ fn manifest_message<C: MlsConfig>(
 /// priority order from the stored signed list, with the bootstrap URL as
 /// the last resort. A dead or hostile endpoint costs one failed attempt.
 /// After connecting, the list is refreshed; a lower sequence is refused.
-async fn connect(s: &Session, b: &Bootstrap) -> Result<Connection, CliError> {
+async fn connect(
+    config: &ProfileConfig,
+    s: &Session,
+    b: &Bootstrap,
+) -> Result<Connection, CliError> {
     let mut candidates: Vec<String> = Vec::new();
     if let Some(list) = &s.realm.endpoint_list {
         let mut eps = list.endpoints.clone();
@@ -2033,6 +2262,7 @@ async fn connect(s: &Session, b: &Bootstrap) -> Result<Connection, CliError> {
             &b.realm_id,
             &s.realm.noise_public,
             &s.device.keys.transport_noise,
+            config.tls_ca(),
         )
         .await
         {
@@ -2153,7 +2383,11 @@ fn select_conversation(s: &Session, prefix: Option<&str>) -> Result<Conversation
     }
 }
 
-async fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result<(), CliError> {
+async fn start(
+    config: &ProfileConfig,
+    bootstrap: &str,
+    peer_routes: &[&str],
+) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let peers: Vec<Route> = peer_routes
         .iter()
@@ -2164,9 +2398,9 @@ async fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result
             "chat start needs at least one peer route".into(),
         ));
     }
-    let (s, engine) = session(data_dir)?;
+    let (s, engine) = session(config)?;
 
-    let mut conn = connect(&s, &b).await?;
+    let mut conn = connect(config, &s, &b).await?;
     let mut kps = Vec::new();
     for p in &peers {
         kps.push(claim_key_package(&mut conn, p).await?);
@@ -2212,7 +2446,7 @@ async fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result
         peers: conv.peers.len(),
         epoch: group.current_epoch(),
     });
-    let n = publish_pending(&s, &mut conn).await?;
+    let n = publish_pending(config, &s, &mut conn).await?;
     record_change(StateChange::EnvelopesPublished {
         count: n,
         pending: false,
@@ -2223,15 +2457,15 @@ async fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result
 
 /// `arveil chat add --data-dir D <bootstrap> <peer-route>` (creator only)
 async fn add(
-    data_dir: &Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     peer_route: &str,
     group: Option<&str>,
 ) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let newcomer = parse_route(peer_route)?;
-    let (s, engine) = session(data_dir)?;
-    let mut conn = connect(&s, &b).await?;
+    let (s, engine) = session(config)?;
+    let mut conn = connect(config, &s, &b).await?;
     let kp = claim_key_package(&mut conn, &newcomer).await?;
     let conv = select_conversation(&s, group)?;
     let mut group = engine
@@ -2282,7 +2516,7 @@ async fn add(
         device_id: newcomer.device_id.clone(),
         epoch: group.current_epoch(),
     });
-    let n = publish_pending(&s, &mut conn).await?;
+    let n = publish_pending(config, &s, &mut conn).await?;
     record_change(StateChange::EnvelopesPublished {
         count: n,
         pending: false,
@@ -2298,15 +2532,15 @@ async fn add(
 /// revoked is never removed this way: revocation is the authority, the
 /// commit only enacts it.
 async fn remove(
-    data_dir: &Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     device_hex: &str,
     group: Option<&str>,
 ) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let device_id = hex::decode(device_hex).map_err(domain_error("device id"))?;
-    let (s, engine) = session(data_dir)?;
-    let mut conn = connect(&s, &b).await?;
+    let (s, engine) = session(config)?;
+    let mut conn = connect(config, &s, &b).await?;
     let conv = select_conversation(&s, group)?;
     if !conv
         .peers
@@ -2361,7 +2595,7 @@ async fn remove(
         leaf: index,
         epoch: group.current_epoch(),
     });
-    let n = publish_pending(&s, &mut conn).await?;
+    let n = publish_pending(config, &s, &mut conn).await?;
     record_change(StateChange::EnvelopesPublished {
         count: n,
         pending: false,
@@ -2372,13 +2606,13 @@ async fn remove(
 
 /// `arveil chat send --data-dir D <bootstrap> <text>`
 async fn send(
-    data_dir: &Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     text: &str,
     group: Option<&str>,
 ) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
-    let (s, engine) = session(data_dir)?;
+    let (s, engine) = session(config)?;
     let conv = select_conversation(&s, group)?;
     let mut group = engine
         .load_group(&conv.group_id)
@@ -2427,8 +2661,8 @@ async fn send(
     // Publishing is best effort: the message is already durable. A relay
     // that cannot be reached leaves it queued for the next send or sync.
     let outcome: Result<usize, CliError> = async {
-        let mut conn = connect(&s, &b).await?;
-        let n = publish_pending(&s, &mut conn).await?;
+        let mut conn = connect(config, &s, &b).await?;
+        let n = publish_pending(config, &s, &mut conn).await?;
         conn.close().await;
         Ok(n)
     }
@@ -2589,17 +2823,17 @@ fn handle_mls<C: MlsConfig>(
 }
 
 /// `arveil chat sync --data-dir D <bootstrap>`
-async fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
+async fn sync(config: &ProfileConfig, bootstrap: &str) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
-    let (s, engine) = session(data_dir)?;
+    let (s, engine) = session(config)?;
     let m = s
         .client
         .mailbox_own()
         .map_err(storage_error("mailbox"))?
         .ok_or_else(|| CliError::Domain("no mailbox".into()))?;
 
-    let mut conn = connect(&s, &b).await?;
-    let published = publish_pending(&s, &mut conn).await?;
+    let mut conn = connect(config, &s, &b).await?;
+    let published = publish_pending(config, &s, &mut conn).await?;
     if published > 0 {
         record_change(StateChange::EnvelopesPublished {
             count: published,
@@ -2676,7 +2910,7 @@ async fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
         advanced_to = item.seq;
     }
     let next = advanced_to;
-    download_pending(&s, &mut conn, data_dir).await?;
+    download_pending(&s, &mut conn, config).await?;
     let unacked = s
         .delivery
         .unacked(&m.mailbox_id)
@@ -2775,10 +3009,10 @@ async fn refresh_manifests(s: &Session, conn: &mut Connection) -> Result<(), Cli
 /// refuses the device's handshake and revokes its capabilities), sends it as
 /// a `manifest` event into every conversation, and, where this device is the
 /// committer, removes the revoked leaf in the same pass.
-async fn revoke(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<(), CliError> {
+async fn revoke(config: &ProfileConfig, bootstrap: &str, device_hex: &str) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let device_id = hex::decode(device_hex).map_err(domain_error("device id"))?;
-    let (s, engine) = session(data_dir)?;
+    let (s, engine) = session(config)?;
     let (manifest, hash) = s
         .client
         .device_revoke(&device_id)
@@ -2788,7 +3022,7 @@ async fn revoke(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<()
         credential_hash: hash.clone(),
     });
 
-    let mut conn = connect(&s, &b).await?;
+    let mut conn = connect(config, &s, &b).await?;
     match conn
         .request(Payload::ManifestPut {
             manifest: manifest.clone(),
@@ -2877,7 +3111,7 @@ async fn revoke(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<()
             },
         });
     }
-    let n = publish_pending(&s, &mut conn).await?;
+    let n = publish_pending(config, &s, &mut conn).await?;
     record_change(StateChange::EnvelopesPublished {
         count: n,
         pending: false,
@@ -2959,10 +3193,9 @@ async fn begin_upload(
     }
 }
 
-fn blob_expiry() -> u64 {
-    std::env::var("ARVEIL_BLOB_TTL_SECS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
+fn blob_expiry(config: &ProfileConfig) -> u64 {
+    config
+        .blob_ttl()
         .map(|ttl| {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -2979,13 +3212,13 @@ fn blob_expiry() -> u64 {
 /// chunks, commits it with its hash, then sends the descriptor inside MLS
 /// exactly like a text message (same send unit, same fan-out).
 async fn send_file(
-    data_dir: &Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     path: &Path,
     group: Option<&str>,
 ) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
-    let (s, engine) = session(data_dir)?;
+    let (s, engine) = session(config)?;
     select_conversation(&s, group)?;
     let plaintext = std::fs::read(path).map_err(filesystem_error("read file"))?;
     let name = path
@@ -3029,7 +3262,7 @@ async fn send_file(
     };
 
     let (blob_id, read_capability, expiry) = async {
-        let mut conn = connect(&s, &b).await?;
+        let mut conn = connect(config, &s, &b).await?;
         // Where to continue: what the realm says it holds, or a new blob.
         let (blob_id, read_capability, mut offset) = match &pending {
             Some(u) => {
@@ -3114,7 +3347,7 @@ async fn send_file(
             .request(Payload::BlobCommit {
                 blob_id: blob_id.clone(),
                 ciphertext_hash: enc.ciphertext_hash.clone(),
-                requested_expiry: blob_expiry(),
+                requested_expiry: blob_expiry(config),
             })
             .await?
         {
@@ -3187,8 +3420,8 @@ async fn send_file(
     );
     fan.record_queued_deliveries(&event_id);
     let n = async {
-        let mut conn = connect(&s, &b).await?;
-        let n = publish_pending(&s, &mut conn).await?;
+        let mut conn = connect(config, &s, &b).await?;
+        let n = publish_pending(config, &s, &mut conn).await?;
         conn.close().await;
         Ok::<_, CliError>(n)
     }
@@ -3207,7 +3440,7 @@ async fn send_file(
 async fn download_pending(
     s: &Session,
     conn: &mut Connection,
-    data_dir: &Path,
+    config: &ProfileConfig,
 ) -> Result<(), CliError> {
     let pending = s
         .delivery
@@ -3216,7 +3449,7 @@ async fn download_pending(
     if pending.is_empty() {
         return Ok(());
     }
-    let dir = data_dir.join("downloads");
+    let dir = config.dir().join("downloads");
     std::fs::create_dir_all(&dir).map_err(filesystem_error("downloads dir"))?;
     for (event_id, _, body) in pending {
         let d = match FileDescriptor::decode(&body) {
@@ -3382,7 +3615,7 @@ mod tests {
             hex::encode(root.public().as_bytes()),
             hex::encode(&realm_noise)
         );
-        let app = Application::open(&profile).unwrap();
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
         (profile, bootstrap, app)
     }
 
@@ -3393,7 +3626,7 @@ mod tests {
             std::process::id(),
             std::thread::current().id()
         ));
-        let app = Application::open(profile).unwrap();
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
         let error = app
             .create_conversation("not-a-bootstrap", &["not-a-route"])
             .expect_err("invalid input must fail");
@@ -3434,15 +3667,92 @@ mod tests {
     }
 
     #[test]
-    fn applications_for_one_profile_share_the_serial_executor() {
+    fn a_second_session_over_one_profile_is_refused_and_sharing_is_explicit() {
         let profile = std::env::temp_dir().join(format!(
             "arveil-executor-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
-        let first = Application::open(&profile).unwrap();
-        let second = Application::open(profile.join("child").join("..")).unwrap();
-        assert!(Arc::ptr_eq(&first.executor, &second.executor));
+        let first = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
+        // Another spelling of the same directory is the same profile, and a
+        // second configuration must not silently inherit the first one.
+        let again = Application::open(ProfileConfig::unencrypted(profile.join("child").join("..")));
+        assert!(matches!(
+            again,
+            Err(ApplicationOpenError::AlreadyOpen { .. })
+        ));
+        let shared = first.clone();
+        assert!(Arc::ptr_eq(&first.executor, &shared.executor));
+
+        // Closing releases the profile, and reopening validates again.
+        first.close();
+        let reopened = Application::open(ProfileConfig::unencrypted(&profile))
+            .expect("a closed profile opens again");
+        reopened.close();
+        std::fs::remove_dir_all(profile).ok();
+    }
+
+    #[test]
+    fn a_key_of_the_wrong_shape_never_reaches_storage() {
+        let profile = std::env::temp_dir().join("arveil-key-shape");
+        assert!(matches!(
+            ProfileConfig::encrypted(&profile, "not-hexadecimal"),
+            Err(ApplicationOpenError::BadKey)
+        ));
+        assert!(matches!(
+            ProfileConfig::encrypted(&profile, "a".repeat(63)),
+            Err(ApplicationOpenError::BadKey)
+        ));
+        assert!(!profile.exists(), "a rejected key creates nothing");
+        let config = ProfileConfig::encrypted(&profile, "a".repeat(64)).expect("64 hex characters");
+        assert!(config.is_encrypted());
+        // The key stays out of anything that can be printed.
+        let shown = format!("{config:?}");
+        assert!(shown.contains("<set>") && !shown.contains(&"a".repeat(64)));
+    }
+
+    #[test]
+    fn the_wrong_key_fails_when_the_profile_opens() {
+        let profile = std::env::temp_dir().join(format!(
+            "arveil-wrong-key-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::remove_dir_all(&profile).ok();
+        let key = "b".repeat(64);
+        let created = Application::open(ProfileConfig::encrypted(&profile, &key).unwrap())
+            .expect("a new encrypted profile opens");
+        created.close();
+
+        let other = Application::open(ProfileConfig::encrypted(&profile, "c".repeat(64)).unwrap());
+        assert!(
+            matches!(other, Err(ApplicationOpenError::Unusable { .. })),
+            "the wrong key must fail at open, not at the first command"
+        );
+        // The profile is still free, and its own key still opens it.
+        Application::open(ProfileConfig::encrypted(&profile, &key).unwrap())
+            .expect("the right key still opens the profile")
+            .close();
+        std::fs::remove_dir_all(profile).ok();
+    }
+
+    #[test]
+    fn work_after_close_fails_instead_of_reopening_the_profile() {
+        let profile = std::env::temp_dir().join(format!(
+            "arveil-closed-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
+        let clone = app.clone();
+        app.close();
+        // Idempotent, and a clone is closed too.
+        app.close();
+        let error = clone
+            .conversations()
+            .expect_err("a closed session accepts no work");
+        assert!(matches!(error, ApplicationError::Internal { .. }));
+        std::fs::remove_dir_all(profile).ok();
     }
 
     #[cfg(unix)]
@@ -3460,12 +3770,16 @@ mod tests {
         std::fs::create_dir_all(&real_parent).unwrap();
         symlink(&real_parent, &linked_parent).unwrap();
 
-        let through_link = Application::open(linked_parent.join("profile")).unwrap();
-        let through_real = Application::open(real_parent.join("profile")).unwrap();
-        assert!(Arc::ptr_eq(&through_link.executor, &through_real.executor));
+        let through_link =
+            Application::open(ProfileConfig::unencrypted(linked_parent.join("profile"))).unwrap();
+        let through_real =
+            Application::open(ProfileConfig::unencrypted(real_parent.join("profile")));
+        assert!(matches!(
+            through_real,
+            Err(ApplicationOpenError::AlreadyOpen { .. })
+        ));
 
-        drop(through_link);
-        drop(through_real);
+        through_link.close();
         std::fs::remove_dir_all(root).ok();
     }
 
@@ -3536,14 +3850,13 @@ mod tests {
         let submit_sync = || {
             let (reply, result) = mpsc::sync_channel(1);
             app.executor
-                .sender
-                .send(Request {
+                .submit(Request {
                     command: ClientCommand::Sync {
                         bootstrap: bootstrap.clone(),
                     },
                     reply,
                 })
-                .unwrap();
+                .expect("executor accepts work");
             result
         };
         let first = submit_sync();
@@ -3574,7 +3887,7 @@ mod tests {
             std::process::id(),
             std::thread::current().id()
         ));
-        let client = open_client(&profile).unwrap();
+        let client = open_client(&ProfileConfig::unencrypted(&profile)).unwrap();
         client.device_pending_new().unwrap();
         let session_id = label.as_bytes().to_vec();
         client
@@ -3590,7 +3903,7 @@ mod tests {
             )
             .unwrap();
         drop(client);
-        let app = Application::open(&profile).unwrap();
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
         (profile, app, session_id)
     }
 
@@ -3600,7 +3913,7 @@ mod tests {
         let wrong = app.cancel_pairing(b"another-session").unwrap_err();
         assert!(matches!(wrong, ApplicationError::Domain { .. }));
         assert!(
-            open_client(&profile)
+            open_client(&ProfileConfig::unencrypted(&profile))
                 .unwrap()
                 .pairing_session(&session_id)
                 .unwrap()
@@ -3613,7 +3926,7 @@ mod tests {
             StateChange::PairingCancelled { session_id: cancelled } if cancelled == &session_id
         )));
         assert!(
-            open_client(&profile)
+            open_client(&ProfileConfig::unencrypted(&profile))
                 .unwrap()
                 .pairing_session(&session_id)
                 .unwrap()
@@ -3636,7 +3949,7 @@ mod tests {
             StateChange::PairingExpired { session_id: expired } if expired == &session_id
         )));
         assert!(
-            open_client(&profile)
+            open_client(&ProfileConfig::unencrypted(&profile))
                 .unwrap()
                 .pairing_session(&session_id)
                 .unwrap()
@@ -3659,7 +3972,7 @@ mod tests {
             .unwrap_err();
         assert!(matches!(wrong_code, ApplicationError::Domain { .. }));
         assert!(
-            open_client(&profile)
+            open_client(&ProfileConfig::unencrypted(&profile))
                 .unwrap()
                 .pairing_session(&session_id)
                 .unwrap()
@@ -3857,7 +4170,7 @@ mod tests {
             std::process::id(),
             std::thread::current().id()
         ));
-        let new_client = open_client(&profile).unwrap();
+        let new_client = open_client(&ProfileConfig::unencrypted(&profile)).unwrap();
         let new_device = new_client.device_pending_new().unwrap();
 
         let admin = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
@@ -3900,7 +4213,7 @@ mod tests {
         .unwrap();
         (
             profile.clone(),
-            Application::open(&profile).unwrap(),
+            Application::open(ProfileConfig::unencrypted(&profile)).unwrap(),
             session_id,
             bootstrap,
             "1234-5678".into(),
@@ -3924,7 +4237,7 @@ mod tests {
             matches!(first, ApplicationError::Transport { .. }),
             "unexpected first result: {first:?}"
         );
-        let client = open_client(&profile).unwrap();
+        let client = open_client(&ProfileConfig::unencrypted(&profile)).unwrap();
         let identity_id = client.identity_id().unwrap().unwrap();
         assert_eq!(
             client.pairing_completion_phase(&session_id).unwrap(),
@@ -3941,10 +4254,13 @@ mod tests {
                 .all(|change| !matches!(change, StateChange::DeviceLinked { .. }))
         );
         assert_eq!(
-            open_client(&profile).unwrap().identity_id().unwrap(),
+            open_client(&ProfileConfig::unencrypted(&profile))
+                .unwrap()
+                .identity_id()
+                .unwrap(),
             Some(identity_id)
         );
-        let client = open_client(&profile).unwrap();
+        let client = open_client(&ProfileConfig::unencrypted(&profile)).unwrap();
         assert_eq!(
             client.pairing_completion_phase(&session_id).unwrap(),
             Some(PairingCompletionPhase::Complete)
@@ -3989,7 +4305,7 @@ mod tests {
         assert_eq!(first.route, second.route);
         assert_eq!(first.endpoint_sequence, second.endpoint_sequence);
         assert_eq!(mailbox_creates.load(Ordering::SeqCst), 1);
-        let client = open_client(&profile).unwrap();
+        let client = open_client(&ProfileConfig::unencrypted(&profile)).unwrap();
         assert_eq!(
             client.pairing_completion_phase(&session_id).unwrap(),
             Some(PairingCompletionPhase::Complete)
@@ -4017,7 +4333,7 @@ mod tests {
         let first = app.complete_link(&bootstrap, &grant).unwrap_err();
         assert!(matches!(first, ApplicationError::Transport { .. }));
         assert_eq!(
-            open_client(&profile)
+            open_client(&ProfileConfig::unencrypted(&profile))
                 .unwrap()
                 .link_completion_phase()
                 .unwrap(),
@@ -4025,7 +4341,7 @@ mod tests {
         );
 
         let completed = app.complete_link(&bootstrap, &grant).unwrap().value;
-        let client = open_client(&profile).unwrap();
+        let client = open_client(&ProfileConfig::unencrypted(&profile)).unwrap();
         assert_eq!(
             client.link_completion_phase().unwrap(),
             Some(PairingCompletionPhase::Complete)
@@ -4073,7 +4389,7 @@ mod tests {
                 if rejected == &session_id
         )));
         assert!(
-            open_client(&profile)
+            open_client(&ProfileConfig::unencrypted(&profile))
                 .unwrap()
                 .pairing_session(&session_id)
                 .unwrap()

@@ -3,7 +3,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use arveil_app::{Application, ApplicationOpenError};
+use arveil_app::{Application, ApplicationOpenError, ProfileConfig};
 
 const PROFILE_ENV: &str = "ARVEIL_PROFILE_LOCK_TEST_PROFILE";
 const RELEASE_FILE: &str = "release-owner";
@@ -84,7 +84,7 @@ fn helper_holds_profile() {
         return;
     };
     let profile = PathBuf::from(profile);
-    let _application = Application::open(&profile).unwrap();
+    let _application = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
     std::fs::write(profile.join(READY_FILE), b"ready").unwrap();
     while !profile.join(RELEASE_FILE).exists() {
         std::thread::sleep(Duration::from_millis(10));
@@ -97,13 +97,13 @@ fn second_process_is_rejected_then_can_open_after_normal_close() {
     let mut owner = OwnerProcess::spawn(&profile);
 
     assert!(matches!(
-        Application::open(&profile),
+        Application::open(ProfileConfig::unencrypted(&profile)),
         Err(ApplicationOpenError::ProfileInUse { path })
             if path == profile.canonicalize().unwrap()
     ));
 
     owner.close();
-    let application = Application::open(&profile).unwrap();
+    let application = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
     drop(application);
     std::fs::remove_dir_all(profile).ok();
 }
@@ -114,7 +114,7 @@ fn profile_lock_is_released_after_owner_process_crashes() {
     let mut owner = OwnerProcess::spawn(&profile);
     owner.crash();
 
-    let application = Application::open(&profile).unwrap();
+    let application = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
     drop(application);
     std::fs::remove_dir_all(profile).ok();
 }
@@ -125,9 +125,9 @@ fn different_profiles_can_be_open_in_different_processes() {
     let second_profile = test_profile("second");
     let mut owner = OwnerProcess::spawn(&first_profile);
 
-    let second = Application::open(&second_profile).unwrap();
+    let second = Application::open(ProfileConfig::unencrypted(&second_profile)).unwrap();
     assert!(matches!(
-        Application::open(&first_profile),
+        Application::open(ProfileConfig::unencrypted(&first_profile)),
         Err(ApplicationOpenError::ProfileInUse { .. })
     ));
 
@@ -150,13 +150,13 @@ fn symbolic_paths_cannot_bypass_the_process_lock() {
     let mut owner = OwnerProcess::spawn(&profile);
 
     assert!(matches!(
-        Application::open(&symbolic),
+        Application::open(ProfileConfig::unencrypted(&symbolic)),
         Err(ApplicationOpenError::ProfileInUse { path })
             if path == profile.canonicalize().unwrap()
     ));
 
     owner.close();
-    let reopened = Application::open(&symbolic).unwrap();
+    let reopened = Application::open(ProfileConfig::unencrypted(&symbolic)).unwrap();
     drop(reopened);
     std::fs::remove_dir_all(root).ok();
 }

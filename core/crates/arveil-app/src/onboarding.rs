@@ -19,6 +19,7 @@ use super::{
     CliError, Connection, PairingCancellation, StateChange, domain_error, enrolled, open_client,
     protocol_error, record_change, route_string,
 };
+use crate::ProfileConfig;
 use crate::carrier::Bootstrap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -161,8 +162,8 @@ fn pending_device(client: &Client) -> Result<StoredDevice, CliError> {
     }
 }
 
-pub async fn create_identity(data_dir: &std::path::Path) -> Result<Identity, CliError> {
-    let client = open_client(data_dir)?;
+pub async fn create_identity(config: &ProfileConfig) -> Result<Identity, CliError> {
+    let client = open_client(config)?;
     let root = client.identity_new().map_err(client_error("identity"))?;
     let identity = Identity {
         identity_id: root.identity_id(),
@@ -175,13 +176,13 @@ pub async fn create_identity(data_dir: &std::path::Path) -> Result<Identity, Cli
 }
 
 pub async fn enroll(
-    data_dir: &std::path::Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     invite: &str,
 ) -> Result<Enrollment, CliError> {
     let bootstrap = Bootstrap::parse(bootstrap)?;
     let token = hex::decode(invite).map_err(domain_error("invite token"))?;
-    let client = open_client(data_dir)?;
+    let client = open_client(config)?;
     if client.root().map_err(client_error("identity"))?.is_none() {
         let root = client.identity_new().map_err(client_error("identity"))?;
         record_change(StateChange::IdentityCreated {
@@ -216,6 +217,7 @@ pub async fn enroll(
         &bootstrap.realm_id,
         &bootstrap.noise_public,
         &device.keys.transport_noise,
+        config.tls_ca(),
     )
     .await?;
     let identity_id = match connection
@@ -249,10 +251,8 @@ pub async fn enroll(
     })
 }
 
-pub async fn create_link_request(
-    data_dir: &std::path::Path,
-) -> Result<DeviceLinkRequest, CliError> {
-    let client = open_client(data_dir)?;
+pub async fn create_link_request(config: &ProfileConfig) -> Result<DeviceLinkRequest, CliError> {
+    let client = open_client(config)?;
     let device = pending_device(&client)?;
     let request = request_string(&device.keys.public());
     let result = DeviceLinkRequest {
@@ -267,13 +267,13 @@ pub async fn create_link_request(
 }
 
 pub async fn authorize_link(
-    data_dir: &std::path::Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     request: &str,
 ) -> Result<DeviceLinkAuthorization, CliError> {
     let bootstrap = Bootstrap::parse(bootstrap)?;
     let public = parse_request(request)?;
-    let (client, admin, _) = enrolled(data_dir)?;
+    let (client, admin, _) = enrolled(config)?;
     let (credential, manifest) = client
         .device_authorize(&public, now())
         .map_err(client_error("authorize"))?;
@@ -297,6 +297,7 @@ pub async fn authorize_link(
         &bootstrap.realm_id,
         &bootstrap.noise_public,
         &admin.keys.transport_noise,
+        config.tls_ca(),
     )
     .await?;
     publish_authorization(&mut connection, &credential, &manifest, sequence).await?;
@@ -319,13 +320,13 @@ pub async fn authorize_link(
 }
 
 pub async fn complete_link(
-    data_dir: &std::path::Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     grant: &str,
 ) -> Result<LinkedDevice, CliError> {
     let grant = parse_grant(grant)?;
     let bootstrap = Bootstrap::parse(bootstrap)?;
-    let client = open_client(data_dir)?;
+    let client = open_client(config)?;
     let phase = client
         .link_completion_begin(&grant.credential, &grant.manifest, &grant.root_public)
         .map_err(client_error("link"))?;
@@ -337,6 +338,7 @@ pub async fn complete_link(
     let completion = LinkCompletion::DirectGrant;
     record_completion_change(completion, phase);
     complete_device_link(
+        config,
         &bootstrap,
         &client,
         completion,
@@ -351,17 +353,18 @@ pub async fn complete_link(
 }
 
 pub async fn begin_pairing(
-    data_dir: &std::path::Path,
+    config: &ProfileConfig,
     bootstrap: &str,
 ) -> Result<PairingSession, CliError> {
     let bootstrap = Bootstrap::parse(bootstrap)?;
-    let client = open_client(data_dir)?;
+    let client = open_client(config)?;
     let device = pending_device(&client)?;
     let mut connection = Connection::open(
         &bootstrap.url,
         &bootstrap.realm_id,
         &bootstrap.noise_public,
         &device.keys.transport_noise,
+        config.tls_ca(),
     )
     .await?;
     let (session_id, capability, expires_at) = match connection.request(Payload::PairBegin).await? {
@@ -397,12 +400,12 @@ pub async fn begin_pairing(
 }
 
 pub async fn await_pairing(
-    data_dir: &std::path::Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     session: PairingSession,
 ) -> Result<PairingVerification, CliError> {
     let bootstrap = Bootstrap::parse(bootstrap)?;
-    let client = open_client(data_dir)?;
+    let client = open_client(config)?;
     let stored = exact_session(&client, &session.session_id)?;
     if stored.code != session.code || stored.expires_at != session.expires_at {
         return Err(CliError::Domain(
@@ -430,9 +433,10 @@ pub async fn await_pairing(
         &bootstrap.realm_id,
         &bootstrap.noise_public,
         &device.keys.transport_noise,
+        config.tls_ca(),
     )
     .await?;
-    let deadline = pairing_deadline(session.expires_at)?;
+    let deadline = pairing_deadline(config, session.expires_at)?;
     let message_1 = wait_for_local_slot(
         &mut connection,
         &client,
@@ -499,7 +503,7 @@ pub async fn await_pairing(
 }
 
 pub async fn approve_pairing(
-    data_dir: &std::path::Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     code: &str,
 ) -> Result<PairingVerification, CliError> {
@@ -507,12 +511,13 @@ pub async fn approve_pairing(
     let code = PairingCode::parse(code).map_err(domain_error("code"))?;
     code.check_realm(&bootstrap.realm_id)
         .map_err(domain_error("code"))?;
-    let (client, admin, _) = enrolled(data_dir)?;
+    let (client, admin, _) = enrolled(config)?;
     let mut connection = Connection::open(
         &bootstrap.url,
         &bootstrap.realm_id,
         &bootstrap.noise_public,
         &admin.keys.transport_noise,
+        config.tls_ca(),
     )
     .await?;
     let mut initiator = Initiator::new(
@@ -538,7 +543,7 @@ pub async fn approve_pairing(
         &code,
         SLOT_HANDSHAKE_2,
         "the new device",
-        Instant::now() + pair_timeout(),
+        Instant::now() + pair_timeout(config),
         None,
     )
     .await?;
@@ -602,12 +607,12 @@ pub async fn approve_pairing(
 }
 
 pub async fn confirm_pairing(
-    data_dir: &std::path::Path,
+    config: &ProfileConfig,
     bootstrap: &str,
     session_id: &[u8],
     verification_code: &str,
 ) -> Result<LinkedDevice, CliError> {
-    let client = open_client(data_dir)?;
+    let client = open_client(config)?;
     let session = exact_session(&client, session_id)?;
     let expected = session
         .sas
@@ -654,6 +659,7 @@ pub async fn confirm_pairing(
             .ok_or_else(|| CliError::Domain("pairing grant is incomplete".into()))?,
     };
     complete_device_link(
+        config,
         &bootstrap,
         &client,
         LinkCompletion::Pairing(&session.session_id),
@@ -664,10 +670,10 @@ pub async fn confirm_pairing(
 }
 
 pub async fn cancel_pairing(
-    data_dir: &std::path::Path,
+    config: &ProfileConfig,
     session_id: &[u8],
 ) -> Result<PairingCancellation, CliError> {
-    let client = open_client(data_dir)?;
+    let client = open_client(config)?;
     match client
         .pairing_session_cancel(session_id)
         .map_err(client_error("pairing"))?
@@ -692,10 +698,8 @@ pub async fn cancel_pairing(
     }
 }
 
-pub fn pending_pairing(
-    data_dir: &std::path::Path,
-) -> Result<Option<PairingVerification>, CliError> {
-    let client = open_client(data_dir)?;
+pub fn pending_pairing(config: &ProfileConfig) -> Result<Option<PairingVerification>, CliError> {
+    let client = open_client(config)?;
     let Some(session) = client
         .latest_pairing_session()
         .map_err(client_error("pairing"))?
@@ -723,6 +727,7 @@ enum LinkCompletion<'a> {
 }
 
 async fn complete_device_link(
+    config: &ProfileConfig,
     bootstrap: &Bootstrap,
     client: &Client,
     completion: LinkCompletion<'_>,
@@ -788,6 +793,7 @@ async fn complete_device_link(
         &bootstrap.realm_id,
         &bootstrap.noise_public,
         &device.keys.transport_noise,
+        config.tls_ca(),
     )
     .await?;
 
@@ -1046,20 +1052,16 @@ async fn publish_authorization(
     Ok(())
 }
 
-fn pair_timeout() -> Duration {
-    let seconds = std::env::var("ARVEIL_PAIR_TIMEOUT_SECS")
-        .ok()
-        .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(90);
-    Duration::from_secs(seconds)
+fn pair_timeout(config: &ProfileConfig) -> Duration {
+    Duration::from_secs(config.pairing_timeout().unwrap_or(90))
 }
 
-fn pairing_deadline(expires_at: u64) -> Result<Instant, CliError> {
+fn pairing_deadline(config: &ProfileConfig, expires_at: u64) -> Result<Instant, CliError> {
     let remaining = expires_at.saturating_sub(now());
     if remaining == 0 {
         return Err(CliError::Domain("pairing session expired".into()));
     }
-    Ok(Instant::now() + pair_timeout().min(Duration::from_secs(remaining)))
+    Ok(Instant::now() + pair_timeout(config).min(Duration::from_secs(remaining)))
 }
 
 async fn wait_for_slot(

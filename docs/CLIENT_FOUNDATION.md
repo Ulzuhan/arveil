@@ -11,6 +11,8 @@ CLI → `arveil-app` → `arveil-core`; the planned Flutter/bridge will call the
 | CLI extraction | [Application](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-app/src/lib.rs) owns conversations, sending, sync, revocation and attachments; [chat](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-cli/src/chat.rs) adapts arguments and presentation. |
 | Structured contract | `ClientCommand`, `CommandOutput`, `ApplicationError`, `StateChange`, `MessageReceipt`; errors retain `partial_result()`, local acceptance follows commit and categories do not depend on error text. |
 | Delivery correlation | [Delivery](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-core/src/delivery.rs) pending rows include `event_id`; cursor updates use the maximum of current/new values. |
+| Explicit profile configuration | `ProfileConfig` carries directory, key, TLS authority and expiry policy; the library reads no environment variable. The CLI translates its own. `Debug` redacts the key, and a malformed key is refused before anything is created. |
+| Session lifetime | A second independent open of one canonical directory returns `AlreadyOpen`, whatever key it offers; sharing means cloning the handle. `open` opens the database, so a wrong key fails there instead of at the first command. `close` stops admission, waits for running work and joins the worker, which owns the lock; dropping the last handle takes the same path. |
 | Profile executor | Canonical paths share a single-thread runtime that multiplexes network waits without interleaving synchronous MLS/SQLite segments. Events use operation context; the public call remains blocking. |
 | Operation exclusion | One active sync per profile; `CompleteLink`/`ConfirmPairing` share separate exclusion. Local queries can progress during network waits. |
 | Transactions | [SharedConn](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-core/src/storage.rs) holds a reentrant mutex throughout transactions, allowing MLS storage callbacks. `Client.conn` is private. |
@@ -24,7 +26,7 @@ GUI and CLI may alternate ownership, not access the profile concurrently. Future
 
 ## Test provenance
 
-The last workspace `cargo test --workspace --locked` run in the preceding review passed 69 tests, including a helper process test, with one ignored. `git diff --check` passed. These are local-checkout results at that time, not cross-platform or remote CI certification.
+The last workspace `cargo test --workspace --locked` run passed 72 tests, including a helper process test, with one ignored; demo, interop, q3-capture and phases 1–4 also ran locally. `git diff --check` passed. These are local-checkout results at that time, not cross-platform or remote CI certification.
 
 Coverage includes `overlapping_pairing_confirmations_share_one_mailbox_and_route`, `direct_grant_completion_resumes_after_network_failure`, and `late_response_cannot_contaminate_a_second_request`. [Application lock tests](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-app/tests/profile_lock.rs) cover normal closure, abrupt termination, distinct profiles and Unix symlink aliases; [CLI tests](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-cli/tests/profile_lock.rs) cover legacy protection.
 
@@ -33,7 +35,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 ## Remaining limits
 
 - No GUI, Flutter bindings, graphical installers or physical mobile validation.
-- Key/configuration still use environment variables. SQLCipher encryption is optional without a key; platform key stores remain pending.
+- Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key stores remain pending (M3b.1).
 - Blocking API requires an asynchronous Dart adapter. Events return at operation completion; streaming and general cancellation need contracts.
 - File/membership events need further correlation identifiers; history needs pagination.
 - Actual MLS rejoin/recovery remains pending; the fictitious `recover_conversation` was removed. Sync does not solve desynchronization.

@@ -16,7 +16,7 @@ use arveil_core::recovery::{
 use crate::carrier::{Bootstrap, CliError, Connection, block_on, err};
 use arveil_app::finish_enrollment;
 
-use crate::commands::{now, open_client};
+use crate::commands::{now, open_client, tls_ca};
 
 fn read(path: &Path) -> Result<Vec<u8>, CliError> {
     std::fs::read(path).map_err(err("read file"))
@@ -106,6 +106,7 @@ pub fn kit_restore(
             &b.realm_id,
             &b.noise_public,
             &device.keys.transport_noise,
+            tls_ca().as_deref(),
         )
         .await?;
         let previous = match conn

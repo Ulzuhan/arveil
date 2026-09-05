@@ -20,6 +20,8 @@ Flutter → puente Rust (pendientes) ─┴→ arveil-app → arveil-core
 | Extracción del chat de la CLI | [arveil-app](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-app/src/lib.rs) contiene conversaciones, envío, sincronización, revocaciones y adjuntos. [chat.rs](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-cli/src/chat.rs) adapta argumentos y presenta resultados. |
 | Contrato de operaciones | `ClientCommand`, `CommandOutput`, `ApplicationError`, `StateChange` y `MessageReceipt`. Los errores conservan `partial_result()`; la aceptación local se registra después del commit. No se deducen categorías de error del texto. |
 | Correlación de entregas | [Delivery::pending](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-core/src/delivery.rs) incluye `event_id`. El cursor avanza con `MAX(actual, nuevo)`. |
+| Configuración explícita del perfil | `ProfileConfig` aporta ruta, clave, autoridad de TLS y caducidades; la biblioteca no lee ninguna variable de entorno. La CLI traduce las suyas. `Debug` oculta la clave, y una clave mal formada se rechaza antes de crear nada. |
+| Vida de la sesión | Una segunda apertura independiente de la misma ruta canónica devuelve `AlreadyOpen`, sea cual sea la clave que aporte; compartir consiste en clonar el handle. `open` abre la base, así que una clave incorrecta falla ahí y no en el primer comando. `close` deja de admitir trabajo, espera al que corre y une el hilo trabajador, que es quien posee el bloqueo; abandonar el último handle sigue el mismo camino. |
 | Ejecutor por perfil | `Application` comparte ejecutor por ruta canónica. Un runtime de una hebra multiplexa futuros durante la red; los tramos síncronos de MLS/SQLite no se intercalan. Los eventos usan contexto por operación. La API pública de llamada sigue siendo bloqueante. |
 | Exclusión por operación | Una sola sincronización activa por perfil. `CompleteLink` y `ConfirmPairing` comparten otra exclusión, para evitar finalizadores simultáneos. Las consultas pueden avanzar durante esperas de red. |
 | Exclusión transaccional | [SharedConn::unit_of_work](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-core/src/storage.rs) mantiene un mutex reentrante durante toda la transacción; los callbacks de almacenamiento MLS pueden utilizar la misma conexión. `Client.conn` es privado. |
@@ -36,7 +38,7 @@ Los enlaces a código siguen `main` del repositorio; este registro local debe in
 
 ## Evidencia de revisión
 
-La última ejecución en esta tarea de `cargo test --workspace --locked` terminó con 69 pruebas correctas (incluida una prueba auxiliar de procesos) y una ignorada. `git diff --check` pasó. Es un resultado del checkout local en ese momento, no una afirmación sobre todas las plataformas o la CI remota.
+La última ejecución de `cargo test --workspace --locked` terminó con 72 pruebas correctas (incluida una prueba auxiliar de procesos) y una ignorada; demo, interop, q3-capture y las fases 1–4 también se ejecutaron en local. `git diff --check` pasó. Es un resultado del checkout local en ese momento, no una afirmación sobre todas las plataformas o la CI remota.
 
 Pruebas destacadas:
 
@@ -50,7 +52,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 ## Límites que permanecen
 
 - No hay GUI, bindings Flutter, instaladores gráficos ni validación del cliente en dispositivos móviles.
-- La clave local y parte de la configuración aún llegan mediante variables de entorno. SQLCipher existe, pero el cifrado local es opcional si no se proporciona clave. La integración con almacenes de claves del sistema está pendiente.
+- Solo la CLI lee ya variables de entorno, y sigue eligiendo perfil sin cifrar cuando no hay clave. La integración con los almacenes de claves del sistema sigue pendiente (M3b.1).
 - La API bloqueante necesita un adaptador asíncrono para Dart. Los eventos se devuelven por operación; una suscripción continua y cancelación general todavía requieren contrato.
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. Las consultas de historial necesitan paginación para uso continuado.
 - Recuperación de un grupo MLS desincronizado no es sinónimo de `sync`; el método ficticio `recover_conversation` fue retirado. Sigue pendiente un flujo real.

@@ -198,12 +198,14 @@ impl Connection {
         realm_id: &[u8],
         realm_noise_public: &[u8],
         device: &StaticKeypair,
+        tls_ca: Option<&std::path::Path>,
     ) -> Result<Self, CliError> {
         Self::open_with_timeouts(
             url,
             realm_id,
             realm_noise_public,
             device,
+            tls_ca,
             TransportTimeouts::default(),
         )
         .await
@@ -214,6 +216,7 @@ impl Connection {
         realm_id: &[u8],
         realm_noise_public: &[u8],
         device: &StaticKeypair,
+        tls_ca: Option<&std::path::Path>,
         timeouts: TransportTimeouts,
     ) -> Result<Self, CliError> {
         let (mut ws, _) = bounded(
@@ -223,7 +226,7 @@ impl Connection {
                 url,
                 None,
                 false,
-                Some(tls_connector()?),
+                Some(tls_connector(tls_ca)?),
             ),
         )
         .await?
@@ -330,16 +333,21 @@ impl Connection {
     }
 }
 
-/// TLS is the carrier's concern (ADR-008): WebPKI roots, plus an extra CA
-/// from `ARVEIL_TLS_CA` (PEM) for self-signed test proxies.
-fn tls_connector() -> Result<tokio_tungstenite::Connector, CliError> {
+/// TLS is the carrier's concern (ADR-008): WebPKI roots, plus the extra PEM
+/// certificate authority the profile configuration names, which is how a
+/// self-signed proxy is trusted in a test.
+fn tls_connector(
+    tls_ca: Option<&std::path::Path>,
+) -> Result<tokio_tungstenite::Connector, CliError> {
     let mut roots =
         rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    if let Ok(path) = std::env::var("ARVEIL_TLS_CA") {
-        let pem = std::fs::read(&path).map_err(filesystem("ARVEIL_TLS_CA"))?;
+    if let Some(path) = tls_ca {
+        let pem = std::fs::read(path).map_err(filesystem("profile TLS certificate authority"))?;
         for cert in rustls_pemfile::certs(&mut pem.as_slice()) {
-            let cert = cert.map_err(domain("ARVEIL_TLS_CA"))?;
-            roots.add(cert).map_err(domain("ARVEIL_TLS_CA"))?;
+            let cert = cert.map_err(domain("profile TLS certificate authority"))?;
+            roots
+                .add(cert)
+                .map_err(domain("profile TLS certificate authority"))?;
         }
     }
     let config = rustls::ClientConfig::builder()
@@ -430,6 +438,7 @@ mod tests {
             &realm_id,
             &realm.public,
             &device,
+            None,
             TransportTimeouts {
                 connect: Duration::from_secs(1),
                 handshake: Duration::from_secs(1),
