@@ -9,13 +9,14 @@
 use std::path::Path;
 
 use arveil_core::channel::codec::Payload;
-use arveil_core::delivery::Delivery;
 use arveil_core::recovery::{
     self, ARCHIVE_VERSION, ArchiveRecord, HistoryArchive, IdentityKit, KIT_VERSION, Secret,
 };
 
 use crate::carrier::{Bootstrap, CliError, Connection, block_on, err};
-use crate::commands::{finish_enrollment, now, open_client};
+use arveil_app::finish_enrollment;
+
+use crate::commands::{now, open_client};
 
 fn read(path: &Path) -> Result<Vec<u8>, CliError> {
     std::fs::read(path).map_err(err("read file"))
@@ -118,7 +119,7 @@ pub fn kit_restore(
                 previous_sequence, ..
             }) => previous_sequence,
             Ok(other) => return Err(CliError(format!("unexpected reply: {other:?}"))),
-            Err(e) if e.0.contains("(409)") => {
+            Err(e) if e.relay_code() == Some(409) => {
                 return Err(CliError(format!(
                     "{e}. The kit is older than what the realm holds: recover the newest \
                      manifest from a surviving device or a contact before using this kit"
@@ -147,7 +148,9 @@ pub fn kit_restore(
             other => return Err(CliError(format!("unexpected reply: {other:?}"))),
         }
         c.realm_mark_enrolled(&b.realm_id).map_err(err("realm"))?;
-        finish_enrollment(&c, &mut conn, &device).await?;
+        let finish = finish_enrollment(&c, &mut conn, &device).await?;
+        println!("key packages: {} published", finish.key_packages_published);
+        println!("route: {}", finish.route);
         println!(
             "history: none. Import an archive, or ask a member to add this device to each group."
         );
@@ -163,7 +166,7 @@ pub fn archive_export(data_dir: &Path, path: &Path) -> Result<(), CliError> {
         .identity_id()
         .map_err(err("identity"))?
         .ok_or_else(|| CliError("no identity".into()))?;
-    let delivery = Delivery::open(c.conn.clone()).map_err(err("delivery"))?;
+    let delivery = c.delivery().map_err(err("delivery"))?;
     let downloads = data_dir.join("downloads");
     let mut records = Vec::new();
     let mut files = 0;

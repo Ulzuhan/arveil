@@ -1,1630 +1,546 @@
-//! Phase 1 chat: MLS groups of N devices through the relay.
-//!
-//! `chat start` claims one KeyPackage per peer, creates a group whose
-//! context carries the Arveil policy (creator = committer), adds every peer
-//! in one commit, seals the Welcome to each peer and then sends the roster
-//! (every member's route, including its own) inside the group.
-//! `chat add` (creator only) adds a member later: Welcome to the newcomer,
-//! commit to the existing members, updated roster to everyone.
-//! `chat send` runs the send unit once (MLS encrypt + persist + event) and
-//! enqueues one envelope per routable peer; peers without a route are
-//! visible as pending. `chat sync` publishes what is pending, then fetches
-//! the mailbox and runs the receive unit per envelope before ACKing.
-//!
-//! Set `ARVEIL_CRASH_AFTER_COMMIT=1` to make `chat send` exit right after
-//! the send unit committed and before anything is published (I-04).
+//! Thin presentation adapter for the reusable `arveil-app` services.
 
 use std::path::Path;
 
-use arveil_core::attachments::{self, FileDescriptor};
-use arveil_core::channel::codec::Payload;
-use arveil_core::client::{Client, Conversation, Peer, StoredDevice, StoredRealm};
-use arveil_core::delivery::Delivery;
-use arveil_core::envelope::{self, EnvelopeContext, KIND_MLS};
-use arveil_core::mls::{self, Engine};
-use mls_rs::client_builder::MlsConfig;
-use mls_rs::group::{Group, ReceivedMessage};
-use mls_rs::{MlsMessage, WireFormat};
-use serde::{Deserialize, Serialize};
+use arveil_app::{
+    Application, ApplicationError, ConversationHistory, DeliveryStatus, LocalAcceptance,
+    ManifestSource, MessageKind, OperationResult, RemovalOutcome, StateChange, UploadRestartReason,
+};
 
-use crate::carrier::{Bootstrap, CliError, Connection, block_on, err};
-use crate::commands::{Route, enrolled, parse_route, random_delivery_id};
+use crate::carrier::CliError;
 
-/// Application event inside MLS (PROTOCOL §2, `ApplicationEvent`).
-#[derive(Debug, Serialize, Deserialize)]
-struct AppEvent {
-    kind: String,
-    #[serde(with = "serde_bytes")]
-    body: Vec<u8>,
+fn application(data_dir: &Path) -> Result<Application, CliError> {
+    Application::open(data_dir).map_err(|error| CliError::FileSystem(error.to_string()))
 }
 
-fn encode_event(kind: &str, body: &[u8]) -> Result<Vec<u8>, CliError> {
-    arveil_core::signed::canonical(&AppEvent {
-        kind: kind.into(),
-        body: body.to_vec(),
-    })
-    .map_err(err("event"))
+pub(crate) fn render(result: OperationResult) {
+    for change in result.changes {
+        render_change(change);
+    }
 }
 
-fn decode_event(bytes: &[u8]) -> Result<AppEvent, CliError> {
-    ciborium::from_reader(bytes).map_err(err("event"))
+pub(crate) fn cli_error(error: ApplicationError) -> CliError {
+    match error {
+        ApplicationError::Transport {
+            source, partial, ..
+        }
+        | ApplicationError::Storage {
+            source, partial, ..
+        }
+        | ApplicationError::Protocol {
+            source, partial, ..
+        }
+        | ApplicationError::Domain {
+            source, partial, ..
+        }
+        | ApplicationError::FileSystem {
+            source, partial, ..
+        }
+        | ApplicationError::Internal {
+            source, partial, ..
+        } => {
+            render(partial);
+            source
+        }
+        ApplicationError::Interrupted {
+            exit_code,
+            message,
+            partial,
+        } => {
+            render(partial);
+            eprintln!("{message}");
+            std::process::exit(exit_code.into());
+        }
+    }
 }
 
-struct Session {
-    client: Client,
-    device: StoredDevice,
-    realm: StoredRealm,
-    delivery: Delivery,
-    identity_id: Vec<u8>,
+fn fan_out_note(acceptance: &LocalAcceptance) -> String {
+    let LocalAcceptance::PersistedToOutbox {
+        peers_without_route,
+        revoked_devices,
+        ..
+    } = acceptance;
+    let mut parts = Vec::new();
+    if *peers_without_route > 0 {
+        parts.push(format!("{peers_without_route} peer(s) without a route yet"));
+    }
+    if *revoked_devices > 0 {
+        parts.push(format!("{revoked_devices} revoked device(s) skipped"));
+    }
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!(", {}", parts.join(", "))
+    }
 }
 
-fn session(data_dir: &Path) -> Result<(Session, Engine<impl MlsConfig>), CliError> {
-    let (client, device, realm) = enrolled(data_dir)?;
-    let delivery = Delivery::open(client.conn.clone()).map_err(err("delivery"))?;
-    let identity_id = client
-        .identity_id()
-        .map_err(err("identity"))?
-        .ok_or_else(|| CliError("no identity".into()))?;
-    let engine = mls::open(client.conn.clone(), device.mls_identity());
-    Ok((
-        Session {
-            client,
-            device,
-            realm,
-            delivery,
+fn render_change(change: StateChange) {
+    match change {
+        StateChange::IdentityCreated {
             identity_id,
-        },
-        engine,
-    ))
-}
-
-fn own_route(s: &Session) -> Result<String, CliError> {
-    let m = s
-        .client
-        .mailbox_own()
-        .map_err(err("mailbox"))?
-        .ok_or_else(|| CliError("no mailbox; run `mailbox create` first".into()))?;
-    crate::commands::route_string(&s.client, &s.device, &m)
-}
-
-fn peer_from_route(r: &Route) -> Peer {
-    Peer {
-        identity: r.identity_id.clone(),
-        device_id: r.device_id.clone(),
-        credential_hash: r.credential_hash.clone(),
-        root_public: r.root_public.clone(),
-        mailbox: Some(r.mailbox_id.clone()),
-        write_cap: Some(r.write_capability.clone()),
-        hpke: Some(r.hpke_public.clone()),
-        revoked: false,
-    }
-}
-
-fn route_of_peer(p: &Peer) -> Option<String> {
-    match (&p.mailbox, &p.write_cap, &p.hpke) {
-        (Some(m), Some(w), Some(h)) => Some(format!(
-            "arveil-route:v1:{}:{}:{}:{}:{}:{}:{}",
-            hex::encode(&p.identity),
-            hex::encode(&p.device_id),
-            hex::encode(&p.credential_hash),
-            hex::encode(&p.root_public),
-            hex::encode(m),
-            hex::encode(w),
-            hex::encode(h)
-        )),
-        _ => None,
-    }
-}
-
-/// Seal `mls_bytes` for one peer and enqueue it. Inside the unit of work.
-/// A peer without a route is skipped here and visible in `history`.
-fn enqueue_for(
-    s: &Session,
-    peer: &Peer,
-    event_id: Option<&[u8]>,
-    mls_bytes: &[u8],
-) -> Result<bool, rusqlite::Error> {
-    let (Some(mailbox), Some(hpke)) = (&peer.mailbox, &peer.hpke) else {
-        return Ok(false);
-    };
-    let delivery_id = random_delivery_id().map_err(|_| rusqlite::Error::InvalidQuery)?;
-    let ctx = EnvelopeContext::new(&s.realm.realm_id, mailbox, &delivery_id);
-    let sealed = envelope::seal(hpke, &ctx, KIND_MLS, mls_bytes)
-        .map_err(|_| rusqlite::Error::InvalidQuery)?;
-    s.delivery.enqueue(
-        mailbox,
-        &delivery_id,
-        event_id,
-        &sealed.enc,
-        &sealed.ciphertext,
-    )?;
-    Ok(true)
-}
-
-/// What one fan-out did, so the CLI can report it without guessing.
-#[derive(Default, Clone, Copy)]
-struct FanOut {
-    sent: usize,
-    no_route: usize,
-    revoked: usize,
-}
-
-impl FanOut {
-    /// The tail of the line describing what did not go out.
-    fn note(&self) -> String {
-        let mut parts = Vec::new();
-        if self.no_route > 0 {
-            parts.push(format!("{} peer(s) without a route yet", self.no_route));
-        }
-        if self.revoked > 0 {
-            parts.push(format!("{} revoked device(s) skipped", self.revoked));
-        }
-        if parts.is_empty() {
-            String::new()
-        } else {
-            format!(", {}", parts.join(", "))
-        }
-    }
-}
-
-/// Fan-out: one envelope per routable, non-revoked peer device.
-fn enqueue_for_all(
-    s: &Session,
-    peers: &[Peer],
-    event_id: Option<&[u8]>,
-    mls_bytes: &[u8],
-) -> Result<FanOut, rusqlite::Error> {
-    let mut out = FanOut::default();
-    for p in peers {
-        // A device known to be revoked receives nothing more.
-        if p.revoked {
-            out.revoked += 1;
-            continue;
-        }
-        if enqueue_for(s, p, event_id, mls_bytes)? {
-            out.sent += 1;
-        } else {
-            out.no_route += 1;
-        }
-    }
-    Ok(out)
-}
-
-/// Write capability for a mailbox, from any conversation that knows it.
-fn write_cap_for(s: &Session, mailbox: &[u8]) -> Result<Vec<u8>, CliError> {
-    for c in s.client.conversations().map_err(err("conversations"))? {
-        for p in c.peers {
-            if p.mailbox.as_deref() == Some(mailbox)
-                && let Some(cap) = p.write_cap
-            {
-                return Ok(cap);
+            created_during_enrollment,
+        } => println!(
+            "identity: {}{}",
+            hex::encode(identity_id),
+            if created_during_enrollment {
+                " (created)"
+            } else {
+                ""
             }
+        ),
+        StateChange::DevicePrepared { device_id } => {
+            println!("device: {}", hex::encode(device_id))
         }
-    }
-    Err(CliError(
-        "no write capability for a pending envelope".into(),
-    ))
-}
-
-/// Requested envelope expiry: `ARVEIL_ENVELOPE_TTL_SECS` from now, or 0
-/// to accept the relay's default. The relay may shorten it and reports the
-/// effective value, which the outbox records.
-fn requested_expiry() -> u64 {
-    std::env::var("ARVEIL_ENVELOPE_TTL_SECS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .map(|ttl| {
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0)
-                + ttl
-        })
-        .unwrap_or(0)
-}
-
-/// Publish every pending outbox row. Retransmissions reuse stored bytes.
-async fn publish_pending(s: &Session, conn: &mut Connection) -> Result<usize, CliError> {
-    let pending = s.delivery.pending().map_err(err("outbox"))?;
-    let mut n = 0;
-    for row in pending {
-        let cap = write_cap_for(s, &row.mailbox_id)?;
-        s.delivery.mark_attempt(row.id).map_err(err("outbox"))?;
-        let reply = conn
-            .request(Payload::EnvelopePut {
-                mailbox_id: row.mailbox_id.clone(),
-                write_capability: cap,
-                delivery_id: row.delivery_id.clone(),
-                requested_expiry: requested_expiry(),
-                hpke_enc: row.hpke_enc.clone(),
-                ciphertext: row.ciphertext.clone(),
-            })
-            .await;
-        match reply {
-            Ok(Payload::EnvelopeAccepted { effective_expiry }) => {
-                s.delivery
-                    .mark_accepted(row.id, Some(effective_expiry as i64))
-                    .map_err(err("outbox"))?;
-                n += 1;
-            }
-            Ok(other) => return Err(CliError(format!("unexpected reply: {other:?}"))),
-            // A revoked device's capabilities are gone: the envelope will
-            // never be accepted. Say so once and stop retrying it.
-            Err(e) if e.0.contains("(403)") || e.0.contains("(410)") => {
-                s.delivery
-                    .mark_undeliverable(row.id)
-                    .map_err(err("outbox"))?;
+        StateChange::EnrollmentAccepted { identity_id } => println!(
+            "enrolled: identity {} accepted by the realm",
+            hex::encode(identity_id)
+        ),
+        StateChange::EnrollmentEndpointListStored { sequence } => {
+            println!("endpoint list: sequence {sequence} stored")
+        }
+        StateChange::MailboxCreated { .. } => {}
+        StateChange::KeyPackagesPublished { count } => {
+            println!("key packages: {count} published")
+        }
+        StateChange::RouteAvailable { route } => println!("route: {route}"),
+        StateChange::LinkRequestCreated { device_id, request } => {
+            println!(
+                "device: {} (keys generated, not yet linked)",
+                hex::encode(device_id)
+            );
+            println!("request: {request}");
+        }
+        StateChange::DeviceAuthorizationSigned {
+            device_id,
+            manifest_sequence,
+        } => println!(
+            "signed: credential for device {} and manifest {manifest_sequence}",
+            hex::encode(device_id)
+        ),
+        StateChange::ManifestPublished { sequence } => {
+            println!("published: manifest {sequence}")
+        }
+        StateChange::CredentialPublished => {
+            println!("published: credential registered by the relay")
+        }
+        StateChange::LinkGrantCreated { grant } => println!("grant: {grant}"),
+        StateChange::DeviceLinked {
+            device_id,
+            identity_id,
+        } => println!(
+            "linked: device {} now belongs to identity {}",
+            hex::encode(device_id),
+            hex::encode(identity_id)
+        ),
+        StateChange::PairingStarted {
+            session_id,
+            device_id,
+            code,
+            expires_at,
+        } => {
+            println!(
+                "device: {} (keys generated, not yet linked)",
+                hex::encode(device_id)
+            );
+            println!("session: {}", hex::encode(session_id));
+            println!("code: {code}");
+            println!(
+                "waiting: show that code on the administration device (it expires at {expires_at})"
+            );
+        }
+        StateChange::PairingVerificationReady {
+            verification_code,
+            confirmation_required,
+            ..
+        } => {
+            println!("verification code: {verification_code}");
+            if confirmation_required {
                 println!(
-                    "undeliverable: mailbox {} refused the envelope ({e})",
-                    hex::encode(&row.mailbox_id[..4])
+                    "confirm with `arveil device pair-confirm --data-dir <dir> <bootstrap> {verification_code}` only if the administration device shows the same number"
                 );
             }
-            Err(e) => return Err(e),
         }
-    }
-    Ok(n)
-}
-
-/// Device ids currently holding a leaf in the group, from the MLS roster.
-fn roster_device_ids<C: MlsConfig>(group: &Group<C>) -> Vec<Vec<u8>> {
-    group
-        .roster()
-        .members()
-        .into_iter()
-        .filter_map(|m| {
-            m.signing_identity
-                .credential
-                .as_basic()
-                .map(|b| b.identifier.clone())
-        })
-        .collect()
-}
-
-/// The leaf this device holds, and whether it is the authorized committer:
-/// the lowest leaf that is not known to be revoked (policy v2).
-fn committer_leaf<C: MlsConfig>(s: &Session, group: &Group<C>) -> Option<u32> {
-    let mut members: Vec<_> = group.roster().members();
-    members.sort_by_key(|m| m.index);
-    members
-        .into_iter()
-        .find(|m| {
-            let device = m
-                .signing_identity
-                .credential
-                .as_basic()
-                .map(|c| c.identifier.clone())
-                .unwrap_or_default();
-            !s.client.device_revoked(&device).unwrap_or(false)
-        })
-        .map(|m| m.index)
-}
-
-fn i_am_committer<C: MlsConfig>(s: &Session, group: &Group<C>) -> bool {
-    committer_leaf(s, group) == Some(group.current_member_index())
-}
-
-/// Revoked devices that still hold a leaf. While any exists, this device
-/// refuses to send: the epoch still lets them read (PROTOCOL §8).
-fn revoked_leaves<C: MlsConfig>(conv: &Conversation, group: &Group<C>) -> Vec<Vec<u8>> {
-    let leaves = roster_device_ids(group);
-    conv.peers
-        .iter()
-        .filter(|p| p.revoked && leaves.contains(&p.device_id))
-        .map(|p| p.device_id.clone())
-        .collect()
-}
-
-/// Refuse to send while a revoked device is still a member.
-fn guard_revoked<C: MlsConfig>(conv: &Conversation, group: &Group<C>) -> Result<(), CliError> {
-    let stuck = revoked_leaves(conv, group);
-    if stuck.is_empty() {
-        return Ok(());
-    }
-    Err(CliError(format!(
-        "paused: {} revoked device(s) still in the group ({}); waiting for the committer to remove them",
-        stuck.len(),
-        stuck
-            .iter()
-            .map(|d| hex::encode(&d[..4]))
-            .collect::<Vec<_>>()
-            .join(", ")
-    )))
-}
-
-/// Encrypt a signed manifest as a `manifest` event for the group.
-fn manifest_message<C: MlsConfig>(
-    group: &mut Group<C>,
-    manifest: &[u8],
-) -> Result<Vec<u8>, CliError> {
-    group
-        .encrypt_application_message(&encode_event("manifest", manifest)?, Default::default())
-        .map_err(err("mls encrypt"))?
-        .to_bytes()
-        .map_err(err("mls encode"))
-}
-
-/// Connect through the first endpoint that completes the handshake, in
-/// priority order from the stored signed list, with the bootstrap URL as
-/// the last resort. A dead or hostile endpoint costs one failed attempt.
-/// After connecting, the list is refreshed; a lower sequence is refused.
-async fn connect(s: &Session, b: &Bootstrap) -> Result<Connection, CliError> {
-    let mut candidates: Vec<String> = Vec::new();
-    if let Some(list) = &s.realm.endpoint_list {
-        let mut eps = list.endpoints.clone();
-        eps.sort_by_key(|e| e.priority);
-        candidates.extend(eps.into_iter().filter(|e| e.kind != "admin").map(|e| e.url));
-    }
-    if !candidates.contains(&b.url) {
-        candidates.push(b.url.clone());
-    }
-    let mut last = CliError("no endpoints".into());
-    for url in &candidates {
-        match Connection::open(
-            url,
-            &b.realm_id,
-            &s.realm.noise_public,
-            &s.device.keys.transport_noise,
-        )
-        .await
-        {
-            Ok(mut conn) => {
-                if candidates.first() != Some(url) {
-                    println!("endpoint: {url} (earlier endpoints unreachable)");
+        StateChange::PairingGrantSent {
+            verification_code, ..
+        } => println!(
+            "sent: the grant is on its way; the other device must show {verification_code} before it applies it"
+        ),
+        StateChange::PairingCancelled { session_id } => {
+            println!("pairing: session {} cancelled", hex::encode(session_id))
+        }
+        StateChange::PairingCancellationRejected { session_id, .. } => println!(
+            "pairing: session {} is already committed and cannot be cancelled",
+            hex::encode(session_id)
+        ),
+        StateChange::PairingCompletionChanged { .. }
+        | StateChange::LinkCompletionChanged { .. } => {}
+        StateChange::PairingExpired { session_id } => {
+            println!("pairing: session {} expired", hex::encode(session_id))
+        }
+        StateChange::MessageQueued { receipt, epoch } => {
+            let LocalAcceptance::PersistedToOutbox { envelopes, .. } = &receipt.local_acceptance;
+            match receipt.kind {
+                MessageKind::Text => println!(
+                    "committed: message stored locally (epoch {epoch}), {envelopes} envelope(s) queued{}",
+                    fan_out_note(&receipt.local_acceptance)
+                ),
+                MessageKind::File => println!(
+                    "committed: file descriptor stored locally, {envelopes} envelope(s) queued{}",
+                    fan_out_note(&receipt.local_acceptance)
+                ),
+            }
+        }
+        StateChange::DeliveryChanged {
+            mailbox_id,
+            state: DeliveryStatus::Undeliverable { reason },
+            ..
+        } => println!(
+            "undeliverable: mailbox {} refused the envelope ({reason})",
+            hex::encode(&mailbox_id[..4])
+        ),
+        StateChange::DeliveryChanged { .. } => {}
+        StateChange::EnvelopesPublished { count, pending } => {
+            if pending {
+                println!("published: {count} pending envelope(s)");
+            } else {
+                println!("published: {count} envelope(s)");
+            }
+        }
+        StateChange::RelayUnavailable { pending, reason } => println!(
+            "queued: relay unreachable ({reason}); {pending} envelope(s) pending for the next sync"
+        ),
+        StateChange::ConversationCreated {
+            group_id,
+            peers,
+            epoch,
+        } => println!(
+            "conversation: {} created with {peers} peer(s) (epoch {epoch})",
+            hex::encode(group_id)
+        ),
+        StateChange::ConversationJoined { group_id, epoch } => println!(
+            "joined conversation {} (epoch {epoch})",
+            hex::encode(group_id)
+        ),
+        StateChange::RosterUpdated { peers, .. } => {
+            println!("roster: {peers} peer route(s) learned inside the group")
+        }
+        StateChange::DeviceAdded {
+            identity_id,
+            device_id,
+            epoch,
+        } => println!(
+            "added: device {} of {} (epoch {epoch})",
+            hex::encode(device_id),
+            hex::encode(&identity_id[..4])
+        ),
+        StateChange::DeviceRemoved {
+            device_id,
+            leaf,
+            epoch,
+        } => println!(
+            "removed: leaf {leaf} of device {} (epoch {epoch})",
+            hex::encode(device_id)
+        ),
+        StateChange::CommitApplied {
+            committer, epoch, ..
+        } => println!("commit from leaf {committer} applied (epoch {epoch})"),
+        StateChange::MessageReceived { body, .. } => {
+            println!("message: {}", String::from_utf8_lossy(&body))
+        }
+        StateChange::FileAnnounced { name, size, .. } => {
+            println!("file: {name} ({size} bytes) announced; downloading after this pass")
+        }
+        StateChange::DuplicateDelivery { delivery_id } => {
+            println!("duplicate: delivery {} ignored", hex::encode(delivery_id))
+        }
+        StateChange::DeliveryDeferred {
+            delivery_id,
+            reason,
+        } => println!(
+            "deferred: delivery {} could not be processed yet ({reason}); retrying next sync",
+            hex::encode(delivery_id)
+        ),
+        StateChange::SyncCompleted {
+            fetched,
+            new,
+            acked,
+        } => {
+            println!("synced: {fetched} envelope(s), {new} new, {acked} acked")
+        }
+        StateChange::EndpointFallback { url } => {
+            println!("endpoint: {url} (earlier endpoints unreachable)")
+        }
+        StateChange::EndpointFailed { url, reason } => {
+            println!("endpoint: {url} failed ({reason}); trying the next one")
+        }
+        StateChange::EndpointListStored {
+            sequence,
+            endpoints,
+        } => println!("endpoint list: sequence {sequence} with {endpoints} endpoint(s) stored"),
+        StateChange::EndpointListRejected { reason } => {
+            println!("endpoint list: refused ({reason})")
+        }
+        StateChange::ManifestUpdated {
+            identity_id,
+            sequence,
+            active_devices,
+            revoked_devices,
+            source,
+            already_known,
+        } => match source {
+            ManifestSource::Realm => println!(
+                "manifest {sequence} for {} from the realm: {revoked_devices} revoked device(s)",
+                hex::encode(&identity_id[..4])
+            ),
+            ManifestSource::Group => println!(
+                "manifest {sequence} for {}: {active_devices} active, {revoked_devices} revoked{}",
+                hex::encode(&identity_id[..4]),
+                if already_known {
+                    " (already known)"
+                } else {
+                    ""
                 }
-                if let Ok(Payload::EndpointList { signed }) =
-                    conn.request(Payload::EndpointListGet).await
-                {
-                    match s.client.realm_accept_endpoint_list(&b.realm_id, &signed) {
-                        Ok(list) => {
-                            if s.realm.endpoint_list.as_ref().map(|l| l.sequence)
-                                != Some(list.sequence)
-                            {
-                                println!(
-                                    "endpoint list: sequence {} with {} endpoint(s) stored",
-                                    list.sequence,
-                                    list.endpoints.len()
-                                );
-                            }
-                        }
-                        Err(e) => println!("endpoint list: refused ({e})"),
-                    }
-                }
-                return Ok(conn);
-            }
-            Err(e) => {
-                println!("endpoint: {url} failed ({e}); trying the next one");
-                last = e;
-            }
+            ),
+        },
+        StateChange::ManifestRejected {
+            identity_id,
+            reason,
+        } => println!(
+            "manifest for {} refused: {reason}",
+            hex::encode(&identity_id[..4])
+        ),
+        StateChange::DeviceRevoked {
+            device_id,
+            credential_hash,
+        } => println!(
+            "revoked: device {} (credential {})",
+            hex::encode(device_id),
+            hex::encode(&credential_hash[..4])
+        ),
+        StateChange::RealmRevocationPublished => {
+            println!("published: the realm refuses that device from now on")
         }
-    }
-    Err(last)
-}
-
-async fn claim_key_package(conn: &mut Connection, r: &Route) -> Result<MlsMessage, CliError> {
-    match conn
-        .request(Payload::KeyPackagesClaim {
-            identity_id: r.identity_id.clone(),
-            device_id: r.device_id.clone(),
-        })
-        .await?
-    {
-        Payload::KeyPackageClaimed { key_package } => {
-            MlsMessage::from_bytes(&key_package).map_err(err("key package"))
-        }
-        other => Err(CliError(format!("unexpected reply: {other:?}"))),
-    }
-}
-
-/// The roster event: every member's route, this device's first.
-fn roster_message<C: MlsConfig>(
-    s: &Session,
-    group: &mut Group<C>,
-    peers: &[Peer],
-) -> Result<Vec<u8>, CliError> {
-    let mut routes = vec![own_route(s)?];
-    routes.extend(peers.iter().filter_map(route_of_peer));
-    group
-        .encrypt_application_message(
-            &encode_event("roster", routes.join("\n").as_bytes())?,
-            Default::default(),
-        )
-        .map_err(err("mls encrypt"))?
-        .to_bytes()
-        .map_err(err("mls encode"))
-}
-
-/// Pick the conversation a command acts on (M4.7).
-///
-/// With one conversation nothing has to be said. With several, a hex prefix
-/// of the group id selects one, and anything ambiguous is refused with the
-/// candidates rather than guessed.
-fn select_conversation(s: &Session, prefix: Option<&str>) -> Result<Conversation, CliError> {
-    let all = s.client.conversations().map_err(err("conversations"))?;
-    if all.is_empty() {
-        return Err(CliError(
-            "no conversation; run `chat start` or `chat sync` first".into(),
-        ));
-    }
-    let describe = |list: &[Conversation]| {
-        list.iter()
-            .map(|c| hex::encode(&c.group_id[..6]))
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
-    match prefix {
-        None if all.len() == 1 => Ok(all.into_iter().next().expect("one conversation")),
-        None => Err(CliError(format!(
-            "{} conversations here; choose one with --group <prefix>: {}",
-            all.len(),
-            describe(&all)
-        ))),
-        Some(p) => {
-            let p = p.trim().to_ascii_lowercase();
-            let matches: Vec<Conversation> = all
-                .into_iter()
-                .filter(|c| hex::encode(&c.group_id).starts_with(&p))
-                .collect();
-            match matches.len() {
-                1 => Ok(matches.into_iter().next().expect("one match")),
-                0 => Err(CliError(format!("no conversation starts with {p}"))),
-                _ => Err(CliError(format!(
-                    "{p} matches {} conversations: {}",
-                    matches.len(),
-                    describe(&matches)
-                ))),
+        StateChange::ConversationManifestSent { group_id, removal } => println!(
+            "conversation {}: manifest sent{}",
+            hex::encode(&group_id[..4]),
+            match removal {
+                RemovalOutcome::Removed { epoch } => format!(", leaf removed (epoch {epoch})"),
+                RemovalOutcome::LeftToCommitter => ", removal left to the committer".into(),
+                RemovalOutcome::NotInGroup => String::new(),
             }
+        ),
+        StateChange::KeyPackagesReplenished {
+            previous,
+            published,
+        } => println!("key packages: {previous} left at the realm, {published} more published"),
+        StateChange::ArchivedConversation { group_id } => println!(
+            "conversation {} (archived only, no MLS state)",
+            hex::encode(group_id)
+        ),
+        StateChange::ArchivedEvent { kind, body } => {
+            println!("  [archived {kind}] {}", String::from_utf8_lossy(&body))
         }
+        StateChange::UploadRestarted {
+            name,
+            reason: UploadRestartReason::FileChanged,
+        } => println!("upload: {name} changed since the interrupted attempt; starting again"),
+        StateChange::UploadRestarted {
+            reason: UploadRestartReason::RemoteMissing { reason },
+            ..
+        } => println!(
+            "upload: the realm no longer holds the interrupted upload ({reason}); starting again"
+        ),
+        StateChange::UploadResumed {
+            name,
+            offset,
+            total,
+        } => println!("upload: resuming {name} at {offset} of {total} ciphertext bytes"),
+        StateChange::BlobUploaded {
+            blob_id,
+            ciphertext_size,
+            expires_at,
+        } => println!(
+            "blob: {} uploaded ({ciphertext_size} bytes of ciphertext, relay keeps it until {expires_at})",
+            hex::encode(blob_id)
+        ),
+        StateChange::FileDownloadResumed { name, offset } => {
+            println!("file: resuming {name} at {offset} bytes")
+        }
+        StateChange::FileSaved { name, path } => {
+            println!("file: {name} saved to {}", path.display())
+        }
+        StateChange::FileUnavailable { name, reason } => {
+            println!("file unavailable: {name} ({reason})")
+        }
+        StateChange::MlsMessageProcessed { description, .. } => println!("{description}"),
     }
 }
 
-/// `arveil chat list --data-dir D`
-pub fn list(data_dir: &Path) -> Result<(), CliError> {
-    let (s, _engine) = session(data_dir)?;
-    let all = s.client.conversations().map_err(err("conversations"))?;
-    if all.is_empty() {
-        println!("conversations: none yet");
-        return Ok(());
-    }
-    for c in all {
-        let events = s.delivery.events(&c.group_id).map_err(err("events"))?;
-        let last = events
-            .last()
-            .map(|(_, kind, body)| format!("{kind}: {}", String::from_utf8_lossy(body)))
-            .unwrap_or_else(|| "no messages yet".into());
-        println!(
-            "{} ({}, {} peer device(s), {} event(s)) {last}",
-            hex::encode(&c.group_id),
-            if c.creator { "creator" } else { "member" },
-            c.peers.len(),
-            events.len()
-        );
-    }
+pub fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result<(), CliError> {
+    render(
+        application(data_dir)?
+            .create_conversation(bootstrap, peer_routes)
+            .map_err(cli_error)?,
+    );
     Ok(())
 }
 
-/// `arveil chat start --data-dir D <bootstrap> <peer-route>...`
-pub fn start(data_dir: &Path, bootstrap: &str, peer_routes: &[&str]) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let peers: Vec<Route> = peer_routes
-        .iter()
-        .map(|r| parse_route(r))
-        .collect::<Result<_, _>>()?;
-    if peers.is_empty() {
-        return Err(CliError("chat start needs at least one peer route".into()));
-    }
-    let (s, engine) = session(data_dir)?;
-
-    block_on(async {
-        let mut conn = connect(&s, &b).await?;
-        let mut kps = Vec::new();
-        for p in &peers {
-            kps.push(claim_key_package(&mut conn, p).await?);
-        }
-
-        let mut group = engine.create_group().map_err(err("mls"))?;
-        let mut cb = group.commit_builder();
-        for kp in kps {
-            cb = cb.add_member(kp).map_err(err("mls add"))?;
-        }
-        let commit = cb.build().map_err(err("mls commit"))?;
-        group.apply_pending_commit().map_err(err("mls apply"))?;
-        let conv = Conversation {
-            group_id: group.group_id().to_vec(),
-            creator: true,
-            peers: peers.iter().map(peer_from_route).collect(),
-        };
-        let welcome = commit
-            .welcome_messages
-            .first()
-            .ok_or_else(|| CliError("no welcome produced".into()))?
-            .to_bytes()
-            .map_err(err("welcome"))?;
-        let roster = roster_message(&s, &mut group, &conv.peers)?;
-
-        s.client
-            .conn
-            .unit_of_work(|_| {
-                group
-                    .write_to_storage()
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                s.client
-                    .conversation_save(&conv)
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                enqueue_for_all(&s, &conv.peers, None, &welcome)?;
-                enqueue_for_all(&s, &conv.peers, None, &roster)?;
-                Ok::<_, rusqlite::Error>(())
-            })
-            .map_err(err("start unit"))?;
-        println!(
-            "conversation: {} created with {} peer(s) (epoch {})",
-            hex::encode(&conv.group_id),
-            conv.peers.len(),
-            group.current_epoch()
-        );
-        let n = publish_pending(&s, &mut conn).await?;
-        println!("published: {n} envelope(s)");
-        conn.close().await;
-        Ok(())
-    })?
-}
-
-/// `arveil chat add --data-dir D <bootstrap> <peer-route>` (creator only)
 pub fn add(
     data_dir: &Path,
     bootstrap: &str,
     peer_route: &str,
     group: Option<&str>,
 ) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let newcomer = parse_route(peer_route)?;
-    let (s, engine) = session(data_dir)?;
-    let conv = select_conversation(&s, group)?;
-    let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
-
-    block_on(async {
-        let mut conn = connect(&s, &b).await?;
-        let kp = claim_key_package(&mut conn, &newcomer).await?;
-        // On a device that is not the lowest active leaf, the policy
-        // refuses this before anything is produced.
-        let commit = group
-            .commit_builder()
-            .add_member(kp)
-            .map_err(err("mls add"))?
-            .build()
-            .map_err(err("mls commit"))?;
-        group.apply_pending_commit().map_err(err("mls apply"))?;
-        let new_peer = peer_from_route(&newcomer);
-        let mut all = conv.clone();
-        all.peers.push(new_peer.clone());
-        let welcome = commit
-            .welcome_messages
-            .first()
-            .ok_or_else(|| CliError("no welcome produced".into()))?
-            .to_bytes()
-            .map_err(err("welcome"))?;
-        let commit_bytes = commit.commit_message.to_bytes().map_err(err("commit"))?;
-        let roster = roster_message(&s, &mut group, &all.peers)?;
-
-        s.client
-            .conn
-            .unit_of_work(|_| {
-                group
-                    .write_to_storage()
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                s.client
-                    .conversation_save(&all)
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                enqueue_for_all(&s, &conv.peers, None, &commit_bytes)?;
-                enqueue_for(&s, &new_peer, None, &welcome)?;
-                enqueue_for_all(&s, &all.peers, None, &roster)?;
-                Ok::<_, rusqlite::Error>(())
-            })
-            .map_err(err("add unit"))?;
-        println!(
-            "added: device {} of {} (epoch {})",
-            hex::encode(&newcomer.device_id),
-            hex::encode(&newcomer.identity_id[..4]),
-            group.current_epoch()
-        );
-        let n = publish_pending(&s, &mut conn).await?;
-        println!("published: {n} envelope(s)");
-        conn.close().await;
-        Ok(())
-    })?
+    render(
+        application(data_dir)?
+            .add_device(bootstrap, peer_route, group)
+            .map_err(cli_error)?,
+    );
+    Ok(())
 }
 
-/// `arveil chat remove --data-dir D <bootstrap> <device-id>` (committer only)
-///
-/// Removes a leaf whose credential this device knows to be revoked, from a
-/// manifest it verified under that identity's root. A device that is not
-/// revoked is never removed this way: revocation is the authority, the
-/// commit only enacts it.
 pub fn remove(
     data_dir: &Path,
     bootstrap: &str,
-    device_hex: &str,
+    device_id: &str,
     group: Option<&str>,
 ) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let device_id = hex::decode(device_hex).map_err(err("device id"))?;
-    let (s, engine) = session(data_dir)?;
-    let conv = select_conversation(&s, group)?;
-    if !conv
-        .peers
-        .iter()
-        .any(|p| p.device_id == device_id && p.revoked)
-    {
-        return Err(CliError(
-            "that device is not known to be revoked here; a verified manifest must say so first"
-                .into(),
-        ));
-    }
-    let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
-    let index = group
-        .roster()
-        .members()
-        .into_iter()
-        .find(|m| {
-            m.signing_identity
-                .credential
-                .as_basic()
-                .map(|c| c.identifier == device_id)
-                .unwrap_or(false)
-        })
-        .map(|m| m.index)
-        .ok_or_else(|| CliError("that device holds no leaf in this conversation".into()))?;
-
-    block_on(async {
-        let mut conn = connect(&s, &b).await?;
-        let commit = group
-            .commit_builder()
-            .remove_member(index)
-            .map_err(err("mls remove"))?
-            .build()
-            .map_err(err("mls commit"))?;
-        group.apply_pending_commit().map_err(err("mls apply"))?;
-        let bytes = commit.commit_message.to_bytes().map_err(err("commit"))?;
-        s.client
-            .conn
-            .unit_of_work(|_| {
-                group
-                    .write_to_storage()
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                enqueue_for_all(&s, &conv.peers, None, &bytes)
-            })
-            .map_err(err("remove unit"))?;
-        println!(
-            "removed: leaf {index} of device {} (epoch {})",
-            hex::encode(&device_id),
-            group.current_epoch()
-        );
-        let n = publish_pending(&s, &mut conn).await?;
-        println!("published: {n} envelope(s)");
-        conn.close().await;
-        Ok(())
-    })?
+    render(
+        application(data_dir)?
+            .remove_device(bootstrap, device_id, group)
+            .map_err(cli_error)?,
+    );
+    Ok(())
 }
 
-/// `arveil chat send --data-dir D <bootstrap> <text>`
 pub fn send(
     data_dir: &Path,
     bootstrap: &str,
     text: &str,
     group: Option<&str>,
 ) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let (s, engine) = session(data_dir)?;
-    let conv = select_conversation(&s, group)?;
-    let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
-    guard_revoked(&conv, &group)?;
-    let event_id = random_delivery_id()?;
-
-    // Send unit: nothing leaves the device before this commits.
-    let fan = s
-        .client
-        .conn
-        .unit_of_work(|_| {
-            let msg = group
-                .encrypt_application_message(
-                    &encode_event("text", text.as_bytes())
-                        .map_err(|_| rusqlite::Error::InvalidQuery)?,
-                    Default::default(),
-                )
-                .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            group
-                .write_to_storage()
-                .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            s.delivery
-                .record_event(&conv.group_id, &event_id, "sent", text.as_bytes())?;
-            let bytes = msg.to_bytes().map_err(|_| rusqlite::Error::InvalidQuery)?;
-            enqueue_for_all(&s, &conv.peers, Some(&event_id), &bytes)
-        })
-        .map_err(err("send unit"))?;
-    println!(
-        "committed: message stored locally (epoch {}), {} envelope(s) queued{}",
-        group.current_epoch(),
-        fan.sent,
-        fan.note()
+    render(
+        application(data_dir)?
+            .send_message(bootstrap, text, group)
+            .map_err(cli_error)?,
     );
-
-    if std::env::var_os("ARVEIL_CRASH_AFTER_COMMIT").is_some() {
-        eprintln!("simulated crash after commit, before publishing");
-        std::process::exit(3);
-    }
-
-    // Publishing is best effort: the message is already durable. A relay
-    // that cannot be reached leaves it queued for the next send or sync.
-    let outcome: Result<usize, CliError> = block_on(async {
-        let mut conn = connect(&s, &b).await?;
-        let n = publish_pending(&s, &mut conn).await?;
-        conn.close().await;
-        Ok(n)
-    })?;
-    match outcome {
-        Ok(n) => println!("published: {n} envelope(s)"),
-        Err(e) if e.0.starts_with("connect:") => {
-            let pending = s.delivery.pending().map_err(err("outbox"))?.len();
-            println!(
-                "queued: relay unreachable ({e}); {pending} envelope(s) pending for the next sync"
-            );
-        }
-        Err(e) => return Err(e),
-    }
     Ok(())
 }
 
-/// Process one decrypted MLS message inside the receive unit.
-fn handle_mls<C: MlsConfig>(
-    s: &Session,
-    engine: &Engine<C>,
-    msg: MlsMessage,
-    delivery_id: &[u8],
-) -> Result<String, CliError> {
-    match msg.wire_format() {
-        WireFormat::Welcome => {
-            let mut group = engine.join(&msg).map_err(err("mls join"))?;
-            group.write_to_storage().map_err(err("mls persist"))?;
-            s.client
-                .conversation_save(&Conversation {
-                    group_id: group.group_id().to_vec(),
-                    creator: false,
-                    peers: Vec::new(),
-                })
-                .map_err(err("conversation"))?;
-            Ok(format!(
-                "joined conversation {} (epoch {})",
-                hex::encode(group.group_id()),
-                group.current_epoch()
-            ))
-        }
-        // Commits travel as PublicMessage; the HPKE envelope already hides
-        // them from the relay, so both wire formats are handled alike.
-        WireFormat::PrivateMessage | WireFormat::PublicMessage => {
-            let gid = msg
-                .group_id()
-                .ok_or_else(|| CliError("message without group id".into()))?
-                .to_vec();
-            let mut group = engine.load_group(&gid).map_err(err("mls load"))?;
-            let received = group
-                .process_incoming_message(msg)
-                .map_err(err("mls process"))?;
-            group.write_to_storage().map_err(err("mls persist"))?;
-            match received {
-                ReceivedMessage::ApplicationMessage(app) => {
-                    let ev = decode_event(app.data())?;
-                    match ev.kind.as_str() {
-                        "roster" => {
-                            let text = String::from_utf8_lossy(&ev.body);
-                            let mut peers = Vec::new();
-                            for line in text.lines() {
-                                let r = parse_route(line)?;
-                                // Own other devices are peers; only this
-                                // device itself is left out.
-                                if r.device_id != s.device.keys.device_id {
-                                    peers.push(peer_from_route(&r));
-                                }
-                            }
-                            let n = peers.len();
-                            s.client
-                                .conversation_save(&Conversation {
-                                    group_id: gid,
-                                    creator: false,
-                                    peers,
-                                })
-                                .map_err(err("conversation"))?;
-                            Ok(format!(
-                                "roster: {n} peer route(s) learned inside the group"
-                            ))
-                        }
-                        "manifest" => {
-                            // A manifest is accepted only under the root
-                            // this device already stored for that identity,
-                            // and only if it advances the known sequence.
-                            let claimed =
-                                arveil_core::identity::manifest_identity_unverified(&ev.body);
-                            let (body, new) = match claimed {
-                                Some(id) if id != s.identity_id => s
-                                    .client
-                                    .peer_manifest_accept(&id, &ev.body)
-                                    .map_err(err("manifest"))?,
-                                _ => s
-                                    .client
-                                    .manifest_accept_own(&ev.body)
-                                    .map_err(err("manifest"))?,
-                            };
-                            Ok(format!(
-                                "manifest {} for {}: {} active, {} revoked{}",
-                                body.manifest_sequence,
-                                hex::encode(&body.identity_id[..4]),
-                                body.active_credential_hashes.len(),
-                                body.revoked_credential_hashes.len(),
-                                if new { "" } else { " (already known)" }
-                            ))
-                        }
-                        "text" => {
-                            s.delivery
-                                .record_event(&gid, delivery_id, "received", &ev.body)
-                                .map_err(err("event"))?;
-                            Ok(format!("message: {}", String::from_utf8_lossy(&ev.body)))
-                        }
-                        "file" => {
-                            let d = FileDescriptor::decode(&ev.body).map_err(err("file"))?;
-                            s.delivery
-                                .record_event(&gid, delivery_id, "file-pending", &ev.body)
-                                .map_err(err("event"))?;
-                            Ok(format!(
-                                "file: {} ({} bytes) announced; downloading after this pass",
-                                d.safe_name(),
-                                d.size
-                            ))
-                        }
-                        other => Ok(format!("event of kind {other} ignored")),
-                    }
-                }
-                ReceivedMessage::Commit(c) => Ok(format!(
-                    "commit from leaf {} applied (epoch {})",
-                    c.committer,
-                    group.current_epoch()
-                )),
-                other => Ok(format!("mls message {other:?} processed")),
-            }
-        }
-        other => Err(CliError(format!("unexpected MLS wire format {other:?}"))),
-    }
-}
-
-/// `arveil chat sync --data-dir D <bootstrap>`
-pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let (s, engine) = session(data_dir)?;
-    let m = s
-        .client
-        .mailbox_own()
-        .map_err(err("mailbox"))?
-        .ok_or_else(|| CliError("no mailbox".into()))?;
-
-    block_on(async {
-        let mut conn = connect(&s, &b).await?;
-        let published = publish_pending(&s, &mut conn).await?;
-        if published > 0 {
-            println!("published: {published} pending envelope(s)");
-        }
-        // Revocations first: a commit that removes a revoked leaf is only
-        // acceptable once this device has verified the manifest that
-        // revoked it.
-        refresh_manifests(&s, &mut conn).await?;
-        replenish_key_packages(&s, &mut conn).await?;
-        let cursor = s.delivery.cursor(&m.mailbox_id).map_err(err("cursor"))? as u64;
-        let (items, _fetched_next) = match conn
-            .request(Payload::EnvelopeFetch {
-                mailbox_id: m.mailbox_id.clone(),
-                read_capability: m.read_capability.clone(),
-                cursor,
-                limit: 50,
-            })
-            .await?
-        {
-            Payload::Envelopes { items, next_cursor } => (items, next_cursor),
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        };
-
-        // Envelopes are processed in sequence order. The first one that
-        // cannot be processed stops the pass: later ones may depend on it
-        // (a roster after a commit), and the cursor only advances past what
-        // was processed or deduplicated, so the rest is retried next time.
-        let mut new = 0;
-        let mut advanced_to = cursor;
-        for item in &items {
-            let ctx = EnvelopeContext::new(&s.realm.realm_id, &m.mailbox_id, &item.delivery_id);
-            let outcome: Result<Option<String>, CliError> = s.client.conn.unit_of_work(|_| {
-                if !s
-                    .delivery
-                    .record_incoming(&m.mailbox_id, &item.delivery_id, item.seq as i64)
-                    .map_err(err("inbox"))?
-                {
-                    return Ok(None);
-                }
-                let inner = envelope::open(
-                    &s.device.keys.envelope_hpke.private,
-                    &ctx,
-                    &envelope::Sealed {
-                        enc: item.hpke_enc.clone(),
-                        ciphertext: item.ciphertext.clone(),
-                    },
-                )
-                .map_err(err("open"))?;
-                let msg = MlsMessage::from_bytes(&inner.payload).map_err(err("mls parse"))?;
-                handle_mls(&s, &engine, msg, &item.delivery_id).map(Some)
-            });
-            match outcome {
-                Ok(Some(line)) => {
-                    new += 1;
-                    println!("{line}");
-                }
-                Ok(None) => println!(
-                    "duplicate: delivery {} ignored",
-                    hex::encode(&item.delivery_id)
-                ),
-                Err(e) => {
-                    println!(
-                        "deferred: delivery {} could not be processed yet ({e}); retrying next sync",
-                        hex::encode(&item.delivery_id)
-                    );
-                    break;
-                }
-            }
-            advanced_to = item.seq;
-        }
-        let next = advanced_to;
-        download_pending(&s, &mut conn, data_dir).await?;
-        let unacked = s.delivery.unacked(&m.mailbox_id).map_err(err("inbox"))?;
-        if !unacked.is_empty() {
-            match conn
-                .request(Payload::EnvelopeAck {
-                    mailbox_id: m.mailbox_id.clone(),
-                    read_capability: m.read_capability.clone(),
-                    delivery_ids: unacked
-                        .iter()
-                        .cloned()
-                        .map(serde_bytes::ByteBuf::from)
-                        .collect(),
-                })
-                .await?
-            {
-                Payload::Ack => s
-                    .delivery
-                    .mark_acked(&m.mailbox_id, &unacked)
-                    .map_err(err("inbox"))?,
-                other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-            }
-        }
-        s.delivery
-            .set_cursor(&m.mailbox_id, next as i64)
-            .map_err(err("cursor"))?;
-        println!(
-            "synced: {} envelope(s), {new} new, {} acked",
-            items.len(),
-            unacked.len()
-        );
-        conn.close().await;
-        Ok(())
-    })?
-}
-
-/// Ask the relay for the newest manifest of every identity in this
-/// device's conversations, including its own. The in-group copy catches a
-/// relay that hides versions; this catches a group that has not carried the
-/// manifest yet. Both are verified under the root already stored.
-async fn refresh_manifests(s: &Session, conn: &mut Connection) -> Result<(), CliError> {
-    let mut identities: Vec<Vec<u8>> = vec![s.identity_id.clone()];
-    for c in s.client.conversations().map_err(err("conversations"))? {
-        for p in c.peers {
-            if !identities.contains(&p.identity) {
-                identities.push(p.identity);
-            }
-        }
-    }
-    for id in identities {
-        let signed = match conn
-            .request(Payload::ManifestGet {
-                identity_id: id.clone(),
-            })
-            .await?
-        {
-            Payload::ManifestLatest { manifest } => manifest,
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        };
-        if signed.is_empty() {
-            continue;
-        }
-        let accepted = if id == s.identity_id {
-            s.client.manifest_accept_own(&signed)
-        } else {
-            s.client.peer_manifest_accept(&id, &signed)
-        };
-        match accepted {
-            Ok((body, true)) => println!(
-                "manifest {} for {} from the realm: {} revoked device(s)",
-                body.manifest_sequence,
-                hex::encode(&id[..4]),
-                body.revoked_credential_hashes.len()
-            ),
-            Ok((_, false)) => {}
-            // A relay that serves an older or forked manifest is reported,
-            // never applied (I-08).
-            Err(e) => println!("manifest for {} refused: {e}", hex::encode(&id[..4])),
-        }
-    }
-    Ok(())
-}
-
-/// `arveil device revoke --data-dir D <bootstrap> <device-id-hex>`
-///
-/// Signs manifest N+1 without that device, publishes it to the realm (which
-/// refuses the device's handshake and revokes its capabilities), sends it as
-/// a `manifest` event into every conversation, and, where this device is the
-/// committer, removes the revoked leaf in the same pass.
-pub fn revoke(data_dir: &Path, bootstrap: &str, device_hex: &str) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let device_id = hex::decode(device_hex).map_err(err("device id"))?;
-    let (s, engine) = session(data_dir)?;
-    let (manifest, hash) = s.client.device_revoke(&device_id).map_err(err("revoke"))?;
-    println!(
-        "revoked: device {} (credential {})",
-        hex::encode(&device_id),
-        hex::encode(&hash[..4])
-    );
-
-    block_on(async {
-        let mut conn = connect(&s, &b).await?;
-        match conn
-            .request(Payload::ManifestPut {
-                manifest: manifest.clone(),
-            })
-            .await?
-        {
-            Payload::Ack => println!("published: the realm refuses that device from now on"),
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        }
-
-        for gid in s.client.archived_groups().map_err(err("archived"))? {
-            println!(
-                "conversation {} (archived only, no MLS state)",
-                hex::encode(&gid)
-            );
-            for (kind, body) in s.client.archived(&gid).map_err(err("archived"))? {
-                println!("  [archived {kind}] {}", String::from_utf8_lossy(&body));
-            }
-        }
-        for conv in s.client.conversations().map_err(err("conversations"))? {
-            let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
-            let in_group = roster_device_ids(&group).contains(&device_id);
-            let committer = i_am_committer(&s, &group);
-            let event = manifest_message(&mut group, &manifest)?;
-            let removal = if in_group && committer {
-                let index = group
-                    .roster()
-                    .members()
-                    .into_iter()
-                    .find(|m| {
-                        m.signing_identity
-                            .credential
-                            .as_basic()
-                            .map(|c| c.identifier == device_id)
-                            .unwrap_or(false)
-                    })
-                    .map(|m| m.index)
-                    .ok_or_else(|| CliError("revoked device not found in the roster".into()))?;
-                let commit = group
-                    .commit_builder()
-                    .remove_member(index)
-                    .map_err(err("mls remove"))?
-                    .build()
-                    .map_err(err("mls commit"))?;
-                group.apply_pending_commit().map_err(err("mls apply"))?;
-                Some(commit.commit_message.to_bytes().map_err(err("commit"))?)
-            } else {
-                None
-            };
-            s.client
-                .conn
-                .unit_of_work(|_| {
-                    group
-                        .write_to_storage()
-                        .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                    enqueue_for_all(&s, &conv.peers, None, &event)?;
-                    if let Some(bytes) = &removal {
-                        enqueue_for_all(&s, &conv.peers, None, bytes)?;
-                    }
-                    Ok::<_, rusqlite::Error>(())
-                })
-                .map_err(err("revoke unit"))?;
-            println!(
-                "conversation {}: manifest sent{}",
-                hex::encode(&conv.group_id[..4]),
-                match (&removal, in_group) {
-                    (Some(_), _) => format!(", leaf removed (epoch {})", group.current_epoch()),
-                    (None, true) => ", removal left to the committer".into(),
-                    (None, false) => String::new(),
-                }
-            );
-        }
-        let n = publish_pending(&s, &mut conn).await?;
-        println!("published: {n} envelope(s)");
-        conn.close().await;
-        Ok(())
-    })?
-}
-
-/// Top up the KeyPackages the realm holds for this device (M4.6).
-///
-/// Each is consumed by one person starting a conversation with this device.
-/// Without this, the batch published at enrolment runs out and the next
-/// person is refused, which looks like a broken realm rather than an empty
-/// shelf.
-async fn replenish_key_packages(s: &Session, conn: &mut Connection) -> Result<(), CliError> {
-    const FLOOR: u32 = 3;
-    const TARGET: u32 = 10;
-    let available = match conn.request(Payload::KeyPackagesStatus).await? {
-        Payload::KeyPackagesAvailable { count } => count,
-        other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-    };
-    if available > FLOOR {
-        return Ok(());
-    }
-    let engine = mls::open(s.client.conn.clone(), s.device.mls_identity());
-    let mut key_packages = Vec::new();
-    for _ in 0..(TARGET - available) {
-        let kp = engine.key_package().map_err(err("key package"))?;
-        key_packages.push(serde_bytes::ByteBuf::from(
-            kp.to_bytes().map_err(err("key package"))?,
-        ));
-    }
-    let n = key_packages.len();
-    match conn
-        .request(Payload::KeyPackagesPublish { key_packages })
-        .await?
-    {
-        Payload::Ack => println!("key packages: {available} left at the realm, {n} more published"),
-        other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-    }
-    Ok(())
-}
-
-/// `arveil chat history --data-dir D`
-pub fn history(data_dir: &Path) -> Result<(), CliError> {
-    let (s, _engine) = session(data_dir)?;
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-    for gid in s.client.archived_groups().map_err(err("archived"))? {
-        println!(
-            "conversation {} (archived only, no MLS state)",
-            hex::encode(&gid)
-        );
-        for (kind, body) in s.client.archived(&gid).map_err(err("archived"))? {
-            println!("  [archived {kind}] {}", String::from_utf8_lossy(&body));
-        }
-    }
-    for conv in s.client.conversations().map_err(err("conversations"))? {
-        println!(
-            "conversation {} ({}), peers: {}",
-            hex::encode(&conv.group_id),
-            if conv.creator { "creator" } else { "member" },
-            conv.peers
-                .iter()
-                .map(|p| format!(
-                    "{}/{}{}{}{}",
-                    match s.client.contact(&p.identity) {
-                        Ok(Some(c)) => c.label(),
-                        _ => hex::encode(&p.identity[..4]),
-                    },
-                    hex::encode(&p.device_id[..4]),
-                    if p.identity == s.identity_id {
-                        " (own)"
-                    } else {
-                        ""
-                    },
-                    match s.client.contact(&p.identity) {
-                        Ok(Some(c)) if c.verified => " (verified)",
-                        _ => "",
-                    },
-                    if p.routable() { "" } else { " (no route)" }
-                ))
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        for (kind, body) in s.client.archived(&conv.group_id).map_err(err("archived"))? {
-            println!("  [archived {kind}] {}", String::from_utf8_lossy(&body));
-        }
-        for (event_id, kind, body) in s.delivery.events(&conv.group_id).map_err(err("events"))? {
-            println!("  [{kind:>8}] {}", String::from_utf8_lossy(&body));
-            if kind == "sent" {
-                for (mailbox, state) in s
-                    .delivery
-                    .states_for_event(&event_id, now)
-                    .map_err(err("states"))?
-                {
-                    println!(
-                        "             -> mailbox {}: {state}",
-                        hex::encode(&mailbox[..4])
-                    );
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-const BLOB_CHUNK: usize = 60 * 1024;
-
-/// Test hook: stop an upload after this many chunks, as a network would.
-fn crash_after_chunks() -> Option<usize> {
-    std::env::var("ARVEIL_CRASH_AFTER_CHUNKS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-}
-
-/// Test hook: stop a download after this many chunks.
-fn crash_after_download_chunks() -> Option<usize> {
-    std::env::var("ARVEIL_CRASH_AFTER_DOWNLOAD_CHUNKS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-}
-
-/// Open a new blob on the realm and report where to start writing.
-async fn begin_upload(
-    conn: &mut Connection,
-    size: usize,
-) -> Result<(Vec<u8>, Vec<u8>, usize), CliError> {
-    match conn
-        .request(Payload::BlobUploadBegin { size: size as u64 })
-        .await?
-    {
-        Payload::BlobUploadStarted {
-            blob_id,
-            read_capability,
-        } => Ok((blob_id, read_capability, 0)),
-        other => Err(CliError(format!("unexpected reply: {other:?}"))),
-    }
-}
-
-fn blob_expiry() -> u64 {
-    std::env::var("ARVEIL_BLOB_TTL_SECS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .map(|ttl| {
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0)
-                + ttl
-        })
-        .unwrap_or(0)
-}
-
-/// `arveil chat send-file --data-dir D <bootstrap> <path>`
-///
-/// Encrypts the whole file with a fresh FileKey, uploads the ciphertext in
-/// chunks, commits it with its hash, then sends the descriptor inside MLS
-/// exactly like a text message (same send unit, same fan-out).
 pub fn send_file(
     data_dir: &Path,
     bootstrap: &str,
     path: &Path,
     group: Option<&str>,
 ) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let (s, engine) = session(data_dir)?;
-    let conv = select_conversation(&s, group)?;
-    let plaintext = std::fs::read(path).map_err(err("read file"))?;
-    let name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "file".into());
-    let key = path.to_string_lossy().to_string();
-
-    // An upload interrupted earlier is continued with the same key, nonce
-    // and blob id, so the bytes the realm already holds stay valid; only if
-    // the file itself changed does it start again (M3.3).
-    let pending = s.client.upload_pending(&key).map_err(err("uploads"))?;
-    let enc = match &pending {
-        Some(u) => {
-            let again = attachments::encrypt_with(&u.file_key, &u.nonce, &plaintext)
-                .map_err(err("encrypt"))?;
-            if again.ciphertext_hash == u.ciphertext_hash {
-                Some(again)
-            } else {
-                println!("upload: {name} changed since the interrupted attempt; starting again");
-                s.client.upload_clear(&key).map_err(err("uploads"))?;
-                None
-            }
-        }
-        None => None,
-    };
-    let (enc, pending) = match enc {
-        Some(e) => (e, pending),
-        None => (
-            attachments::encrypt(&plaintext).map_err(err("encrypt"))?,
-            None,
-        ),
-    };
-
-    let (blob_id, read_capability, expiry) = block_on(async {
-        let mut conn = connect(&s, &b).await?;
-        // Where to continue: what the realm says it holds, or a new blob.
-        let (blob_id, read_capability, mut offset) = match &pending {
-            Some(u) => {
-                match conn
-                    .request(Payload::BlobResume {
-                        blob_id: u.blob_id.clone(),
-                    })
-                    .await
-                {
-                    Ok(Payload::BlobOffset { offset }) => {
-                        println!(
-                            "upload: resuming {name} at {offset} of {} ciphertext bytes",
-                            enc.ciphertext.len()
-                        );
-                        (
-                            u.blob_id.clone(),
-                            u.read_capability.clone(),
-                            offset as usize,
-                        )
-                    }
-                    Ok(other) => return Err(CliError(format!("unexpected reply: {other:?}"))),
-                    // The realm dropped it (expired, swept, committed):
-                    // start a fresh upload rather than guess.
-                    Err(e) => {
-                        println!(
-                            "upload: the realm no longer holds the interrupted upload ({e}); starting again"
-                        );
-                        begin_upload(&mut conn, enc.ciphertext.len()).await?
-                    }
-                }
-            }
-            None => begin_upload(&mut conn, enc.ciphertext.len()).await?,
-        };
-        s.client
-            .upload_save(
-                &key,
-                &arveil_core::client::PendingUpload {
-                    blob_id: blob_id.clone(),
-                    read_capability: read_capability.clone(),
-                    file_key: enc.file_key.clone(),
-                    nonce: enc.nonce.clone(),
-                    ciphertext_hash: enc.ciphertext_hash.clone(),
-                    size: enc.ciphertext.len() as u64,
-                },
-            )
-            .map_err(err("uploads"))?;
-
-        let mut sent = 0usize;
-        while offset < enc.ciphertext.len() {
-            let end = (offset + BLOB_CHUNK).min(enc.ciphertext.len());
-            match conn
-                .request(Payload::BlobChunk {
-                    blob_id: blob_id.clone(),
-                    offset: offset as u64,
-                    data: enc.ciphertext[offset..end].to_vec(),
-                })
-                .await?
-            {
-                Payload::Ack => {}
-                other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-            }
-            offset = end;
-            sent += 1;
-            if let Some(limit) = crash_after_chunks()
-                && sent >= limit
-            {
-                eprintln!("simulated interruption after {sent} chunk(s), at offset {offset}");
-                std::process::exit(4);
-            }
-        }
-        let expiry = match conn
-            .request(Payload::BlobCommit {
-                blob_id: blob_id.clone(),
-                ciphertext_hash: enc.ciphertext_hash.clone(),
-                requested_expiry: blob_expiry(),
-            })
-            .await?
-        {
-            Payload::BlobCommitted { effective_expiry } => effective_expiry,
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        };
-        conn.close().await;
-        Ok((blob_id, read_capability, expiry))
-    })??;
-    s.client.upload_clear(&key).map_err(err("uploads"))?;
-    println!(
-        "blob: {} uploaded ({} bytes of ciphertext, relay keeps it until {expiry})",
-        hex::encode(&blob_id),
-        enc.ciphertext.len()
+    render(
+        application(data_dir)?
+            .send_file(bootstrap, path, group)
+            .map_err(cli_error)?,
     );
-
-    let descriptor = FileDescriptor {
-        version: attachments::VERSION,
-        blob_id,
-        read_capability,
-        file_key: enc.file_key,
-        nonce: enc.nonce,
-        ciphertext_hash: enc.ciphertext_hash,
-        size: plaintext.len() as u64,
-        name: name.clone(),
-        mime: "application/octet-stream".into(),
-    };
-    let body = descriptor.encode().map_err(err("descriptor"))?;
-    let mut group = engine.load_group(&conv.group_id).map_err(err("mls load"))?;
-    guard_revoked(&conv, &group)?;
-    let event_id = random_delivery_id()?;
-    let fan = s
-        .client
-        .conn
-        .unit_of_work(|_| {
-            let msg = group
-                .encrypt_application_message(
-                    &encode_event("file", &body).map_err(|_| rusqlite::Error::InvalidQuery)?,
-                    Default::default(),
-                )
-                .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            group
-                .write_to_storage()
-                .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            s.delivery.record_event(
-                &conv.group_id,
-                &event_id,
-                "sent-file",
-                format!("{name} ({} bytes)", plaintext.len()).as_bytes(),
-            )?;
-            let bytes = msg.to_bytes().map_err(|_| rusqlite::Error::InvalidQuery)?;
-            enqueue_for_all(&s, &conv.peers, Some(&event_id), &bytes)
-        })
-        .map_err(err("send unit"))?;
-    println!(
-        "committed: file descriptor stored locally, {} envelope(s) queued{}",
-        fan.sent,
-        fan.note()
-    );
-    let n = block_on(async {
-        let mut conn = connect(&s, &b).await?;
-        let n = publish_pending(&s, &mut conn).await?;
-        conn.close().await;
-        Ok::<_, CliError>(n)
-    })??;
-    println!("published: {n} envelope(s)");
     Ok(())
 }
 
-/// Download every announced file, verify hash and AEAD, write it under
-/// `<data-dir>/downloads`, and record the outcome as an event. An expired
-/// or unknown blob becomes a visible `file-unavailable` event, never a
-/// silent skip.
-async fn download_pending(
-    s: &Session,
-    conn: &mut Connection,
-    data_dir: &Path,
-) -> Result<(), CliError> {
-    let pending = s
-        .delivery
-        .events_of_kind("file-pending")
-        .map_err(err("events"))?;
-    if pending.is_empty() {
+pub fn sync(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
+    render(application(data_dir)?.sync(bootstrap).map_err(cli_error)?);
+    Ok(())
+}
+
+pub fn revoke(data_dir: &Path, bootstrap: &str, device_id: &str) -> Result<(), CliError> {
+    render(
+        application(data_dir)?
+            .revoke_device(bootstrap, device_id)
+            .map_err(cli_error)?,
+    );
+    Ok(())
+}
+
+pub fn list(data_dir: &Path) -> Result<(), CliError> {
+    let conversations = application(data_dir)?.conversations().map_err(cli_error)?;
+    if conversations.is_empty() {
+        println!("conversations: none yet");
         return Ok(());
     }
-    let dir = data_dir.join("downloads");
-    std::fs::create_dir_all(&dir).map_err(err("downloads dir"))?;
-    for (event_id, _, body) in pending {
-        let d = match FileDescriptor::decode(&body) {
-            Ok(d) => d,
-            Err(e) => {
-                s.delivery
-                    .update_event(
-                        &event_id,
-                        "file-unavailable",
-                        format!("bad descriptor: {e}").as_bytes(),
-                    )
-                    .map_err(err("event"))?;
-                continue;
-            }
-        };
-        // Ciphertext accumulates in a `.part` file, so a download that was
-        // interrupted continues where it stopped instead of starting over.
-        let part = dir.join(format!("{}.part", d.safe_name()));
-        let mut ciphertext = std::fs::read(&part).unwrap_or_default();
-        if !ciphertext.is_empty() {
-            if ciphertext.len() as u64 > d.size + 16 {
-                // Not ours, or corrupt: start again rather than guess.
-                ciphertext.clear();
+    for conversation in conversations {
+        let last = conversation
+            .last_event
+            .map(|event| format!("{}: {}", event.kind, String::from_utf8_lossy(&event.body)))
+            .unwrap_or_else(|| "no messages yet".into());
+        println!(
+            "{} ({}, {} peer device(s), {} event(s)) {last}",
+            hex::encode(&conversation.group_id),
+            if conversation.creator {
+                "creator"
             } else {
-                println!(
-                    "file: resuming {} at {} bytes",
-                    d.safe_name(),
-                    ciphertext.len()
-                );
-            }
-        }
-        let mut failure: Option<String> = None;
-        let mut chunks = 0usize;
-        loop {
-            match conn
-                .request(Payload::BlobFetch {
-                    blob_id: d.blob_id.clone(),
-                    read_capability: d.read_capability.clone(),
-                    offset: ciphertext.len() as u64,
-                    length: BLOB_CHUNK as u32,
-                })
-                .await
-            {
-                Ok(Payload::BlobData { total_size, data }) => {
-                    if data.is_empty() {
-                        break;
-                    }
-                    ciphertext.extend_from_slice(&data);
-                    std::fs::write(&part, &ciphertext).map_err(err("partial file"))?;
-                    chunks += 1;
-                    if let Some(limit) = crash_after_download_chunks()
-                        && chunks >= limit
-                    {
-                        eprintln!(
-                            "simulated interruption after {chunks} chunk(s), at {} bytes",
-                            ciphertext.len()
-                        );
-                        std::process::exit(4);
-                    }
-                    if ciphertext.len() as u64 >= total_size {
-                        break;
-                    }
-                }
-                Ok(other) => {
-                    failure = Some(format!("unexpected reply {other:?}"));
-                    break;
-                }
-                Err(e) => {
-                    failure = Some(e.0);
-                    break;
-                }
-            }
-        }
-        let outcome = match failure {
-            Some(reason) => Err(reason),
-            None => attachments::decrypt(&d, &ciphertext)
-                .map_err(|e| e.to_string())
-                .and_then(|plain| {
-                    let target = dir.join(d.safe_name());
-                    std::fs::write(&target, &plain)
-                        .map(|_| target)
-                        .map_err(|e| e.to_string())
-                })
-                .inspect(|_| {
-                    // The whole file is verified and written: the partial
-                    // copy has no further use.
-                    let _ = std::fs::remove_file(&part);
-                }),
-        };
-        match outcome {
-            Ok(target) => {
-                s.delivery
-                    .update_event(
-                        &event_id,
-                        "received-file",
-                        target.to_string_lossy().as_bytes(),
-                    )
-                    .map_err(err("event"))?;
-                println!("file: {} saved to {}", d.safe_name(), target.display());
-            }
-            Err(reason) => {
-                s.delivery
-                    .update_event(
-                        &event_id,
-                        "file-unavailable",
-                        format!("{} ({reason})", d.safe_name()).as_bytes(),
-                    )
-                    .map_err(err("event"))?;
-                println!("file unavailable: {} ({reason})", d.safe_name());
-            }
-        }
+                "member"
+            },
+            conversation.peer_devices,
+            conversation.event_count,
+        );
     }
     Ok(())
+}
+
+pub fn history(data_dir: &Path) -> Result<(), CliError> {
+    for conversation in application(data_dir)?.history().map_err(cli_error)? {
+        render_history(conversation);
+    }
+    Ok(())
+}
+
+fn render_history(conversation: ConversationHistory) {
+    let Some(creator) = conversation.creator else {
+        println!(
+            "conversation {} (archived only, no MLS state)",
+            hex::encode(&conversation.group_id)
+        );
+        for event in conversation.events {
+            let kind = event.kind.strip_prefix("archived-").unwrap_or(&event.kind);
+            println!(
+                "  [archived {kind}] {}",
+                String::from_utf8_lossy(&event.body)
+            );
+        }
+        return;
+    };
+
+    println!(
+        "conversation {} ({}), peers: {}",
+        hex::encode(&conversation.group_id),
+        if creator { "creator" } else { "member" },
+        conversation
+            .peers
+            .iter()
+            .map(|peer| format!(
+                "{}/{}{}{}{}",
+                peer.label,
+                hex::encode(&peer.device_id[..4]),
+                if peer.own { " (own)" } else { "" },
+                if peer.verified { " (verified)" } else { "" },
+                if peer.routable { "" } else { " (no route)" },
+            ))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    for event in conversation.events {
+        if let Some(kind) = event.kind.strip_prefix("archived-") {
+            println!(
+                "  [archived {kind}] {}",
+                String::from_utf8_lossy(&event.body)
+            );
+            continue;
+        }
+        println!(
+            "  [{:>8}] {}",
+            event.kind,
+            String::from_utf8_lossy(&event.body)
+        );
+        for state in event.delivery_states {
+            println!(
+                "             -> mailbox {}: {}",
+                hex::encode(&state.mailbox_id[..4]),
+                state.state
+            );
+        }
+    }
 }

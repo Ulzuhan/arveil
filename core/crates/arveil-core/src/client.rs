@@ -94,6 +94,26 @@ CREATE TABLE IF NOT EXISTS pairing_pending (
     manifest    BLOB NOT NULL,
     root_public BLOB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS pairing_sessions (
+    session_id  BLOB PRIMARY KEY,
+    code        TEXT NOT NULL,
+    expires_at  INTEGER NOT NULL,
+    sas         TEXT,
+    credential  BLOB,
+    manifest    BLOB,
+    root_public BLOB
+);
+CREATE TABLE IF NOT EXISTS pairing_completion (
+    session_id BLOB PRIMARY KEY REFERENCES pairing_sessions(session_id),
+    phase      INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS link_completion (
+    id          INTEGER PRIMARY KEY CHECK (id = 1),
+    credential  BLOB NOT NULL,
+    manifest    BLOB NOT NULL,
+    root_public BLOB NOT NULL,
+    phase       INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS archived_events (
     group_id   BLOB NOT NULL,
     event_id   BLOB NOT NULL,
@@ -141,6 +161,8 @@ pub enum ClientError {
     GrantMismatch,
     #[error("client: link grant manifest does not list the credential as active")]
     GrantManifest,
+    #[error("client: invalid persisted link completion phase {0}")]
+    InvalidCompletionPhase(i64),
     #[error("client: device already linked or enrolled")]
     DeviceExists,
     #[error("client: unknown device {0} for this identity")]
@@ -165,7 +187,7 @@ fn hex_of(b: &[u8]) -> String {
 pub const DEFAULT_VALIDITY_SECS: u64 = 365 * 24 * 3600;
 
 pub struct Client {
-    pub conn: SharedConn,
+    conn: SharedConn,
 }
 
 type DeviceRow = (
@@ -269,6 +291,55 @@ pub struct PendingPairing {
     pub root_public: Vec<u8>,
 }
 
+/// One application-level pairing session. The rendezvous capability remains
+/// embedded in `code`; a grant is absent until the Noise exchange completes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PairingSessionState {
+    pub session_id: Vec<u8>,
+    pub code: String,
+    pub expires_at: u64,
+    pub sas: Option<String>,
+    pub credential: Option<Vec<u8>>,
+    pub manifest: Option<Vec<u8>>,
+    pub root_public: Option<Vec<u8>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(i64)]
+pub enum PairingCompletionPhase {
+    Committing = 1,
+    LocalApplied = 2,
+    RealmSaved = 3,
+    EndpointStored = 4,
+    RealmEnrolled = 5,
+    MailboxStored = 6,
+    KeyPackagesPublished = 7,
+    Complete = 8,
+}
+
+impl PairingCompletionPhase {
+    fn from_db(value: i64) -> Option<Self> {
+        match value {
+            1 => Some(Self::Committing),
+            2 => Some(Self::LocalApplied),
+            3 => Some(Self::RealmSaved),
+            4 => Some(Self::EndpointStored),
+            5 => Some(Self::RealmEnrolled),
+            6 => Some(Self::MailboxStored),
+            7 => Some(Self::KeyPackagesPublished),
+            8 => Some(Self::Complete),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PairingCancellationStatus {
+    Cancelled,
+    AlreadyCommitted,
+    Missing,
+}
+
 /// One device of this identity, as its own client knows it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OwnDevice {
@@ -331,6 +402,29 @@ impl Client {
     pub fn open(conn: SharedConn) -> Result<Self, ClientError> {
         conn.lock().execute_batch(CLIENT_SCHEMA)?;
         Ok(Self { conn })
+    }
+
+    /// Open the delivery repository attached to this client's private store.
+    pub fn delivery(&self) -> Result<crate::delivery::Delivery, rusqlite::Error> {
+        crate::delivery::Delivery::open(self.conn.clone())
+    }
+
+    /// Open an MLS engine attached to this client's private store.
+    pub fn mls_engine(
+        &self,
+        identity: MlsIdentity,
+    ) -> crate::mls::Engine<impl mls_rs::client_builder::MlsConfig + use<>> {
+        crate::mls::open(self.conn.clone(), identity)
+    }
+
+    /// Commit one short state transition atomically across client, MLS and
+    /// delivery repositories. The backing connection is intentionally not
+    /// exposed to callers.
+    pub fn unit_of_work<T, E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<T, E>
+    where
+        E: From<rusqlite::Error>,
+    {
+        self.conn.unit_of_work(|_| f())
     }
 
     /// Create the root key; refuses to overwrite an existing identity.
@@ -934,6 +1028,285 @@ impl Client {
         Ok(())
     }
 
+    /// Persist the rendezvous returned by the realm before waiting for its
+    /// peer. Keeping the id separately makes later confirmation and
+    /// cancellation unambiguous.
+    pub fn pairing_session_start(
+        &self,
+        session_id: &[u8],
+        code: &str,
+        expires_at: u64,
+    ) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT OR REPLACE INTO pairing_sessions
+             (session_id, code, expires_at, sas, credential, manifest, root_public)
+             VALUES (?1, ?2, ?3, NULL, NULL, NULL, NULL)",
+            params![session_id, code, expires_at as i64],
+        )?;
+        Ok(())
+    }
+
+    /// Attach the authenticated grant to the exact rendezvous that produced
+    /// it. Returns false if that session was cancelled or never existed.
+    pub fn pairing_session_ready(
+        &self,
+        session_id: &[u8],
+        sas: &str,
+        credential: &[u8],
+        manifest: &[u8],
+        root_public: &[u8],
+    ) -> Result<bool, ClientError> {
+        Ok(self.conn.lock().execute(
+            "UPDATE pairing_sessions
+             SET sas = ?2, credential = ?3, manifest = ?4, root_public = ?5
+             WHERE session_id = ?1",
+            params![session_id, sas, credential, manifest, root_public],
+        )? == 1)
+    }
+
+    pub fn pairing_session(
+        &self,
+        session_id: &[u8],
+    ) -> Result<Option<PairingSessionState>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT session_id, code, expires_at, sas, credential, manifest, root_public
+                 FROM pairing_sessions WHERE session_id = ?1",
+                params![session_id],
+                |row| {
+                    Ok(PairingSessionState {
+                        session_id: row.get(0)?,
+                        code: row.get(1)?,
+                        expires_at: row.get::<_, i64>(2)? as u64,
+                        sas: row.get(3)?,
+                        credential: row.get(4)?,
+                        manifest: row.get(5)?,
+                        root_public: row.get(6)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    /// The CLI compatibility adapter uses this only to resolve its legacy
+    /// confirmation syntax. Reusable callers should retain the session id
+    /// returned by `begin_pairing` instead.
+    pub fn latest_pairing_session(&self) -> Result<Option<PairingSessionState>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT session_id, code, expires_at, sas, credential, manifest, root_public
+                 FROM pairing_sessions ORDER BY rowid DESC LIMIT 1",
+                [],
+                |row| {
+                    Ok(PairingSessionState {
+                        session_id: row.get(0)?,
+                        code: row.get(1)?,
+                        expires_at: row.get::<_, i64>(2)? as u64,
+                        sas: row.get(3)?,
+                        credential: row.get(4)?,
+                        manifest: row.get(5)?,
+                        root_public: row.get(6)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn pairing_session_clear(&self, session_id: &[u8]) -> Result<bool, ClientError> {
+        self.conn.unit_of_work(|shared| {
+            let conn = shared.lock();
+            conn.execute(
+                "DELETE FROM pairing_completion WHERE session_id = ?1",
+                params![session_id],
+            )?;
+            Ok(conn.execute(
+                "DELETE FROM pairing_sessions WHERE session_id = ?1",
+                params![session_id],
+            )? == 1)
+        })
+    }
+
+    /// Atomically cross the point after which cancellation cannot promise
+    /// that no credentials were applied. Repeated calls return the durable
+    /// phase so finalization can resume.
+    pub fn pairing_completion_begin(
+        &self,
+        session_id: &[u8],
+    ) -> Result<Option<PairingCompletionPhase>, ClientError> {
+        self.conn.unit_of_work(|shared| {
+            let conn = shared.lock();
+            let ready: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM pairing_sessions
+                 WHERE session_id = ?1 AND sas IS NOT NULL
+                   AND credential IS NOT NULL AND manifest IS NOT NULL AND root_public IS NOT NULL",
+                params![session_id],
+                |row| row.get(0),
+            )?;
+            if ready != 1 {
+                return Ok(None);
+            }
+            conn.execute(
+                "INSERT OR IGNORE INTO pairing_completion (session_id, phase) VALUES (?1, ?2)",
+                params![session_id, PairingCompletionPhase::Committing as i64],
+            )?;
+            let phase = conn.query_row(
+                "SELECT phase FROM pairing_completion WHERE session_id = ?1",
+                params![session_id],
+                |row| row.get::<_, i64>(0),
+            )?;
+            Ok(PairingCompletionPhase::from_db(phase))
+        })
+    }
+
+    pub fn pairing_completion_phase(
+        &self,
+        session_id: &[u8],
+    ) -> Result<Option<PairingCompletionPhase>, ClientError> {
+        let phase = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT phase FROM pairing_completion WHERE session_id = ?1",
+                params![session_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()?;
+        Ok(phase.and_then(PairingCompletionPhase::from_db))
+    }
+
+    /// Advance only forwards; stale retries cannot regress a completed step.
+    pub fn pairing_completion_advance(
+        &self,
+        session_id: &[u8],
+        phase: PairingCompletionPhase,
+    ) -> Result<bool, ClientError> {
+        Ok(self.conn.lock().execute(
+            "UPDATE pairing_completion SET phase = MAX(phase, ?2) WHERE session_id = ?1",
+            params![session_id, phase as i64],
+        )? == 1)
+    }
+
+    /// Start or resume completion of a link grant received outside the
+    /// interactive pairing flow. Only the byte-for-byte same grant may
+    /// resume a row that already crossed the local commit boundary.
+    pub fn link_completion_begin(
+        &self,
+        credential: &[u8],
+        manifest: &[u8],
+        root_public: &[u8],
+    ) -> Result<PairingCompletionPhase, ClientError> {
+        self.conn.unit_of_work(|shared| {
+            let conn = shared.lock();
+            let stored = conn
+                .query_row(
+                    "SELECT credential, manifest, root_public, phase
+                     FROM link_completion WHERE id = 1",
+                    [],
+                    |row| {
+                        Ok((
+                            row.get::<_, Vec<u8>>(0)?,
+                            row.get::<_, Vec<u8>>(1)?,
+                            row.get::<_, Vec<u8>>(2)?,
+                            row.get::<_, i64>(3)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            if let Some((saved_credential, saved_manifest, saved_root, phase)) = stored {
+                if saved_credential != credential
+                    || saved_manifest != manifest
+                    || saved_root != root_public
+                {
+                    return Err(ClientError::GrantMismatch);
+                }
+                return PairingCompletionPhase::from_db(phase)
+                    .ok_or(ClientError::InvalidCompletionPhase(phase));
+            }
+            conn.execute(
+                "INSERT INTO link_completion
+                 (id, credential, manifest, root_public, phase)
+                 VALUES (1, ?1, ?2, ?3, ?4)",
+                params![
+                    credential,
+                    manifest,
+                    root_public,
+                    PairingCompletionPhase::Committing as i64
+                ],
+            )?;
+            Ok(PairingCompletionPhase::Committing)
+        })
+    }
+
+    pub fn link_completion_phase(&self) -> Result<Option<PairingCompletionPhase>, ClientError> {
+        let phase = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT phase FROM link_completion WHERE id = 1",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()?;
+        phase
+            .map(|value| {
+                PairingCompletionPhase::from_db(value)
+                    .ok_or(ClientError::InvalidCompletionPhase(value))
+            })
+            .transpose()
+    }
+
+    pub fn link_completion_advance(
+        &self,
+        phase: PairingCompletionPhase,
+    ) -> Result<bool, ClientError> {
+        Ok(self.conn.lock().execute(
+            "UPDATE link_completion SET phase = MAX(phase, ?1) WHERE id = 1",
+            params![phase as i64],
+        )? == 1)
+    }
+
+    /// Forget a direct grant that failed before it changed local identity
+    /// state. Once any durable step advanced, this deliberately does nothing.
+    pub fn link_completion_abort_if_unapplied(&self) -> Result<bool, ClientError> {
+        Ok(self.conn.lock().execute(
+            "DELETE FROM link_completion WHERE id = 1 AND phase = ?1",
+            params![PairingCompletionPhase::Committing as i64],
+        )? == 1)
+    }
+
+    /// Cancellation and the Ready -> Committing transition use the same
+    /// connection lock, so exactly one outcome wins within the supported
+    /// single-process profile model.
+    pub fn pairing_session_cancel(
+        &self,
+        session_id: &[u8],
+    ) -> Result<PairingCancellationStatus, ClientError> {
+        self.conn.unit_of_work(|shared| {
+            let conn = shared.lock();
+            let committed: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM pairing_completion WHERE session_id = ?1",
+                params![session_id],
+                |row| row.get(0),
+            )?;
+            if committed != 0 {
+                return Ok(PairingCancellationStatus::AlreadyCommitted);
+            }
+            let deleted = conn.execute(
+                "DELETE FROM pairing_sessions WHERE session_id = ?1",
+                params![session_id],
+            )?;
+            Ok(if deleted == 1 {
+                PairingCancellationStatus::Cancelled
+            } else {
+                PairingCancellationStatus::Missing
+            })
+        })
+    }
+
     /// Is this device id known to be revoked, as a peer or as one of our
     /// own devices? The same question the group policy asks.
     pub fn device_revoked(&self, device_id: &[u8]) -> Result<bool, ClientError> {
@@ -1169,6 +1542,58 @@ impl Client {
             Ok::<_, rusqlite::Error>(())
         })?;
         Ok(identity_id)
+    }
+
+    /// Resume-safe form of [`Client::device_link_complete`]. If an earlier
+    /// attempt committed locally but failed before its caller recorded the
+    /// next application phase, accept only the byte-for-byte same,
+    /// cryptographically valid linkage.
+    pub fn device_link_complete_idempotent(
+        &self,
+        credential: &[u8],
+        manifest: &[u8],
+        root_public: &[u8],
+        now: u64,
+    ) -> Result<Vec<u8>, ClientError> {
+        match self.device_link_complete(credential, manifest, root_public, now) {
+            Ok(identity_id) => Ok(identity_id),
+            Err(ClientError::DeviceExists) => {
+                let device = self.device()?.ok_or(ClientError::NoDevice)?;
+                let stored_identity = self.identity_id()?.ok_or(ClientError::DeviceExists)?;
+                let stored_root = self.root_public()?.ok_or(ClientError::DeviceExists)?;
+                let public: [u8; 32] = root_public
+                    .try_into()
+                    .map_err(|_| ClientError::GrantMismatch)?;
+                let root =
+                    VerifyingKey::from_bytes(&public).map_err(|_| ClientError::GrantMismatch)?;
+                let verified = identity::verify_credential(credential, Some(&root), now)?;
+                let mine = device.keys.public();
+                let same_device = verified.credential.device_id == mine.device_id
+                    && verified.credential.mls_signature_public_key
+                        == mine.mls_signature_public_key
+                    && verified.credential.transport_noise_public_key
+                        == mine.transport_noise_public_key
+                    && verified.credential.envelope_hpke_public_key
+                        == mine.envelope_hpke_public_key;
+                let (body, _) = identity::accept_manifest(manifest, &root, None)?;
+                let active = body
+                    .active_credential_hashes
+                    .iter()
+                    .any(|hash| hash.as_slice() == verified.hash.as_slice());
+                let same_link = same_device
+                    && active
+                    && device.credential == credential
+                    && device.credential_hash == verified.hash
+                    && stored_root == root
+                    && stored_identity == identity::identity_id(&root);
+                if same_link {
+                    Ok(stored_identity)
+                } else {
+                    Err(ClientError::DeviceExists)
+                }
+            }
+            Err(error) => Err(error),
+        }
     }
 
     pub fn manifest_state(&self) -> Result<Option<ManifestState>, ClientError> {
@@ -1448,5 +1873,74 @@ mod tests {
         assert_eq!(state.sequence, 1);
         assert_eq!(state.hash, identity::manifest_hash(&manifest));
         assert_eq!(c.latest_manifest().unwrap().unwrap(), manifest);
+    }
+
+    #[test]
+    fn pairing_sessions_are_addressed_and_cleared_by_exact_id() {
+        let c = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        c.pairing_session_start(b"one", "code-one", 100).unwrap();
+        c.pairing_session_start(b"two", "code-two", 200).unwrap();
+        assert!(
+            c.pairing_session_ready(b"one", "1111-2222", b"c", b"m", b"r")
+                .unwrap()
+        );
+        assert!(
+            !c.pairing_session_ready(b"missing", "0000-0000", b"c", b"m", b"r")
+                .unwrap()
+        );
+        assert_eq!(
+            c.pairing_session(b"one").unwrap().unwrap().sas.as_deref(),
+            Some("1111-2222")
+        );
+        assert!(c.pairing_session_clear(b"one").unwrap());
+        assert!(c.pairing_session(b"one").unwrap().is_none());
+        assert_eq!(
+            c.latest_pairing_session().unwrap().unwrap().session_id,
+            b"two"
+        );
+        assert_eq!(
+            c.pairing_session_cancel(b"missing").unwrap(),
+            PairingCancellationStatus::Missing
+        );
+        c.pairing_session_ready(b"two", "3333-4444", b"c", b"m", b"r")
+            .unwrap();
+        assert_eq!(
+            c.pairing_completion_begin(b"two").unwrap(),
+            Some(PairingCompletionPhase::Committing)
+        );
+        assert_eq!(
+            c.pairing_session_cancel(b"two").unwrap(),
+            PairingCancellationStatus::AlreadyCommitted
+        );
+        assert!(c.pairing_session(b"two").unwrap().is_some());
+        c.pairing_completion_advance(b"two", PairingCompletionPhase::LocalApplied)
+            .unwrap();
+        assert_eq!(
+            c.pairing_completion_phase(b"two").unwrap(),
+            Some(PairingCompletionPhase::LocalApplied)
+        );
+    }
+
+    #[test]
+    fn direct_link_completion_resumes_only_the_same_grant() {
+        let c = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        assert_eq!(
+            c.link_completion_begin(b"credential", b"manifest", b"root")
+                .unwrap(),
+            PairingCompletionPhase::Committing
+        );
+        assert!(
+            c.link_completion_advance(PairingCompletionPhase::RealmSaved)
+                .unwrap()
+        );
+        assert_eq!(
+            c.link_completion_begin(b"credential", b"manifest", b"root")
+                .unwrap(),
+            PairingCompletionPhase::RealmSaved
+        );
+        assert!(matches!(
+            c.link_completion_begin(b"credential", b"another-manifest", b"root"),
+            Err(ClientError::GrantMismatch)
+        ));
     }
 }

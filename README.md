@@ -1,5 +1,7 @@
 # Arveil
 
+**Client update:** the reusable `arveil-app` layer, cooperative profile executor, resumable linking and process lock are implemented locally. Flutter is selected for all five client platforms, with macOS and Android first; no GUI or Dart/Rust bridge exists yet. See the [implementation record](docs/CLIENT_FOUNDATION.md), [Flutter plan](docs/PHASE3B.md) and [ADR-009](docs/adr/ADR-009-flutter-first.md).
+
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 One Go binary, one SQLite file, one data directory. Runs on a Raspberry Pi in your home and stays reachable over LAN, Tailscale, or a Cloudflare Tunnel, without changing a single security guarantee.
 
@@ -26,7 +28,8 @@ No federation, no voice or video, no bots or bridges, no web client served by th
 ```mermaid
 flowchart LR
   subgraph Device[Your device]
-    UI[Flutter UI, candidate] --> Core[Rust core: identity, MLS, storage, recovery]
+    UI[Flutter UI, planned] --> App[arveil-app: operations and executor]
+    App --> Core[Rust core: identity, MLS, storage, recovery]
   end
   subgraph Realm[Realm: untrusted for content]
     Relay[Go relay: Noise channel over WebSocket]
@@ -70,13 +73,13 @@ It does **not** do platform code signing: there is no Apple notarization and no 
 | 2: personal use (done) | Multi-device, identity kit, history archive, revocation | Total-loss and restore drills; enrollment is never silent |
 | 3a: ready to hand out (done) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds | Every claim in `scripts/phase3.sh`; builds a stranger can check |
 | 4: operable (done) | Container image, compose and systemd, limits per address, health and metrics, TLS, backups; KeyPackage replenishment, several conversations, contact names | Somebody else can install it, watch it, back it up and restore it |
-| 3b: distribution | Mobile and desktop clients, signed updates, optional push | Signed builds, external review, verified platform matrix |
+| 3b: distribution | Mobile and desktop clients, signed updates, optional push | M3b.8: signed builds/updates, external security review, verified platform matrix; M3b.5 is a limited beta |
 
 ## Repository layout
 
 ```text
 .
-├── core/       Rust workspace: arveil-core (library) and arveil-cli
+├── core/       Rust workspace: arveil-core, arveil-app and arveil-cli
 ├── relay/      Go module: arveil-relay server
 ├── spikes/     Throwaway investigations; spikes/mls compares OpenMLS and mls-rs (M0.5)
 ├── docs/       Architecture docs (English), docs/es/ (Spanish), MkDocs site source

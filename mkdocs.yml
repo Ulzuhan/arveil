@@ -6,6 +6,10 @@ repo_name: Ulzuhan/arveil
 edit_uri: edit/main/docs/
 docs_dir: docs
 
+# Preserve the historical draft in Git, but do not publish or index its claims.
+exclude_docs: |
+  /REVIEW-v0.4.md
+
 theme:
   name: material
   language: en
@@ -58,6 +62,8 @@ nav:
   - Phase 1 plan: PHASE1.md
   - Phase 2 plan: PHASE2.md
   - Phase 3 plan: PHASE3.md
+  - Client foundation: CLIENT_FOUNDATION.md
+  - Flutter plan (phase 3b): PHASE3B.md
   - Phase 4 plan: PHASE4.md
   - Decision records:
       - ADR-001 Go server, Rust core: adr/ADR-001-go-server-rust-core.md
@@ -68,6 +74,7 @@ nav:
       - ADR-006 Local-first, recovery-first: adr/ADR-006-local-first-recovery-first.md
       - ADR-007 Optional realm redundancy: adr/ADR-007-optional-realm-redundancy.md
       - ADR-008 Carrier-independent transport: adr/ADR-008-carrier-independent-transport.md
+      - ADR-009 Flutter first: adr/ADR-009-flutter-first.md
   - Evidence:
       - Demo transcript: evidence/demo-transcript.txt
       - Q3 capture excerpt: evidence/q3-capture-excerpt.txt
@@ -80,6 +87,9 @@ nav:
   - Español:
       - Índice: es/README.md
       - Arquitectura: es/ARCHITECTURE.md
+      - Base de aplicación implementada: es/CLIENT_FOUNDATION.md
+      - Plan Flutter (fase 3b): es/PHASE3B.md
+      - ADR-009 Flutter primero: es/adr/ADR-009-flutter-first.md
       - Modelo de amenazas: es/THREAT_MODEL.md
       - Protocolo: es/PROTOCOL.md
       - Modelo de dominio: es/DOMAIN_MODEL.md

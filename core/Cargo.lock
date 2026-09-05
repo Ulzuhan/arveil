@@ -108,7 +108,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "arveil-cli"
+name = "arveil-app"
 version = "0.0.1"
 dependencies = [
  "arveil-core",
@@ -123,9 +123,26 @@ dependencies = [
  "rustls-pemfile",
  "serde",
  "serde_bytes",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-tungstenite",
  "webpki-roots 1.0.9",
+]
+
+[[package]]
+name = "arveil-cli"
+version = "0.0.1"
+dependencies = [
+ "arveil-app",
+ "arveil-core",
+ "ciborium",
+ "getrandom 0.4.3",
+ "hex",
+ "mls-rs",
+ "rusqlite",
+ "serde",
+ "serde_bytes",
+ "tokio",
 ]
 
 [[package]]
@@ -146,6 +163,7 @@ dependencies = [
  "mls-rs-codec",
  "mls-rs-core",
  "mls-rs-crypto-rustcrypto",
+ "parking_lot",
  "proptest",
  "rusqlite",
  "serde",

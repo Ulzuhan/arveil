@@ -174,6 +174,7 @@ fn i04_send_unit_is_all_or_nothing_and_retransmits_stored_bytes() {
     .unwrap();
     let pending = alice.delivery.pending().unwrap();
     assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].event_id.as_deref(), Some(b"d1".as_slice()));
     assert_eq!(alice.delivery.event_count().unwrap(), 1);
 
     // Retransmission reuses the stored bytes: identical across attempts.
@@ -251,4 +252,10 @@ fn i05_receive_unit_commits_before_ack_and_survives_a_crash() {
     assert_eq!(bob.delivery.cursor(&row.mailbox_id).unwrap(), 0);
     bob.delivery.set_cursor(&row.mailbox_id, 1).unwrap();
     assert_eq!(bob.delivery.cursor(&row.mailbox_id).unwrap(), 1);
+    bob.delivery.set_cursor(&row.mailbox_id, 0).unwrap();
+    assert_eq!(
+        bob.delivery.cursor(&row.mailbox_id).unwrap(),
+        1,
+        "a stale sync cannot move the cursor backwards"
+    );
 }

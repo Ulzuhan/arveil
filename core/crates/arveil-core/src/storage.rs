@@ -12,8 +12,9 @@
 //! the environment is the caller's job.
 
 use std::path::Path;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 
+use parking_lot::{ReentrantMutex, ReentrantMutexGuard};
 use rusqlite::Connection;
 
 /// Durability profile required by ADR-004 for every database that holds
@@ -97,12 +98,11 @@ fn unlock(conn: &Connection, key: &str) -> Result<(), StorageError> {
 
 /// Shared handle to the core's single connection. Cloning shares it.
 ///
-/// The mutex is held only for the duration of one statement; transactions
-/// are expressed with explicit `BEGIN`/`COMMIT`/`ROLLBACK` statements so that
-/// library callbacks (the MLS storage providers) can run inside them without
-/// holding the lock across a callback.
+/// A unit of work retains exclusive ownership of the connection until it
+/// commits or rolls back. The mutex is reentrant because MLS storage callbacks
+/// access this same connection while the transaction is active.
 #[derive(Clone, Debug)]
-pub struct SharedConn(Arc<Mutex<Connection>>);
+pub struct SharedConn(Arc<ReentrantMutex<Connection>>);
 
 impl SharedConn {
     /// In-memory database for tests and throwaway state.
@@ -135,30 +135,31 @@ impl SharedConn {
             conn.execute_batch(PRAGMAS)?;
         }
         conn.execute_batch(SCHEMA)?;
-        Ok(Self(Arc::new(Mutex::new(conn))))
+        Ok(Self(Arc::new(ReentrantMutex::new(conn))))
     }
 
     /// Lock the connection for one statement or one short sequence.
-    pub fn lock(&self) -> MutexGuard<'_, Connection> {
-        self.0.lock().expect("sqlite connection mutex poisoned")
+    pub fn lock(&self) -> ReentrantMutexGuard<'_, Connection> {
+        self.0.lock()
     }
 
     /// Run `f` inside one transaction. Commits if `f` returns `Ok`, rolls
-    /// back otherwise. `f` must not hold the lock across calls that may lock
-    /// again, and must not open its own transaction.
+    /// back otherwise. Other threads cannot interleave statements before the
+    /// transaction ends. `f` must not open its own transaction.
     pub fn unit_of_work<T, E>(&self, f: impl FnOnce(&Self) -> Result<T, E>) -> Result<T, E>
     where
         E: From<rusqlite::Error>,
     {
-        self.lock().execute_batch("BEGIN IMMEDIATE")?;
+        let transaction = self.lock();
+        transaction.execute_batch("BEGIN IMMEDIATE")?;
         match f(self) {
             Ok(value) => {
-                self.lock().execute_batch("COMMIT")?;
+                transaction.execute_batch("COMMIT")?;
                 Ok(value)
             }
             Err(e) => {
                 // Best effort: if rollback itself fails the connection is unusable anyway.
-                let _ = self.lock().execute_batch("ROLLBACK");
+                let _ = transaction.execute_batch("ROLLBACK");
                 Err(e)
             }
         }
@@ -245,5 +246,49 @@ mod tests {
 
         conn.unit_of_work(|c| insert(c).map(|_| ())).unwrap();
         assert_eq!(conn.count("scratch").unwrap(), 1);
+    }
+
+    #[test]
+    fn unit_of_work_prevents_interleaved_statements() {
+        use std::sync::mpsc;
+
+        let conn = SharedConn::open_in_memory().unwrap();
+        conn.lock()
+            .execute_batch("CREATE TABLE ordering (position INTEGER PRIMARY KEY, actor TEXT)")
+            .unwrap();
+
+        let other = conn.clone();
+        let (start_tx, start_rx) = mpsc::channel();
+        let (attempting_tx, attempting_rx) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            start_rx.recv().unwrap();
+            attempting_tx.send(()).unwrap();
+            other
+                .lock()
+                .execute("INSERT INTO ordering (actor) VALUES ('other')", [])
+                .unwrap();
+        });
+
+        conn.unit_of_work(|c| {
+            c.lock()
+                .execute("INSERT INTO ordering (actor) VALUES ('first')", [])?;
+            start_tx.send(()).unwrap();
+            attempting_rx.recv().unwrap();
+            c.lock()
+                .execute("INSERT INTO ordering (actor) VALUES ('second')", [])?;
+            Ok::<_, rusqlite::Error>(())
+        })
+        .unwrap();
+        worker.join().unwrap();
+
+        let actors = conn
+            .lock()
+            .prepare("SELECT actor FROM ordering ORDER BY position")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(actors, ["first", "second", "other"]);
     }
 }
