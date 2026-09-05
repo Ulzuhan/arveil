@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use arveil_app::{Application, parse_route};
+use arveil_app::{Application, ProfileConfig, parse_route};
 use arveil_core::channel::StaticKeypair;
 use arveil_core::channel::codec::Payload;
 use arveil_core::client::{Client, OwnMailbox, StoredDevice};
@@ -31,6 +31,48 @@ pub fn db_key() -> Option<String> {
         .filter(|k| !k.is_empty())
 }
 
+/// The command line is where the environment is still read: it translates
+/// its own variables into the explicit configuration the application layer
+/// now requires, so the library depends on none of them. A graphical client
+/// builds the same value from the platform key store instead.
+pub fn profile_config(data_dir: &Path) -> Result<ProfileConfig, CliError> {
+    let mut config = match db_key() {
+        Some(key) => ProfileConfig::encrypted(data_dir, key)
+            .map_err(|error| CliError::Domain(error.to_string()))?,
+        None => ProfileConfig::unencrypted(data_dir),
+    };
+    if let Ok(path) = std::env::var("ARVEIL_TLS_CA") {
+        config = config.with_tls_ca(path);
+    }
+    if let Some(seconds) = env_seconds("ARVEIL_ENVELOPE_TTL_SECS") {
+        config = config.with_envelope_ttl(seconds);
+    }
+    if let Some(seconds) = env_seconds("ARVEIL_BLOB_TTL_SECS") {
+        config = config.with_blob_ttl(seconds);
+    }
+    if let Some(seconds) = env_seconds("ARVEIL_PAIR_TIMEOUT_SECS") {
+        config = config.with_pairing_timeout(seconds);
+    }
+    Ok(config)
+}
+
+/// The extra certificate authority the carrier should trust, when the
+/// operator points at one for a self-signed proxy.
+pub fn tls_ca() -> Option<PathBuf> {
+    std::env::var("ARVEIL_TLS_CA").ok().map(PathBuf::from)
+}
+
+fn env_seconds(name: &str) -> Option<u64> {
+    std::env::var(name).ok()?.parse().ok()
+}
+
+/// Open the one session a command is allowed: it owns the profile
+/// reservation for as long as it runs.
+pub fn open_session(data_dir: &Path) -> Result<Application, CliError> {
+    Application::open(profile_config(data_dir)?)
+        .map_err(|error| CliError::FileSystem(error.to_string()))
+}
+
 pub fn open_client(data_dir: &Path) -> Result<Client, CliError> {
     std::fs::create_dir_all(data_dir).map_err(err("data dir"))?;
     let conn = SharedConn::open_file_keyed(&data_dir.join("client.db"), db_key().as_deref())
@@ -40,8 +82,7 @@ pub fn open_client(data_dir: &Path) -> Result<Client, CliError> {
 
 /// `arveil identity new --data-dir D`
 pub fn identity_new(data_dir: &Path) -> Result<(), CliError> {
-    let result = Application::open(data_dir)
-        .map_err(|error| CliError::FileSystem(error.to_string()))?
+    let result = open_session(data_dir)?
         .create_identity()
         .map_err(crate::chat::cli_error)?;
     crate::chat::render(result.operation);
@@ -54,8 +95,7 @@ pub fn identity_new(data_dir: &Path) -> Result<(), CliError> {
 /// provisional channel with the device's Noise key, redeems the invite with
 /// credential and first manifest, and stores the realm and its endpoint list.
 pub fn enroll(data_dir: &Path, bootstrap: &str, invite_hex: &str) -> Result<(), CliError> {
-    let result = Application::open(data_dir)
-        .map_err(|error| CliError::FileSystem(error.to_string()))?
+    let result = open_session(data_dir)?
         .enroll(bootstrap, invite_hex)
         .map_err(crate::chat::cli_error)?;
     crate::chat::render(result.operation);
@@ -81,7 +121,14 @@ pub fn probe(data_dir: Option<&Path>, bootstrap: &str) -> Result<(), CliError> {
         ),
     };
     block_on(async {
-        let mut conn = Connection::open(&b.url, &b.realm_id, &b.noise_public, &device).await?;
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &device,
+            tls_ca().as_deref(),
+        )
+        .await?;
         println!(
             "channel: established as {label}; realm noise key {}",
             hex::encode(conn.remote_static()?)
@@ -305,6 +352,7 @@ pub fn mailbox_create(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> 
             &b.realm_id,
             &b.noise_public,
             &d.keys.transport_noise,
+            tls_ca().as_deref(),
         )
         .await?;
         match conn.request(Payload::MailboxCreate).await? {
@@ -361,6 +409,7 @@ pub fn send(data_dir: &Path, bootstrap: &str, route: &str, text: &str) -> Result
             &b.realm_id,
             &b.noise_public,
             &d.keys.transport_noise,
+            tls_ca().as_deref(),
         )
         .await?;
         for row in pending {
@@ -410,6 +459,7 @@ pub fn fetch(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
             &b.realm_id,
             &b.noise_public,
             &d.keys.transport_noise,
+            tls_ca().as_deref(),
         )
         .await?;
         let cursor = delivery.cursor(&m.mailbox_id).map_err(err("cursor"))? as u64;
@@ -570,6 +620,7 @@ pub fn notify_set(data_dir: &Path, bootstrap: &str, url: &str) -> Result<(), Cli
             &b.realm_id,
             &b.noise_public,
             &d.keys.transport_noise,
+            tls_ca().as_deref(),
         )
         .await?;
         match conn

@@ -53,10 +53,14 @@ fn main() -> ExitCode {
     let group = group.as_deref();
     let words: Vec<&str> = rest.iter().map(String::as_str).collect();
 
-    let profile_guard = data_dir
-        .as_ref()
-        .map(arveil_app::ProfileGuard::acquire)
-        .transpose();
+    // A profile is reserved once, by whoever owns it for this command. An
+    // application command opens a session, and that session holds the
+    // reservation; only the commands that still reach the client directly
+    // take a guard of their own.
+    let profile_guard = match (&data_dir, legacy(&words)) {
+        (Some(dir), true) => arveil_app::ProfileGuard::acquire(dir).map(Some),
+        _ => Ok(None),
+    };
     let result = match profile_guard {
         Err(error) => Err(carrier::CliError::FileSystem(error.to_string())),
         Ok(_profile_guard) => match words.as_slice() {
@@ -210,6 +214,25 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Commands that open the client themselves instead of entering the
+/// application layer. They keep an exclusive guard until they finish.
+fn legacy(words: &[&str]) -> bool {
+    matches!(
+        words.first(),
+        Some(
+            &"probe"
+                | &"status"
+                | &"kit"
+                | &"archive"
+                | &"notify"
+                | &"contact"
+                | &"mailbox"
+                | &"send"
+                | &"fetch"
+        )
+    )
 }
 
 fn usage() -> Result<(), carrier::CliError> {

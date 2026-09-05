@@ -10,7 +10,7 @@ use arveil_app::{
 use crate::carrier::CliError;
 
 fn application(data_dir: &Path) -> Result<Application, CliError> {
-    Application::open(data_dir).map_err(|error| CliError::FileSystem(error.to_string()))
+    crate::commands::open_session(data_dir)
 }
 
 pub(crate) fn render(result: OperationResult) {
