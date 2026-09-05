@@ -82,6 +82,9 @@ jobs:
       - name: Analyze
         working-directory: clients/flutter
         run: flutter analyze
+      - name: Widget tests
+        working-directory: clients/flutter
+        run: flutter test test
       # The application links the Rust adapter, so this builds SQLCipher and
       # its vendored OpenSSL for the host as well.
       - name: Build
