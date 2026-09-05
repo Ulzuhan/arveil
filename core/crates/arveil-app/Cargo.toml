@@ -1,27 +1,29 @@
 [package]
-name = "arveil-cli"
-description = "Arveil command-line client used for Phase 0 demos and tests"
+name = "arveil-app"
+description = "Reusable Arveil application services for CLI and graphical clients"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
-[[bin]]
-name = "arveil"
-path = "src/main.rs"
-
 [dependencies]
-arveil-app = { path = "../arveil-app" }
 arveil-core = { path = "../arveil-core" }
 ciborium = "0.2"
+ed25519-dalek = "3"
+futures-util = "0.3.34"
 getrandom = "0.4.3"
 hex = "0.4.3"
 mls-rs = "0.56"
 rusqlite = { version = "0.40.2", features = ["bundled-sqlcipher-vendored-openssl"] }
+rustls = "0.23.43"
+rustls-pemfile = "2.2.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_bytes = "0.11.19"
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "time"] }
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio-tungstenite = { version = "0.30", features = ["rustls-tls-webpki-roots"] }
+webpki-roots = "1.0.9"
 
 [lints]
 workspace = true

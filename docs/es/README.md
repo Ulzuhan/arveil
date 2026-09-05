@@ -1,17 +1,22 @@
 # Arveil — documentación de arquitectura
 
+**Estado actual del cliente:** la [base implementada](CLIENT_FOUNDATION.md), el [plan Flutter](PHASE3B.md) y la [ADR-009 aceptada](adr/ADR-009-flutter-first.md) actualizan las propuestas anteriores. Flutter está elegido y `mls-rs` ya se utiliza. Todavía no existe cliente gráfico. Las listas históricas de cuestiones abiertas que aparecen más abajo no son el backlog actual.
+
 **Estado:** propuesta de diseño v0.4 · **Fecha:** 2026-09-04 · **Idioma:** español.
 
 *English version: [../README.md](../README.md)*
 
 Messenger autohosteado para familiares, amigos y pequeños círculos de confianza. Un servidor Go transporta y conserva temporalmente datos cifrados; un core Rust en cada cliente controla identidad, MLS, almacenamiento local y recuperación. El objetivo diferencial es combinar privacidad con una operación doméstica sencilla y una recuperación comprensible.
 
-Estos documentos describen la apuesta actual, no un producto implementado, una especificación interoperable terminada ni una seguridad auditada. Los ADR están **propuestos**: fijan la dirección de trabajo y sus criterios de aceptación. «DEBE» expresa un requisito del diseño; no certifica que exista código que lo cumpla.
+Estos documentos describen la apuesta actual, no un producto implementado, una especificación interoperable terminada ni una seguridad auditada. Cada ADR declara su estado; ADR-009 está aceptada. La base de aplicación ya está implementada, pero la GUI está pendiente. «DEBE» expresa un requisito del diseño; no certifica que exista código que lo cumpla.
 
 ## Mapa y orden de lectura
 
 | Documento | Contenido |
 |---|---|
+| [CLIENT_FOUNDATION.md](CLIENT_FOUNDATION.md) | Cambios implementados, evidencia y límites |
+| [PHASE3B.md](PHASE3B.md) | Plan Flutter y criterios de aceptación |
+| [ADR-009](adr/ADR-009-flutter-first.md) | Flutter primero, decisión aceptada |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Componentes, límites, despliegue, alcance y fases |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Activos, adversarios, metadatos, garantías condicionadas y pruebas |
 | [PROTOCOL.md](PROTOCOL.md) | Flujos, contratos de transporte, MLS, entrega y recuperación |
@@ -26,25 +31,11 @@ Estos documentos describen la apuesta actual, no un producto implementado, una e
 | [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Canal Noise, lista firmada de endpoints y acceso por LAN, tailnet, túnel o Internet |
 | [REVIEW-v0.3](REVIEW-v0.3.md) | Revisión de viabilidad externa: referencias verificadas, riesgos y acciones propuestas |
 
-```text
-docs/
-├── README.md
-├── ARCHITECTURE.md
-├── THREAT_MODEL.md
-├── PROTOCOL.md
-├── DOMAIN_MODEL.md
-└── adr/
-    ├── ADR-001-go-server-rust-core.md
-    ├── ADR-002-mls.md
-    ├── ADR-003-zero-trust-server.md
-    ├── ADR-004-sqlite-single-binary.md
-    ├── ADR-005-cryptographic-identity.md
-    ├── ADR-006-local-first-recovery-first.md
-    ├── ADR-007-optional-realm-redundancy.md
-    └── ADR-008-carrier-independent-transport.md
-```
 
-## Decisiones y cuestiones abiertas
+
+## Antecedentes de diseño v0.4 (históricos)
+
+El estado vigente se describe en la base de aplicación y el plan Flutter; las candidaturas y tareas siguientes corresponden a la propuesta original.
 
 La dirección elegida es Go + Rust, MLS, identidad independiente del realm, entrega por mailboxes opacos, canal Noise independiente del carrier con lista firmada de endpoints, SQLite + filesystem y recuperación desde el cliente. Flutter es el candidato de interfaz; OpenMLS es el primer candidato de biblioteca MLS y mls-rs la alternativa a evaluar. Ninguna elección de biblioteca supone una auditoría de la aplicación.
 

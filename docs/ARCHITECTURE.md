@@ -1,5 +1,7 @@
 # Architecture
 
+**Client implementation update:** the client boundaries and concurrency model have evolved beyond this proposal. The [implementation record](CLIENT_FOUNDATION.md) documents `arveil-app`, cooperative execution, transaction exclusion, resumable onboarding and process locks. [ADR-009](adr/ADR-009-flutter-first.md) selects Flutter first; the [phase 3b plan](PHASE3B.md) defines acceptance gates. The diagrams and candidate choices below are the historical proposal; SQLCipher and `mls-rs` are already implemented, while OS key-store integration and GUI remain pending.
+
 **Status:** proposal v0.4 · **Date:** 2026-09-04. [Index](README.md) · [Threat model](THREAT_MODEL.md) · [Protocol](PROTOCOL.md).
 
 *Versión en español: [es/ARCHITECTURE.md](es/ARCHITECTURE.md)*

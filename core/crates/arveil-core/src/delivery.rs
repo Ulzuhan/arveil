@@ -70,6 +70,7 @@ pub struct OutboxRow {
     pub id: i64,
     pub mailbox_id: Vec<u8>,
     pub delivery_id: Vec<u8>,
+    pub event_id: Option<Vec<u8>>,
     pub hpke_enc: Vec<u8>,
     pub ciphertext: Vec<u8>,
     pub state: String,
@@ -153,7 +154,7 @@ impl Delivery {
     pub fn pending(&self) -> Result<Vec<OutboxRow>, rusqlite::Error> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT id, mailbox_id, delivery_id, hpke_enc, ciphertext, state, attempts
+            "SELECT id, mailbox_id, delivery_id, event_id, hpke_enc, ciphertext, state, attempts
              FROM outbox WHERE state = 'sealed' ORDER BY id",
         )?;
         let rows = stmt.query_map([], |r| {
@@ -161,10 +162,11 @@ impl Delivery {
                 id: r.get(0)?,
                 mailbox_id: r.get(1)?,
                 delivery_id: r.get(2)?,
-                hpke_enc: r.get(3)?,
-                ciphertext: r.get(4)?,
-                state: r.get(5)?,
-                attempts: r.get(6)?,
+                event_id: r.get(3)?,
+                hpke_enc: r.get(4)?,
+                ciphertext: r.get(5)?,
+                state: r.get(6)?,
+                attempts: r.get(7)?,
             })
         })?;
         rows.collect()
@@ -255,7 +257,8 @@ impl Delivery {
     pub fn set_cursor(&self, mailbox_id: &[u8], cursor: i64) -> Result<(), rusqlite::Error> {
         self.conn.lock().execute(
             "INSERT INTO mailbox_cursor (mailbox_id, cursor) VALUES (?1, ?2)
-             ON CONFLICT(mailbox_id) DO UPDATE SET cursor = excluded.cursor",
+             ON CONFLICT(mailbox_id) DO UPDATE
+             SET cursor = MAX(mailbox_cursor.cursor, excluded.cursor)",
             params![mailbox_id, cursor],
         )?;
         Ok(())

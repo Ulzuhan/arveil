@@ -3,12 +3,11 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use arveil_app::{Application, parse_route};
 use arveil_core::channel::StaticKeypair;
 use arveil_core::channel::codec::Payload;
 use arveil_core::client::{Client, OwnMailbox, StoredDevice};
-use arveil_core::delivery::Delivery;
 use arveil_core::envelope::{self, EnvelopeContext};
-use arveil_core::mls;
 use arveil_core::storage::SharedConn;
 
 /// Phase 0 CLI payload kind: plain text without MLS. The chat demo (M0.6)
@@ -41,9 +40,11 @@ pub fn open_client(data_dir: &Path) -> Result<Client, CliError> {
 
 /// `arveil identity new --data-dir D`
 pub fn identity_new(data_dir: &Path) -> Result<(), CliError> {
-    let c = open_client(data_dir)?;
-    let root = c.identity_new().map_err(err("identity"))?;
-    println!("identity: {}", hex::encode(root.identity_id()));
+    let result = Application::open(data_dir)
+        .map_err(|error| CliError::FileSystem(error.to_string()))?
+        .create_identity()
+        .map_err(crate::chat::cli_error)?;
+    crate::chat::render(result.operation);
     Ok(())
 }
 
@@ -53,106 +54,11 @@ pub fn identity_new(data_dir: &Path) -> Result<(), CliError> {
 /// provisional channel with the device's Noise key, redeems the invite with
 /// credential and first manifest, and stores the realm and its endpoint list.
 pub fn enroll(data_dir: &Path, bootstrap: &str, invite_hex: &str) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let token = hex::decode(invite_hex).map_err(err("invite token"))?;
-    let c = open_client(data_dir)?;
-    if c.root().map_err(err("identity"))?.is_none() {
-        let root = c.identity_new().map_err(err("identity"))?;
-        println!("identity: {} (created)", hex::encode(root.identity_id()));
-    }
-    let (device, manifest) = match c.device().map_err(err("device"))? {
-        Some(d) => {
-            let m = c
-                .latest_manifest()
-                .map_err(err("manifest"))?
-                .ok_or_else(|| CliError("device without manifest".into()))?;
-            (d, m)
-        }
-        None => c.device_new(now()).map_err(err("device"))?,
-    };
-    c.realm_save(&b.realm_id, &b.signing_key, &b.noise_public, &b.url)
-        .map_err(err("realm"))?;
-    println!("device: {}", hex::encode(device.keys.device_id));
-
-    block_on(async {
-        let mut conn = Connection::open(
-            &b.url,
-            &b.realm_id,
-            &b.noise_public,
-            &device.keys.transport_noise,
-        )
-        .await?;
-        match conn
-            .request(Payload::InviteRedeem {
-                token,
-                credential: device.credential.clone(),
-                manifest,
-            })
-            .await?
-        {
-            Payload::InviteRedeemed { identity_id } => {
-                println!(
-                    "enrolled: identity {} accepted by the realm",
-                    hex::encode(identity_id)
-                );
-            }
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        }
-        match conn.request(Payload::EndpointListGet).await? {
-            Payload::EndpointList { signed } => {
-                let list = c
-                    .realm_accept_endpoint_list(&b.realm_id, &signed)
-                    .map_err(err("endpoint list"))?;
-                println!("endpoint list: sequence {} stored", list.sequence);
-            }
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        }
-        c.realm_mark_enrolled(&b.realm_id).map_err(err("realm"))?;
-        finish_enrollment(&c, &mut conn, &device).await?;
-        conn.close().await;
-        Ok(())
-    })?
-}
-
-/// After the realm accepted the device: a mailbox and a first batch of
-/// KeyPackages right away, so the contact card can be printed.
-pub async fn finish_enrollment(
-    c: &Client,
-    conn: &mut Connection,
-    device: &arveil_core::client::StoredDevice,
-) -> Result<(), CliError> {
-    let m = match conn.request(Payload::MailboxCreate).await? {
-        Payload::MailboxCreated {
-            mailbox_id,
-            read_capability,
-            write_capability,
-        } => {
-            let m = OwnMailbox {
-                mailbox_id,
-                read_capability,
-                write_capability,
-            };
-            c.mailbox_save(&m).map_err(err("mailbox"))?;
-            m
-        }
-        other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-    };
-    let engine = mls::open(c.conn.clone(), device.mls_identity());
-    let mut key_packages = Vec::new();
-    for _ in 0..5 {
-        let kp = engine.key_package().map_err(err("key package"))?;
-        key_packages.push(serde_bytes::ByteBuf::from(
-            kp.to_bytes().map_err(err("key package"))?,
-        ));
-    }
-    match conn
-        .request(Payload::KeyPackagesPublish { key_packages })
-        .await?
-    {
-        Payload::Ack => println!("key packages: 5 published"),
-        other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-    }
-    println!("route: {}", route_string(c, device, &m)?);
+    let result = Application::open(data_dir)
+        .map_err(|error| CliError::FileSystem(error.to_string()))?
+        .enroll(bootstrap, invite_hex)
+        .map_err(crate::chat::cli_error)?;
+    crate::chat::render(result.operation);
     Ok(())
 }
 
@@ -178,7 +84,7 @@ pub fn probe(data_dir: Option<&Path>, bootstrap: &str) -> Result<(), CliError> {
         let mut conn = Connection::open(&b.url, &b.realm_id, &b.noise_public, &device).await?;
         println!(
             "channel: established as {label}; realm noise key {}",
-            hex::encode(conn.channel.remote_static())
+            hex::encode(conn.remote_static()?)
         );
         match conn.request(Payload::EndpointListGet).await? {
             Payload::EndpointList { signed } => {
@@ -212,10 +118,10 @@ pub fn probe(data_dir: Option<&Path>, bootstrap: &str) -> Result<(), CliError> {
             })
             .await;
         match (data_dir.is_some(), manifest_put) {
-            (true, Err(e)) if e.0.contains("(401)") => {
+            (true, Err(e)) if e.relay_code() == Some(401) => {
                 println!("manifest_put: rejected as expected (garbage manifest)")
             }
-            (false, Err(e)) if e.0.contains("(401)") => {
+            (false, Err(e)) if e.relay_code() == Some(401) => {
                 println!("manifest_put: refused on provisional session, as expected")
             }
             (_, r) => return Err(CliError(format!("unexpected manifest_put outcome: {r:?}"))),
@@ -233,10 +139,10 @@ pub fn probe(data_dir: Option<&Path>, bootstrap: &str) -> Result<(), CliError> {
             })
             .await;
         match (data_dir.is_some(), put) {
-            (true, Err(e)) if e.0.contains("(403)") => {
+            (true, Err(e)) if e.relay_code() == Some(403) => {
                 println!("envelope_put: rejected as expected (unknown capability)")
             }
-            (false, Err(e)) if e.0.contains("(401)") => {
+            (false, Err(e)) if e.relay_code() == Some(401) => {
                 println!("envelope_put: refused on provisional session, as expected")
             }
             (_, r) => return Err(CliError(format!("unexpected envelope_put outcome: {r:?}"))),
@@ -356,45 +262,6 @@ pub fn route_string(c: &Client, d: &StoredDevice, m: &OwnMailbox) -> Result<Stri
     ))
 }
 
-pub struct Route {
-    pub identity_id: Vec<u8>,
-    pub device_id: Vec<u8>,
-    pub credential_hash: Vec<u8>,
-    pub root_public: Vec<u8>,
-    pub mailbox_id: Vec<u8>,
-    pub write_capability: Vec<u8>,
-    pub hpke_public: Vec<u8>,
-}
-
-pub fn parse_route(s: &str) -> Result<Route, CliError> {
-    let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 9 || parts[0] != "arveil-route" || parts[1] != "v1" {
-        return Err(CliError("not an arveil-route:v1 string".into()));
-    }
-    let r = Route {
-        identity_id: hex::decode(parts[2]).map_err(err("identity id"))?,
-        device_id: hex::decode(parts[3]).map_err(err("device id"))?,
-        credential_hash: hex::decode(parts[4]).map_err(err("credential hash"))?,
-        root_public: hex::decode(parts[5]).map_err(err("root key"))?,
-        mailbox_id: hex::decode(parts[6]).map_err(err("mailbox id"))?,
-        write_capability: hex::decode(parts[7]).map_err(err("write capability"))?,
-        hpke_public: hex::decode(parts[8]).map_err(err("hpke key"))?,
-    };
-    // The identity id must derive from the root key the route names.
-    let pk: [u8; 32] = r
-        .root_public
-        .as_slice()
-        .try_into()
-        .map_err(|_| CliError("route: root key length".into()))?;
-    let vk = ed25519_dalek::VerifyingKey::from_bytes(&pk).map_err(err("route: root key"))?;
-    if arveil_core::identity::identity_id(&vk) != r.identity_id {
-        return Err(CliError(
-            "route: identity id does not derive from its root key".into(),
-        ));
-    }
-    Ok(r)
-}
-
 pub fn enrolled(
     data_dir: &Path,
 ) -> Result<
@@ -468,24 +335,23 @@ pub fn send(data_dir: &Path, bootstrap: &str, route: &str, text: &str) -> Result
     let b = Bootstrap::parse(bootstrap)?;
     let r = parse_route(route)?;
     let (c, d, realm) = enrolled(data_dir)?;
-    let delivery = Delivery::open(c.conn.clone()).map_err(err("delivery"))?;
+    let delivery = c.delivery().map_err(err("delivery"))?;
 
     let delivery_id = random_delivery_id()?;
     let ctx = EnvelopeContext::new(&realm.realm_id, &r.mailbox_id, &delivery_id);
     let sealed = envelope::seal(&r.hpke_public, &ctx, KIND_PLAIN_TEXT, text.as_bytes())
         .map_err(err("seal"))?;
-    c.conn
-        .unit_of_work(|_| {
-            delivery.record_event(&r.mailbox_id, &delivery_id, "sent", text.as_bytes())?;
-            delivery.enqueue(
-                &r.mailbox_id,
-                &delivery_id,
-                Some(&delivery_id),
-                &sealed.enc,
-                &sealed.ciphertext,
-            )
-        })
-        .map_err(err("send unit"))?;
+    c.unit_of_work(|| {
+        delivery.record_event(&r.mailbox_id, &delivery_id, "sent", text.as_bytes())?;
+        delivery.enqueue(
+            &r.mailbox_id,
+            &delivery_id,
+            Some(&delivery_id),
+            &sealed.enc,
+            &sealed.ciphertext,
+        )
+    })
+    .map_err(err("send unit"))?;
     println!("queued: delivery {}", hex::encode(&delivery_id));
 
     let pending = delivery.pending().map_err(err("outbox"))?;
@@ -536,7 +402,7 @@ pub fn fetch(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
         .mailbox_own()
         .map_err(err("mailbox"))?
         .ok_or_else(|| CliError("no mailbox; run `mailbox create` first".into()))?;
-    let delivery = Delivery::open(c.conn.clone()).map_err(err("delivery"))?;
+    let delivery = c.delivery().map_err(err("delivery"))?;
 
     block_on(async {
         let mut conn = Connection::open(
@@ -562,7 +428,7 @@ pub fn fetch(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
         let mut received = 0;
         for item in &items {
             let ctx = EnvelopeContext::new(&realm.realm_id, &m.mailbox_id, &item.delivery_id);
-            let outcome: Result<Option<Vec<u8>>, rusqlite::Error> = c.conn.unit_of_work(|_| {
+            let outcome: Result<Option<Vec<u8>>, rusqlite::Error> = c.unit_of_work(|| {
                 if !delivery.record_incoming(&m.mailbox_id, &item.delivery_id, item.seq as i64)? {
                     return Ok(None);
                 }

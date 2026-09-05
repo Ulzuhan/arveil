@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/arveil-core", "crates/arveil-cli"]
+members = ["crates/arveil-core", "crates/arveil-app", "crates/arveil-cli"]
 
 [workspace.package]
 version = "0.0.1"

@@ -1,5 +1,7 @@
 # Arquitectura
 
+**Actualización de implementación del cliente:** la [base actual](CLIENT_FOUNDATION.md) documenta `arveil-app`, ejecución cooperativa, exclusión transaccional, vinculación reanudable y bloqueo entre procesos. La [ADR-009](adr/ADR-009-flutter-first.md) elige Flutter primero y el [plan de fase 3b](PHASE3B.md) fija los criterios de aceptación. Los diagramas y candidatos que siguen pertenecen a la propuesta histórica: SQLCipher y `mls-rs` están implementados; almacén de claves del SO y GUI siguen pendientes.
+
 **Estado:** propuesta v0.4 · **Fecha:** 2026-09-04. [Índice](README.md) · [Amenazas](THREAT_MODEL.md) · [Protocolo](PROTOCOL.md).
 
 *English version: [../ARCHITECTURE.md](../ARCHITECTURE.md)*

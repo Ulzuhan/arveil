@@ -1,17 +1,22 @@
 # Arveil — architecture documentation
 
+**Current client status:** see the [implemented client foundation](CLIENT_FOUNDATION.md), [Flutter implementation plan](PHASE3B.md) and [accepted ADR-009](adr/ADR-009-flutter-first.md). These updates supersede the earlier client proposals below. Flutter is selected; `mls-rs` is already in use. No graphical client exists yet. Earlier unresolved-item lists are historical, not the current backlog.
+
 **Status:** design proposal v0.4 · **Date:** 2026-09-04 · **Language:** English.
 
 *Versión en español: [es/README.md](es/README.md)*
 
 Self-hosted messenger for family, friends and small circles of trust. A Go server transports and temporarily retains encrypted data; a Rust core on each client controls identity, MLS, local storage and recovery. The differentiating goal is to combine privacy with simple household operation and understandable recovery.
 
-These documents describe the current bet, not an implemented product, a finished interoperable specification or audited security. The ADRs are **proposed**: they fix the direction of work and its acceptance criteria. "MUST" expresses a design requirement; it does not certify that code exists to satisfy it.
+These documents describe the current bet, not an implemented product, a finished interoperable specification or audited security. Each ADR declares its own status; ADR-009 is accepted. The application foundation is implemented, while the GUI remains pending. "MUST" expresses a design requirement; it does not certify that code exists to satisfy it.
 
 ## Map and reading order
 
 | Document | Content |
 |---|---|
+| [CLIENT_FOUNDATION.md](CLIENT_FOUNDATION.md) | Implemented changes, evidence and limitations |
+| [PHASE3B.md](PHASE3B.md) | Flutter plan and acceptance criteria |
+| [ADR-009](adr/ADR-009-flutter-first.md) | Accepted Flutter-first decision |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Components, boundaries, deployment, scope and phases |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, adversaries, metadata, conditional guarantees and tests |
 | [PROTOCOL.md](PROTOCOL.md) | Flows, transport contracts, MLS, delivery and recovery |
@@ -26,42 +31,11 @@ These documents describe the current bet, not an implemented product, a finished
 | [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Noise channel, signed endpoint list and access over LAN, tailnet, tunnel or Internet |
 | [REVIEW-v0.3](REVIEW-v0.3.md) | External viability review: verified references, risks and proposed actions |
 
-```text
-docs/
-├── README.md
-├── ARCHITECTURE.md
-├── THREAT_MODEL.md
-├── PROTOCOL.md
-├── DOMAIN_MODEL.md
-├── REVIEW-v0.3.md
-├── adr/
-│   ├── ADR-001-go-server-rust-core.md
-│   ├── ADR-002-mls.md
-│   ├── ADR-003-zero-trust-server.md
-│   ├── ADR-004-sqlite-single-binary.md
-│   ├── ADR-005-cryptographic-identity.md
-│   ├── ADR-006-local-first-recovery-first.md
-│   ├── ADR-007-optional-realm-redundancy.md
-│   └── ADR-008-carrier-independent-transport.md
-└── es/                # Spanish originals, same layout
-    ├── README.md
-    ├── ARCHITECTURE.md
-    ├── THREAT_MODEL.md
-    ├── PROTOCOL.md
-    ├── DOMAIN_MODEL.md
-    ├── REVIEW-v0.3.md
-    └── adr/
-        ├── ADR-001-go-server-rust-core.md
-        ├── ADR-002-mls.md
-        ├── ADR-003-zero-trust-server.md
-        ├── ADR-004-sqlite-single-binary.md
-        ├── ADR-005-cryptographic-identity.md
-        ├── ADR-006-local-first-recovery-first.md
-        ├── ADR-007-optional-realm-redundancy.md
-        └── ADR-008-carrier-independent-transport.md
-```
 
-## Decisions and open questions
+
+## Historical v0.4 design background
+
+The application foundation and Flutter plan describe current status; the candidates and tasks below belong to the original proposal.
 
 The chosen direction is Go + Rust, MLS, identity independent of the realm, delivery through opaque mailboxes, a carrier-independent Noise channel with a signed endpoint list, SQLite + filesystem and client-driven recovery. Flutter is the interface candidate; OpenMLS is the first candidate MLS library and mls-rs the alternative to evaluate. No library choice implies an audit of the application.
 
