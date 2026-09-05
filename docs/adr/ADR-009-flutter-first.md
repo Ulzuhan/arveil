@@ -1,6 +1,6 @@
 # ADR-009: Flutter first, shared Rust core
 
-Status: accepted implementation direction; GUI not implemented. [Versión española](../es/adr/ADR-009-flutter-first.md).
+Status: accepted implementation direction; the adapter and a technical client exist, the messaging interface does not. [Versión española](../es/adr/ADR-009-flutter-first.md).
 
 ## Context
 

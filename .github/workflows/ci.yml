@@ -60,6 +60,65 @@ jobs:
         working-directory: core
         run: cargo test --workspace --locked
 
+  bridge-macos:
+    name: Flutter bridge (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.1
+          channel: stable
+          cache: true
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Resolve packages
+        working-directory: clients/flutter
+        run: flutter pub get
+      - name: Analyze
+        working-directory: clients/flutter
+        run: flutter analyze
+      # The application links the Rust adapter, so this builds SQLCipher and
+      # its vendored OpenSSL for the host as well.
+      - name: Build
+        working-directory: clients/flutter
+        run: flutter build macos --debug
+
+  bridge-android:
+    name: Flutter bridge (Android)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.1
+          channel: stable
+          cache: true
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+      - name: Add Android targets
+        run: rustup target add aarch64-linux-android x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Resolve packages
+        working-directory: clients/flutter
+        run: flutter pub get
+      # One ABI keeps the vendored OpenSSL build to a single pass; the
+      # release matrix is a packaging concern for M3b.5.
+      - name: Build
+        working-directory: clients/flutter
+        run: flutter build apk --debug --target-platform android-arm64
+
   mls-spike:
     name: MLS spike (M0.5)
     runs-on: ubuntu-latest

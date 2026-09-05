@@ -6,7 +6,7 @@ The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria
 
 ## Scope and structure
 
-Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. No GUI exists yet. SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.
+Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. Today the client opens, queries and closes a profile and has no messaging interface. SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.
 
 ```text
 clients/flutter/             Adaptive UI and platform adapters

@@ -1,6 +1,6 @@
 # ADR-009: Flutter primero, núcleo Rust compartido
 
-Estado: aceptada como dirección de implementación; GUI todavía no implementada.
+Estado: aceptada como dirección de implementación; el adaptador y un cliente técnico existen, la interfaz de mensajería no.
 
 [English version](../../adr/ADR-009-flutter-first.md).
 

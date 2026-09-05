@@ -1,6 +1,6 @@
 # Arveil — documentación de arquitectura
 
-**Estado actual del cliente:** la [base implementada](CLIENT_FOUNDATION.md), el [plan Flutter](PHASE3B.md) y la [ADR-009 aceptada](adr/ADR-009-flutter-first.md) actualizan las propuestas anteriores. Flutter está elegido y `mls-rs` ya se utiliza. Todavía no existe cliente gráfico. Las listas históricas de cuestiones abiertas que aparecen más abajo no son el backlog actual.
+**Estado actual del cliente:** la [base implementada](CLIENT_FOUNDATION.md), el [plan Flutter](PHASE3B.md) y la [ADR-009 aceptada](adr/ADR-009-flutter-first.md) actualizan las propuestas anteriores. Flutter está elegido y `mls-rs` ya se utiliza. Existe un cliente Flutter que abre, consulta y cierra un perfil a través del núcleo Rust, verificado en macOS; todavía no hay interfaz de mensajería. Las listas históricas de cuestiones abiertas que aparecen más abajo no son el backlog actual.
 
 **Estado:** propuesta de diseño v0.4 · **Fecha:** 2026-09-04 · **Idioma:** español.
 
