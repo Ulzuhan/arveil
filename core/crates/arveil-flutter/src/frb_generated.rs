@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1655380575;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 862794526;
 
 // Section: executor
 
@@ -352,6 +352,71 @@ fn wire__crate__api__profile__Profile_watch_impl(
                     let output_ok = Ok::<_, ()>({
                         crate::api::profile::Profile::watch(&*api_that_guard, api_sink);
                     })?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__profile__generate_profile_key_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "generate_profile_key",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::profile::ProfileError>((move || {
+                    let output_ok = crate::api::profile::generate_profile_key()?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__profile__has_profile_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "has_profile",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>(crate::api::profile::has_profile(api_dir))?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -699,18 +764,21 @@ impl SseDecode for crate::api::profile::ProfileError {
                 return crate::api::profile::ProfileError::BadKey;
             }
             1 => {
-                let mut var_path = <String>::sse_decode(deserializer);
-                return crate::api::profile::ProfileError::AlreadyOpen { path: var_path };
+                return crate::api::profile::ProfileError::NoRandomness;
             }
             2 => {
                 let mut var_path = <String>::sse_decode(deserializer);
-                return crate::api::profile::ProfileError::Closing { path: var_path };
+                return crate::api::profile::ProfileError::AlreadyOpen { path: var_path };
             }
             3 => {
                 let mut var_path = <String>::sse_decode(deserializer);
-                return crate::api::profile::ProfileError::InUse { path: var_path };
+                return crate::api::profile::ProfileError::Closing { path: var_path };
             }
             4 => {
+                let mut var_path = <String>::sse_decode(deserializer);
+                return crate::api::profile::ProfileError::InUse { path: var_path };
+            }
+            5 => {
                 let mut var_path = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::api::profile::ProfileError::Unusable {
@@ -718,7 +786,7 @@ impl SseDecode for crate::api::profile::ProfileError {
                     reason: var_reason,
                 };
             }
-            5 => {
+            6 => {
                 let mut var_path = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::api::profile::ProfileError::Io {
@@ -914,8 +982,12 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__profile__Profile_history_page_impl(port, ptr, rust_vec_len, data_len)
         }
         6 => wire__crate__api__profile__Profile_watch_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__profile__open_profile_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__profile__open_unencrypted_profile_impl(
+        7 => {
+            wire__crate__api__profile__generate_profile_key_impl(port, ptr, rust_vec_len, data_len)
+        }
+        8 => wire__crate__api__profile__has_profile_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__profile__open_profile_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__profile__open_unencrypted_profile_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1097,23 +1169,24 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::ProfileError {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             crate::api::profile::ProfileError::BadKey => [0.into_dart()].into_dart(),
+            crate::api::profile::ProfileError::NoRandomness => [1.into_dart()].into_dart(),
             crate::api::profile::ProfileError::AlreadyOpen { path } => {
-                [1.into_dart(), path.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::profile::ProfileError::Closing { path } => {
                 [2.into_dart(), path.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::profile::ProfileError::InUse { path } => {
+            crate::api::profile::ProfileError::Closing { path } => {
                 [3.into_dart(), path.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::profile::ProfileError::InUse { path } => {
+                [4.into_dart(), path.into_into_dart().into_dart()].into_dart()
+            }
             crate::api::profile::ProfileError::Unusable { path, reason } => [
-                4.into_dart(),
+                5.into_dart(),
                 path.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::profile::ProfileError::Io { path, reason } => [
-                5.into_dart(),
+                6.into_dart(),
                 path.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
@@ -1459,25 +1532,28 @@ impl SseEncode for crate::api::profile::ProfileError {
             crate::api::profile::ProfileError::BadKey => {
                 <i32>::sse_encode(0, serializer);
             }
-            crate::api::profile::ProfileError::AlreadyOpen { path } => {
+            crate::api::profile::ProfileError::NoRandomness => {
                 <i32>::sse_encode(1, serializer);
-                <String>::sse_encode(path, serializer);
             }
-            crate::api::profile::ProfileError::Closing { path } => {
+            crate::api::profile::ProfileError::AlreadyOpen { path } => {
                 <i32>::sse_encode(2, serializer);
                 <String>::sse_encode(path, serializer);
             }
-            crate::api::profile::ProfileError::InUse { path } => {
+            crate::api::profile::ProfileError::Closing { path } => {
                 <i32>::sse_encode(3, serializer);
                 <String>::sse_encode(path, serializer);
             }
-            crate::api::profile::ProfileError::Unusable { path, reason } => {
+            crate::api::profile::ProfileError::InUse { path } => {
                 <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(path, serializer);
+            }
+            crate::api::profile::ProfileError::Unusable { path, reason } => {
+                <i32>::sse_encode(5, serializer);
                 <String>::sse_encode(path, serializer);
                 <String>::sse_encode(reason, serializer);
             }
             crate::api::profile::ProfileError::Io { path, reason } => {
-                <i32>::sse_encode(5, serializer);
+                <i32>::sse_encode(6, serializer);
                 <String>::sse_encode(path, serializer);
                 <String>::sse_encode(reason, serializer);
             }

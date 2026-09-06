@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "io.github.ulzuhan.arveil"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage, which keeps the profile key in the Keystore,
+    // requires compiling against 37. The Flutter SDK still defaults to 36.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

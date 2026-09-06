@@ -30,6 +30,50 @@ A platform counts as **tested** only where the acceptance flow ran on that syste
 
 SQLCipher and its vendored OpenSSL cross-compile for Android without the fallback ADR-009 kept in reserve: the built objects are `elf64-littleaarch64` for both `libcrypto` and `sqlite3`.
 
+## Protecting a profile, and what recovers what
+
+Three things are deliberately kept apart, because conflating them is how a
+promise becomes false:
+
+| | Protects | Recovers |
+|---|---|---|
+| **Profile key** | the local database at rest | nothing. Losing it loses local history, and that is accepted on purpose |
+| **Identity kit** | the identity's root, exported by the user | the identity. Not conversations, not MLS group state |
+| **History export** | an explicit encrypted archive the user asks for | conversations, imported into a **new** profile under a **new** local key. A later milestone; nothing here depends on it |
+
+The profile key is 32 random bytes from the operating system's generator,
+made in Rust with the same call the rest of the client uses, and handed to
+the platform store. It is never derived from anything a person types and
+never leaves the device. That last part is why the future history export
+does not need the profile key: it will carry its own, so recovery never
+required weakening this one.
+
+Backups are refused rather than trusted:
+
+- **Android** — `android:allowBackup="false"`, `fullBackupContent="false"`
+  and a `data-extraction-rules` file that excludes every domain from both
+  cloud backup and device transfer. A transfer is as much a copy as a
+  backup. The stored key is not carried into a backup either.
+- **Apple** — the profile directory is marked `isExcludedFromBackup` on
+  every start, since an attribute set once does not survive a directory
+  being replaced. The key is stored device-bound and not synchronisable, so
+  it never reaches iCloud Keychain.
+
+Exclusion is not encryption and does not replace it. It keeps an encrypted
+database out of an account whose protection this project does not control.
+
+### Where the key store stands
+
+| Situation | How it is checked | State |
+|---|---|---|
+| First install: no key, no profile | `integration_test/profile_key_test.dart` | verified on the Android emulator |
+| Second start: the key comes back | same test | verified on the Android emulator |
+| Key gone, profile present | same test | verified: reported, never replaced silently |
+| A different key on an existing profile | same test | verified: refused at open |
+| Reinstall | manual: uninstall, install, start | **not done.** An uninstall does not necessarily take secure-store entries with it, and the two platforms differ; this must be observed, not assumed |
+| Restore from cloud backup or device transfer | manual, on hardware | **not done** |
+| macOS Keychain | needs `keychain-access-groups`, which needs development signing | **not available in an unsigned build.** The application says so instead of keeping the key somewhere weaker; signing is a packaging decision for M3b.5 |
+
 ## Reproducing it
 
 The Rust workspace, on the host:

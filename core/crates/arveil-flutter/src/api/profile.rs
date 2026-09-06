@@ -30,6 +30,9 @@ pub struct Profile {
 pub enum ProfileError {
     /// The key is not 32 bytes as 64 hexadecimal characters.
     BadKey,
+    /// The system would not produce randomness. Nothing weaker is used in
+    /// its place.
+    NoRandomness,
     /// This process already has a session over that profile. Sharing is a
     /// decision of the caller, not an accident of opening twice.
     AlreadyOpen { path: String },
@@ -177,6 +180,23 @@ pub struct ConversationView {
     pub creator: bool,
     pub peer_devices: u32,
     pub event_count: u32,
+}
+
+/// Whether a profile already lives in this directory. The difference
+/// between "no key yet" and "the key is gone" depends on it, and only the
+/// second one is a problem.
+pub fn has_profile(dir: String) -> bool {
+    std::path::Path::new(&dir).join("client.db").exists()
+}
+
+/// A fresh 32-byte key as 64 hexadecimal characters, from the operating
+/// system's generator. Generated here rather than in Dart so the entropy
+/// comes from the same source the rest of the client already trusts, and so
+/// a failure is a failure rather than a weaker key.
+pub fn generate_profile_key() -> Result<String, ProfileError> {
+    let mut key = [0u8; 32];
+    getrandom::fill(&mut key).map_err(|_| ProfileError::NoRandomness)?;
+    Ok(hex(&key))
 }
 
 /// Open a profile encrypted at rest. The key comes from the platform store,

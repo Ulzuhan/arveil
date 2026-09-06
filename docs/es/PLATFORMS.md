@@ -30,6 +30,51 @@ Una plataforma cuenta como **probada** solo donde el flujo de aceptación se eje
 
 SQLCipher y su OpenSSL vendorizado cruzan a Android sin recurrir a la alternativa que ADR-009 dejó en reserva: los objetos resultantes son `elf64-littleaarch64` tanto para `libcrypto` como para `sqlite3`.
 
+## Protección del perfil, y qué recupera cada cosa
+
+Tres cosas deliberadamente separadas, porque confundirlas es como una
+promesa se vuelve falsa:
+
+| | Protege | Recupera |
+|---|---|---|
+| **Clave del perfil** | la base local en reposo | nada. Perderla pierde el historial local, y eso se acepta a propósito |
+| **Kit de identidad** | la raíz de la identidad, exportada por la persona | la identidad. Ni conversaciones ni estado de grupo MLS |
+| **Exportación de historial** | un archivo cifrado que la persona pide explícitamente | conversaciones, importadas en un perfil **nuevo** con una clave local **nueva**. Es un hito posterior; nada de lo de aquí depende de él |
+
+La clave del perfil son 32 bytes aleatorios del generador del sistema,
+producidos en Rust con la misma llamada que usa el resto del cliente, y
+entregados al almacén de la plataforma. Nunca se deriva de nada que se
+teclee ni sale del dispositivo. Eso último es justo lo que permite que la
+futura exportación de historial no necesite esta clave: llevará la suya, y
+así la recuperación nunca exigió debilitar esta.
+
+Las copias de seguridad se rechazan en lugar de confiar en ellas:
+
+- **Android** — `android:allowBackup="false"`, `fullBackupContent="false"` y
+  un fichero `data-extraction-rules` que excluye todos los dominios tanto de
+  la copia en nube como de la transferencia entre dispositivos. Una
+  transferencia es tan copia como una copia. La clave almacenada tampoco
+  viaja en una copia.
+- **Apple** — el directorio del perfil se marca `isExcludedFromBackup` en
+  cada arranque, porque un atributo puesto una vez no sobrevive a que se
+  sustituya el directorio. La clave se guarda ligada al dispositivo y no
+  sincronizable, así que nunca llega a iCloud Keychain.
+
+Excluir no es cifrar ni lo sustituye. Mantiene una base ya cifrada fuera de
+una cuenta cuya protección este proyecto no controla.
+
+### Estado del almacén de claves
+
+| Situación | Cómo se comprueba | Estado |
+|---|---|---|
+| Primera instalación: sin clave y sin perfil | `integration_test/profile_key_test.dart` | verificado en el emulador Android |
+| Segundo arranque: la clave vuelve | la misma prueba | verificado en el emulador Android |
+| Clave ausente con perfil presente | la misma prueba | verificado: se informa, nunca se sustituye en silencio |
+| Otra clave sobre un perfil existente | la misma prueba | verificado: se rechaza al abrir |
+| Reinstalación | manual: desinstalar, instalar, arrancar | **sin hacer.** Desinstalar no se lleva necesariamente las entradas del almacén seguro, y las dos plataformas difieren; hay que observarlo, no suponerlo |
+| Restauración desde copia o transferencia | manual, en hardware | **sin hacer** |
+| Keychain de macOS | exige `keychain-access-groups`, que exige firma de desarrollo | **no disponible en una compilación sin firmar.** La aplicación lo dice en lugar de guardar la clave en un sitio más débil; la firma es una decisión de empaquetado de M3b.5 |
+
 ## Cómo reproducirlo
 
 El workspace de Rust, en el anfitrión:

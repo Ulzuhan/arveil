@@ -229,6 +229,7 @@ version = "0.0.1"
 dependencies = [
  "arveil-app",
  "flutter_rust_bridge",
+ "getrandom 0.4.3",
 ]
 
 [[package]]

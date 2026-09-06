@@ -17,6 +17,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 arveil-app = { path = "../arveil-app" }
 flutter_rust_bridge = "=2.13.0"
+getrandom = "0.4.3"
 
 # This crate does not inherit the workspace lints. Generated bindings carry
 # `unsafe` of their own, and `forbid` cannot be relaxed from the inside, so
