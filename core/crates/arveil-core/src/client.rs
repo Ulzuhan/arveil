@@ -41,6 +41,31 @@ CREATE TABLE IF NOT EXISTS manifest (
     hash        BLOB NOT NULL,
     PRIMARY KEY (identity_id, sequence)
 );
+-- How far this device got in joining a realm. Kept so a retry after a lost
+-- answer, or a restart between steps, continues the same enrollment instead
+-- of starting another one. The invite is stored as a hash: what has to be
+-- recognised is the operation, and a token written into a local table is a
+-- token that can leak out of one.
+CREATE TABLE IF NOT EXISTS enrollment (
+    id              INTEGER PRIMARY KEY CHECK (id = 1),
+    realm_id        BLOB NOT NULL,
+    invite_hash     BLOB NOT NULL,
+    credential_hash BLOB NOT NULL,
+    phase           TEXT NOT NULL,
+    updated_at      INTEGER NOT NULL
+);
+-- The request this device makes for its mailbox, written before it is sent.
+-- A retry sends the same key and the same capabilities, so the relay can
+-- answer with the mailbox it already made instead of making another: a
+-- route carries the write capability inside it, and a second mailbox is a
+-- route that stops working.
+CREATE TABLE IF NOT EXISTS mailbox_request (
+    id               INTEGER PRIMARY KEY CHECK (id = 1),
+    request_key      BLOB NOT NULL,
+    read_capability  BLOB NOT NULL,
+    write_capability BLOB NOT NULL,
+    created_at       INTEGER NOT NULL DEFAULT (unixepoch())
+);
 CREATE TABLE IF NOT EXISTS mailbox_own (
     mailbox_id       BLOB PRIMARY KEY,
     read_capability  BLOB NOT NULL,
@@ -352,6 +377,70 @@ pub struct OwnDevice {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OwnMailbox {
     pub mailbox_id: Vec<u8>,
+    pub read_capability: Vec<u8>,
+    pub write_capability: Vec<u8>,
+}
+
+/// A hash used to recognise an operation without keeping its secret: an
+/// invite token is compared this way rather than written down.
+pub fn operation_digest(bytes: &[u8]) -> Vec<u8> {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes).to_vec()
+}
+
+/// How far an enrollment has reached. The order matters: a resume skips
+/// what is already durable and repeats nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum EnrollmentPhase {
+    /// The credential exists; the invite is not redeemed yet, or its answer
+    /// never arrived.
+    Redeeming,
+    /// The realm accepted this device.
+    Redeemed,
+    /// The signed endpoint list is stored.
+    Endpoints,
+    /// Mailbox, route and key packages are done.
+    Complete,
+}
+
+impl EnrollmentPhase {
+    fn stored(self) -> &'static str {
+        match self {
+            Self::Redeeming => "redeeming",
+            Self::Redeemed => "redeemed",
+            Self::Endpoints => "endpoints",
+            Self::Complete => "complete",
+        }
+    }
+
+    /// A phase this client does not know, from a newer one, is treated as
+    /// the earliest: every step after it is written to be safe to repeat.
+    fn from_stored(value: &str) -> Self {
+        match value {
+            "redeemed" => Self::Redeemed,
+            "endpoints" => Self::Endpoints,
+            "complete" => Self::Complete,
+            _ => Self::Redeeming,
+        }
+    }
+}
+
+/// One enrollment in progress, or the one that finished.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnrollmentProgress {
+    pub realm_id: Vec<u8>,
+    /// A hash of the invite token, never the token.
+    pub invite_hash: Vec<u8>,
+    pub credential_hash: Vec<u8>,
+    pub phase: EnrollmentPhase,
+}
+
+/// What this device asks the realm for when it creates its mailbox. The
+/// capabilities are the client's own: the relay stores only their hashes,
+/// which is why it can answer a repeat exactly instead of minting again.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MailboxRequest {
+    pub request_key: Vec<u8>,
     pub read_capability: Vec<u8>,
     pub write_capability: Vec<u8>,
 }
@@ -1781,9 +1870,103 @@ impl Client {
         Ok(out)
     }
 
+    /// How far a previous attempt to join a realm got, if there was one.
+    pub fn enrollment(&self) -> Result<Option<EnrollmentProgress>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT realm_id, invite_hash, credential_hash, phase FROM enrollment WHERE id = 1",
+                [],
+                |r| {
+                    Ok(EnrollmentProgress {
+                        realm_id: r.get(0)?,
+                        invite_hash: r.get(1)?,
+                        credential_hash: r.get(2)?,
+                        phase: EnrollmentPhase::from_stored(&r.get::<_, String>(3)?),
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    /// Record where an enrollment has reached. Written after the step it
+    /// describes is durable, so a resume never claims more than happened.
+    pub fn enrollment_save(&self, progress: &EnrollmentProgress) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT INTO enrollment (id, realm_id, invite_hash, credential_hash, phase, updated_at)
+             VALUES (1, ?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(id) DO UPDATE SET
+                realm_id = ?1, invite_hash = ?2, credential_hash = ?3, phase = ?4, updated_at = ?5",
+            params![
+                progress.realm_id,
+                progress.invite_hash,
+                progress.credential_hash,
+                progress.phase.stored(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0)
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// The mailbox request this device will make, created once and kept, so
+    /// that a retry after a lost answer asks for the same thing.
+    pub fn mailbox_request(&self) -> Result<MailboxRequest, ClientError> {
+        if let Some(existing) = self.conn.lock().query_row(
+            "SELECT request_key, read_capability, write_capability FROM mailbox_request WHERE id = 1",
+            [],
+            |r| {
+                Ok(MailboxRequest {
+                    request_key: r.get(0)?,
+                    read_capability: r.get(1)?,
+                    write_capability: r.get(2)?,
+                })
+            },
+        ).optional()? {
+            return Ok(existing);
+        }
+
+        let mut request_key = vec![0u8; 16];
+        let mut read_capability = vec![0u8; 32];
+        let mut write_capability = vec![0u8; 32];
+        for bytes in [
+            &mut request_key,
+            &mut read_capability,
+            &mut write_capability,
+        ] {
+            getrandom::fill(bytes)
+                .map_err(|_| ClientError::Identity(identity::IdentityError::Random))?;
+        }
+        let request = MailboxRequest {
+            request_key,
+            read_capability,
+            write_capability,
+        };
+        // Written before anything is sent: a capability the relay accepted
+        // and this device forgot would be a mailbox nobody can read.
+        self.conn.lock().execute(
+            "INSERT INTO mailbox_request (id, request_key, read_capability, write_capability)
+             VALUES (1, ?1, ?2, ?3)",
+            params![
+                request.request_key,
+                request.read_capability,
+                request.write_capability
+            ],
+        )?;
+        Ok(request)
+    }
+
+    /// Save this device's mailbox. Saving the same one again does nothing:
+    /// the realm answers a repeated request with the mailbox it already
+    /// made, and recording that twice is not a second mailbox.
     pub fn mailbox_save(&self, m: &OwnMailbox) -> Result<(), ClientError> {
         self.conn.lock().execute(
-            "INSERT INTO mailbox_own (mailbox_id, read_capability, write_capability) VALUES (?1, ?2, ?3)",
+            "INSERT INTO mailbox_own (mailbox_id, read_capability, write_capability)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(mailbox_id) DO NOTHING",
             params![m.mailbox_id, m.read_capability, m.write_capability],
         )?;
         Ok(())

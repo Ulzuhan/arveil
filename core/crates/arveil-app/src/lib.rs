@@ -1414,10 +1414,18 @@ fn profile_lock(path: PathBuf) -> Result<Arc<ProfileLock>, ApplicationOpenError>
 
 type CommandFuture = Pin<Box<dyn Future<Output = ()> + 'static>>;
 
+/// The exclusions one profile keeps: a single sync, a single enrollment and
+/// a single finaliser of a device link.
+#[derive(Clone, Default)]
+struct Exclusions {
+    sync: Rc<tokio::sync::Mutex<()>>,
+    enrollment: Rc<tokio::sync::Mutex<()>>,
+    link_completion: Rc<tokio::sync::Mutex<()>>,
+}
+
 fn command_future(
     config: Arc<ProfileConfig>,
-    sync_lock: Rc<tokio::sync::Mutex<()>>,
-    link_completion_lock: Rc<tokio::sync::Mutex<()>>,
+    exclusions: Exclusions,
     active: Arc<Active>,
     watchers: Arc<Subscribers>,
     poisoned: Arc<AtomicBool>,
@@ -1437,7 +1445,13 @@ fn command_future(
             if matches!(&command, ClientCommand::Sync { .. }) {
                 // A second sync waits cooperatively here: network waits from the
                 // active sync still yield to queries and non-sync commands.
-                let _single_flight = sync_lock.lock().await;
+                let _single_flight = exclusions.sync.lock().await;
+                run_command(&config, command).await
+            } else if matches!(&command, ClientCommand::Enroll { .. }) {
+                // Equivalent calls wait and then read what the first one
+                // made durable; an incompatible one is refused by the
+                // enrollment itself, not by this lock.
+                let _single_enrollment = exclusions.enrollment.lock().await;
                 run_command(&config, command).await
             } else if matches!(
                 &command,
@@ -1446,7 +1460,7 @@ fn command_future(
                 // Linking may wait on the relay between durable local phases.
                 // Only one finalizer may cross those phases for this profile;
                 // followers resume from the phase written by their predecessor.
-                let _single_finalizer = link_completion_lock.lock().await;
+                let _single_finalizer = exclusions.link_completion.lock().await;
                 run_command(&config, command).await
             } else {
                 run_command(&config, command).await
@@ -1478,16 +1492,17 @@ async fn run_executor(
     poisoned: Arc<AtomicBool>,
 ) {
     let mut running = FuturesUnordered::<CommandFuture>::new();
-    let sync_lock = Rc::new(tokio::sync::Mutex::new(()));
-    let link_completion_lock = Rc::new(tokio::sync::Mutex::new(()));
+    // One sync, one enrollment and one link finaliser at a time. A second
+    // equivalent call waits and then finds the work durable, instead of
+    // racing to redo it.
+    let exclusions = Exclusions::default();
     let mut accepting = true;
     while accepting || !running.is_empty() {
         if running.is_empty() {
             match receiver.recv().await {
                 Some(request) => running.push(command_future(
                     config.clone(),
-                    sync_lock.clone(),
-                    link_completion_lock.clone(),
+                    exclusions.clone(),
                     active.clone(),
                     watchers.clone(),
                     poisoned.clone(),
@@ -1500,8 +1515,7 @@ async fn run_executor(
                 request = receiver.recv() => match request {
                     Some(request) => running.push(command_future(
                         config.clone(),
-                        sync_lock.clone(),
-                        link_completion_lock.clone(),
+                        exclusions.clone(),
                         active.clone(),
                         watchers.clone(),
                         poisoned.clone(),
@@ -5096,7 +5110,7 @@ mod tests {
                 Payload::EndpointListGet => Payload::EndpointList {
                     signed: signed_endpoints.clone(),
                 },
-                Payload::MailboxCreate => {
+                Payload::MailboxCreate { .. } => {
                     let number = mailbox_creates.fetch_add(1, Ordering::SeqCst) + 1;
                     // Keep the network step open long enough for a second
                     // confirmation to reach the executor and wait behind it.

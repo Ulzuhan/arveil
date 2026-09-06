@@ -5,8 +5,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use arveil_core::channel::codec::Payload;
 use arveil_core::channel::noise::{Initiator, Responder, prologue};
 use arveil_core::client::{
-    Client, OwnMailbox, PairingCancellationStatus, PairingCompletionPhase, PairingSessionState,
-    StoredDevice,
+    Client, EnrollmentPhase, EnrollmentProgress, OwnMailbox, PairingCancellationStatus,
+    PairingCompletionPhase, PairingSessionState, StoredDevice, operation_digest,
 };
 use arveil_core::identity::DevicePublicKeys;
 use arveil_core::pairing::{
@@ -175,6 +175,24 @@ pub async fn create_identity(config: &ProfileConfig) -> Result<Identity, CliErro
     Ok(identity)
 }
 
+/// Move an enrollment forward, never backward: a step is recorded once the
+/// work it names is durable, and a resume that repeats a step must not undo
+/// what a later one already achieved.
+fn advance(
+    client: &Client,
+    progress: &EnrollmentProgress,
+    phase: EnrollmentPhase,
+) -> Result<(), CliError> {
+    if progress.phase >= phase {
+        return Ok(());
+    }
+    let mut moved = progress.clone();
+    moved.phase = phase;
+    client
+        .enrollment_save(&moved)
+        .map_err(client_error("enrollment"))
+}
+
 pub async fn enroll(
     config: &ProfileConfig,
     bootstrap: &str,
@@ -203,6 +221,40 @@ pub async fn enroll(
     record_change(StateChange::DevicePrepared {
         device_id: device.keys.device_id.to_vec(),
     });
+
+    // One enrollment per profile, and the same one across restarts. What
+    // identifies it is the realm, the invite and the credential; the invite
+    // is compared by hash so the token itself is never written down.
+    let invite_hash = operation_digest(&token);
+    let credential_hash = operation_digest(&device.credential);
+    let progress = match client.enrollment().map_err(client_error("enrollment"))? {
+        Some(previous)
+            if previous.realm_id != bootstrap.realm_id
+                || previous.invite_hash != invite_hash
+                || previous.credential_hash != credential_hash =>
+        {
+            // A different enrollment, not a retry of this one. The one in
+            // progress is left exactly as it was.
+            return Err(CliError::Domain(
+                "this profile is already enrolling into another realm or with another invite"
+                    .into(),
+            ));
+        }
+        Some(previous) => previous,
+        None => {
+            let fresh = EnrollmentProgress {
+                realm_id: bootstrap.realm_id.clone(),
+                invite_hash,
+                credential_hash,
+                phase: EnrollmentPhase::Redeeming,
+            };
+            client
+                .enrollment_save(&fresh)
+                .map_err(client_error("enrollment"))?;
+            fresh
+        }
+    };
+
     client
         .realm_save(
             &bootstrap.realm_id,
@@ -220,6 +272,9 @@ pub async fn enroll(
         config.tls_ca(),
     )
     .await?;
+    // The realm answers a repeat of the same redemption with the result it
+    // recorded, so asking again after a lost answer is safe and is what a
+    // resume does rather than skipping a step it cannot prove happened.
     let identity_id = match connection
         .request(Payload::InviteRedeem {
             token,
@@ -234,12 +289,15 @@ pub async fn enroll(
     record_change(StateChange::EnrollmentAccepted {
         identity_id: identity_id.clone(),
     });
+    advance(&client, &progress, EnrollmentPhase::Redeemed)?;
     let endpoint_sequence = accept_endpoint_list(&client, &bootstrap, &mut connection).await?;
     client
         .realm_mark_enrolled(&bootstrap.realm_id)
         .map_err(client_error("realm"))?;
+    advance(&client, &progress, EnrollmentPhase::Endpoints)?;
     let finish = finish_enrollment(&client, &mut connection, &device).await?;
     record_finish(&finish);
+    advance(&client, &progress, EnrollmentPhase::Complete)?;
     connection.close().await;
     Ok(Enrollment {
         identity_id,
@@ -966,7 +1024,19 @@ async fn create_mailbox(
     client: &Client,
     connection: &mut Connection,
 ) -> Result<OwnMailbox, CliError> {
-    match connection.request(Payload::MailboxCreate).await? {
+    // Written before it is sent, and reused on a retry: the relay answers a
+    // repeat with the mailbox it already made rather than a second one.
+    let request = client
+        .mailbox_request()
+        .map_err(client_error("mailbox request"))?;
+    match connection
+        .request(Payload::MailboxCreate {
+            request_key: request.request_key,
+            read_capability: request.read_capability,
+            write_capability: request.write_capability,
+        })
+        .await?
+    {
         Payload::MailboxCreated {
             mailbox_id,
             read_capability,

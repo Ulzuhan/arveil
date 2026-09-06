@@ -133,3 +133,59 @@ func TestSweepRemovesExpiredEnvelopesAndInvites(t *testing.T) {
 		t.Fatalf("after sweep: %+v", left)
 	}
 }
+
+func TestCreateMailboxForRequestIsRepeatable(t *testing.T) {
+	s, ctx, now := memberStore(t)
+	identity, device := []byte{1, 1}, []byte{1, 4}
+	request := []byte("request-key-0001")
+	read, write := make([]byte, 32), make([]byte, 32)
+	for i := range read {
+		read[i], write[i] = byte(i), byte(255-i)
+	}
+
+	first, err := s.CreateMailboxForRequest(ctx, identity, device, request, read, write, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The same request returns the same mailbox and the same capabilities,
+	// which is what keeps a route that already embeds one working.
+	again, err := s.CreateMailboxForRequest(ctx, identity, device, request, read, write, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first.MailboxID, again.MailboxID) ||
+		!bytes.Equal(first.WriteCapability, again.WriteCapability) {
+		t.Fatal("a repeat produced a different mailbox")
+	}
+	if n, _ := s.Count(ctx, "mailboxes"); n != 1 {
+		t.Fatalf("%d mailboxes after a repeated request", n)
+	}
+	if n, _ := s.Count(ctx, "capabilities"); n != 2 {
+		t.Fatalf("%d capabilities after a repeated request", n)
+	}
+
+	// Everything the capability lets a peer do still works afterwards.
+	if err := s.CheckCapability(ctx, first.MailboxID, write, ScopeWrite, now); err != nil {
+		t.Fatalf("the write capability stopped working: %v", err)
+	}
+
+	// The same key with other capabilities is a different request wearing
+	// the same name.
+	other := make([]byte, 32)
+	other[0] = 7
+	if _, err := s.CreateMailboxForRequest(ctx, identity, device, request, read, other, now); !errors.Is(err, ErrRequestConflict) {
+		t.Fatalf("other capabilities should conflict, got %v", err)
+	}
+
+	// And another device may not claim a key it does not own.
+	if _, err := s.CreateMailboxForRequest(ctx, identity, []byte{1, 9}, request, read, write, now); !errors.Is(err, ErrRequestConflict) {
+		t.Fatalf("another device should conflict, got %v", err)
+	}
+
+	// A capability already promised to one mailbox is not shared with
+	// another: hash equality is not authorisation.
+	if _, err := s.CreateMailboxForRequest(ctx, identity, device, []byte("request-key-0002"), read, write, now); !errors.Is(err, ErrCapabilityInUse) {
+		t.Fatalf("a reused capability should conflict, got %v", err)
+	}
+}

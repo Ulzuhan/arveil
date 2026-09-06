@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -25,6 +26,18 @@ CREATE TABLE IF NOT EXISTS capabilities (
     scope      TEXT NOT NULL,
     expires_at INTEGER NOT NULL,
     revoked    INTEGER NOT NULL DEFAULT 0
+);
+-- What a mailbox creation produced, keyed by the request the client made.
+-- A repeat of that request returns the same mailbox rather than a second
+-- one, which matters because a route carries the write capability inside
+-- it: a mailbox created twice is a route that stops working.
+CREATE TABLE IF NOT EXISTS mailbox_requests (
+    request_key  BLOB PRIMARY KEY,
+    owner_device BLOB NOT NULL,
+    mailbox_id   BLOB NOT NULL REFERENCES mailboxes(mailbox_id),
+    read_hash    BLOB NOT NULL,
+    write_hash   BLOB NOT NULL,
+    created_at   INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS notify_hints (
     device_id  BLOB PRIMARY KEY,
@@ -93,6 +106,86 @@ func capHash(cap []byte) []byte {
 
 // CreateMailbox creates a mailbox for a device with one read and one write
 // capability, in one transaction.
+// CreateMailboxForRequest creates one mailbox for a client's request, or
+// returns the one that request already created. The capabilities are the
+// client's own bytes and only their hashes are stored, so a repeat can be
+// answered exactly: the relay could not reconstruct capabilities it minted
+// itself, and a route that embeds one cannot survive being reissued.
+func (s *Store) CreateMailboxForRequest(
+	ctx context.Context,
+	ownerIdentity, ownerDevice, requestKey, readCap, writeCap []byte,
+	now time.Time,
+) (*Mailbox, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var mailboxID, device, readHash, writeHash []byte
+	err = tx.QueryRowContext(ctx,
+		`SELECT mailbox_id, owner_device, read_hash, write_hash FROM mailbox_requests WHERE request_key = ?`,
+		requestKey).Scan(&mailboxID, &device, &readHash, &writeHash)
+	switch {
+	case err == nil:
+		// The same request from the same device with the same capabilities
+		// is the same request. Anything else reuses a key it does not own.
+		if !bytes.Equal(device, ownerDevice) ||
+			!bytes.Equal(readHash, capHash(readCap)) ||
+			!bytes.Equal(writeHash, capHash(writeCap)) {
+			return nil, ErrRequestConflict
+		}
+		return &Mailbox{
+			MailboxID:       mailboxID,
+			ReadCapability:  readCap,
+			WriteCapability: writeCap,
+		}, nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return nil, err
+	}
+
+	id, err := randomBytes(16)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO mailboxes (mailbox_id, owner_identity, owner_device, created_at) VALUES (?, ?, ?, ?)`,
+		id, ownerIdentity, ownerDevice, now.Unix()); err != nil {
+		return nil, err
+	}
+	exp := now.Add(CapabilityTTL).Unix()
+	for _, c := range []struct {
+		cap   []byte
+		scope string
+	}{{readCap, ScopeRead}, {writeCap, ScopeWrite}} {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO capabilities (cap_hash, mailbox_id, scope, expires_at) VALUES (?, ?, ?, ?)`,
+			capHash(c.cap), id, c.scope, exp); err != nil {
+			// Capability hashes are unique across the realm, and a
+			// collision is a token already promised to another mailbox.
+			// Hash equality is not authorisation, so this is refused
+			// rather than shared.
+			if isConstraint(err) {
+				return nil, ErrCapabilityInUse
+			}
+			return nil, err
+		}
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO mailbox_requests (request_key, owner_device, mailbox_id, read_hash, write_hash, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		requestKey, ownerDevice, id, capHash(readCap), capHash(writeCap), now.Unix()); err != nil {
+		if isConstraint(err) {
+			return nil, ErrRequestConflict
+		}
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &Mailbox{MailboxID: id, ReadCapability: readCap, WriteCapability: writeCap}, nil
+}
+
 func (s *Store) CreateMailbox(ctx context.Context, ownerIdentity, ownerDevice []byte, now time.Time) (*Mailbox, error) {
 	id, err := randomBytes(16)
 	if err != nil {

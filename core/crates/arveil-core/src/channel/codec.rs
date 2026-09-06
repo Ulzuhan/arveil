@@ -165,8 +165,18 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         key_package: Vec<u8>,
     },
-    /// Create a mailbox owned by the session's device (member only).
-    MailboxCreate,
+    /// Create a mailbox owned by the session's device (member only). The
+    /// request key and the capabilities are the client's, so asking twice
+    /// after a lost answer returns the same mailbox and the same bytes the
+    /// route already carries.
+    MailboxCreate {
+        #[serde(with = "serde_bytes")]
+        request_key: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        read_capability: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        write_capability: Vec<u8>,
+    },
     MailboxCreated {
         #[serde(with = "serde_bytes")]
         mailbox_id: Vec<u8>,

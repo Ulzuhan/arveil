@@ -33,13 +33,27 @@ var (
 	ErrSchemaTooNew    = errors.New("schema: written by a newer relay")
 	ErrManifestOrder   = errors.New("manifest: sequence must exceed the stored one")
 	ErrUnknownIdentity = errors.New("membership: unknown identity")
+	// ErrRequestConflict reports a request key reused with other parameters,
+	// or by a device that does not own it.
+	ErrRequestConflict = errors.New("request: key reused with other parameters")
+	// ErrCapabilityInUse reports a capability already promised to another
+	// mailbox. Hash equality is not authorisation.
+	ErrCapabilityInUse = errors.New("capability: already in use")
 )
+
+// Applied through the connection string, so every connection the pool opens
+// gets them. Running them once with `db.Exec` configured whichever
+// connection happened to serve that call and left the rest on driver
+// defaults: no busy timeout, so any write contention failed immediately
+// instead of waiting, and foreign keys switched off, so the schema's
+// references were enforced on one connection out of many.
+//
+// `journal_mode` is stored in the file rather than per connection, and is
+// set once below.
+const connectionPragmas = "_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=synchronous(FULL)"
 
 const pragmas = `
 PRAGMA journal_mode = WAL;
-PRAGMA synchronous = FULL;
-PRAGMA busy_timeout = 5000;
-PRAGMA foreign_keys = ON;
 `
 
 const schema = `
@@ -96,10 +110,10 @@ type Store struct {
 // Open opens or creates the database at path (":memory:" for tests), applies
 // pragmas and the schema, and refuses an embedded SQLite older than 3.51.3.
 func Open(path string) (*Store, error) {
-	dsn := path
+	dsn := "file:" + path + "?" + connectionPragmas
 	if path == ":memory:" {
 		// One shared in-memory database for the pool.
-		dsn = "file::memory:?cache=shared"
+		dsn = "file::memory:?cache=shared&" + connectionPragmas
 	}
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -187,7 +201,7 @@ func (s *Store) checkVersion() error {
 // far has been additive, which is why one number is enough: a database at an
 // older version is brought forward by the schema itself, and a database at a
 // newer one is refused rather than guessed at.
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 // refuseFutureSchema reads the recorded version and refuses a database from
 // a newer relay. It reads only: a database with no `schema_migrations` table

@@ -109,6 +109,7 @@ type Payload struct {
 	IdentityID []byte
 	DeviceID   []byte
 	// Mailbox and envelope frames
+	RequestKey       []byte
 	MailboxID        []byte
 	ReadCapability   []byte
 	WriteCapability  []byte
@@ -203,6 +204,17 @@ type keyPackagesClaimBody struct {
 
 type keyPackageClaimedBody struct {
 	KeyPackage []byte `cbor:"key_package"`
+}
+
+// A mailbox creation that can be repeated. The capabilities are the
+// client's: the relay keeps only their hashes, as it always has, and a
+// repeat therefore returns the same bytes the route already carries. The
+// relay never sees the token any earlier than it would have anyway, since a
+// capability is presented in the clear every time it is used.
+type mailboxCreateBody struct {
+	RequestKey      []byte `cbor:"request_key"`
+	ReadCapability  []byte `cbor:"read_capability"`
+	WriteCapability []byte `cbor:"write_capability"`
 }
 
 type mailboxCreatedBody struct {
@@ -329,7 +341,19 @@ func init() {
 func Encode(f Frame) ([]byte, error) {
 	var payload any
 	switch f.Payload.Kind {
-	case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin, KindKeyPackagesStatus:
+	case KindMailboxCreate:
+		// Without a request key this is the older form, and stays a bare
+		// variant name so an older relay and an older client still agree.
+		if len(f.Payload.RequestKey) == 0 {
+			payload = f.Payload.Kind
+			break
+		}
+		payload = map[string]mailboxCreateBody{KindMailboxCreate: {
+			RequestKey:      f.Payload.RequestKey,
+			ReadCapability:  f.Payload.ReadCapability,
+			WriteCapability: f.Payload.WriteCapability,
+		}}
+	case KindPing, KindPong, KindEndpointListGet, KindAck, KindPairBegin, KindKeyPackagesStatus:
 		payload = f.Payload.Kind
 	case KindKeyPackagesAvail:
 		payload = map[string]keyPackagesAvailableBody{KindKeyPackagesAvail: {Count: f.Payload.Count}}
@@ -622,6 +646,17 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, KeyPackage: v.KeyPackage}
+		case KindMailboxCreate:
+			var v mailboxCreateBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{
+				Kind:            name,
+				RequestKey:      v.RequestKey,
+				ReadCapability:  v.ReadCapability,
+				WriteCapability: v.WriteCapability,
+			}
 		case KindMailboxCreated:
 			var v mailboxCreatedBody
 			if err := cbor.Unmarshal(body, &v); err != nil {
