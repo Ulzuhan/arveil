@@ -168,7 +168,9 @@ pub enum ClientCommand {
         before: Option<i64>,
         limit: usize,
     },
-    QueryArchived,
+    QueryArchived {
+        group: Option<Vec<u8>>,
+    },
 }
 
 impl ClientCommand {
@@ -195,7 +197,7 @@ impl ClientCommand {
             Self::QueryConversations => Operation::QueryConversations,
             Self::QueryPeers { .. } => Operation::QueryPeers,
             Self::QueryHistoryPage { .. } => Operation::QueryHistoryPage,
-            Self::QueryArchived => Operation::QueryArchived,
+            Self::QueryArchived { .. } => Operation::QueryArchived,
         }
     }
 }
@@ -849,7 +851,7 @@ impl ClientCommand {
             Self::QueryConversations
             | Self::QueryPeers { .. }
             | Self::QueryHistoryPage { .. }
-            | Self::QueryArchived
+            | Self::QueryArchived { .. }
             | Self::QueryPendingPairing => Admission::Query,
             _ => Admission::Mutation,
         }
@@ -1540,9 +1542,16 @@ impl Application {
         }
     }
 
-    /// Imported conversations, which have no MLS state and cannot grow.
-    pub fn archived(&self) -> Result<Vec<ConversationHistory>, ApplicationError> {
-        match self.execute(ClientCommand::QueryArchived)? {
+    /// Imported records. Without a group this is the conversations that
+    /// exist only as an import; with one it is that conversation's records,
+    /// which may also have a live conversation of its own.
+    pub fn archived(
+        &self,
+        group: Option<&[u8]>,
+    ) -> Result<Vec<ConversationHistory>, ApplicationError> {
+        match self.execute(ClientCommand::QueryArchived {
+            group: group.map(<[u8]>::to_vec),
+        })? {
             CommandOutput::Archived(archived) => Ok(archived),
             _ => unreachable!("archive command returned another output type"),
         }
@@ -1551,28 +1560,41 @@ impl Application {
     /// Everything, assembled from bounded pages. The command line wants the
     /// whole history; a screen should page instead of calling this.
     pub fn history(&self) -> Result<Vec<ConversationHistory>, ApplicationError> {
-        let mut result = self.archived()?;
+        let mut archived = self.archived(None)?;
+        let mut live = Vec::new();
         for conversation in self.conversations()? {
             let peers = self.peers(&conversation.group_id)?;
-            let mut events = Vec::new();
+            // An imported record of a conversation that still exists
+            // belongs inside it, ahead of what arrived since.
+            let mut events = self
+                .archived(Some(&conversation.group_id))?
+                .into_iter()
+                .flat_map(|entry| entry.events)
+                .collect::<Vec<_>>();
+            // Imported records stay ahead of everything that follows.
+            let imported = events.len();
             let mut before = None;
             loop {
                 let page = self.history_page(&conversation.group_id, before, MAX_HISTORY_PAGE)?;
                 let empty = page.events.is_empty();
-                events.splice(0..0, page.events);
+                // Pages arrive newest first, so each one goes ahead of what
+                // was read before it and behind the imported records.
+                events.splice(imported..imported, page.events);
                 before = page.next;
                 if before.is_none() || empty {
                     break;
                 }
             }
-            result.push(ConversationHistory {
+            live.push(ConversationHistory {
                 group_id: conversation.group_id,
                 creator: Some(conversation.creator),
                 peers,
                 events,
             });
         }
-        Ok(result)
+        // Conversations that exist only as an import keep their own entry.
+        archived.extend(live);
+        Ok(archived)
     }
 
     fn operation(&self, command: ClientCommand) -> Result<OperationResult, ApplicationError> {
@@ -1768,7 +1790,7 @@ async fn run_command(
         } => history_page(config, &group, before, limit)
             .map(CommandOutput::HistoryPage)
             .map_err(|source| application_error(Operation::QueryHistoryPage, source)),
-        ClientCommand::QueryArchived => archived_conversations(config)
+        ClientCommand::QueryArchived { group } => archived_conversations(config, group.as_deref())
             .map(CommandOutput::Archived)
             .map_err(|source| application_error(Operation::QueryArchived, source)),
     }
@@ -2026,12 +2048,21 @@ fn history_page(
 
 /// Imported conversations. They carry no MLS state and cannot grow, so
 /// they are read whole rather than paged.
-fn archived_conversations(config: &ProfileConfig) -> Result<Vec<ConversationHistory>, CliError> {
+fn archived_conversations(
+    config: &ProfileConfig,
+    group: Option<&[u8]>,
+) -> Result<Vec<ConversationHistory>, CliError> {
     let session = local(config)?;
-    session
-        .client
-        .archived_groups()
-        .map_err(storage_error("archived"))?
+    let groups = match group {
+        Some(group) => vec![group.to_vec()],
+        // Without a group, only the conversations that exist as an import;
+        // a live one carries its records inside itself.
+        None => session
+            .client
+            .archived_groups()
+            .map_err(storage_error("archived"))?,
+    };
+    groups
         .into_iter()
         .map(|group_id| {
             let events = session
