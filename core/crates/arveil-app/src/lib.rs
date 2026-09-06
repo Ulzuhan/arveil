@@ -30,7 +30,7 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, Weak, mpsc};
 
 use arveil_core::attachments::{self, FileDescriptor};
@@ -577,12 +577,304 @@ impl ApplicationError {
     }
 }
 
+/// What a screen may show while an operation is still running.
+///
+/// This is a projection, not the internal change set: it carries the few
+/// things a user interface can act on, and says nothing about the rest. The
+/// durable answer is still `OperationResult`, and a caller that only
+/// watches this stream has seen progress, not results.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProgressEvent {
+    /// Total order across one profile. Numbers only grow; a jump means
+    /// events were dropped, and a `Gap` says so explicitly.
+    pub sequence: u64,
+    pub operation: Operation,
+    pub kind: ProgressKind,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProgressKind {
+    MessageQueued {
+        group_id: Vec<u8>,
+        event_id: Vec<u8>,
+    },
+    MessageReceived {
+        group_id: Vec<u8>,
+        event_id: Vec<u8>,
+    },
+    EnvelopesPublished {
+        count: usize,
+        pending: bool,
+    },
+    DeliveryChanged {
+        delivery_id: Vec<u8>,
+        state: String,
+    },
+    FileAnnounced {
+        group_id: Vec<u8>,
+        event_id: Vec<u8>,
+        name: String,
+        size: u64,
+    },
+    FileTransfer {
+        name: String,
+        offset: usize,
+        total: Option<usize>,
+    },
+    FileSaved {
+        name: String,
+    },
+    Synced {
+        fetched: usize,
+        new: usize,
+        acked: usize,
+    },
+    PairingChanged {
+        session_id: Vec<u8>,
+        phase: String,
+    },
+    RelayUnavailable {
+        pending: usize,
+    },
+    /// A step of enrollment or pairing, as it happens.
+    Onboarding {
+        step: String,
+    },
+    /// This subscriber fell behind and events were dropped. Read the state
+    /// again rather than trusting what came before it.
+    Gap {
+        dropped: usize,
+    },
+}
+
+/// How many events one subscriber may fall behind before they are dropped
+/// and it is told to read the state again.
+pub const WATCH_CAPACITY: usize = 256;
+
+/// A live view of one profile's progress. Dropping it unsubscribes.
+#[derive(Debug)]
+pub struct Subscription {
+    receiver: mpsc::Receiver<ProgressEvent>,
+}
+
+/// What waiting on a subscription found.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Waited {
+    Event(ProgressEvent),
+    /// Nothing arrived within the time allowed. The subscription is still
+    /// live, which is how a reader stays free to stop watching.
+    Idle,
+    /// The profile closed and no event will ever arrive.
+    Closed,
+}
+
+impl Subscription {
+    /// Wait for the next event. `None` once the profile is closed.
+    pub fn recv(&self) -> Option<ProgressEvent> {
+        self.receiver.recv().ok()
+    }
+
+    /// Wait, but not forever. A reader that must also watch for its own
+    /// cancellation needs to come up for air.
+    pub fn wait(&self, timeout: std::time::Duration) -> Waited {
+        match self.receiver.recv_timeout(timeout) {
+            Ok(event) => Waited::Event(event),
+            Err(mpsc::RecvTimeoutError::Timeout) => Waited::Idle,
+            Err(mpsc::RecvTimeoutError::Disconnected) => Waited::Closed,
+        }
+    }
+
+    /// Take an event if one is waiting.
+    pub fn try_recv(&self) -> Option<ProgressEvent> {
+        self.receiver.try_recv().ok()
+    }
+}
+
+#[derive(Debug)]
+struct Subscriber {
+    sender: mpsc::SyncSender<ProgressEvent>,
+    dropped: usize,
+}
+
+/// The profile's subscribers. Sending never blocks the executor: a
+/// subscriber that cannot keep up loses events and is told how many.
+#[derive(Debug, Default)]
+struct Subscribers {
+    inner: Mutex<Vec<Subscriber>>,
+    sequence: AtomicU64,
+}
+
+impl Subscribers {
+    fn subscribe(&self) -> Subscription {
+        let (sender, receiver) = mpsc::sync_channel(WATCH_CAPACITY);
+        self.inner
+            .lock()
+            .expect("subscriber registry poisoned")
+            .push(Subscriber { sender, dropped: 0 });
+        Subscription { receiver }
+    }
+
+    fn publish(&self, operation: Operation, change: &StateChange) {
+        let Some(kind) = project(change) else {
+            return;
+        };
+        let mut subscribers = self.inner.lock().expect("subscriber registry poisoned");
+        if subscribers.is_empty() {
+            return;
+        }
+        let sequence = self.sequence.fetch_add(1, Ordering::Relaxed);
+        subscribers.retain_mut(|subscriber| {
+            // A subscriber that lost events hears about the gap before it
+            // hears anything newer.
+            if subscriber.dropped > 0 {
+                let gap = ProgressEvent {
+                    sequence,
+                    operation,
+                    kind: ProgressKind::Gap {
+                        dropped: subscriber.dropped,
+                    },
+                };
+                match subscriber.sender.try_send(gap) {
+                    Ok(()) => subscriber.dropped = 0,
+                    Err(mpsc::TrySendError::Full(_)) => {
+                        subscriber.dropped += 1;
+                        return true;
+                    }
+                    Err(mpsc::TrySendError::Disconnected(_)) => return false,
+                }
+            }
+            let event = ProgressEvent {
+                sequence,
+                operation,
+                kind: kind.clone(),
+            };
+            match subscriber.sender.try_send(event) {
+                Ok(()) => true,
+                Err(mpsc::TrySendError::Full(_)) => {
+                    subscriber.dropped += 1;
+                    true
+                }
+                Err(mpsc::TrySendError::Disconnected(_)) => false,
+            }
+        });
+    }
+}
+
+/// The projection itself. Everything absent from it is diagnosis, not
+/// state: it stays in the durable result, where a caller reads it once the
+/// operation answers.
+fn project(change: &StateChange) -> Option<ProgressKind> {
+    Some(match change {
+        StateChange::MessageQueued { receipt, .. } => ProgressKind::MessageQueued {
+            group_id: receipt.group_id.clone(),
+            event_id: receipt.event_id.clone(),
+        },
+        StateChange::MessageReceived {
+            group_id, event_id, ..
+        } => ProgressKind::MessageReceived {
+            group_id: group_id.clone(),
+            event_id: event_id.clone(),
+        },
+        StateChange::EnvelopesPublished { count, pending } => ProgressKind::EnvelopesPublished {
+            count: *count,
+            pending: *pending,
+        },
+        StateChange::DeliveryChanged {
+            delivery_id, state, ..
+        } => ProgressKind::DeliveryChanged {
+            delivery_id: delivery_id.clone(),
+            state: match state {
+                DeliveryStatus::Queued => "queued".into(),
+                DeliveryStatus::Accepted { .. } => "accepted".into(),
+                DeliveryStatus::Undeliverable { .. } => "undeliverable".into(),
+            },
+        },
+        StateChange::FileAnnounced {
+            group_id,
+            event_id,
+            name,
+            size,
+        } => ProgressKind::FileAnnounced {
+            group_id: group_id.clone(),
+            event_id: event_id.clone(),
+            name: name.clone(),
+            size: *size,
+        },
+        StateChange::UploadResumed {
+            name,
+            offset,
+            total,
+        } => ProgressKind::FileTransfer {
+            name: name.clone(),
+            offset: *offset,
+            total: Some(*total),
+        },
+        StateChange::FileDownloadResumed { name, offset } => ProgressKind::FileTransfer {
+            name: name.clone(),
+            offset: *offset,
+            total: None,
+        },
+        StateChange::FileSaved { name, .. } => ProgressKind::FileSaved { name: name.clone() },
+        StateChange::SyncCompleted {
+            fetched,
+            new,
+            acked,
+        } => ProgressKind::Synced {
+            fetched: *fetched,
+            new: *new,
+            acked: *acked,
+        },
+        StateChange::PairingCompletionChanged { session_id, phase } => {
+            ProgressKind::PairingChanged {
+                session_id: session_id.clone(),
+                phase: format!("{phase:?}"),
+            }
+        }
+        StateChange::PairingVerificationReady { session_id, .. } => ProgressKind::PairingChanged {
+            session_id: session_id.clone(),
+            phase: "verification-ready".into(),
+        },
+        StateChange::PairingGrantSent { session_id, .. } => ProgressKind::PairingChanged {
+            session_id: session_id.clone(),
+            phase: "grant-sent".into(),
+        },
+        StateChange::RelayUnavailable { pending, .. } => {
+            ProgressKind::RelayUnavailable { pending: *pending }
+        }
+        StateChange::IdentityCreated { .. } => ProgressKind::Onboarding {
+            step: "identity-created".into(),
+        },
+        StateChange::DevicePrepared { .. } => ProgressKind::Onboarding {
+            step: "device-prepared".into(),
+        },
+        StateChange::EnrollmentAccepted { .. } => ProgressKind::Onboarding {
+            step: "enrolled".into(),
+        },
+        StateChange::MailboxCreated { .. } => ProgressKind::Onboarding {
+            step: "mailbox-created".into(),
+        },
+        StateChange::KeyPackagesPublished { .. } => ProgressKind::Onboarding {
+            step: "key-packages-published".into(),
+        },
+        StateChange::DeviceLinked { .. } => ProgressKind::Onboarding {
+            step: "device-linked".into(),
+        },
+        _ => return None,
+    })
+}
+
 tokio::task_local! {
     static CHANGES: RefCell<Vec<StateChange>>;
     static MESSAGES: RefCell<Vec<MessageReceipt>>;
+    /// The executor already knows which operation it is running, so one
+    /// scope carries both. Every extra scope grows an already deep future.
+    static WATCHERS: (Operation, Arc<Subscribers>);
 }
 
 fn record_change(change: StateChange) {
+    // Progress is told to whoever is watching, and the durable result keeps
+    // everything either way: a lost event never loses a fact.
+    let _ = WATCHERS.try_with(|(operation, watchers)| watchers.publish(*operation, &change));
     CHANGES.with(|changes| changes.borrow_mut().push(change));
 }
 
@@ -911,6 +1203,7 @@ struct SerialExecutor {
     sender: Mutex<Option<tokio::sync::mpsc::UnboundedSender<Request>>>,
     worker: Mutex<Option<std::thread::JoinHandle<()>>>,
     active: Arc<Active>,
+    watchers: Arc<Subscribers>,
 }
 
 impl SerialExecutor {
@@ -1103,28 +1396,34 @@ fn command_future(
     sync_lock: Rc<tokio::sync::Mutex<()>>,
     link_completion_lock: Rc<tokio::sync::Mutex<()>>,
     active: Arc<Active>,
+    watchers: Arc<Subscribers>,
     request: Request,
 ) -> CommandFuture {
     Box::pin(async move {
         let admission = request.command.admission();
-        let result = if matches!(&request.command, ClientCommand::Sync { .. }) {
-            // A second sync waits cooperatively here: network waits from the
-            // active sync still yield to queries and non-sync commands.
-            let _single_flight = sync_lock.lock().await;
-            run_command(&config, request.command).await
-        } else if matches!(
-            &request.command,
-            ClientCommand::CompleteLink { .. } | ClientCommand::ConfirmPairing { .. }
-        ) {
-            // Linking may wait on the relay between durable local phases.
-            // Only one finalizer may cross those phases for this profile;
-            // followers resume from the phase written by their predecessor.
-            let _single_finalizer = link_completion_lock.lock().await;
-            run_command(&config, request.command).await
-        } else {
-            run_command(&config, request.command).await
-        };
-        let _ = request.reply.send(result);
+        let operation = request.command.operation();
+        let watched = WATCHERS.scope((operation, watchers), async move {
+            let result = if matches!(&request.command, ClientCommand::Sync { .. }) {
+                // A second sync waits cooperatively here: network waits from the
+                // active sync still yield to queries and non-sync commands.
+                let _single_flight = sync_lock.lock().await;
+                run_command(&config, request.command).await
+            } else if matches!(
+                &request.command,
+                ClientCommand::CompleteLink { .. } | ClientCommand::ConfirmPairing { .. }
+            ) {
+                // Linking may wait on the relay between durable local phases.
+                // Only one finalizer may cross those phases for this profile;
+                // followers resume from the phase written by their predecessor.
+                let _single_finalizer = link_completion_lock.lock().await;
+                run_command(&config, request.command).await
+            } else {
+                run_command(&config, request.command).await
+            };
+            (result, request.reply)
+        });
+        let (result, reply) = watched.await;
+        let _ = reply.send(result);
         // The slot is only free once the work is done, not when a caller
         // stops waiting for it.
         active.release(admission);
@@ -1135,6 +1434,7 @@ async fn run_executor(
     config: Arc<ProfileConfig>,
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<Request>,
     active: Arc<Active>,
+    watchers: Arc<Subscribers>,
 ) {
     let mut running = FuturesUnordered::<CommandFuture>::new();
     let sync_lock = Rc::new(tokio::sync::Mutex::new(()));
@@ -1148,6 +1448,7 @@ async fn run_executor(
                     sync_lock.clone(),
                     link_completion_lock.clone(),
                     active.clone(),
+                    watchers.clone(),
                     request,
                 )),
                 None => accepting = false,
@@ -1160,6 +1461,7 @@ async fn run_executor(
                         sync_lock.clone(),
                         link_completion_lock.clone(),
                         active.clone(),
+                        watchers.clone(),
                         request,
                     )),
                     None => accepting = false,
@@ -1205,6 +1507,8 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<Request>();
     let active = Arc::new(Active::default());
     let worker_active = active.clone();
+    let watchers = Arc::new(Subscribers::default());
+    let worker_watchers = watchers.clone();
     let worker = std::thread::Builder::new()
         .name("arveil-client-state".into())
         .stack_size(8 * 1024 * 1024)
@@ -1212,7 +1516,12 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
             // The lock belongs to the worker, so it outlives every command
             // this executor still has to finish.
             let _profile_lock = profile_lock;
-            runtime.block_on(run_executor(Arc::new(config), receiver, worker_active));
+            runtime.block_on(run_executor(
+                Arc::new(config),
+                receiver,
+                worker_active,
+                worker_watchers,
+            ));
         })
         .map_err(|source| ApplicationOpenError::Io {
             action: "start executor for",
@@ -1224,6 +1533,7 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
         sender: Mutex::new(Some(sender)),
         worker: Mutex::new(Some(worker)),
         active,
+        watchers,
     });
     sessions.insert(dir, SessionSlot::Open(Arc::downgrade(&executor)));
     Ok(executor)
@@ -1248,6 +1558,14 @@ impl Application {
         Ok(Self {
             executor: executor_for(config)?,
         })
+    }
+
+    /// Watch this profile's progress while operations run. Bounded: a
+    /// subscriber that falls behind loses events and is told how many, so
+    /// it reads the state again instead of believing it saw everything.
+    /// Dropping the subscription unsubscribes.
+    pub fn watch(&self) -> Subscription {
+        self.executor.watchers.subscribe()
     }
 
     /// Stop admitting work, wait for what is running and release the
@@ -3871,7 +4189,7 @@ async fn download_pending(
 mod tests {
     use super::*;
     use futures_util::SinkExt;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::Ordering;
 
     fn enrolled_test_application(label: &str, url: &str) -> (PathBuf, String, Application) {
         let profile = std::env::temp_dir().join(format!(
@@ -4084,6 +4402,145 @@ mod tests {
                 .record_event(group, &event_id, kind, body.as_bytes())
                 .unwrap();
         }
+    }
+
+    #[tokio::test]
+    async fn progress_reaches_a_subscriber_while_the_operation_still_runs() {
+        let watchers = Arc::new(Subscribers::default());
+        let subscription = watchers.subscribe();
+        let seen = std::cell::RefCell::new(Vec::new());
+        let result = WATCHERS
+            .scope(
+                (Operation::Sync, watchers.clone()),
+                run_operation(Operation::Sync, async {
+                    record_change(StateChange::EnvelopesPublished {
+                        count: 2,
+                        pending: false,
+                    });
+                    // Already delivered, with the operation still running.
+                    seen.borrow_mut().push(subscription.try_recv());
+                    record_change(StateChange::SyncCompleted {
+                        fetched: 2,
+                        new: 1,
+                        acked: 2,
+                    });
+                    seen.borrow_mut().push(subscription.try_recv());
+                    Ok(())
+                }),
+            )
+            .await
+            .expect("the operation succeeds");
+
+        let seen = seen.into_inner();
+        assert!(matches!(
+            seen[0],
+            Some(ProgressEvent {
+                sequence: 0,
+                operation: Operation::Sync,
+                kind: ProgressKind::EnvelopesPublished {
+                    count: 2,
+                    pending: false
+                },
+            })
+        ));
+        assert!(matches!(
+            seen[1],
+            Some(ProgressEvent {
+                sequence: 1,
+                kind: ProgressKind::Synced {
+                    fetched: 2,
+                    new: 1,
+                    acked: 2
+                },
+                ..
+            })
+        ));
+        // Progress does not replace the durable answer.
+        assert_eq!(result.changes.len(), 2);
+        assert!(subscription.try_recv().is_none());
+    }
+
+    #[tokio::test]
+    async fn a_subscriber_that_falls_behind_is_told_what_it_lost() {
+        let watchers = Arc::new(Subscribers::default());
+        let subscription = watchers.subscribe();
+        let overflow = 5;
+        let result = WATCHERS
+            .scope(
+                (Operation::Sync, watchers.clone()),
+                run_operation(Operation::Sync, async {
+                    for count in 0..WATCH_CAPACITY + overflow {
+                        record_change(StateChange::EnvelopesPublished {
+                            count,
+                            pending: false,
+                        });
+                    }
+                    Ok(())
+                }),
+            )
+            .await
+            .expect("the operation succeeds");
+
+        // Nothing was lost from the durable result, whatever the subscriber
+        // managed to keep up with.
+        assert_eq!(result.changes.len(), WATCH_CAPACITY + overflow);
+
+        let mut received = Vec::new();
+        while let Some(event) = subscription.try_recv() {
+            received.push(event);
+        }
+        assert_eq!(received.len(), WATCH_CAPACITY);
+        // Draining made room, so the next publication carries the gap.
+        WATCHERS
+            .scope(
+                (Operation::Sync, watchers.clone()),
+                run_operation(Operation::Sync, async {
+                    record_change(StateChange::SyncCompleted {
+                        fetched: 0,
+                        new: 0,
+                        acked: 0,
+                    });
+                    Ok(())
+                }),
+            )
+            .await
+            .expect("the operation succeeds");
+        let gap = subscription.try_recv().expect("a gap is reported");
+        assert!(
+            matches!(gap.kind, ProgressKind::Gap { dropped } if dropped == overflow),
+            "expected {overflow} dropped events, got {:?}",
+            gap.kind
+        );
+        assert!(matches!(
+            subscription.try_recv().map(|event| event.kind),
+            Some(ProgressKind::Synced { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn dropping_a_subscription_unsubscribes() {
+        let watchers = Arc::new(Subscribers::default());
+        let subscription = watchers.subscribe();
+        assert_eq!(watchers.inner.lock().unwrap().len(), 1);
+        drop(subscription);
+        WATCHERS
+            .scope(
+                (Operation::Sync, watchers.clone()),
+                run_operation(Operation::Sync, async {
+                    record_change(StateChange::SyncCompleted {
+                        fetched: 0,
+                        new: 0,
+                        acked: 0,
+                    });
+                    Ok(())
+                }),
+            )
+            .await
+            .expect("the operation succeeds");
+        assert!(
+            watchers.inner.lock().unwrap().is_empty(),
+            "a gone subscriber is forgotten at the next publication"
+        );
     }
 
     #[test]

@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `operation_name`, `profile_error`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Open a profile encrypted at rest. The key comes from the platform store,
 /// never from this crate and never from the environment.
@@ -31,6 +31,10 @@ abstract class Profile implements RustOpaqueInterface {
   /// The conversation list, as a query that answers from local state.
   Future<List<ConversationView>> conversations();
 
+  /// Create this profile's identity. The first step of enrollment, and
+  /// the one that makes a profile more than a directory.
+  Future<void> createIdentity();
+
   /// One page of a conversation, newest page first: pass the previous
   /// page's `next` as `before` to walk backwards. The application caps
   /// the size whatever is asked for.
@@ -39,6 +43,16 @@ abstract class Profile implements RustOpaqueInterface {
     PlatformInt64? before,
     required int limit,
   });
+
+  /// Stop the stream this profile is feeding, without closing anything
+  /// else. Dropping the subscription on the Rust side is what actually
+  /// unsubscribes.
+  void stopWatching();
+
+  /// Watch progress while operations run. The stream ends when the
+  /// profile closes or when `stop_watching` is called; a listener should
+  /// stop before cancelling, since the stream is closed from this side.
+  Stream<ProgressView> watch();
 }
 
 @freezed
@@ -203,4 +217,81 @@ sealed class ProfileError with _$ProfileError implements FrbException {
     required String path,
     required String reason,
   }) = ProfileError_Io;
+}
+
+@freezed
+sealed class ProgressKindView with _$ProgressKindView {
+  const ProgressKindView._();
+
+  const factory ProgressKindView.messageQueued({
+    required String groupId,
+    required String eventId,
+  }) = ProgressKindView_MessageQueued;
+  const factory ProgressKindView.messageReceived({
+    required String groupId,
+    required String eventId,
+  }) = ProgressKindView_MessageReceived;
+  const factory ProgressKindView.envelopesPublished({
+    required int count,
+    required bool pending,
+  }) = ProgressKindView_EnvelopesPublished;
+  const factory ProgressKindView.deliveryChanged({
+    required String deliveryId,
+    required String state,
+  }) = ProgressKindView_DeliveryChanged;
+  const factory ProgressKindView.fileAnnounced({
+    required String groupId,
+    required String eventId,
+    required String name,
+    required BigInt size,
+  }) = ProgressKindView_FileAnnounced;
+  const factory ProgressKindView.fileTransfer({
+    required String name,
+    required BigInt offset,
+    BigInt? total,
+  }) = ProgressKindView_FileTransfer;
+  const factory ProgressKindView.fileSaved({required String name}) =
+      ProgressKindView_FileSaved;
+  const factory ProgressKindView.synced({
+    required int fetched,
+    required int new_,
+    required int acked,
+  }) = ProgressKindView_Synced;
+  const factory ProgressKindView.pairingChanged({
+    required String sessionId,
+    required String phase,
+  }) = ProgressKindView_PairingChanged;
+  const factory ProgressKindView.relayUnavailable({required int pending}) =
+      ProgressKindView_RelayUnavailable;
+  const factory ProgressKindView.onboarding({required String step}) =
+      ProgressKindView_Onboarding;
+  const factory ProgressKindView.gap({required int dropped}) =
+      ProgressKindView_Gap;
+}
+
+/// Progress while an operation runs. A screen may show it; it does not
+/// replace the answer the operation returns, and a `gap` means events were
+/// missed and the screen should read the state again.
+class ProgressView {
+  final BigInt sequence;
+  final String operation;
+  final ProgressKindView kind;
+
+  const ProgressView({
+    required this.sequence,
+    required this.operation,
+    required this.kind,
+  });
+
+  @override
+  int get hashCode => sequence.hashCode ^ operation.hashCode ^ kind.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProgressView &&
+          runtimeType == other.runtimeType &&
+          sequence == other.sequence &&
+          operation == other.operation &&
+          kind == other.kind;
 }

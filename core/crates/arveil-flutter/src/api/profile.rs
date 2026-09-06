@@ -7,13 +7,22 @@
 
 use arveil_app::{
     Application, ApplicationError, ApplicationOpenError, ConversationSummary, HistoryEvent,
-    Operation, ProfileConfig,
+    Operation, ProfileConfig, ProgressEvent, ProgressKind, Waited,
 };
+use flutter_rust_bridge::frb;
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+
+use crate::frb_generated::StreamSink;
 
 /// A session over one profile. Opaque to Dart: the database, the MLS engine
 /// and the keys stay on this side.
 pub struct Profile {
     inner: Application,
+    /// Set while a stream is wanted. Cleared by `stop_watching`, which is
+    /// how a screen unsubscribes without closing the profile.
+    watching: Arc<AtomicBool>,
 }
 
 /// Why a profile could not be opened.
@@ -72,6 +81,68 @@ pub enum CommandError {
     },
 }
 
+/// Progress while an operation runs. A screen may show it; it does not
+/// replace the answer the operation returns, and a `gap` means events were
+/// missed and the screen should read the state again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProgressView {
+    pub sequence: u64,
+    pub operation: String,
+    pub kind: ProgressKindView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProgressKindView {
+    MessageQueued {
+        group_id: String,
+        event_id: String,
+    },
+    MessageReceived {
+        group_id: String,
+        event_id: String,
+    },
+    EnvelopesPublished {
+        count: u32,
+        pending: bool,
+    },
+    DeliveryChanged {
+        delivery_id: String,
+        state: String,
+    },
+    FileAnnounced {
+        group_id: String,
+        event_id: String,
+        name: String,
+        size: u64,
+    },
+    FileTransfer {
+        name: String,
+        offset: u64,
+        total: Option<u64>,
+    },
+    FileSaved {
+        name: String,
+    },
+    Synced {
+        fetched: u32,
+        new: u32,
+        acked: u32,
+    },
+    PairingChanged {
+        session_id: String,
+        phase: String,
+    },
+    RelayUnavailable {
+        pending: u32,
+    },
+    Onboarding {
+        step: String,
+    },
+    Gap {
+        dropped: u32,
+    },
+}
+
 /// One event of a conversation, as a screen shows it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HistoryEventView {
@@ -109,6 +180,7 @@ pub fn open_profile(dir: String, key: String) -> Result<Profile, ProfileError> {
     let config = ProfileConfig::encrypted(dir, key).map_err(profile_error)?;
     Ok(Profile {
         inner: Application::open(config).map_err(profile_error)?,
+        watching: Arc::new(AtomicBool::new(false)),
     })
 }
 
@@ -117,6 +189,7 @@ pub fn open_profile(dir: String, key: String) -> Result<Profile, ProfileError> {
 pub fn open_unencrypted_profile(dir: String) -> Result<Profile, ProfileError> {
     Ok(Profile {
         inner: Application::open(ProfileConfig::unencrypted(dir)).map_err(profile_error)?,
+        watching: Arc::new(AtomicBool::new(false)),
     })
 }
 
@@ -126,6 +199,42 @@ impl Profile {
     /// opening it again.
     pub fn close(&self) {
         self.inner.close();
+    }
+
+    /// Create this profile's identity. The first step of enrollment, and
+    /// the one that makes a profile more than a directory.
+    pub fn create_identity(&self) -> Result<(), CommandError> {
+        self.inner.create_identity().map_err(command_error)?;
+        Ok(())
+    }
+
+    /// Watch progress while operations run. The stream ends when the
+    /// profile closes or when `stop_watching` is called; a listener should
+    /// stop before cancelling, since the stream is closed from this side.
+    pub fn watch(&self, sink: StreamSink<ProgressView>) {
+        let subscription = self.inner.watch();
+        self.watching.store(true, AtomicOrdering::Release);
+        while self.watching.load(AtomicOrdering::Acquire) {
+            match subscription.wait(std::time::Duration::from_millis(100)) {
+                Waited::Event(event) => {
+                    if sink.add(progress_view(event)).is_err() {
+                        break;
+                    }
+                }
+                // Idle only means nothing happened; it is the chance to
+                // notice that nobody is watching any more.
+                Waited::Idle => continue,
+                Waited::Closed => break,
+            }
+        }
+    }
+
+    /// Stop the stream this profile is feeding, without closing anything
+    /// else. Dropping the subscription on the Rust side is what actually
+    /// unsubscribes.
+    #[frb(sync)]
+    pub fn stop_watching(&self) {
+        self.watching.store(false, AtomicOrdering::Release);
     }
 
     /// One page of a conversation, newest page first: pass the previous
@@ -157,6 +266,75 @@ impl Profile {
             .into_iter()
             .map(view)
             .collect())
+    }
+}
+
+fn progress_view(event: ProgressEvent) -> ProgressView {
+    let kind = match event.kind {
+        ProgressKind::MessageQueued { group_id, event_id } => ProgressKindView::MessageQueued {
+            group_id: hex(&group_id),
+            event_id: hex(&event_id),
+        },
+        ProgressKind::MessageReceived { group_id, event_id } => ProgressKindView::MessageReceived {
+            group_id: hex(&group_id),
+            event_id: hex(&event_id),
+        },
+        ProgressKind::EnvelopesPublished { count, pending } => {
+            ProgressKindView::EnvelopesPublished {
+                count: count as u32,
+                pending,
+            }
+        }
+        ProgressKind::DeliveryChanged { delivery_id, state } => ProgressKindView::DeliveryChanged {
+            delivery_id: hex(&delivery_id),
+            state,
+        },
+        ProgressKind::FileAnnounced {
+            group_id,
+            event_id,
+            name,
+            size,
+        } => ProgressKindView::FileAnnounced {
+            group_id: hex(&group_id),
+            event_id: hex(&event_id),
+            name,
+            size,
+        },
+        ProgressKind::FileTransfer {
+            name,
+            offset,
+            total,
+        } => ProgressKindView::FileTransfer {
+            name,
+            offset: offset as u64,
+            total: total.map(|total| total as u64),
+        },
+        ProgressKind::FileSaved { name } => ProgressKindView::FileSaved { name },
+        ProgressKind::Synced {
+            fetched,
+            new,
+            acked,
+        } => ProgressKindView::Synced {
+            fetched: fetched as u32,
+            new: new as u32,
+            acked: acked as u32,
+        },
+        ProgressKind::PairingChanged { session_id, phase } => ProgressKindView::PairingChanged {
+            session_id: hex(&session_id),
+            phase,
+        },
+        ProgressKind::RelayUnavailable { pending } => ProgressKindView::RelayUnavailable {
+            pending: pending as u32,
+        },
+        ProgressKind::Onboarding { step } => ProgressKindView::Onboarding { step },
+        ProgressKind::Gap { dropped } => ProgressKindView::Gap {
+            dropped: dropped as u32,
+        },
+    };
+    ProgressView {
+        sequence: event.sequence,
+        operation: operation_name(event.operation).to_string(),
+        kind,
     }
 }
 

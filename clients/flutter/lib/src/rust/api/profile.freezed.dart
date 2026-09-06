@@ -1299,4 +1299,1040 @@ as String,
 
 }
 
+/// @nodoc
+mixin _$ProgressKindView {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'ProgressKindView()';
+}
+
+
+}
+
+/// @nodoc
+class $ProgressKindViewCopyWith<$Res>  {
+$ProgressKindViewCopyWith(ProgressKindView _, $Res Function(ProgressKindView) __);
+}
+
+
+/// Adds pattern-matching-related methods to [ProgressKindView].
+extension ProgressKindViewPatterns on ProgressKindView {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ProgressKindView_MessageQueued value)?  messageQueued,TResult Function( ProgressKindView_MessageReceived value)?  messageReceived,TResult Function( ProgressKindView_EnvelopesPublished value)?  envelopesPublished,TResult Function( ProgressKindView_DeliveryChanged value)?  deliveryChanged,TResult Function( ProgressKindView_FileAnnounced value)?  fileAnnounced,TResult Function( ProgressKindView_FileTransfer value)?  fileTransfer,TResult Function( ProgressKindView_FileSaved value)?  fileSaved,TResult Function( ProgressKindView_Synced value)?  synced,TResult Function( ProgressKindView_PairingChanged value)?  pairingChanged,TResult Function( ProgressKindView_RelayUnavailable value)?  relayUnavailable,TResult Function( ProgressKindView_Onboarding value)?  onboarding,TResult Function( ProgressKindView_Gap value)?  gap,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case ProgressKindView_MessageQueued() when messageQueued != null:
+return messageQueued(_that);case ProgressKindView_MessageReceived() when messageReceived != null:
+return messageReceived(_that);case ProgressKindView_EnvelopesPublished() when envelopesPublished != null:
+return envelopesPublished(_that);case ProgressKindView_DeliveryChanged() when deliveryChanged != null:
+return deliveryChanged(_that);case ProgressKindView_FileAnnounced() when fileAnnounced != null:
+return fileAnnounced(_that);case ProgressKindView_FileTransfer() when fileTransfer != null:
+return fileTransfer(_that);case ProgressKindView_FileSaved() when fileSaved != null:
+return fileSaved(_that);case ProgressKindView_Synced() when synced != null:
+return synced(_that);case ProgressKindView_PairingChanged() when pairingChanged != null:
+return pairingChanged(_that);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
+return relayUnavailable(_that);case ProgressKindView_Onboarding() when onboarding != null:
+return onboarding(_that);case ProgressKindView_Gap() when gap != null:
+return gap(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ProgressKindView_MessageQueued value)  messageQueued,required TResult Function( ProgressKindView_MessageReceived value)  messageReceived,required TResult Function( ProgressKindView_EnvelopesPublished value)  envelopesPublished,required TResult Function( ProgressKindView_DeliveryChanged value)  deliveryChanged,required TResult Function( ProgressKindView_FileAnnounced value)  fileAnnounced,required TResult Function( ProgressKindView_FileTransfer value)  fileTransfer,required TResult Function( ProgressKindView_FileSaved value)  fileSaved,required TResult Function( ProgressKindView_Synced value)  synced,required TResult Function( ProgressKindView_PairingChanged value)  pairingChanged,required TResult Function( ProgressKindView_RelayUnavailable value)  relayUnavailable,required TResult Function( ProgressKindView_Onboarding value)  onboarding,required TResult Function( ProgressKindView_Gap value)  gap,}){
+final _that = this;
+switch (_that) {
+case ProgressKindView_MessageQueued():
+return messageQueued(_that);case ProgressKindView_MessageReceived():
+return messageReceived(_that);case ProgressKindView_EnvelopesPublished():
+return envelopesPublished(_that);case ProgressKindView_DeliveryChanged():
+return deliveryChanged(_that);case ProgressKindView_FileAnnounced():
+return fileAnnounced(_that);case ProgressKindView_FileTransfer():
+return fileTransfer(_that);case ProgressKindView_FileSaved():
+return fileSaved(_that);case ProgressKindView_Synced():
+return synced(_that);case ProgressKindView_PairingChanged():
+return pairingChanged(_that);case ProgressKindView_RelayUnavailable():
+return relayUnavailable(_that);case ProgressKindView_Onboarding():
+return onboarding(_that);case ProgressKindView_Gap():
+return gap(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ProgressKindView_MessageQueued value)?  messageQueued,TResult? Function( ProgressKindView_MessageReceived value)?  messageReceived,TResult? Function( ProgressKindView_EnvelopesPublished value)?  envelopesPublished,TResult? Function( ProgressKindView_DeliveryChanged value)?  deliveryChanged,TResult? Function( ProgressKindView_FileAnnounced value)?  fileAnnounced,TResult? Function( ProgressKindView_FileTransfer value)?  fileTransfer,TResult? Function( ProgressKindView_FileSaved value)?  fileSaved,TResult? Function( ProgressKindView_Synced value)?  synced,TResult? Function( ProgressKindView_PairingChanged value)?  pairingChanged,TResult? Function( ProgressKindView_RelayUnavailable value)?  relayUnavailable,TResult? Function( ProgressKindView_Onboarding value)?  onboarding,TResult? Function( ProgressKindView_Gap value)?  gap,}){
+final _that = this;
+switch (_that) {
+case ProgressKindView_MessageQueued() when messageQueued != null:
+return messageQueued(_that);case ProgressKindView_MessageReceived() when messageReceived != null:
+return messageReceived(_that);case ProgressKindView_EnvelopesPublished() when envelopesPublished != null:
+return envelopesPublished(_that);case ProgressKindView_DeliveryChanged() when deliveryChanged != null:
+return deliveryChanged(_that);case ProgressKindView_FileAnnounced() when fileAnnounced != null:
+return fileAnnounced(_that);case ProgressKindView_FileTransfer() when fileTransfer != null:
+return fileTransfer(_that);case ProgressKindView_FileSaved() when fileSaved != null:
+return fileSaved(_that);case ProgressKindView_Synced() when synced != null:
+return synced(_that);case ProgressKindView_PairingChanged() when pairingChanged != null:
+return pairingChanged(_that);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
+return relayUnavailable(_that);case ProgressKindView_Onboarding() when onboarding != null:
+return onboarding(_that);case ProgressKindView_Gap() when gap != null:
+return gap(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String groupId,  String eventId)?  messageQueued,TResult Function( String groupId,  String eventId)?  messageReceived,TResult Function( int count,  bool pending)?  envelopesPublished,TResult Function( String deliveryId,  String state)?  deliveryChanged,TResult Function( String groupId,  String eventId,  String name,  BigInt size)?  fileAnnounced,TResult Function( String name,  BigInt offset,  BigInt? total)?  fileTransfer,TResult Function( String name)?  fileSaved,TResult Function( int fetched,  int new_,  int acked)?  synced,TResult Function( String sessionId,  String phase)?  pairingChanged,TResult Function( int pending)?  relayUnavailable,TResult Function( String step)?  onboarding,TResult Function( int dropped)?  gap,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case ProgressKindView_MessageQueued() when messageQueued != null:
+return messageQueued(_that.groupId,_that.eventId);case ProgressKindView_MessageReceived() when messageReceived != null:
+return messageReceived(_that.groupId,_that.eventId);case ProgressKindView_EnvelopesPublished() when envelopesPublished != null:
+return envelopesPublished(_that.count,_that.pending);case ProgressKindView_DeliveryChanged() when deliveryChanged != null:
+return deliveryChanged(_that.deliveryId,_that.state);case ProgressKindView_FileAnnounced() when fileAnnounced != null:
+return fileAnnounced(_that.groupId,_that.eventId,_that.name,_that.size);case ProgressKindView_FileTransfer() when fileTransfer != null:
+return fileTransfer(_that.name,_that.offset,_that.total);case ProgressKindView_FileSaved() when fileSaved != null:
+return fileSaved(_that.name);case ProgressKindView_Synced() when synced != null:
+return synced(_that.fetched,_that.new_,_that.acked);case ProgressKindView_PairingChanged() when pairingChanged != null:
+return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
+return relayUnavailable(_that.pending);case ProgressKindView_Onboarding() when onboarding != null:
+return onboarding(_that.step);case ProgressKindView_Gap() when gap != null:
+return gap(_that.dropped);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String groupId,  String eventId)  messageQueued,required TResult Function( String groupId,  String eventId)  messageReceived,required TResult Function( int count,  bool pending)  envelopesPublished,required TResult Function( String deliveryId,  String state)  deliveryChanged,required TResult Function( String groupId,  String eventId,  String name,  BigInt size)  fileAnnounced,required TResult Function( String name,  BigInt offset,  BigInt? total)  fileTransfer,required TResult Function( String name)  fileSaved,required TResult Function( int fetched,  int new_,  int acked)  synced,required TResult Function( String sessionId,  String phase)  pairingChanged,required TResult Function( int pending)  relayUnavailable,required TResult Function( String step)  onboarding,required TResult Function( int dropped)  gap,}) {final _that = this;
+switch (_that) {
+case ProgressKindView_MessageQueued():
+return messageQueued(_that.groupId,_that.eventId);case ProgressKindView_MessageReceived():
+return messageReceived(_that.groupId,_that.eventId);case ProgressKindView_EnvelopesPublished():
+return envelopesPublished(_that.count,_that.pending);case ProgressKindView_DeliveryChanged():
+return deliveryChanged(_that.deliveryId,_that.state);case ProgressKindView_FileAnnounced():
+return fileAnnounced(_that.groupId,_that.eventId,_that.name,_that.size);case ProgressKindView_FileTransfer():
+return fileTransfer(_that.name,_that.offset,_that.total);case ProgressKindView_FileSaved():
+return fileSaved(_that.name);case ProgressKindView_Synced():
+return synced(_that.fetched,_that.new_,_that.acked);case ProgressKindView_PairingChanged():
+return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_RelayUnavailable():
+return relayUnavailable(_that.pending);case ProgressKindView_Onboarding():
+return onboarding(_that.step);case ProgressKindView_Gap():
+return gap(_that.dropped);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String groupId,  String eventId)?  messageQueued,TResult? Function( String groupId,  String eventId)?  messageReceived,TResult? Function( int count,  bool pending)?  envelopesPublished,TResult? Function( String deliveryId,  String state)?  deliveryChanged,TResult? Function( String groupId,  String eventId,  String name,  BigInt size)?  fileAnnounced,TResult? Function( String name,  BigInt offset,  BigInt? total)?  fileTransfer,TResult? Function( String name)?  fileSaved,TResult? Function( int fetched,  int new_,  int acked)?  synced,TResult? Function( String sessionId,  String phase)?  pairingChanged,TResult? Function( int pending)?  relayUnavailable,TResult? Function( String step)?  onboarding,TResult? Function( int dropped)?  gap,}) {final _that = this;
+switch (_that) {
+case ProgressKindView_MessageQueued() when messageQueued != null:
+return messageQueued(_that.groupId,_that.eventId);case ProgressKindView_MessageReceived() when messageReceived != null:
+return messageReceived(_that.groupId,_that.eventId);case ProgressKindView_EnvelopesPublished() when envelopesPublished != null:
+return envelopesPublished(_that.count,_that.pending);case ProgressKindView_DeliveryChanged() when deliveryChanged != null:
+return deliveryChanged(_that.deliveryId,_that.state);case ProgressKindView_FileAnnounced() when fileAnnounced != null:
+return fileAnnounced(_that.groupId,_that.eventId,_that.name,_that.size);case ProgressKindView_FileTransfer() when fileTransfer != null:
+return fileTransfer(_that.name,_that.offset,_that.total);case ProgressKindView_FileSaved() when fileSaved != null:
+return fileSaved(_that.name);case ProgressKindView_Synced() when synced != null:
+return synced(_that.fetched,_that.new_,_that.acked);case ProgressKindView_PairingChanged() when pairingChanged != null:
+return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
+return relayUnavailable(_that.pending);case ProgressKindView_Onboarding() when onboarding != null:
+return onboarding(_that.step);case ProgressKindView_Gap() when gap != null:
+return gap(_that.dropped);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_MessageQueued extends ProgressKindView {
+  const ProgressKindView_MessageQueued({required this.groupId, required this.eventId}): super._();
+  
+
+ final  String groupId;
+ final  String eventId;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_MessageQueuedCopyWith<ProgressKindView_MessageQueued> get copyWith => _$ProgressKindView_MessageQueuedCopyWithImpl<ProgressKindView_MessageQueued>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_MessageQueued&&(identical(other.groupId, groupId) || other.groupId == groupId)&&(identical(other.eventId, eventId) || other.eventId == eventId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,groupId,eventId);
+
+@override
+String toString() {
+  return 'ProgressKindView.messageQueued(groupId: $groupId, eventId: $eventId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_MessageQueuedCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_MessageQueuedCopyWith(ProgressKindView_MessageQueued value, $Res Function(ProgressKindView_MessageQueued) _then) = _$ProgressKindView_MessageQueuedCopyWithImpl;
+@useResult
+$Res call({
+ String groupId, String eventId
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_MessageQueuedCopyWithImpl<$Res>
+    implements $ProgressKindView_MessageQueuedCopyWith<$Res> {
+  _$ProgressKindView_MessageQueuedCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_MessageQueued _self;
+  final $Res Function(ProgressKindView_MessageQueued) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? groupId = null,Object? eventId = null,}) {
+  return _then(ProgressKindView_MessageQueued(
+groupId: null == groupId ? _self.groupId : groupId // ignore: cast_nullable_to_non_nullable
+as String,eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_MessageReceived extends ProgressKindView {
+  const ProgressKindView_MessageReceived({required this.groupId, required this.eventId}): super._();
+  
+
+ final  String groupId;
+ final  String eventId;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_MessageReceivedCopyWith<ProgressKindView_MessageReceived> get copyWith => _$ProgressKindView_MessageReceivedCopyWithImpl<ProgressKindView_MessageReceived>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_MessageReceived&&(identical(other.groupId, groupId) || other.groupId == groupId)&&(identical(other.eventId, eventId) || other.eventId == eventId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,groupId,eventId);
+
+@override
+String toString() {
+  return 'ProgressKindView.messageReceived(groupId: $groupId, eventId: $eventId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_MessageReceivedCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_MessageReceivedCopyWith(ProgressKindView_MessageReceived value, $Res Function(ProgressKindView_MessageReceived) _then) = _$ProgressKindView_MessageReceivedCopyWithImpl;
+@useResult
+$Res call({
+ String groupId, String eventId
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_MessageReceivedCopyWithImpl<$Res>
+    implements $ProgressKindView_MessageReceivedCopyWith<$Res> {
+  _$ProgressKindView_MessageReceivedCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_MessageReceived _self;
+  final $Res Function(ProgressKindView_MessageReceived) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? groupId = null,Object? eventId = null,}) {
+  return _then(ProgressKindView_MessageReceived(
+groupId: null == groupId ? _self.groupId : groupId // ignore: cast_nullable_to_non_nullable
+as String,eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_EnvelopesPublished extends ProgressKindView {
+  const ProgressKindView_EnvelopesPublished({required this.count, required this.pending}): super._();
+  
+
+ final  int count;
+ final  bool pending;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_EnvelopesPublishedCopyWith<ProgressKindView_EnvelopesPublished> get copyWith => _$ProgressKindView_EnvelopesPublishedCopyWithImpl<ProgressKindView_EnvelopesPublished>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_EnvelopesPublished&&(identical(other.count, count) || other.count == count)&&(identical(other.pending, pending) || other.pending == pending));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,count,pending);
+
+@override
+String toString() {
+  return 'ProgressKindView.envelopesPublished(count: $count, pending: $pending)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_EnvelopesPublishedCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_EnvelopesPublishedCopyWith(ProgressKindView_EnvelopesPublished value, $Res Function(ProgressKindView_EnvelopesPublished) _then) = _$ProgressKindView_EnvelopesPublishedCopyWithImpl;
+@useResult
+$Res call({
+ int count, bool pending
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_EnvelopesPublishedCopyWithImpl<$Res>
+    implements $ProgressKindView_EnvelopesPublishedCopyWith<$Res> {
+  _$ProgressKindView_EnvelopesPublishedCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_EnvelopesPublished _self;
+  final $Res Function(ProgressKindView_EnvelopesPublished) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? count = null,Object? pending = null,}) {
+  return _then(ProgressKindView_EnvelopesPublished(
+count: null == count ? _self.count : count // ignore: cast_nullable_to_non_nullable
+as int,pending: null == pending ? _self.pending : pending // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_DeliveryChanged extends ProgressKindView {
+  const ProgressKindView_DeliveryChanged({required this.deliveryId, required this.state}): super._();
+  
+
+ final  String deliveryId;
+ final  String state;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_DeliveryChangedCopyWith<ProgressKindView_DeliveryChanged> get copyWith => _$ProgressKindView_DeliveryChangedCopyWithImpl<ProgressKindView_DeliveryChanged>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_DeliveryChanged&&(identical(other.deliveryId, deliveryId) || other.deliveryId == deliveryId)&&(identical(other.state, state) || other.state == state));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,deliveryId,state);
+
+@override
+String toString() {
+  return 'ProgressKindView.deliveryChanged(deliveryId: $deliveryId, state: $state)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_DeliveryChangedCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_DeliveryChangedCopyWith(ProgressKindView_DeliveryChanged value, $Res Function(ProgressKindView_DeliveryChanged) _then) = _$ProgressKindView_DeliveryChangedCopyWithImpl;
+@useResult
+$Res call({
+ String deliveryId, String state
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_DeliveryChangedCopyWithImpl<$Res>
+    implements $ProgressKindView_DeliveryChangedCopyWith<$Res> {
+  _$ProgressKindView_DeliveryChangedCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_DeliveryChanged _self;
+  final $Res Function(ProgressKindView_DeliveryChanged) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? deliveryId = null,Object? state = null,}) {
+  return _then(ProgressKindView_DeliveryChanged(
+deliveryId: null == deliveryId ? _self.deliveryId : deliveryId // ignore: cast_nullable_to_non_nullable
+as String,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_FileAnnounced extends ProgressKindView {
+  const ProgressKindView_FileAnnounced({required this.groupId, required this.eventId, required this.name, required this.size}): super._();
+  
+
+ final  String groupId;
+ final  String eventId;
+ final  String name;
+ final  BigInt size;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_FileAnnouncedCopyWith<ProgressKindView_FileAnnounced> get copyWith => _$ProgressKindView_FileAnnouncedCopyWithImpl<ProgressKindView_FileAnnounced>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_FileAnnounced&&(identical(other.groupId, groupId) || other.groupId == groupId)&&(identical(other.eventId, eventId) || other.eventId == eventId)&&(identical(other.name, name) || other.name == name)&&(identical(other.size, size) || other.size == size));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,groupId,eventId,name,size);
+
+@override
+String toString() {
+  return 'ProgressKindView.fileAnnounced(groupId: $groupId, eventId: $eventId, name: $name, size: $size)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_FileAnnouncedCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_FileAnnouncedCopyWith(ProgressKindView_FileAnnounced value, $Res Function(ProgressKindView_FileAnnounced) _then) = _$ProgressKindView_FileAnnouncedCopyWithImpl;
+@useResult
+$Res call({
+ String groupId, String eventId, String name, BigInt size
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_FileAnnouncedCopyWithImpl<$Res>
+    implements $ProgressKindView_FileAnnouncedCopyWith<$Res> {
+  _$ProgressKindView_FileAnnouncedCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_FileAnnounced _self;
+  final $Res Function(ProgressKindView_FileAnnounced) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? groupId = null,Object? eventId = null,Object? name = null,Object? size = null,}) {
+  return _then(ProgressKindView_FileAnnounced(
+groupId: null == groupId ? _self.groupId : groupId // ignore: cast_nullable_to_non_nullable
+as String,eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,size: null == size ? _self.size : size // ignore: cast_nullable_to_non_nullable
+as BigInt,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_FileTransfer extends ProgressKindView {
+  const ProgressKindView_FileTransfer({required this.name, required this.offset, this.total}): super._();
+  
+
+ final  String name;
+ final  BigInt offset;
+ final  BigInt? total;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_FileTransferCopyWith<ProgressKindView_FileTransfer> get copyWith => _$ProgressKindView_FileTransferCopyWithImpl<ProgressKindView_FileTransfer>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_FileTransfer&&(identical(other.name, name) || other.name == name)&&(identical(other.offset, offset) || other.offset == offset)&&(identical(other.total, total) || other.total == total));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,name,offset,total);
+
+@override
+String toString() {
+  return 'ProgressKindView.fileTransfer(name: $name, offset: $offset, total: $total)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_FileTransferCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_FileTransferCopyWith(ProgressKindView_FileTransfer value, $Res Function(ProgressKindView_FileTransfer) _then) = _$ProgressKindView_FileTransferCopyWithImpl;
+@useResult
+$Res call({
+ String name, BigInt offset, BigInt? total
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_FileTransferCopyWithImpl<$Res>
+    implements $ProgressKindView_FileTransferCopyWith<$Res> {
+  _$ProgressKindView_FileTransferCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_FileTransfer _self;
+  final $Res Function(ProgressKindView_FileTransfer) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? name = null,Object? offset = null,Object? total = freezed,}) {
+  return _then(ProgressKindView_FileTransfer(
+name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,offset: null == offset ? _self.offset : offset // ignore: cast_nullable_to_non_nullable
+as BigInt,total: freezed == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
+as BigInt?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_FileSaved extends ProgressKindView {
+  const ProgressKindView_FileSaved({required this.name}): super._();
+  
+
+ final  String name;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_FileSavedCopyWith<ProgressKindView_FileSaved> get copyWith => _$ProgressKindView_FileSavedCopyWithImpl<ProgressKindView_FileSaved>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_FileSaved&&(identical(other.name, name) || other.name == name));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,name);
+
+@override
+String toString() {
+  return 'ProgressKindView.fileSaved(name: $name)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_FileSavedCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_FileSavedCopyWith(ProgressKindView_FileSaved value, $Res Function(ProgressKindView_FileSaved) _then) = _$ProgressKindView_FileSavedCopyWithImpl;
+@useResult
+$Res call({
+ String name
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_FileSavedCopyWithImpl<$Res>
+    implements $ProgressKindView_FileSavedCopyWith<$Res> {
+  _$ProgressKindView_FileSavedCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_FileSaved _self;
+  final $Res Function(ProgressKindView_FileSaved) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? name = null,}) {
+  return _then(ProgressKindView_FileSaved(
+name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_Synced extends ProgressKindView {
+  const ProgressKindView_Synced({required this.fetched, required this.new_, required this.acked}): super._();
+  
+
+ final  int fetched;
+ final  int new_;
+ final  int acked;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_SyncedCopyWith<ProgressKindView_Synced> get copyWith => _$ProgressKindView_SyncedCopyWithImpl<ProgressKindView_Synced>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_Synced&&(identical(other.fetched, fetched) || other.fetched == fetched)&&(identical(other.new_, new_) || other.new_ == new_)&&(identical(other.acked, acked) || other.acked == acked));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,fetched,new_,acked);
+
+@override
+String toString() {
+  return 'ProgressKindView.synced(fetched: $fetched, new_: $new_, acked: $acked)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_SyncedCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_SyncedCopyWith(ProgressKindView_Synced value, $Res Function(ProgressKindView_Synced) _then) = _$ProgressKindView_SyncedCopyWithImpl;
+@useResult
+$Res call({
+ int fetched, int new_, int acked
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_SyncedCopyWithImpl<$Res>
+    implements $ProgressKindView_SyncedCopyWith<$Res> {
+  _$ProgressKindView_SyncedCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_Synced _self;
+  final $Res Function(ProgressKindView_Synced) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? fetched = null,Object? new_ = null,Object? acked = null,}) {
+  return _then(ProgressKindView_Synced(
+fetched: null == fetched ? _self.fetched : fetched // ignore: cast_nullable_to_non_nullable
+as int,new_: null == new_ ? _self.new_ : new_ // ignore: cast_nullable_to_non_nullable
+as int,acked: null == acked ? _self.acked : acked // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_PairingChanged extends ProgressKindView {
+  const ProgressKindView_PairingChanged({required this.sessionId, required this.phase}): super._();
+  
+
+ final  String sessionId;
+ final  String phase;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_PairingChangedCopyWith<ProgressKindView_PairingChanged> get copyWith => _$ProgressKindView_PairingChangedCopyWithImpl<ProgressKindView_PairingChanged>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_PairingChanged&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.phase, phase) || other.phase == phase));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,sessionId,phase);
+
+@override
+String toString() {
+  return 'ProgressKindView.pairingChanged(sessionId: $sessionId, phase: $phase)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_PairingChangedCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_PairingChangedCopyWith(ProgressKindView_PairingChanged value, $Res Function(ProgressKindView_PairingChanged) _then) = _$ProgressKindView_PairingChangedCopyWithImpl;
+@useResult
+$Res call({
+ String sessionId, String phase
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_PairingChangedCopyWithImpl<$Res>
+    implements $ProgressKindView_PairingChangedCopyWith<$Res> {
+  _$ProgressKindView_PairingChangedCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_PairingChanged _self;
+  final $Res Function(ProgressKindView_PairingChanged) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? sessionId = null,Object? phase = null,}) {
+  return _then(ProgressKindView_PairingChanged(
+sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
+as String,phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_RelayUnavailable extends ProgressKindView {
+  const ProgressKindView_RelayUnavailable({required this.pending}): super._();
+  
+
+ final  int pending;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_RelayUnavailableCopyWith<ProgressKindView_RelayUnavailable> get copyWith => _$ProgressKindView_RelayUnavailableCopyWithImpl<ProgressKindView_RelayUnavailable>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_RelayUnavailable&&(identical(other.pending, pending) || other.pending == pending));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,pending);
+
+@override
+String toString() {
+  return 'ProgressKindView.relayUnavailable(pending: $pending)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_RelayUnavailableCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_RelayUnavailableCopyWith(ProgressKindView_RelayUnavailable value, $Res Function(ProgressKindView_RelayUnavailable) _then) = _$ProgressKindView_RelayUnavailableCopyWithImpl;
+@useResult
+$Res call({
+ int pending
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_RelayUnavailableCopyWithImpl<$Res>
+    implements $ProgressKindView_RelayUnavailableCopyWith<$Res> {
+  _$ProgressKindView_RelayUnavailableCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_RelayUnavailable _self;
+  final $Res Function(ProgressKindView_RelayUnavailable) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? pending = null,}) {
+  return _then(ProgressKindView_RelayUnavailable(
+pending: null == pending ? _self.pending : pending // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_Onboarding extends ProgressKindView {
+  const ProgressKindView_Onboarding({required this.step}): super._();
+  
+
+ final  String step;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_OnboardingCopyWith<ProgressKindView_Onboarding> get copyWith => _$ProgressKindView_OnboardingCopyWithImpl<ProgressKindView_Onboarding>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_Onboarding&&(identical(other.step, step) || other.step == step));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,step);
+
+@override
+String toString() {
+  return 'ProgressKindView.onboarding(step: $step)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_OnboardingCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_OnboardingCopyWith(ProgressKindView_Onboarding value, $Res Function(ProgressKindView_Onboarding) _then) = _$ProgressKindView_OnboardingCopyWithImpl;
+@useResult
+$Res call({
+ String step
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_OnboardingCopyWithImpl<$Res>
+    implements $ProgressKindView_OnboardingCopyWith<$Res> {
+  _$ProgressKindView_OnboardingCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_Onboarding _self;
+  final $Res Function(ProgressKindView_Onboarding) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? step = null,}) {
+  return _then(ProgressKindView_Onboarding(
+step: null == step ? _self.step : step // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_Gap extends ProgressKindView {
+  const ProgressKindView_Gap({required this.dropped}): super._();
+  
+
+ final  int dropped;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_GapCopyWith<ProgressKindView_Gap> get copyWith => _$ProgressKindView_GapCopyWithImpl<ProgressKindView_Gap>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_Gap&&(identical(other.dropped, dropped) || other.dropped == dropped));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,dropped);
+
+@override
+String toString() {
+  return 'ProgressKindView.gap(dropped: $dropped)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_GapCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_GapCopyWith(ProgressKindView_Gap value, $Res Function(ProgressKindView_Gap) _then) = _$ProgressKindView_GapCopyWithImpl;
+@useResult
+$Res call({
+ int dropped
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_GapCopyWithImpl<$Res>
+    implements $ProgressKindView_GapCopyWith<$Res> {
+  _$ProgressKindView_GapCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_Gap _self;
+  final $Res Function(ProgressKindView_Gap) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? dropped = null,}) {
+  return _then(ProgressKindView_Gap(
+dropped: null == dropped ? _self.dropped : dropped // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
 // dart format on

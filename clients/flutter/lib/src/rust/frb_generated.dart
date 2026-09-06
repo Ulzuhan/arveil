@@ -65,7 +65,7 @@ class ArveilRust
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1365805558;
+  int get rustContentHash => 1655380575;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -83,12 +83,18 @@ abstract class ArveilRustApi extends BaseApi {
     required Profile that,
   });
 
+  Future<void> crateApiProfileProfileCreateIdentity({required Profile that});
+
   Future<HistoryPageView> crateApiProfileProfileHistoryPage({
     required Profile that,
     required String groupId,
     PlatformInt64? before,
     required int limit,
   });
+
+  void crateApiProfileProfileStopWatching({required Profile that});
+
+  Stream<ProgressView> crateApiProfileProfileWatch({required Profile that});
 
   Future<Profile> crateApiProfileOpenProfile({
     required String dir,
@@ -181,6 +187,40 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Future<void> crateApiProfileProfileCreateIdentity({required Profile that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileCreateIdentityConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileCreateIdentityConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_create_identity",
+        argNames: ["that"],
+      );
+
+  @override
   Future<HistoryPageView> crateApiProfileProfileHistoryPage({
     required Profile that,
     required String groupId,
@@ -201,7 +241,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 4,
             port: port_,
           );
         },
@@ -223,6 +263,74 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  void crateApiProfileProfileStopWatching({required Profile that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiProfileProfileStopWatchingConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileStopWatchingConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_stop_watching",
+        argNames: ["that"],
+      );
+
+  @override
+  Stream<ProgressView> crateApiProfileProfileWatch({required Profile that}) {
+    final sink = RustStreamSink<ProgressView>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_progress_view_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 6,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiProfileProfileWatchConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileWatchConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_watch",
+        argNames: ["that", "sink"],
+      );
+
+  @override
   Future<Profile> crateApiProfileOpenProfile({
     required String dir,
     required String key,
@@ -236,7 +344,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 7,
             port: port_,
           );
         },
@@ -265,7 +373,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 8,
             port: port_,
           );
         },
@@ -296,6 +404,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile;
 
   @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnyhowException(raw as String);
+  }
+
+  @protected
   Profile
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
     dynamic raw,
@@ -323,6 +437,14 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  RustStreamSink<ProgressView> dco_decode_StreamSink_progress_view_Sse(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
@@ -338,6 +460,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
+  }
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_u_64(raw);
   }
 
   @protected
@@ -464,6 +592,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
+  }
+
+  @protected
   ProfileError dco_decode_profile_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -491,9 +625,91 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  ProgressKindView dco_decode_progress_kind_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return ProgressKindView_MessageQueued(
+          groupId: dco_decode_String(raw[1]),
+          eventId: dco_decode_String(raw[2]),
+        );
+      case 1:
+        return ProgressKindView_MessageReceived(
+          groupId: dco_decode_String(raw[1]),
+          eventId: dco_decode_String(raw[2]),
+        );
+      case 2:
+        return ProgressKindView_EnvelopesPublished(
+          count: dco_decode_u_32(raw[1]),
+          pending: dco_decode_bool(raw[2]),
+        );
+      case 3:
+        return ProgressKindView_DeliveryChanged(
+          deliveryId: dco_decode_String(raw[1]),
+          state: dco_decode_String(raw[2]),
+        );
+      case 4:
+        return ProgressKindView_FileAnnounced(
+          groupId: dco_decode_String(raw[1]),
+          eventId: dco_decode_String(raw[2]),
+          name: dco_decode_String(raw[3]),
+          size: dco_decode_u_64(raw[4]),
+        );
+      case 5:
+        return ProgressKindView_FileTransfer(
+          name: dco_decode_String(raw[1]),
+          offset: dco_decode_u_64(raw[2]),
+          total: dco_decode_opt_box_autoadd_u_64(raw[3]),
+        );
+      case 6:
+        return ProgressKindView_FileSaved(name: dco_decode_String(raw[1]));
+      case 7:
+        return ProgressKindView_Synced(
+          fetched: dco_decode_u_32(raw[1]),
+          new_: dco_decode_u_32(raw[2]),
+          acked: dco_decode_u_32(raw[3]),
+        );
+      case 8:
+        return ProgressKindView_PairingChanged(
+          sessionId: dco_decode_String(raw[1]),
+          phase: dco_decode_String(raw[2]),
+        );
+      case 9:
+        return ProgressKindView_RelayUnavailable(
+          pending: dco_decode_u_32(raw[1]),
+        );
+      case 10:
+        return ProgressKindView_Onboarding(step: dco_decode_String(raw[1]));
+      case 11:
+        return ProgressKindView_Gap(dropped: dco_decode_u_32(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  ProgressView dco_decode_progress_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ProgressView(
+      sequence: dco_decode_u_64(arr[0]),
+      operation: dco_decode_String(arr[1]),
+      kind: dco_decode_progress_kind_view(arr[2]),
+    );
+  }
+
+  @protected
   int dco_decode_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
   }
 
   @protected
@@ -512,6 +728,13 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
+  }
+
+  @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return AnyhowException(inner);
   }
 
   @protected
@@ -551,6 +774,14 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  RustStreamSink<ProgressView> sse_decode_StreamSink_progress_view_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
@@ -567,6 +798,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_64(deserializer));
   }
 
   @protected
@@ -734,6 +971,17 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   ProfileError sse_decode_profile_error(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -764,9 +1012,115 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  ProgressKindView sse_decode_progress_kind_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_groupId = sse_decode_String(deserializer);
+        var var_eventId = sse_decode_String(deserializer);
+        return ProgressKindView_MessageQueued(
+          groupId: var_groupId,
+          eventId: var_eventId,
+        );
+      case 1:
+        var var_groupId = sse_decode_String(deserializer);
+        var var_eventId = sse_decode_String(deserializer);
+        return ProgressKindView_MessageReceived(
+          groupId: var_groupId,
+          eventId: var_eventId,
+        );
+      case 2:
+        var var_count = sse_decode_u_32(deserializer);
+        var var_pending = sse_decode_bool(deserializer);
+        return ProgressKindView_EnvelopesPublished(
+          count: var_count,
+          pending: var_pending,
+        );
+      case 3:
+        var var_deliveryId = sse_decode_String(deserializer);
+        var var_state = sse_decode_String(deserializer);
+        return ProgressKindView_DeliveryChanged(
+          deliveryId: var_deliveryId,
+          state: var_state,
+        );
+      case 4:
+        var var_groupId = sse_decode_String(deserializer);
+        var var_eventId = sse_decode_String(deserializer);
+        var var_name = sse_decode_String(deserializer);
+        var var_size = sse_decode_u_64(deserializer);
+        return ProgressKindView_FileAnnounced(
+          groupId: var_groupId,
+          eventId: var_eventId,
+          name: var_name,
+          size: var_size,
+        );
+      case 5:
+        var var_name = sse_decode_String(deserializer);
+        var var_offset = sse_decode_u_64(deserializer);
+        var var_total = sse_decode_opt_box_autoadd_u_64(deserializer);
+        return ProgressKindView_FileTransfer(
+          name: var_name,
+          offset: var_offset,
+          total: var_total,
+        );
+      case 6:
+        var var_name = sse_decode_String(deserializer);
+        return ProgressKindView_FileSaved(name: var_name);
+      case 7:
+        var var_fetched = sse_decode_u_32(deserializer);
+        var var_new_ = sse_decode_u_32(deserializer);
+        var var_acked = sse_decode_u_32(deserializer);
+        return ProgressKindView_Synced(
+          fetched: var_fetched,
+          new_: var_new_,
+          acked: var_acked,
+        );
+      case 8:
+        var var_sessionId = sse_decode_String(deserializer);
+        var var_phase = sse_decode_String(deserializer);
+        return ProgressKindView_PairingChanged(
+          sessionId: var_sessionId,
+          phase: var_phase,
+        );
+      case 9:
+        var var_pending = sse_decode_u_32(deserializer);
+        return ProgressKindView_RelayUnavailable(pending: var_pending);
+      case 10:
+        var var_step = sse_decode_String(deserializer);
+        return ProgressKindView_Onboarding(step: var_step);
+      case 11:
+        var var_dropped = sse_decode_u_32(deserializer);
+        return ProgressKindView_Gap(dropped: var_dropped);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  ProgressView sse_decode_progress_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sequence = sse_decode_u_64(deserializer);
+    var var_operation = sse_decode_String(deserializer);
+    var var_kind = sse_decode_progress_kind_view(deserializer);
+    return ProgressView(
+      sequence: var_sequence,
+      operation: var_operation,
+      kind: var_kind,
+    );
+  }
+
+  @protected
   int sse_decode_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint32();
+  }
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
   }
 
   @protected
@@ -790,6 +1144,15 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.message, serializer);
   }
 
   @protected
@@ -832,6 +1195,23 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_StreamSink_progress_view_Sse(
+    RustStreamSink<ProgressView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_progress_view,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
@@ -850,6 +1230,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self, serializer);
   }
 
   @protected
@@ -1006,6 +1392,16 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_64(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_profile_error(ProfileError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
@@ -1032,9 +1428,109 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_progress_kind_view(
+    ProgressKindView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case ProgressKindView_MessageQueued(
+        groupId: final groupId,
+        eventId: final eventId,
+      ):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(eventId, serializer);
+      case ProgressKindView_MessageReceived(
+        groupId: final groupId,
+        eventId: final eventId,
+      ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(eventId, serializer);
+      case ProgressKindView_EnvelopesPublished(
+        count: final count,
+        pending: final pending,
+      ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_u_32(count, serializer);
+        sse_encode_bool(pending, serializer);
+      case ProgressKindView_DeliveryChanged(
+        deliveryId: final deliveryId,
+        state: final state,
+      ):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(deliveryId, serializer);
+        sse_encode_String(state, serializer);
+      case ProgressKindView_FileAnnounced(
+        groupId: final groupId,
+        eventId: final eventId,
+        name: final name,
+        size: final size,
+      ):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(groupId, serializer);
+        sse_encode_String(eventId, serializer);
+        sse_encode_String(name, serializer);
+        sse_encode_u_64(size, serializer);
+      case ProgressKindView_FileTransfer(
+        name: final name,
+        offset: final offset,
+        total: final total,
+      ):
+        sse_encode_i_32(5, serializer);
+        sse_encode_String(name, serializer);
+        sse_encode_u_64(offset, serializer);
+        sse_encode_opt_box_autoadd_u_64(total, serializer);
+      case ProgressKindView_FileSaved(name: final name):
+        sse_encode_i_32(6, serializer);
+        sse_encode_String(name, serializer);
+      case ProgressKindView_Synced(
+        fetched: final fetched,
+        new_: final new_,
+        acked: final acked,
+      ):
+        sse_encode_i_32(7, serializer);
+        sse_encode_u_32(fetched, serializer);
+        sse_encode_u_32(new_, serializer);
+        sse_encode_u_32(acked, serializer);
+      case ProgressKindView_PairingChanged(
+        sessionId: final sessionId,
+        phase: final phase,
+      ):
+        sse_encode_i_32(8, serializer);
+        sse_encode_String(sessionId, serializer);
+        sse_encode_String(phase, serializer);
+      case ProgressKindView_RelayUnavailable(pending: final pending):
+        sse_encode_i_32(9, serializer);
+        sse_encode_u_32(pending, serializer);
+      case ProgressKindView_Onboarding(step: final step):
+        sse_encode_i_32(10, serializer);
+        sse_encode_String(step, serializer);
+      case ProgressKindView_Gap(dropped: final dropped):
+        sse_encode_i_32(11, serializer);
+        sse_encode_u_32(dropped, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_progress_view(ProgressView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.sequence, serializer);
+    sse_encode_String(self.operation, serializer);
+    sse_encode_progress_kind_view(self.kind, serializer);
+  }
+
+  @protected
   void sse_encode_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint32(self);
+  }
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
   }
 
   @protected
@@ -1090,6 +1586,11 @@ class ProfileImpl extends RustOpaque implements Profile {
   Future<List<ConversationView>> conversations() =>
       ArveilRust.instance.api.crateApiProfileProfileConversations(that: this);
 
+  /// Create this profile's identity. The first step of enrollment, and
+  /// the one that makes a profile more than a directory.
+  Future<void> createIdentity() =>
+      ArveilRust.instance.api.crateApiProfileProfileCreateIdentity(that: this);
+
   /// One page of a conversation, newest page first: pass the previous
   /// page's `next` as `before` to walk backwards. The application caps
   /// the size whatever is asked for.
@@ -1103,4 +1604,16 @@ class ProfileImpl extends RustOpaque implements Profile {
     before: before,
     limit: limit,
   );
+
+  /// Stop the stream this profile is feeding, without closing anything
+  /// else. Dropping the subscription on the Rust side is what actually
+  /// unsubscribes.
+  void stopWatching() =>
+      ArveilRust.instance.api.crateApiProfileProfileStopWatching(that: this);
+
+  /// Watch progress while operations run. The stream ends when the
+  /// profile closes or when `stop_watching` is called; a listener should
+  /// stop before cancelling, since the stream is closed from this side.
+  Stream<ProgressView> watch() =>
+      ArveilRust.instance.api.crateApiProfileProfileWatch(that: this);
 }
