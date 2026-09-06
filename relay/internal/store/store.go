@@ -21,16 +21,16 @@ import (
 const MinSQLiteVersionNumber = 3051003
 
 var (
-	ErrInviteInvalid   = errors.New("invite: unknown, expired or exhausted")
-	ErrAlreadyMember   = errors.New("membership: identity already a member")
-	ErrDeviceKeyInUse  = errors.New("credential: transport key already registered")
+	ErrInviteInvalid  = errors.New("invite: unknown, expired or exhausted")
+	ErrAlreadyMember  = errors.New("membership: identity already a member")
+	ErrDeviceKeyInUse = errors.New("credential: transport key already registered")
 	// ErrAlreadyRedeemed reports a repeat of a redemption this store already
 	// performed for the same token, identity and credential. It is not a
 	// failure: the caller answers with the result it recorded the first time.
 	ErrAlreadyRedeemed = errors.New("invite: already redeemed by this credential")
 	// ErrSchemaTooNew reports a database written by a newer relay. Nothing
 	// is modified: an older binary cannot know what it would break.
-	ErrSchemaTooNew = errors.New("schema: written by a newer relay")
+	ErrSchemaTooNew    = errors.New("schema: written by a newer relay")
 	ErrManifestOrder   = errors.New("manifest: sequence must exceed the stored one")
 	ErrUnknownIdentity = errors.New("membership: unknown identity")
 )
@@ -113,6 +113,14 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	// Before the pragmas and before the schema: refusing a database after
+	// writing to it is not refusing it. A pragma alone can rewrite the file
+	// header, and `CREATE TABLE IF NOT EXISTS` is still a modification of a
+	// database this binary just said it does not understand.
+	if err := s.refuseFutureSchema(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if _, err := db.Exec(pragmas); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("pragmas: %w", err)
@@ -181,18 +189,28 @@ func (s *Store) checkVersion() error {
 // newer one is refused rather than guessed at.
 const SchemaVersion = 2
 
-// recordSchemaVersion refuses a database from a newer relay before touching
-// anything, and otherwise records that this version has been applied.
-func (s *Store) recordSchemaVersion() error {
+// refuseFutureSchema reads the recorded version and refuses a database from
+// a newer relay. It reads only: a database with no `schema_migrations` table
+// is a fresh one, not an unreadable one.
+func (s *Store) refuseFutureSchema() error {
 	var highest sql.NullInt64
-	if err := s.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&highest); err != nil {
+	err := s.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&highest)
+	switch {
+	case err != nil && strings.Contains(err.Error(), "no such table"):
+		return nil
+	case err != nil:
 		return err
-	}
-	if highest.Valid && highest.Int64 > SchemaVersion {
+	case highest.Valid && highest.Int64 > SchemaVersion:
 		return fmt.Errorf(
 			"%w: the database is at version %d and this relay understands %d",
 			ErrSchemaTooNew, highest.Int64, SchemaVersion)
 	}
+	return nil
+}
+
+// recordSchemaVersion notes that this version has been applied. The refusal
+// happened before anything was written; this only records what was done.
+func (s *Store) recordSchemaVersion() error {
 	_, err := s.db.Exec(
 		`INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)`,
 		SchemaVersion, time.Now().Unix())

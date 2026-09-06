@@ -1,8 +1,11 @@
 package store
 
 import (
+	"bytes"
 	"context"
+	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -84,6 +87,66 @@ func TestRedeemInviteRefusesAnotherCredentialForTheSameIdentity(t *testing.T) {
 	other.TransportKey = []byte{9, 5}
 	if err := s.RedeemInvite(ctx, token, now, other, nil); !errors.Is(err, ErrAlreadyMember) {
 		t.Fatalf("another credential should conflict, got %v", err)
+	}
+}
+
+func TestOpenChangesNothingWhenItRefusesAFutureSchema(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "relay.db")
+
+	// A database that is ours and from the future, deliberately missing a
+	// table this binary would otherwise create for it.
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE schema_migrations (
+        version    INTEGER PRIMARY KEY,
+        applied_at INTEGER NOT NULL
+    )`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`,
+		SchemaVersion+1, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Open(path); !errors.Is(err, ErrSchemaTooNew) {
+		t.Fatalf("expected a refusal, got %v", err)
+	}
+
+	// Refusing after writing is not refusing. The file is byte for byte
+	// what it was, and the tables this binary would have created are not
+	// there.
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("the database was modified before being refused")
+	}
+
+	reopened, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	var tables int
+	if err := reopened.QueryRow(
+		`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name != 'schema_migrations'`,
+	).Scan(&tables); err != nil {
+		t.Fatal(err)
+	}
+	if tables != 0 {
+		t.Fatalf("%d tables were created in a database that was refused", tables)
 	}
 }
 
