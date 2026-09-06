@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -105,12 +106,15 @@ func (srv *Server) inviteRedeem(ctx context.Context, s *session, f channel.Frame
 	if srv.Store == nil {
 		return errFrame(f.ID, channel.CodeInternal, "no store")
 	}
-	if s.member() {
-		return errFrame(f.ID, channel.CodeConflict, "session is already a member")
-	}
 	v, err := identity.VerifyCredential(f.Payload.Credential, uint64(now.Unix()))
 	if err != nil {
 		return errFrame(f.ID, channel.CodeUnauthorized, "credential rejected")
+	}
+	// A session that is already a member may be retrying after an answer it
+	// never received. That is only plausible for the credential this session
+	// was authorised with; anything else is a different device asking.
+	if s.member() && !bytes.Equal(s.device.CredentialHash, v.Hash) {
+		return errFrame(f.ID, channel.CodeConflict, "session is already a member")
 	}
 	// The root authorized exactly this session's Noise key for transport.
 	if err := v.BindsSession(s.remoteStatic); err != nil {
@@ -136,6 +140,20 @@ func (srv *Server) inviteRedeem(ctx context.Context, s *session, f channel.Frame
 		SignedManifest: f.Payload.Manifest,
 	}, nil)
 	switch {
+	// The same token, identity and credential as before: the work was done,
+	// and the answer is the one recorded then, not a conflict.
+	case errors.Is(err, store.ErrAlreadyRedeemed):
+		s.device = &store.Device{
+			CredentialHash: v.Hash,
+			IdentityID:     v.IdentityID,
+			DeviceID:       v.Credential.DeviceID,
+			Status:         "active",
+			NotAfter:       int64(v.Credential.Validity.NotAfter),
+		}
+		return channel.Frame{
+			ID:      f.ID,
+			Payload: channel.Payload{Kind: channel.KindInviteRedeemed, IdentityID: v.IdentityID},
+		}
 	case errors.Is(err, store.ErrInviteInvalid):
 		return errFrame(f.ID, channel.CodeGone, "invite invalid")
 	case errors.Is(err, store.ErrAlreadyMember), errors.Is(err, store.ErrDeviceKeyInUse):

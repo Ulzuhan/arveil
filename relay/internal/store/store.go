@@ -5,6 +5,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -23,6 +24,13 @@ var (
 	ErrInviteInvalid   = errors.New("invite: unknown, expired or exhausted")
 	ErrAlreadyMember   = errors.New("membership: identity already a member")
 	ErrDeviceKeyInUse  = errors.New("credential: transport key already registered")
+	// ErrAlreadyRedeemed reports a repeat of a redemption this store already
+	// performed for the same token, identity and credential. It is not a
+	// failure: the caller answers with the result it recorded the first time.
+	ErrAlreadyRedeemed = errors.New("invite: already redeemed by this credential")
+	// ErrSchemaTooNew reports a database written by a newer relay. Nothing
+	// is modified: an older binary cannot know what it would break.
+	ErrSchemaTooNew = errors.New("schema: written by a newer relay")
 	ErrManifestOrder   = errors.New("manifest: sequence must exceed the stored one")
 	ErrUnknownIdentity = errors.New("membership: unknown identity")
 )
@@ -60,6 +68,17 @@ CREATE TABLE IF NOT EXISTS device_credentials (
     signed                     BLOB NOT NULL,
     status                     TEXT NOT NULL,
     not_after                  INTEGER NOT NULL
+);
+-- What an invite redemption produced, kept with the consumption itself so a
+-- repeat can be answered instead of refused. Detecting an existing
+-- membership is not enough: a membership says nothing about which token
+-- and which credential made it.
+CREATE TABLE IF NOT EXISTS invite_redemptions (
+    token_hash      BLOB NOT NULL,
+    identity_id     BLOB NOT NULL,
+    credential_hash BLOB NOT NULL,
+    redeemed_at     INTEGER NOT NULL,
+    PRIMARY KEY (token_hash, identity_id)
 );
 CREATE TABLE IF NOT EXISTS device_manifests (
     identity_id BLOB NOT NULL REFERENCES realm_memberships(identity_id),
@@ -118,7 +137,7 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("pairing schema: %w", err)
 	}
-	if _, err := db.Exec(`INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (1, ?)`, time.Now().Unix()); err != nil {
+	if err := s.recordSchemaVersion(); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -156,6 +175,30 @@ func (s *Store) checkVersion() error {
 	return nil
 }
 
+// SchemaVersion is what this binary writes and understands. Every change so
+// far has been additive, which is why one number is enough: a database at an
+// older version is brought forward by the schema itself, and a database at a
+// newer one is refused rather than guessed at.
+const SchemaVersion = 2
+
+// recordSchemaVersion refuses a database from a newer relay before touching
+// anything, and otherwise records that this version has been applied.
+func (s *Store) recordSchemaVersion() error {
+	var highest sql.NullInt64
+	if err := s.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&highest); err != nil {
+		return err
+	}
+	if highest.Valid && highest.Int64 > SchemaVersion {
+		return fmt.Errorf(
+			"%w: the database is at version %d and this relay understands %d",
+			ErrSchemaTooNew, highest.Int64, SchemaVersion)
+	}
+	_, err := s.db.Exec(
+		`INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)`,
+		SchemaVersion, time.Now().Unix())
+	return err
+}
+
 // CreateInvite stores the hash of a token with its policy.
 func (s *Store) CreateInvite(ctx context.Context, tokenHash []byte, role string, expiresAt time.Time, uses int) error {
 	_, err := s.db.ExecContext(ctx,
@@ -188,6 +231,23 @@ func (s *Store) RedeemInvite(ctx context.Context, tokenHash []byte, now time.Tim
 		return err
 	}
 	defer tx.Rollback()
+
+	// A repeat of a redemption already performed is answered from what was
+	// recorded, and consumes nothing. The token, the identity and the exact
+	// credential must all match: a membership on its own says nothing about
+	// which token made it.
+	var recorded []byte
+	err = tx.QueryRowContext(ctx,
+		`SELECT credential_hash FROM invite_redemptions WHERE token_hash = ? AND identity_id = ?`,
+		tokenHash, e.IdentityID).Scan(&recorded)
+	switch {
+	case err == nil && bytes.Equal(recorded, e.CredentialHash):
+		return ErrAlreadyRedeemed
+	case err == nil:
+		return ErrAlreadyMember
+	case !errors.Is(err, sql.ErrNoRows):
+		return err
+	}
 
 	res, err := tx.ExecContext(ctx,
 		`UPDATE invites SET uses_left = uses_left - 1 WHERE token_hash = ? AND expires_at > ? AND uses_left > 0`,
@@ -223,6 +283,14 @@ func (s *Store) RedeemInvite(ctx context.Context, tokenHash []byte, now time.Tim
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO device_manifests (identity_id, sequence, signed) VALUES (?, ?, ?)`,
 		e.IdentityID, e.ManifestSeq, e.SignedManifest); err != nil {
+		return err
+	}
+	// Written inside the same transaction as the consumption, so a crash
+	// between them cannot leave a used invite nobody can prove they used.
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO invite_redemptions (token_hash, identity_id, credential_hash, redeemed_at)
+		 VALUES (?, ?, ?, ?)`,
+		tokenHash, e.IdentityID, e.CredentialHash, now.Unix()); err != nil {
 		return err
 	}
 	return tx.Commit()
