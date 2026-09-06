@@ -55,6 +55,32 @@ CAPS="$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM capabilities;')"
 [ "$CAPS" = "2" ] || fail "expected two capabilities, found $CAPS"
 echo "same mailbox, same route, no second capability pair"
 
+step "M3b.2 the same enrollment repeated keeps one identity, one mailbox and one route"
+IDENTITY_BEFORE="$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM realm_memberships;')"
+MAILBOXES_BEFORE_C="$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM mailboxes;')"
+INVITE_C="$(invite)"
+"$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP" "$INVITE_C" > "$DATA/carol.enroll"
+CAROL_ROUTE="$(route_of "$DATA/carol.enroll")"
+# The same invite again, from the same profile: the answer was lost, not the
+# work. Nothing may be created a second time.
+"$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP" "$INVITE_C" > "$DATA/carol.again"
+[ "$(route_of "$DATA/carol.again")" = "$CAROL_ROUTE" ] || fail "the route changed on a repeated enrollment"
+IDENTITY_AFTER="$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM realm_memberships;')"
+[ "$IDENTITY_AFTER" = "$((IDENTITY_BEFORE + 1))" ] || fail "a repeated enrollment added more than one membership"
+MAILBOXES="$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM mailboxes;')"
+[ "$MAILBOXES" = "$((MAILBOXES_BEFORE_C + 1))" ] || fail "a repeated enrollment created more than one mailbox ($MAILBOXES_BEFORE_C -> $MAILBOXES)"
+PHASE="$(sqlite3 "$DATA/carol/client.db" 'SELECT phase FROM enrollment;')"
+[ "$PHASE" = "complete" ] || fail "the enrollment did not record completion: $PHASE"
+echo "same identity, same mailbox, same route"
+
+step "M3b.2 a different invite does not disturb an enrollment already made"
+if "$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP" "$(invite)" > "$DATA/carol.other" 2>&1; then
+  fail "a different invite was accepted: $(cat "$DATA/carol.other")"
+fi
+grep -qi "another realm or with another invite" "$DATA/carol.other" || fail "unexpected refusal: $(cat "$DATA/carol.other")"
+[ "$(sqlite3 "$DATA/carol/client.db" 'SELECT phase FROM enrollment;')" = "complete" ] || fail "the refusal changed the recorded enrollment"
+echo "refused, and the enrollment on record is untouched"
+
 step "M3b.2 the realm still refuses a request key that belongs to another device"
 "$CLI" enroll --data-dir "$DATA/bob" "$BOOTSTRAP" "$(invite)" > "$DATA/bob.enroll"
 REQUEST="$(sqlite3 "$DATA/alice/client.db" 'SELECT hex(request_key) FROM mailbox_request;')"
