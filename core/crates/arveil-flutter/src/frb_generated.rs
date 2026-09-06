@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1365805558;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1655380575;
 
 // Section: executor
 
@@ -148,6 +148,56 @@ fn wire__crate__api__profile__Profile_conversations_impl(
         },
     )
 }
+fn wire__crate__api__profile__Profile_create_identity_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Profile_create_identity",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::profile::CommandError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::profile::Profile::create_identity(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__profile__Profile_history_page_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -199,6 +249,109 @@ fn wire__crate__api__profile__Profile_history_page_impl(
                         api_before,
                         api_limit,
                     )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__profile__Profile_stop_watching_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Profile_stop_watching",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = Ok::<_, ()>({
+                    crate::api::profile::Profile::stop_watching(&*api_that_guard);
+                })?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__profile__Profile_watch_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Profile_watch",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>,
+            >>::sse_decode(&mut deserializer);
+            let api_sink = <StreamSink<
+                crate::api::profile::ProgressView,
+                flutter_rust_bridge::for_generated::SseCodec,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = Ok::<_, ()>({
+                        crate::api::profile::Profile::watch(&*api_that_guard, api_sink);
+                    })?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -281,6 +434,14 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
 
 // Section: dart2rust
 
+impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::anyhow::anyhow!("{}", inner);
+    }
+}
+
 impl SseDecode for Profile {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -296,6 +457,16 @@ impl SseDecode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpa
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <usize>::sse_decode(deserializer);
         return decode_rust_opaque_moi(inner);
+    }
+}
+
+impl SseDecode
+    for StreamSink<crate::api::profile::ProgressView, flutter_rust_bridge::for_generated::SseCodec>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
     }
 }
 
@@ -502,6 +673,17 @@ impl SseDecode for Option<i64> {
     }
 }
 
+impl SseDecode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for crate::api::profile::ProfileError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -545,10 +727,135 @@ impl SseDecode for crate::api::profile::ProfileError {
     }
 }
 
+impl SseDecode for crate::api::profile::ProgressKindView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_groupId = <String>::sse_decode(deserializer);
+                let mut var_eventId = <String>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::MessageQueued {
+                    group_id: var_groupId,
+                    event_id: var_eventId,
+                };
+            }
+            1 => {
+                let mut var_groupId = <String>::sse_decode(deserializer);
+                let mut var_eventId = <String>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::MessageReceived {
+                    group_id: var_groupId,
+                    event_id: var_eventId,
+                };
+            }
+            2 => {
+                let mut var_count = <u32>::sse_decode(deserializer);
+                let mut var_pending = <bool>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::EnvelopesPublished {
+                    count: var_count,
+                    pending: var_pending,
+                };
+            }
+            3 => {
+                let mut var_deliveryId = <String>::sse_decode(deserializer);
+                let mut var_state = <String>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::DeliveryChanged {
+                    delivery_id: var_deliveryId,
+                    state: var_state,
+                };
+            }
+            4 => {
+                let mut var_groupId = <String>::sse_decode(deserializer);
+                let mut var_eventId = <String>::sse_decode(deserializer);
+                let mut var_name = <String>::sse_decode(deserializer);
+                let mut var_size = <u64>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::FileAnnounced {
+                    group_id: var_groupId,
+                    event_id: var_eventId,
+                    name: var_name,
+                    size: var_size,
+                };
+            }
+            5 => {
+                let mut var_name = <String>::sse_decode(deserializer);
+                let mut var_offset = <u64>::sse_decode(deserializer);
+                let mut var_total = <Option<u64>>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::FileTransfer {
+                    name: var_name,
+                    offset: var_offset,
+                    total: var_total,
+                };
+            }
+            6 => {
+                let mut var_name = <String>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::FileSaved { name: var_name };
+            }
+            7 => {
+                let mut var_fetched = <u32>::sse_decode(deserializer);
+                let mut var_new_ = <u32>::sse_decode(deserializer);
+                let mut var_acked = <u32>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::Synced {
+                    fetched: var_fetched,
+                    new: var_new_,
+                    acked: var_acked,
+                };
+            }
+            8 => {
+                let mut var_sessionId = <String>::sse_decode(deserializer);
+                let mut var_phase = <String>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::PairingChanged {
+                    session_id: var_sessionId,
+                    phase: var_phase,
+                };
+            }
+            9 => {
+                let mut var_pending = <u32>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::RelayUnavailable {
+                    pending: var_pending,
+                };
+            }
+            10 => {
+                let mut var_step = <String>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::Onboarding { step: var_step };
+            }
+            11 => {
+                let mut var_dropped = <u32>::sse_decode(deserializer);
+                return crate::api::profile::ProgressKindView::Gap {
+                    dropped: var_dropped,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseDecode for crate::api::profile::ProgressView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sequence = <u64>::sse_decode(deserializer);
+        let mut var_operation = <String>::sse_decode(deserializer);
+        let mut var_kind = <crate::api::profile::ProgressKindView>::sse_decode(deserializer);
+        return crate::api::profile::ProgressView {
+            sequence: var_sequence,
+            operation: var_operation,
+            kind: var_kind,
+        };
+    }
+}
+
 impl SseDecode for u32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_u32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for u64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u64::<NativeEndian>().unwrap()
     }
 }
 
@@ -591,11 +898,18 @@ fn pde_ffi_dispatcher_primary_impl(
         2 => {
             wire__crate__api__profile__Profile_conversations_impl(port, ptr, rust_vec_len, data_len)
         }
-        3 => {
+        3 => wire__crate__api__profile__Profile_create_identity_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        4 => {
             wire__crate__api__profile__Profile_history_page_impl(port, ptr, rust_vec_len, data_len)
         }
-        4 => wire__crate__api__profile__open_profile_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__profile__open_unencrypted_profile_impl(
+        6 => wire__crate__api__profile__Profile_watch_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__profile__open_profile_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__profile__open_unencrypted_profile_impl(
             port,
             ptr,
             rust_vec_len,
@@ -613,6 +927,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
+        5 => wire__crate__api__profile__Profile_stop_watching_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -811,6 +1126,133 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::ProfileError>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::profile::ProgressKindView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::profile::ProgressKindView::MessageQueued { group_id, event_id } => [
+                0.into_dart(),
+                group_id.into_into_dart().into_dart(),
+                event_id.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProgressKindView::MessageReceived { group_id, event_id } => [
+                1.into_dart(),
+                group_id.into_into_dart().into_dart(),
+                event_id.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProgressKindView::EnvelopesPublished { count, pending } => [
+                2.into_dart(),
+                count.into_into_dart().into_dart(),
+                pending.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProgressKindView::DeliveryChanged { delivery_id, state } => [
+                3.into_dart(),
+                delivery_id.into_into_dart().into_dart(),
+                state.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProgressKindView::FileAnnounced {
+                group_id,
+                event_id,
+                name,
+                size,
+            } => [
+                4.into_dart(),
+                group_id.into_into_dart().into_dart(),
+                event_id.into_into_dart().into_dart(),
+                name.into_into_dart().into_dart(),
+                size.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProgressKindView::FileTransfer {
+                name,
+                offset,
+                total,
+            } => [
+                5.into_dart(),
+                name.into_into_dart().into_dart(),
+                offset.into_into_dart().into_dart(),
+                total.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProgressKindView::FileSaved { name } => {
+                [6.into_dart(), name.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::profile::ProgressKindView::Synced {
+                fetched,
+                new,
+                acked,
+            } => [
+                7.into_dart(),
+                fetched.into_into_dart().into_dart(),
+                new.into_into_dart().into_dart(),
+                acked.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProgressKindView::PairingChanged { session_id, phase } => [
+                8.into_dart(),
+                session_id.into_into_dart().into_dart(),
+                phase.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProgressKindView::RelayUnavailable { pending } => {
+                [9.into_dart(), pending.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::profile::ProgressKindView::Onboarding { step } => {
+                [10.into_dart(), step.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::profile::ProgressKindView::Gap { dropped } => {
+                [11.into_dart(), dropped.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::profile::ProgressKindView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::ProgressKindView>
+    for crate::api::profile::ProgressKindView
+{
+    fn into_into_dart(self) -> crate::api::profile::ProgressKindView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::profile::ProgressView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.sequence.into_into_dart().into_dart(),
+            self.operation.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::profile::ProgressView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::ProgressView>
+    for crate::api::profile::ProgressView
+{
+    fn into_into_dart(self) -> crate::api::profile::ProgressView {
+        self
+    }
+}
+
+impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(format!("{:?}", self), serializer);
+    }
+}
 
 impl SseEncode for Profile {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -825,6 +1267,15 @@ impl SseEncode for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpa
         let (ptr, size) = self.sse_encode_raw();
         <usize>::sse_encode(ptr, serializer);
         <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode
+    for StreamSink<crate::api::profile::ProgressView, flutter_rust_bridge::for_generated::SseCodec>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
     }
 }
 
@@ -978,6 +1429,16 @@ impl SseEncode for Option<i64> {
     }
 }
 
+impl SseEncode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u64>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for crate::api::profile::ProfileError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1014,10 +1475,110 @@ impl SseEncode for crate::api::profile::ProfileError {
     }
 }
 
+impl SseEncode for crate::api::profile::ProgressKindView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::profile::ProgressKindView::MessageQueued { group_id, event_id } => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(group_id, serializer);
+                <String>::sse_encode(event_id, serializer);
+            }
+            crate::api::profile::ProgressKindView::MessageReceived { group_id, event_id } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(group_id, serializer);
+                <String>::sse_encode(event_id, serializer);
+            }
+            crate::api::profile::ProgressKindView::EnvelopesPublished { count, pending } => {
+                <i32>::sse_encode(2, serializer);
+                <u32>::sse_encode(count, serializer);
+                <bool>::sse_encode(pending, serializer);
+            }
+            crate::api::profile::ProgressKindView::DeliveryChanged { delivery_id, state } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(delivery_id, serializer);
+                <String>::sse_encode(state, serializer);
+            }
+            crate::api::profile::ProgressKindView::FileAnnounced {
+                group_id,
+                event_id,
+                name,
+                size,
+            } => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(group_id, serializer);
+                <String>::sse_encode(event_id, serializer);
+                <String>::sse_encode(name, serializer);
+                <u64>::sse_encode(size, serializer);
+            }
+            crate::api::profile::ProgressKindView::FileTransfer {
+                name,
+                offset,
+                total,
+            } => {
+                <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(name, serializer);
+                <u64>::sse_encode(offset, serializer);
+                <Option<u64>>::sse_encode(total, serializer);
+            }
+            crate::api::profile::ProgressKindView::FileSaved { name } => {
+                <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(name, serializer);
+            }
+            crate::api::profile::ProgressKindView::Synced {
+                fetched,
+                new,
+                acked,
+            } => {
+                <i32>::sse_encode(7, serializer);
+                <u32>::sse_encode(fetched, serializer);
+                <u32>::sse_encode(new, serializer);
+                <u32>::sse_encode(acked, serializer);
+            }
+            crate::api::profile::ProgressKindView::PairingChanged { session_id, phase } => {
+                <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(session_id, serializer);
+                <String>::sse_encode(phase, serializer);
+            }
+            crate::api::profile::ProgressKindView::RelayUnavailable { pending } => {
+                <i32>::sse_encode(9, serializer);
+                <u32>::sse_encode(pending, serializer);
+            }
+            crate::api::profile::ProgressKindView::Onboarding { step } => {
+                <i32>::sse_encode(10, serializer);
+                <String>::sse_encode(step, serializer);
+            }
+            crate::api::profile::ProgressKindView::Gap { dropped } => {
+                <i32>::sse_encode(11, serializer);
+                <u32>::sse_encode(dropped, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseEncode for crate::api::profile::ProgressView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.sequence, serializer);
+        <String>::sse_encode(self.operation, serializer);
+        <crate::api::profile::ProgressKindView>::sse_encode(self.kind, serializer);
+    }
+}
+
 impl SseEncode for u32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_u32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for u64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u64::<NativeEndian>(self).unwrap();
     }
 }
 

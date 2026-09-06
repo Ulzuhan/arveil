@@ -55,6 +55,25 @@ Future<void> main() async {
       throwsA(isA<ProfileError_BadKey>()),
     );
 
+    // Progress arrives while the work runs, not only when it answers.
+    final progress = <ProgressView>[];
+    final watching = profile.watch().listen(progress.add);
+    await profile.createIdentity();
+    // Give the stream a moment to drain; the events were emitted before
+    // createIdentity answered.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(
+      progress.map((event) => event.kind).whereType<ProgressKindView_Onboarding>(),
+      isNotEmpty,
+      reason: 'creating an identity reports its steps',
+    );
+    expect(progress.first.operation, 'create-identity');
+    // The stream is closed from the Rust side, so stop it before
+    // cancelling; a cancel alone would wait for a producer that is still
+    // waiting for events.
+    profile.stopWatching();
+    await watching.cancel();
+
     await profile.close();
 
     // Closing released it: the same directory opens again, and the wrong
