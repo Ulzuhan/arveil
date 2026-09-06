@@ -49,16 +49,37 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
   CommandError dco_decode_command_error(dynamic raw);
 
   @protected
   ConversationView dco_decode_conversation_view(dynamic raw);
 
   @protected
+  HistoryEventView dco_decode_history_event_view(dynamic raw);
+
+  @protected
+  HistoryPageView dco_decode_history_page_view(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
   List<ConversationView> dco_decode_list_conversation_view(dynamic raw);
 
   @protected
+  List<HistoryEventView> dco_decode_list_history_event_view(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
   ProfileError dco_decode_profile_error(dynamic raw);
@@ -100,10 +121,25 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
   CommandError sse_decode_command_error(SseDeserializer deserializer);
 
   @protected
   ConversationView sse_decode_conversation_view(SseDeserializer deserializer);
+
+  @protected
+  HistoryEventView sse_decode_history_event_view(SseDeserializer deserializer);
+
+  @protected
+  HistoryPageView sse_decode_history_page_view(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
   List<ConversationView> sse_decode_list_conversation_view(
@@ -111,7 +147,15 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  List<HistoryEventView> sse_decode_list_history_event_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
   ProfileError sse_decode_profile_error(SseDeserializer deserializer);
@@ -159,6 +203,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_command_error(CommandError self, SseSerializer serializer);
 
   @protected
@@ -168,14 +218,44 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_history_event_view(
+    HistoryEventView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_history_page_view(
+    HistoryPageView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_conversation_view(
     List<ConversationView> self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_list_history_event_view(
+    List<HistoryEventView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
     SseSerializer serializer,
   );
 
