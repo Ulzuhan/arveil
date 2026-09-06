@@ -21,6 +21,7 @@ pub(crate) fn render(result: OperationResult) {
 
 pub(crate) fn cli_error(error: ApplicationError) -> CliError {
     match error {
+        ApplicationError::Busy { .. } => CliError::Domain(error.to_string()),
         ApplicationError::Transport {
             source, partial, ..
         }

@@ -65,7 +65,7 @@ class ArveilRust
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 994662761;
+  int get rustContentHash => -1365805558;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -81,6 +81,13 @@ abstract class ArveilRustApi extends BaseApi {
 
   Future<List<ConversationView>> crateApiProfileProfileConversations({
     required Profile that,
+  });
+
+  Future<HistoryPageView> crateApiProfileProfileHistoryPage({
+    required Profile that,
+    required String groupId,
+    PlatformInt64? before,
+    required int limit,
   });
 
   Future<Profile> crateApiProfileOpenProfile({
@@ -174,6 +181,48 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Future<HistoryPageView> crateApiProfileProfileHistoryPage({
+    required Profile that,
+    required String groupId,
+    PlatformInt64? before,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_String(groupId, serializer);
+          sse_encode_opt_box_autoadd_i_64(before, serializer);
+          sse_encode_u_32(limit, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_history_page_view,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileHistoryPageConstMeta,
+        argValues: [that, groupId, before, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileHistoryPageConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_history_page",
+        argNames: ["that", "groupId", "before", "limit"],
+      );
+
+  @override
   Future<Profile> crateApiProfileOpenProfile({
     required String dir,
     required String key,
@@ -187,7 +236,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 4,
             port: port_,
           );
         },
@@ -216,7 +265,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -286,40 +335,51 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
+  }
+
+  @protected
   CommandError dco_decode_command_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
+        return CommandError_Busy(
+          operation: dco_decode_String(raw[1]),
+          active: dco_decode_u_32(raw[2]),
+        );
+      case 1:
         return CommandError_Transport(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 1:
+      case 2:
         return CommandError_Storage(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 2:
+      case 3:
         return CommandError_Protocol(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 3:
+      case 4:
         return CommandError_Domain(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 4:
+      case 5:
         return CommandError_FileSystem(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 5:
+      case 6:
         return CommandError_Internal(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 6:
+      case 7:
         return CommandError_Interrupted(reason: dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -341,15 +401,66 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  HistoryEventView dco_decode_history_event_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return HistoryEventView(
+      cursor: dco_decode_i_64(arr[0]),
+      eventId: dco_decode_String(arr[1]),
+      kind: dco_decode_String(arr[2]),
+      body: dco_decode_list_prim_u_8_strict(arr[3]),
+      delivery: dco_decode_list_String(arr[4]),
+    );
+  }
+
+  @protected
+  HistoryPageView dco_decode_history_page_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return HistoryPageView(
+      events: dco_decode_list_history_event_view(arr[0]),
+      next: dco_decode_opt_box_autoadd_i_64(arr[1]),
+    );
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
+  }
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
   List<ConversationView> dco_decode_list_conversation_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_conversation_view).toList();
   }
 
   @protected
+  List<HistoryEventView> dco_decode_list_history_event_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_history_event_view).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
   }
 
   @protected
@@ -453,6 +564,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
   CommandError sse_decode_command_error(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -460,47 +577,51 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     switch (tag_) {
       case 0:
         var var_operation = sse_decode_String(deserializer);
-        var var_reason = sse_decode_String(deserializer);
-        return CommandError_Transport(
-          operation: var_operation,
-          reason: var_reason,
-        );
+        var var_active = sse_decode_u_32(deserializer);
+        return CommandError_Busy(operation: var_operation, active: var_active);
       case 1:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Storage(
+        return CommandError_Transport(
           operation: var_operation,
           reason: var_reason,
         );
       case 2:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Protocol(
+        return CommandError_Storage(
           operation: var_operation,
           reason: var_reason,
         );
       case 3:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Domain(
+        return CommandError_Protocol(
           operation: var_operation,
           reason: var_reason,
         );
       case 4:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_FileSystem(
+        return CommandError_Domain(
           operation: var_operation,
           reason: var_reason,
         );
       case 5:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Internal(
+        return CommandError_FileSystem(
           operation: var_operation,
           reason: var_reason,
         );
       case 6:
+        var var_operation = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return CommandError_Internal(
+          operation: var_operation,
+          reason: var_reason,
+        );
+      case 7:
         var var_reason = sse_decode_String(deserializer);
         return CommandError_Interrupted(reason: var_reason);
       default:
@@ -524,6 +645,49 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  HistoryEventView sse_decode_history_event_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_cursor = sse_decode_i_64(deserializer);
+    var var_eventId = sse_decode_String(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_body = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_delivery = sse_decode_list_String(deserializer);
+    return HistoryEventView(
+      cursor: var_cursor,
+      eventId: var_eventId,
+      kind: var_kind,
+      body: var_body,
+      delivery: var_delivery,
+    );
+  }
+
+  @protected
+  HistoryPageView sse_decode_history_page_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_events = sse_decode_list_history_event_view(deserializer);
+    var var_next = sse_decode_opt_box_autoadd_i_64(deserializer);
+    return HistoryPageView(events: var_events, next: var_next);
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<ConversationView> sse_decode_list_conversation_view(
     SseDeserializer deserializer,
   ) {
@@ -538,10 +702,35 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  List<HistoryEventView> sse_decode_list_history_event_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <HistoryEventView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_history_event_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
   }
 
   @protected
@@ -655,53 +844,66 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_command_error(CommandError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case CommandError_Transport(
-        operation: final operation,
-        reason: final reason,
-      ):
+      case CommandError_Busy(operation: final operation, active: final active):
         sse_encode_i_32(0, serializer);
         sse_encode_String(operation, serializer);
-        sse_encode_String(reason, serializer);
-      case CommandError_Storage(
+        sse_encode_u_32(active, serializer);
+      case CommandError_Transport(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(1, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Protocol(
+      case CommandError_Storage(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(2, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Domain(
+      case CommandError_Protocol(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(3, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_FileSystem(
+      case CommandError_Domain(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(4, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Internal(
+      case CommandError_FileSystem(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(5, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Interrupted(reason: final reason):
+      case CommandError_Internal(
+        operation: final operation,
+        reason: final reason,
+      ):
         sse_encode_i_32(6, serializer);
+        sse_encode_String(operation, serializer);
+        sse_encode_String(reason, serializer);
+      case CommandError_Interrupted(reason: final reason):
+        sse_encode_i_32(7, serializer);
         sse_encode_String(reason, serializer);
     }
   }
@@ -719,6 +921,44 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_history_event_view(
+    HistoryEventView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.cursor, serializer);
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_list_prim_u_8_strict(self.body, serializer);
+    sse_encode_list_String(self.delivery, serializer);
+  }
+
+  @protected
+  void sse_encode_history_page_view(
+    HistoryPageView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_history_event_view(self.events, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.next, serializer);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_conversation_view(
     List<ConversationView> self,
     SseSerializer serializer,
@@ -731,6 +971,18 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_list_history_event_view(
+    List<HistoryEventView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_history_event_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -738,6 +990,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
+    }
   }
 
   @protected
@@ -824,4 +1089,18 @@ class ProfileImpl extends RustOpaque implements Profile {
   /// The conversation list, as a query that answers from local state.
   Future<List<ConversationView>> conversations() =>
       ArveilRust.instance.api.crateApiProfileProfileConversations(that: this);
+
+  /// One page of a conversation, newest page first: pass the previous
+  /// page's `next` as `before` to walk backwards. The application caps
+  /// the size whatever is asked for.
+  Future<HistoryPageView> historyPage({
+    required String groupId,
+    PlatformInt64? before,
+    required int limit,
+  }) => ArveilRust.instance.api.crateApiProfileProfileHistoryPage(
+    that: this,
+    groupId: groupId,
+    before: before,
+    limit: limit,
+  );
 }

@@ -62,6 +62,9 @@ pub struct ExportedEvent {
 }
 
 /// A local event: `(event_id, kind, body)`.
+/// A stored event with its cursor: position, identifier, kind, body.
+pub type PagedEventRow = (i64, Vec<u8>, String, Vec<u8>);
+
 pub type EventRow = (Vec<u8>, String, Vec<u8>);
 
 /// One sealed envelope waiting for, or accepted by, the relay.
@@ -306,6 +309,40 @@ impl Delivery {
                 body: r.get(3)?,
                 created_at: r.get(4)?,
             })
+        })?;
+        rows.collect()
+    }
+
+    /// How many events one conversation holds, without reading any of
+    /// them: a summary needs the number, not the bodies.
+    pub fn events_count(&self, group_id: &[u8]) -> Result<usize, rusqlite::Error> {
+        let conn = self.conn.lock();
+        let count: i64 = conn.query_row(
+            "SELECT count(*) FROM events WHERE group_id = ?1",
+            params![group_id],
+            |r| r.get(0),
+        )?;
+        Ok(count as usize)
+    }
+
+    /// One page of a conversation's events, newest first. `before` excludes
+    /// everything at or above that cursor, so a page never shifts under a
+    /// reader: an event recorded meanwhile takes a higher identifier and
+    /// belongs to a newer page, never to one already read.
+    pub fn events_page(
+        &self,
+        group_id: &[u8],
+        before: Option<i64>,
+        limit: usize,
+    ) -> Result<Vec<PagedEventRow>, rusqlite::Error> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, event_id, kind, body FROM events
+             WHERE group_id = ?1 AND (?2 IS NULL OR id < ?2)
+             ORDER BY id DESC LIMIT ?3",
+        )?;
+        let rows = stmt.query_map(params![group_id, before, limit as i64], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
         })?;
         rows.collect()
     }

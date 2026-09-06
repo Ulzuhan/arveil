@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `command_error`, `hex`, `operation_name`, `profile_error`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `operation_name`, `profile_error`, `shown`, `view`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Open a profile encrypted at rest. The key comes from the platform store,
 /// never from this crate and never from the environment.
@@ -30,12 +30,27 @@ abstract class Profile implements RustOpaqueInterface {
 
   /// The conversation list, as a query that answers from local state.
   Future<List<ConversationView>> conversations();
+
+  /// One page of a conversation, newest page first: pass the previous
+  /// page's `next` as `before` to walk backwards. The application caps
+  /// the size whatever is asked for.
+  Future<HistoryPageView> historyPage({
+    required String groupId,
+    PlatformInt64? before,
+    required int limit,
+  });
 }
 
 @freezed
 sealed class CommandError with _$CommandError implements FrbException {
   const CommandError._();
 
+  /// The profile already has as much work of this kind as it will hold.
+  /// Nothing was started, so a caller may retry once something finishes.
+  const factory CommandError.busy({
+    required String operation,
+    required int active,
+  }) = CommandError_Busy;
   const factory CommandError.transport({
     required String operation,
     required String reason,
@@ -94,6 +109,68 @@ class ConversationView {
           creator == other.creator &&
           peerDevices == other.peerDevices &&
           eventCount == other.eventCount;
+}
+
+/// One event of a conversation, as a screen shows it.
+class HistoryEventView {
+  /// Position in the conversation. Pass the oldest one back as `before`
+  /// to read the page before this one.
+  final PlatformInt64 cursor;
+  final String eventId;
+  final String kind;
+  final Uint8List body;
+
+  /// Delivery state per mailbox, for events this device sent.
+  final List<String> delivery;
+
+  const HistoryEventView({
+    required this.cursor,
+    required this.eventId,
+    required this.kind,
+    required this.body,
+    required this.delivery,
+  });
+
+  @override
+  int get hashCode =>
+      cursor.hashCode ^
+      eventId.hashCode ^
+      kind.hashCode ^
+      body.hashCode ^
+      delivery.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryEventView &&
+          runtimeType == other.runtimeType &&
+          cursor == other.cursor &&
+          eventId == other.eventId &&
+          kind == other.kind &&
+          body == other.body &&
+          delivery == other.delivery;
+}
+
+/// One page, oldest first within the page.
+class HistoryPageView {
+  final List<HistoryEventView> events;
+
+  /// Cursor for the page before this one; absent at the beginning of the
+  /// conversation.
+  final PlatformInt64? next;
+
+  const HistoryPageView({required this.events, this.next});
+
+  @override
+  int get hashCode => events.hashCode ^ next.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryPageView &&
+          runtimeType == other.runtimeType &&
+          events == other.events &&
+          next == other.next;
 }
 
 @freezed

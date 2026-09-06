@@ -73,6 +73,11 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
+      # The native build runs cargo from its own place and does not read the
+      # workspace toolchain file, so the pinned version has to be the
+      # default one here.
+      - name: Make the pinned toolchain the default
+        run: rustup default "$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' core/rust-toolchain.toml | head -1)"
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
@@ -108,6 +113,8 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
+      - name: Make the pinned toolchain the default
+        run: rustup default "$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' core/rust-toolchain.toml | head -1)"
       - name: Add Android targets
         run: rustup target add aarch64-linux-android x86_64-linux-android
       - uses: Swatinem/rust-cache@v2

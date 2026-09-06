@@ -14,61 +14,30 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CommandError {
 
- String get reason;
-/// Create a copy of CommandError
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$CommandErrorCopyWith<CommandError> get copyWith => _$CommandErrorCopyWithImpl<CommandError>(this as CommandError, _$identity);
+
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CommandError&&(identical(other.reason, reason) || other.reason == reason));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CommandError);
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,reason);
+int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'CommandError(reason: $reason)';
+  return 'CommandError()';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class $CommandErrorCopyWith<$Res>  {
-  factory $CommandErrorCopyWith(CommandError value, $Res Function(CommandError) _then) = _$CommandErrorCopyWithImpl;
-@useResult
-$Res call({
- String reason
-});
-
-
-
-
-}
-/// @nodoc
-class _$CommandErrorCopyWithImpl<$Res>
-    implements $CommandErrorCopyWith<$Res> {
-  _$CommandErrorCopyWithImpl(this._self, this._then);
-
-  final CommandError _self;
-  final $Res Function(CommandError) _then;
-
-/// Create a copy of CommandError
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? reason = null,}) {
-  return _then(_self.copyWith(
-reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
-as String,
-  ));
-}
-
+class $CommandErrorCopyWith<$Res>  {
+$CommandErrorCopyWith(CommandError _, $Res Function(CommandError) __);
 }
 
 
@@ -86,10 +55,11 @@ extension CommandErrorPatterns on CommandError {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CommandError_Transport value)?  transport,TResult Function( CommandError_Storage value)?  storage,TResult Function( CommandError_Protocol value)?  protocol,TResult Function( CommandError_Domain value)?  domain,TResult Function( CommandError_FileSystem value)?  fileSystem,TResult Function( CommandError_Internal value)?  internal,TResult Function( CommandError_Interrupted value)?  interrupted,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CommandError_Busy value)?  busy,TResult Function( CommandError_Transport value)?  transport,TResult Function( CommandError_Storage value)?  storage,TResult Function( CommandError_Protocol value)?  protocol,TResult Function( CommandError_Domain value)?  domain,TResult Function( CommandError_FileSystem value)?  fileSystem,TResult Function( CommandError_Internal value)?  internal,TResult Function( CommandError_Interrupted value)?  interrupted,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
-case CommandError_Transport() when transport != null:
+case CommandError_Busy() when busy != null:
+return busy(_that);case CommandError_Transport() when transport != null:
 return transport(_that);case CommandError_Storage() when storage != null:
 return storage(_that);case CommandError_Protocol() when protocol != null:
 return protocol(_that);case CommandError_Domain() when domain != null:
@@ -114,10 +84,11 @@ return interrupted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CommandError_Transport value)  transport,required TResult Function( CommandError_Storage value)  storage,required TResult Function( CommandError_Protocol value)  protocol,required TResult Function( CommandError_Domain value)  domain,required TResult Function( CommandError_FileSystem value)  fileSystem,required TResult Function( CommandError_Internal value)  internal,required TResult Function( CommandError_Interrupted value)  interrupted,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CommandError_Busy value)  busy,required TResult Function( CommandError_Transport value)  transport,required TResult Function( CommandError_Storage value)  storage,required TResult Function( CommandError_Protocol value)  protocol,required TResult Function( CommandError_Domain value)  domain,required TResult Function( CommandError_FileSystem value)  fileSystem,required TResult Function( CommandError_Internal value)  internal,required TResult Function( CommandError_Interrupted value)  interrupted,}){
 final _that = this;
 switch (_that) {
-case CommandError_Transport():
+case CommandError_Busy():
+return busy(_that);case CommandError_Transport():
 return transport(_that);case CommandError_Storage():
 return storage(_that);case CommandError_Protocol():
 return protocol(_that);case CommandError_Domain():
@@ -138,10 +109,11 @@ return interrupted(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CommandError_Transport value)?  transport,TResult? Function( CommandError_Storage value)?  storage,TResult? Function( CommandError_Protocol value)?  protocol,TResult? Function( CommandError_Domain value)?  domain,TResult? Function( CommandError_FileSystem value)?  fileSystem,TResult? Function( CommandError_Internal value)?  internal,TResult? Function( CommandError_Interrupted value)?  interrupted,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CommandError_Busy value)?  busy,TResult? Function( CommandError_Transport value)?  transport,TResult? Function( CommandError_Storage value)?  storage,TResult? Function( CommandError_Protocol value)?  protocol,TResult? Function( CommandError_Domain value)?  domain,TResult? Function( CommandError_FileSystem value)?  fileSystem,TResult? Function( CommandError_Internal value)?  internal,TResult? Function( CommandError_Interrupted value)?  interrupted,}){
 final _that = this;
 switch (_that) {
-case CommandError_Transport() when transport != null:
+case CommandError_Busy() when busy != null:
+return busy(_that);case CommandError_Transport() when transport != null:
 return transport(_that);case CommandError_Storage() when storage != null:
 return storage(_that);case CommandError_Protocol() when protocol != null:
 return protocol(_that);case CommandError_Domain() when domain != null:
@@ -165,9 +137,10 @@ return interrupted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String operation,  String reason)?  transport,TResult Function( String operation,  String reason)?  storage,TResult Function( String operation,  String reason)?  protocol,TResult Function( String operation,  String reason)?  domain,TResult Function( String operation,  String reason)?  fileSystem,TResult Function( String operation,  String reason)?  internal,TResult Function( String reason)?  interrupted,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String operation,  int active)?  busy,TResult Function( String operation,  String reason)?  transport,TResult Function( String operation,  String reason)?  storage,TResult Function( String operation,  String reason)?  protocol,TResult Function( String operation,  String reason)?  domain,TResult Function( String operation,  String reason)?  fileSystem,TResult Function( String operation,  String reason)?  internal,TResult Function( String reason)?  interrupted,required TResult orElse(),}) {final _that = this;
 switch (_that) {
-case CommandError_Transport() when transport != null:
+case CommandError_Busy() when busy != null:
+return busy(_that.operation,_that.active);case CommandError_Transport() when transport != null:
 return transport(_that.operation,_that.reason);case CommandError_Storage() when storage != null:
 return storage(_that.operation,_that.reason);case CommandError_Protocol() when protocol != null:
 return protocol(_that.operation,_that.reason);case CommandError_Domain() when domain != null:
@@ -192,9 +165,10 @@ return interrupted(_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String operation,  String reason)  transport,required TResult Function( String operation,  String reason)  storage,required TResult Function( String operation,  String reason)  protocol,required TResult Function( String operation,  String reason)  domain,required TResult Function( String operation,  String reason)  fileSystem,required TResult Function( String operation,  String reason)  internal,required TResult Function( String reason)  interrupted,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String operation,  int active)  busy,required TResult Function( String operation,  String reason)  transport,required TResult Function( String operation,  String reason)  storage,required TResult Function( String operation,  String reason)  protocol,required TResult Function( String operation,  String reason)  domain,required TResult Function( String operation,  String reason)  fileSystem,required TResult Function( String operation,  String reason)  internal,required TResult Function( String reason)  interrupted,}) {final _that = this;
 switch (_that) {
-case CommandError_Transport():
+case CommandError_Busy():
+return busy(_that.operation,_that.active);case CommandError_Transport():
 return transport(_that.operation,_that.reason);case CommandError_Storage():
 return storage(_that.operation,_that.reason);case CommandError_Protocol():
 return protocol(_that.operation,_that.reason);case CommandError_Domain():
@@ -215,9 +189,10 @@ return interrupted(_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String operation,  String reason)?  transport,TResult? Function( String operation,  String reason)?  storage,TResult? Function( String operation,  String reason)?  protocol,TResult? Function( String operation,  String reason)?  domain,TResult? Function( String operation,  String reason)?  fileSystem,TResult? Function( String operation,  String reason)?  internal,TResult? Function( String reason)?  interrupted,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String operation,  int active)?  busy,TResult? Function( String operation,  String reason)?  transport,TResult? Function( String operation,  String reason)?  storage,TResult? Function( String operation,  String reason)?  protocol,TResult? Function( String operation,  String reason)?  domain,TResult? Function( String operation,  String reason)?  fileSystem,TResult? Function( String operation,  String reason)?  internal,TResult? Function( String reason)?  interrupted,}) {final _that = this;
 switch (_that) {
-case CommandError_Transport() when transport != null:
+case CommandError_Busy() when busy != null:
+return busy(_that.operation,_that.active);case CommandError_Transport() when transport != null:
 return transport(_that.operation,_that.reason);case CommandError_Storage() when storage != null:
 return storage(_that.operation,_that.reason);case CommandError_Protocol() when protocol != null:
 return protocol(_that.operation,_that.reason);case CommandError_Domain() when domain != null:
@@ -235,16 +210,84 @@ return interrupted(_that.reason);case _:
 /// @nodoc
 
 
+class CommandError_Busy extends CommandError {
+  const CommandError_Busy({required this.operation, required this.active}): super._();
+  
+
+ final  String operation;
+ final  int active;
+
+/// Create a copy of CommandError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CommandError_BusyCopyWith<CommandError_Busy> get copyWith => _$CommandError_BusyCopyWithImpl<CommandError_Busy>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CommandError_Busy&&(identical(other.operation, operation) || other.operation == operation)&&(identical(other.active, active) || other.active == active));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,operation,active);
+
+@override
+String toString() {
+  return 'CommandError.busy(operation: $operation, active: $active)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CommandError_BusyCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
+  factory $CommandError_BusyCopyWith(CommandError_Busy value, $Res Function(CommandError_Busy) _then) = _$CommandError_BusyCopyWithImpl;
+@useResult
+$Res call({
+ String operation, int active
+});
+
+
+
+
+}
+/// @nodoc
+class _$CommandError_BusyCopyWithImpl<$Res>
+    implements $CommandError_BusyCopyWith<$Res> {
+  _$CommandError_BusyCopyWithImpl(this._self, this._then);
+
+  final CommandError_Busy _self;
+  final $Res Function(CommandError_Busy) _then;
+
+/// Create a copy of CommandError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? active = null,}) {
+  return _then(CommandError_Busy(
+operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
+as String,active: null == active ? _self.active : active // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class CommandError_Transport extends CommandError {
   const CommandError_Transport({required this.operation, required this.reason}): super._();
   
 
  final  String operation;
-@override final  String reason;
+ final  String reason;
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CommandError_TransportCopyWith<CommandError_Transport> get copyWith => _$CommandError_TransportCopyWithImpl<CommandError_Transport>(this, _$identity);
 
@@ -270,7 +313,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $CommandError_TransportCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
   factory $CommandError_TransportCopyWith(CommandError_Transport value, $Res Function(CommandError_Transport) _then) = _$CommandError_TransportCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String operation, String reason
 });
@@ -289,7 +332,7 @@ class _$CommandError_TransportCopyWithImpl<$Res>
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
   return _then(CommandError_Transport(
 operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
 as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
@@ -308,11 +351,11 @@ class CommandError_Storage extends CommandError {
   
 
  final  String operation;
-@override final  String reason;
+ final  String reason;
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CommandError_StorageCopyWith<CommandError_Storage> get copyWith => _$CommandError_StorageCopyWithImpl<CommandError_Storage>(this, _$identity);
 
@@ -338,7 +381,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $CommandError_StorageCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
   factory $CommandError_StorageCopyWith(CommandError_Storage value, $Res Function(CommandError_Storage) _then) = _$CommandError_StorageCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String operation, String reason
 });
@@ -357,7 +400,7 @@ class _$CommandError_StorageCopyWithImpl<$Res>
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
   return _then(CommandError_Storage(
 operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
 as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
@@ -376,11 +419,11 @@ class CommandError_Protocol extends CommandError {
   
 
  final  String operation;
-@override final  String reason;
+ final  String reason;
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CommandError_ProtocolCopyWith<CommandError_Protocol> get copyWith => _$CommandError_ProtocolCopyWithImpl<CommandError_Protocol>(this, _$identity);
 
@@ -406,7 +449,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $CommandError_ProtocolCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
   factory $CommandError_ProtocolCopyWith(CommandError_Protocol value, $Res Function(CommandError_Protocol) _then) = _$CommandError_ProtocolCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String operation, String reason
 });
@@ -425,7 +468,7 @@ class _$CommandError_ProtocolCopyWithImpl<$Res>
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
   return _then(CommandError_Protocol(
 operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
 as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
@@ -444,11 +487,11 @@ class CommandError_Domain extends CommandError {
   
 
  final  String operation;
-@override final  String reason;
+ final  String reason;
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CommandError_DomainCopyWith<CommandError_Domain> get copyWith => _$CommandError_DomainCopyWithImpl<CommandError_Domain>(this, _$identity);
 
@@ -474,7 +517,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $CommandError_DomainCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
   factory $CommandError_DomainCopyWith(CommandError_Domain value, $Res Function(CommandError_Domain) _then) = _$CommandError_DomainCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String operation, String reason
 });
@@ -493,7 +536,7 @@ class _$CommandError_DomainCopyWithImpl<$Res>
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
   return _then(CommandError_Domain(
 operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
 as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
@@ -512,11 +555,11 @@ class CommandError_FileSystem extends CommandError {
   
 
  final  String operation;
-@override final  String reason;
+ final  String reason;
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CommandError_FileSystemCopyWith<CommandError_FileSystem> get copyWith => _$CommandError_FileSystemCopyWithImpl<CommandError_FileSystem>(this, _$identity);
 
@@ -542,7 +585,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $CommandError_FileSystemCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
   factory $CommandError_FileSystemCopyWith(CommandError_FileSystem value, $Res Function(CommandError_FileSystem) _then) = _$CommandError_FileSystemCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String operation, String reason
 });
@@ -561,7 +604,7 @@ class _$CommandError_FileSystemCopyWithImpl<$Res>
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
   return _then(CommandError_FileSystem(
 operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
 as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
@@ -580,11 +623,11 @@ class CommandError_Internal extends CommandError {
   
 
  final  String operation;
-@override final  String reason;
+ final  String reason;
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CommandError_InternalCopyWith<CommandError_Internal> get copyWith => _$CommandError_InternalCopyWithImpl<CommandError_Internal>(this, _$identity);
 
@@ -610,7 +653,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $CommandError_InternalCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
   factory $CommandError_InternalCopyWith(CommandError_Internal value, $Res Function(CommandError_Internal) _then) = _$CommandError_InternalCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String operation, String reason
 });
@@ -629,7 +672,7 @@ class _$CommandError_InternalCopyWithImpl<$Res>
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
   return _then(CommandError_Internal(
 operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
 as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
@@ -647,11 +690,11 @@ class CommandError_Interrupted extends CommandError {
   const CommandError_Interrupted({required this.reason}): super._();
   
 
-@override final  String reason;
+ final  String reason;
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $CommandError_InterruptedCopyWith<CommandError_Interrupted> get copyWith => _$CommandError_InterruptedCopyWithImpl<CommandError_Interrupted>(this, _$identity);
 
@@ -677,7 +720,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $CommandError_InterruptedCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
   factory $CommandError_InterruptedCopyWith(CommandError_Interrupted value, $Res Function(CommandError_Interrupted) _then) = _$CommandError_InterruptedCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String reason
 });
@@ -696,7 +739,7 @@ class _$CommandError_InterruptedCopyWithImpl<$Res>
 
 /// Create a copy of CommandError
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? reason = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? reason = null,}) {
   return _then(CommandError_Interrupted(
 reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
 as String,

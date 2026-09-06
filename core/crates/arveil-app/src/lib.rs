@@ -30,6 +30,7 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, Weak, mpsc};
 
 use arveil_core::attachments::{self, FileDescriptor};
@@ -85,7 +86,9 @@ pub enum Operation {
     Sync,
     RevokeDevice,
     QueryConversations,
-    QueryHistory,
+    QueryPeers,
+    QueryHistoryPage,
+    QueryArchived,
 }
 
 /// A command accepted by the serial executor for one client profile.
@@ -157,7 +160,17 @@ pub enum ClientCommand {
         device_id: String,
     },
     QueryConversations,
-    QueryHistory,
+    QueryPeers {
+        group: Vec<u8>,
+    },
+    QueryHistoryPage {
+        group: Vec<u8>,
+        before: Option<i64>,
+        limit: usize,
+    },
+    QueryArchived {
+        group: Option<Vec<u8>>,
+    },
 }
 
 impl ClientCommand {
@@ -182,7 +195,9 @@ impl ClientCommand {
             Self::Sync { .. } => Operation::Sync,
             Self::RevokeDevice { .. } => Operation::RevokeDevice,
             Self::QueryConversations => Operation::QueryConversations,
-            Self::QueryHistory => Operation::QueryHistory,
+            Self::QueryPeers { .. } => Operation::QueryPeers,
+            Self::QueryHistoryPage { .. } => Operation::QueryHistoryPage,
+            Self::QueryArchived { .. } => Operation::QueryArchived,
         }
     }
 }
@@ -513,6 +528,8 @@ pub enum ApplicationError {
         source: CliError,
         partial: OperationResult,
     },
+    #[error("{operation:?} refused: {active} operations of its kind are already in flight")]
+    Busy { operation: Operation, active: usize },
     #[error("{message}")]
     Interrupted {
         exit_code: u8,
@@ -530,6 +547,7 @@ impl ApplicationError {
             | Self::Domain { operation, .. }
             | Self::FileSystem { operation, .. }
             | Self::Internal { operation, .. } => Some(*operation),
+            Self::Busy { operation, .. } => Some(*operation),
             Self::Interrupted { .. } => None,
         }
     }
@@ -550,6 +568,11 @@ impl ApplicationError {
             | Self::FileSystem { partial, .. }
             | Self::Internal { partial, .. }
             | Self::Interrupted { partial, .. } => partial,
+            // A refusal never started, so it left nothing behind.
+            Self::Busy { .. } => {
+                static NOTHING: OnceLock<OperationResult> = OnceLock::new();
+                NOTHING.get_or_init(OperationResult::default)
+            }
         }
     }
 }
@@ -603,11 +626,28 @@ pub struct DeliveryState {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HistoryEvent {
+    /// Where this event sits in its conversation. Identifiers only grow, so
+    /// a cursor stays valid however much arrives after it was taken.
+    pub cursor: i64,
     pub event_id: Vec<u8>,
     pub kind: String,
     pub body: Vec<u8>,
     pub delivery_states: Vec<DeliveryState>,
 }
+
+/// One page of a conversation, newest first. `next` is the cursor for the
+/// page before this one; its absence means the conversation starts here.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HistoryPage {
+    pub group_id: Vec<u8>,
+    pub events: Vec<HistoryEvent>,
+    pub next: Option<i64>,
+}
+
+/// The largest page the application answers with, whatever is asked for. A
+/// screen shows tens of rows, and a query that returns everything is how a
+/// client ends up holding a whole database in memory.
+pub const MAX_HISTORY_PAGE: usize = 200;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConversationHistory {
@@ -651,7 +691,9 @@ pub enum CommandOutput {
     },
     PendingPairing(Option<PairingVerification>),
     Conversations(Vec<ConversationSummary>),
-    History(Vec<ConversationHistory>),
+    Peers(Vec<PeerSummary>),
+    HistoryPage(HistoryPage),
+    Archived(Vec<ConversationHistory>),
 }
 
 /// Everything a profile needs that used to arrive through the process
@@ -787,6 +829,79 @@ struct Request {
     reply: mpsc::SyncSender<Result<CommandOutput, ApplicationError>>,
 }
 
+/// How much work one profile will hold at once. A sync in flight and one
+/// waiting behind it is enough to keep the relay busy; more only grows a
+/// queue nobody watches. Queries are cheap and answer from local state, so
+/// they get room of their own and stay responsive while the rest waits.
+const MAX_ACTIVE_SYNCS: usize = 2;
+const MAX_ACTIVE_MUTATIONS: usize = 32;
+const MAX_ACTIVE_QUERIES: usize = 128;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Admission {
+    Sync,
+    Mutation,
+    Query,
+}
+
+impl ClientCommand {
+    fn admission(&self) -> Admission {
+        match self {
+            Self::Sync { .. } => Admission::Sync,
+            Self::QueryConversations
+            | Self::QueryPeers { .. }
+            | Self::QueryHistoryPage { .. }
+            | Self::QueryArchived { .. }
+            | Self::QueryPendingPairing => Admission::Query,
+            _ => Admission::Mutation,
+        }
+    }
+}
+
+/// Counts what has been admitted and not yet finished, per kind.
+#[derive(Debug, Default)]
+struct Active {
+    syncs: AtomicUsize,
+    mutations: AtomicUsize,
+    queries: AtomicUsize,
+}
+
+impl Active {
+    fn counter(&self, admission: Admission) -> (&AtomicUsize, usize) {
+        match admission {
+            Admission::Sync => (&self.syncs, MAX_ACTIVE_SYNCS),
+            Admission::Mutation => (&self.mutations, MAX_ACTIVE_MUTATIONS),
+            Admission::Query => (&self.queries, MAX_ACTIVE_QUERIES),
+        }
+    }
+
+    /// Take a slot, or report how many are already in flight. The count is
+    /// only ever raised by the caller that holds the slot, so two callers
+    /// cannot both squeeze past the limit.
+    fn admit(&self, admission: Admission) -> Result<(), usize> {
+        let (counter, limit) = self.counter(admission);
+        let mut current = counter.load(Ordering::Acquire);
+        loop {
+            if current >= limit {
+                return Err(current);
+            }
+            match counter.compare_exchange_weak(
+                current,
+                current + 1,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(observed) => current = observed,
+            }
+        }
+    }
+
+    fn release(&self, admission: Admission) {
+        self.counter(admission).0.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
 /// One profile's state executor. Admission stops when the sender is taken,
 /// and the worker holds the operating-system lock until its loop ends, so
 /// the profile is never free while work of its own is still in flight.
@@ -795,11 +910,19 @@ struct SerialExecutor {
     dir: PathBuf,
     sender: Mutex<Option<tokio::sync::mpsc::UnboundedSender<Request>>>,
     worker: Mutex<Option<std::thread::JoinHandle<()>>>,
+    active: Arc<Active>,
 }
 
 impl SerialExecutor {
-    fn submit(&self, request: Request) -> Result<(), ()> {
-        match self
+    /// Admit one command, or refuse it. The slot is released by the
+    /// executor when the command finishes, so a refusal means work is
+    /// genuinely in flight and not that a caller walked away.
+    fn submit(&self, request: Request) -> Result<(), Refusal> {
+        let admission = request.command.admission();
+        self.active
+            .admit(admission)
+            .map_err(|active| Refusal::Saturated { active })?;
+        let sent = match self
             .sender
             .lock()
             .expect("executor sender poisoned")
@@ -807,7 +930,12 @@ impl SerialExecutor {
         {
             Some(sender) => sender.send(request).map_err(|_| ()),
             None => Err(()),
+        };
+        if sent.is_err() {
+            self.active.release(admission);
+            return Err(Refusal::Stopped);
         }
+        Ok(())
     }
 
     /// Stop admission, wait for what is already running, and only then let
@@ -830,6 +958,13 @@ impl Drop for SerialExecutor {
     fn drop(&mut self) {
         self.shutdown();
     }
+}
+
+/// Why a command was not accepted.
+#[derive(Debug)]
+enum Refusal {
+    Stopped,
+    Saturated { active: usize },
 }
 
 #[derive(Debug)]
@@ -967,9 +1102,11 @@ fn command_future(
     config: Arc<ProfileConfig>,
     sync_lock: Rc<tokio::sync::Mutex<()>>,
     link_completion_lock: Rc<tokio::sync::Mutex<()>>,
+    active: Arc<Active>,
     request: Request,
 ) -> CommandFuture {
     Box::pin(async move {
+        let admission = request.command.admission();
         let result = if matches!(&request.command, ClientCommand::Sync { .. }) {
             // A second sync waits cooperatively here: network waits from the
             // active sync still yield to queries and non-sync commands.
@@ -988,24 +1125,29 @@ fn command_future(
             run_command(&config, request.command).await
         };
         let _ = request.reply.send(result);
+        // The slot is only free once the work is done, not when a caller
+        // stops waiting for it.
+        active.release(admission);
     })
 }
 
 async fn run_executor(
     config: Arc<ProfileConfig>,
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<Request>,
+    active: Arc<Active>,
 ) {
-    let mut active = FuturesUnordered::<CommandFuture>::new();
+    let mut running = FuturesUnordered::<CommandFuture>::new();
     let sync_lock = Rc::new(tokio::sync::Mutex::new(()));
     let link_completion_lock = Rc::new(tokio::sync::Mutex::new(()));
     let mut accepting = true;
-    while accepting || !active.is_empty() {
-        if active.is_empty() {
+    while accepting || !running.is_empty() {
+        if running.is_empty() {
             match receiver.recv().await {
-                Some(request) => active.push(command_future(
+                Some(request) => running.push(command_future(
                     config.clone(),
                     sync_lock.clone(),
                     link_completion_lock.clone(),
+                    active.clone(),
                     request,
                 )),
                 None => accepting = false,
@@ -1013,18 +1155,19 @@ async fn run_executor(
         } else if accepting {
             tokio::select! {
                 request = receiver.recv() => match request {
-                    Some(request) => active.push(command_future(
+                    Some(request) => running.push(command_future(
                         config.clone(),
                         sync_lock.clone(),
                         link_completion_lock.clone(),
+                        active.clone(),
                         request,
                     )),
                     None => accepting = false,
                 },
-                _ = active.next() => {}
+                _ = running.next() => {}
             }
         } else {
-            active.next().await;
+            running.next().await;
         }
     }
 }
@@ -1060,6 +1203,8 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
             source,
         })?;
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<Request>();
+    let active = Arc::new(Active::default());
+    let worker_active = active.clone();
     let worker = std::thread::Builder::new()
         .name("arveil-client-state".into())
         .stack_size(8 * 1024 * 1024)
@@ -1067,7 +1212,7 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
             // The lock belongs to the worker, so it outlives every command
             // this executor still has to finish.
             let _profile_lock = profile_lock;
-            runtime.block_on(run_executor(Arc::new(config), receiver));
+            runtime.block_on(run_executor(Arc::new(config), receiver, worker_active));
         })
         .map_err(|source| ApplicationOpenError::Io {
             action: "start executor for",
@@ -1078,6 +1223,7 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
         dir: dir.clone(),
         sender: Mutex::new(Some(sender)),
         worker: Mutex::new(Some(worker)),
+        active,
     });
     sessions.insert(dir, SessionSlot::Open(Arc::downgrade(&executor)));
     Ok(executor)
@@ -1117,7 +1263,10 @@ impl Application {
         let (reply, result) = mpsc::sync_channel(1);
         self.executor
             .submit(Request { command, reply })
-            .map_err(|()| executor_stopped(operation))?;
+            .map_err(|refusal| match refusal {
+                Refusal::Stopped => executor_stopped(operation),
+                Refusal::Saturated { active } => ApplicationError::Busy { operation, active },
+            })?;
         result.recv().map_err(|_| executor_stopped(operation))?
     }
 
@@ -1365,11 +1514,87 @@ impl Application {
         }
     }
 
-    pub fn history(&self) -> Result<Vec<ConversationHistory>, ApplicationError> {
-        match self.execute(ClientCommand::QueryHistory)? {
-            CommandOutput::History(history) => Ok(history),
+    /// The peers of one conversation, with the labels a screen shows.
+    pub fn peers(&self, group: &[u8]) -> Result<Vec<PeerSummary>, ApplicationError> {
+        match self.execute(ClientCommand::QueryPeers {
+            group: group.to_vec(),
+        })? {
+            CommandOutput::Peers(peers) => Ok(peers),
+            _ => unreachable!("peer command returned another output type"),
+        }
+    }
+
+    /// One page of a conversation, newest first. Pass the previous page's
+    /// `next` as `before` to continue backwards.
+    pub fn history_page(
+        &self,
+        group: &[u8],
+        before: Option<i64>,
+        limit: usize,
+    ) -> Result<HistoryPage, ApplicationError> {
+        match self.execute(ClientCommand::QueryHistoryPage {
+            group: group.to_vec(),
+            before,
+            limit,
+        })? {
+            CommandOutput::HistoryPage(page) => Ok(page),
             _ => unreachable!("history command returned another output type"),
         }
+    }
+
+    /// Imported records. Without a group this is the conversations that
+    /// exist only as an import; with one it is that conversation's records,
+    /// which may also have a live conversation of its own.
+    pub fn archived(
+        &self,
+        group: Option<&[u8]>,
+    ) -> Result<Vec<ConversationHistory>, ApplicationError> {
+        match self.execute(ClientCommand::QueryArchived {
+            group: group.map(<[u8]>::to_vec),
+        })? {
+            CommandOutput::Archived(archived) => Ok(archived),
+            _ => unreachable!("archive command returned another output type"),
+        }
+    }
+
+    /// Everything, assembled from bounded pages. The command line wants the
+    /// whole history; a screen should page instead of calling this.
+    pub fn history(&self) -> Result<Vec<ConversationHistory>, ApplicationError> {
+        let mut archived = self.archived(None)?;
+        let mut live = Vec::new();
+        for conversation in self.conversations()? {
+            let peers = self.peers(&conversation.group_id)?;
+            // An imported record of a conversation that still exists
+            // belongs inside it, ahead of what arrived since.
+            let mut events = self
+                .archived(Some(&conversation.group_id))?
+                .into_iter()
+                .flat_map(|entry| entry.events)
+                .collect::<Vec<_>>();
+            // Imported records stay ahead of everything that follows.
+            let imported = events.len();
+            let mut before = None;
+            loop {
+                let page = self.history_page(&conversation.group_id, before, MAX_HISTORY_PAGE)?;
+                let empty = page.events.is_empty();
+                // Pages arrive newest first, so each one goes ahead of what
+                // was read before it and behind the imported records.
+                events.splice(imported..imported, page.events);
+                before = page.next;
+                if before.is_none() || empty {
+                    break;
+                }
+            }
+            live.push(ConversationHistory {
+                group_id: conversation.group_id,
+                creator: Some(conversation.creator),
+                peers,
+                events,
+            });
+        }
+        // Conversations that exist only as an import keep their own entry.
+        archived.extend(live);
+        Ok(archived)
     }
 
     fn operation(&self, command: ClientCommand) -> Result<OperationResult, ApplicationError> {
@@ -1555,9 +1780,19 @@ async fn run_command(
         ClientCommand::QueryConversations => conversation_summaries(config)
             .map(CommandOutput::Conversations)
             .map_err(|source| application_error(Operation::QueryConversations, source)),
-        ClientCommand::QueryHistory => conversation_history(config)
-            .map(CommandOutput::History)
-            .map_err(|source| application_error(Operation::QueryHistory, source)),
+        ClientCommand::QueryPeers { group } => conversation_peers(config, &group)
+            .map(CommandOutput::Peers)
+            .map_err(|source| application_error(Operation::QueryPeers, source)),
+        ClientCommand::QueryHistoryPage {
+            group,
+            before,
+            limit,
+        } => history_page(config, &group, before, limit)
+            .map(CommandOutput::HistoryPage)
+            .map_err(|source| application_error(Operation::QueryHistoryPage, source)),
+        ClientCommand::QueryArchived { group } => archived_conversations(config, group.as_deref())
+            .map(CommandOutput::Archived)
+            .map_err(|source| application_error(Operation::QueryArchived, source)),
     }
 }
 
@@ -1666,137 +1901,191 @@ fn classified_error(
 }
 
 fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSummary>, CliError> {
-    let (session, _engine) = session(config)?;
+    let session = local(config)?;
     session
         .client
         .conversations()
         .map_err(storage_error("conversations"))?
         .into_iter()
         .map(|conversation| {
-            let events = session
+            // A summary needs the count and the newest row, not every body
+            // in the conversation.
+            let event_count = session
                 .delivery
-                .events(&conversation.group_id)
+                .events_count(&conversation.group_id)
                 .map_err(storage_error("events"))?;
-            let last_event = events.last().map(|(event_id, kind, body)| HistoryEvent {
-                event_id: event_id.clone(),
-                kind: kind.clone(),
-                body: body.clone(),
-                delivery_states: Vec::new(),
-            });
+            let last_event = session
+                .delivery
+                .events_page(&conversation.group_id, None, 1)
+                .map_err(storage_error("events"))?
+                .into_iter()
+                .next()
+                .map(|(cursor, event_id, kind, body)| HistoryEvent {
+                    cursor,
+                    event_id,
+                    kind,
+                    body,
+                    delivery_states: Vec::new(),
+                });
             Ok(ConversationSummary {
                 group_id: conversation.group_id,
                 creator: conversation.creator,
                 peer_devices: conversation.peers.len(),
-                event_count: events.len(),
+                event_count,
                 last_event,
             })
         })
         .collect()
 }
 
-fn conversation_history(config: &ProfileConfig) -> Result<Vec<ConversationHistory>, CliError> {
-    let (session, _engine) = session(config)?;
+/// What a query needs: the local store, and the identity if this profile
+/// has one yet. Reading history does not require an enrolled realm.
+struct LocalRead {
+    client: Client,
+    delivery: Delivery,
+    identity_id: Option<Vec<u8>>,
+}
+
+fn local(config: &ProfileConfig) -> Result<LocalRead, CliError> {
+    let client = open_client(config)?;
+    let delivery = client.delivery().map_err(storage_error("delivery"))?;
+    let identity_id = client.identity_id().map_err(storage_error("identity"))?;
+    Ok(LocalRead {
+        client,
+        delivery,
+        identity_id,
+    })
+}
+
+/// The peers of one conversation, with the label a screen shows.
+fn conversation_peers(config: &ProfileConfig, group: &[u8]) -> Result<Vec<PeerSummary>, CliError> {
+    let session = local(config)?;
+    let conversation = session
+        .client
+        .conversations()
+        .map_err(storage_error("conversations"))?
+        .into_iter()
+        .find(|conversation| conversation.group_id == group)
+        .ok_or_else(|| CliError::Domain("no such conversation".into()))?;
+    conversation
+        .peers
+        .iter()
+        .map(|peer| {
+            let contact = session
+                .client
+                .contact(&peer.identity)
+                .map_err(storage_error("contact"))?;
+            Ok(PeerSummary {
+                identity_id: peer.identity.clone(),
+                device_id: peer.device_id.clone(),
+                label: contact.as_ref().map_or_else(
+                    || hex::encode(&peer.identity[..4]),
+                    |contact| contact.label(),
+                ),
+                own: Some(&peer.identity) == session.identity_id.as_ref(),
+                verified: contact.is_some_and(|contact| contact.verified),
+                routable: peer.routable(),
+                revoked: peer.revoked,
+            })
+        })
+        .collect()
+}
+
+/// One page of a conversation, newest first and never larger than
+/// `MAX_HISTORY_PAGE`, whatever the caller asked for.
+fn history_page(
+    config: &ProfileConfig,
+    group: &[u8],
+    before: Option<i64>,
+    limit: usize,
+) -> Result<HistoryPage, CliError> {
+    let session = local(config)?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_secs() as i64)
         .unwrap_or(0);
-    let mut result = Vec::new();
+    let limit = limit.clamp(1, MAX_HISTORY_PAGE);
+    // One row beyond the page tells us whether an older one exists without
+    // a second query, and without claiming there is more when there is not.
+    let mut rows = session
+        .delivery
+        .events_page(group, before, limit + 1)
+        .map_err(storage_error("events"))?;
+    let next = if rows.len() > limit {
+        rows.truncate(limit);
+        rows.last().map(|(cursor, ..)| *cursor)
+    } else {
+        None
+    };
 
-    for group_id in session
-        .client
-        .archived_groups()
-        .map_err(storage_error("archived"))?
-    {
-        let events = session
-            .client
-            .archived(&group_id)
-            .map_err(storage_error("archived"))?
-            .into_iter()
-            .map(|(kind, body)| HistoryEvent {
-                event_id: Vec::new(),
-                kind: format!("archived-{kind}"),
-                body,
-                delivery_states: Vec::new(),
-            })
-            .collect();
-        result.push(ConversationHistory {
-            group_id,
-            creator: None,
-            peers: Vec::new(),
-            events,
+    let mut events = Vec::with_capacity(rows.len());
+    for (cursor, event_id, kind, body) in rows.into_iter().rev() {
+        let delivery_states = if kind == "sent" {
+            session
+                .delivery
+                .states_for_event(&event_id, now)
+                .map_err(storage_error("states"))?
+                .into_iter()
+                .map(|(mailbox_id, state)| DeliveryState { mailbox_id, state })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        events.push(HistoryEvent {
+            cursor,
+            event_id,
+            kind,
+            body,
+            delivery_states,
         });
     }
+    Ok(HistoryPage {
+        group_id: group.to_vec(),
+        events,
+        next,
+    })
+}
 
-    for conversation in session
-        .client
-        .conversations()
-        .map_err(storage_error("conversations"))?
-    {
-        let peers = conversation
-            .peers
-            .iter()
-            .map(|peer| {
-                let contact = session
-                    .client
-                    .contact(&peer.identity)
-                    .map_err(storage_error("contact"))?;
-                Ok(PeerSummary {
-                    identity_id: peer.identity.clone(),
-                    device_id: peer.device_id.clone(),
-                    label: contact.as_ref().map_or_else(
-                        || hex::encode(&peer.identity[..4]),
-                        |contact| contact.label(),
-                    ),
-                    own: peer.identity == session.identity_id,
-                    verified: contact.is_some_and(|contact| contact.verified),
-                    routable: peer.routable(),
-                    revoked: peer.revoked,
+/// Imported conversations. They carry no MLS state and cannot grow, so
+/// they are read whole rather than paged.
+fn archived_conversations(
+    config: &ProfileConfig,
+    group: Option<&[u8]>,
+) -> Result<Vec<ConversationHistory>, CliError> {
+    let session = local(config)?;
+    let groups = match group {
+        Some(group) => vec![group.to_vec()],
+        // Without a group, only the conversations that exist as an import;
+        // a live one carries its records inside itself.
+        None => session
+            .client
+            .archived_groups()
+            .map_err(storage_error("archived"))?,
+    };
+    groups
+        .into_iter()
+        .map(|group_id| {
+            let events = session
+                .client
+                .archived(&group_id)
+                .map_err(storage_error("archived"))?
+                .into_iter()
+                .map(|(kind, body)| HistoryEvent {
+                    cursor: 0,
+                    event_id: Vec::new(),
+                    kind: format!("archived-{kind}"),
+                    body,
+                    delivery_states: Vec::new(),
                 })
+                .collect();
+            Ok(ConversationHistory {
+                group_id,
+                creator: None,
+                peers: Vec::new(),
+                events,
             })
-            .collect::<Result<Vec<_>, CliError>>()?;
-        let mut events = session
-            .client
-            .archived(&conversation.group_id)
-            .map_err(storage_error("archived"))?
-            .into_iter()
-            .map(|(kind, body)| HistoryEvent {
-                event_id: Vec::new(),
-                kind: format!("archived-{kind}"),
-                body,
-                delivery_states: Vec::new(),
-            })
-            .collect::<Vec<_>>();
-        for (event_id, kind, body) in session
-            .delivery
-            .events(&conversation.group_id)
-            .map_err(storage_error("events"))?
-        {
-            let delivery_states = if kind == "sent" {
-                session
-                    .delivery
-                    .states_for_event(&event_id, now)
-                    .map_err(storage_error("states"))?
-                    .into_iter()
-                    .map(|(mailbox_id, state)| DeliveryState { mailbox_id, state })
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            events.push(HistoryEvent {
-                event_id,
-                kind,
-                body,
-                delivery_states,
-            });
-        }
-        result.push(ConversationHistory {
-            group_id: conversation.group_id,
-            creator: Some(conversation.creator),
-            peers,
-            events,
-        });
-    }
-    Ok(result)
+        })
+        .collect()
 }
 
 fn open_client(config: &ProfileConfig) -> Result<Client, CliError> {
@@ -3781,6 +4070,145 @@ mod tests {
 
         through_link.close();
         std::fs::remove_dir_all(root).ok();
+    }
+
+    /// Writes `count` events straight into a profile's event log, the way
+    /// a conversation would, so paging can be exercised without a relay.
+    fn record_events(profile: &Path, group: &[u8], kinds: &[(&str, &str)]) {
+        let conn = SharedConn::open_file(&profile.join("client.db")).unwrap();
+        let client = Client::open(conn).unwrap();
+        let delivery = client.delivery().unwrap();
+        for (kind, body) in kinds {
+            let event_id = format!("{}-{body}", String::from_utf8_lossy(group)).into_bytes();
+            delivery
+                .record_event(group, &event_id, kind, body.as_bytes())
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn history_pages_do_not_shift_when_events_arrive_between_them() {
+        let profile = std::env::temp_dir().join(format!(
+            "arveil-paging-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::remove_dir_all(&profile).ok();
+        std::fs::create_dir_all(&profile).unwrap();
+        let group = b"g".to_vec();
+        record_events(
+            &profile,
+            &group,
+            &[
+                ("message", "one"),
+                ("message", "two"),
+                ("message", "three"),
+                ("message", "four"),
+            ],
+        );
+
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
+        let newest = app.history_page(&group, None, 2).unwrap();
+        let bodies = |page: &HistoryPage| {
+            page.events
+                .iter()
+                .map(|event| String::from_utf8_lossy(&event.body).into_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(bodies(&newest), vec!["three", "four"]);
+        let next = newest.next.expect("an older page exists");
+
+        // Two more events land while the caller is still reading backwards.
+        record_events(&profile, &group, &[("message", "five"), ("message", "six")]);
+
+        let older = app.history_page(&group, Some(next), 2).unwrap();
+        assert_eq!(
+            bodies(&older),
+            vec!["one", "two"],
+            "a page shifted under the reader"
+        );
+        assert!(older.next.is_none(), "the conversation starts here");
+
+        // The new events are where a fresh read from the top finds them.
+        let fresh = app.history_page(&group, None, 2).unwrap();
+        assert_eq!(bodies(&fresh), vec!["five", "six"]);
+
+        // The cap holds whatever the caller asks for.
+        let capped = app
+            .history_page(&group, None, MAX_HISTORY_PAGE * 10)
+            .unwrap();
+        assert_eq!(capped.events.len(), 6);
+        assert!(capped.next.is_none());
+
+        app.close();
+        std::fs::remove_dir_all(profile).ok();
+    }
+
+    #[test]
+    fn a_saturated_profile_refuses_work_and_still_answers_queries() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("ws://{}", listener.local_addr().unwrap());
+        let (profile, bootstrap, app) = enrolled_test_application("saturated", &url);
+        let (release_tx, release_rx) = mpsc::channel::<()>();
+        let relay = std::thread::spawn(move || {
+            // Accept and answer nothing, so the syncs stay in flight.
+            let mut held = Vec::new();
+            while release_rx.try_recv().is_err() {
+                listener.set_nonblocking(true).unwrap();
+                if let Ok((socket, _)) = listener.accept() {
+                    held.push(socket);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        });
+
+        let syncs: Vec<_> = (0..MAX_ACTIVE_SYNCS)
+            .map(|_| {
+                let syncing = app.clone();
+                let bootstrap = bootstrap.clone();
+                std::thread::spawn(move || syncing.sync(&bootstrap))
+            })
+            .collect();
+
+        // Wait for both to be admitted rather than for a clock to pass.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while app.executor.active.syncs.load(Ordering::Acquire) < MAX_ACTIVE_SYNCS {
+            assert!(std::time::Instant::now() < deadline, "syncs never started");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+
+        let refused = app
+            .sync(&bootstrap)
+            .expect_err("a third sync must not be admitted");
+        assert!(
+            matches!(
+                refused,
+                ApplicationError::Busy {
+                    operation: Operation::Sync,
+                    active
+                } if active == MAX_ACTIVE_SYNCS
+            ),
+            "expected a typed refusal, got {refused:?}"
+        );
+        assert!(refused.partial_result().changes.is_empty());
+
+        // A local query is not held behind the saturated kind.
+        let before = std::time::Instant::now();
+        assert!(app.conversations().unwrap().is_empty());
+        assert!(
+            before.elapsed() < std::time::Duration::from_secs(1),
+            "a query waited behind saturated syncs"
+        );
+
+        release_tx.send(()).unwrap();
+        relay.join().unwrap();
+        for sync in syncs {
+            assert!(sync.join().unwrap().is_err());
+        }
+        // Slots come back when the work finishes, not when a caller leaves.
+        assert_eq!(app.executor.active.syncs.load(Ordering::Acquire), 0);
+        app.close();
+        std::fs::remove_dir_all(profile).ok();
     }
 
     #[test]

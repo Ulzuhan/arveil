@@ -23,12 +23,24 @@ Future<void> main() async {
 
     final profile = await openProfile(dir: dir, key: key);
 
-    // A query answers across the bridge, and a fresh profile has no device
-    // yet, so it answers with a category rather than a message to parse.
+    // A query answers across the bridge. A profile with no conversations
+    // says so; reading local state does not wait for an enrolled realm.
+    expect(await profile.conversations(), isEmpty);
+
+    // History answers in pages, and an unknown conversation is simply
+    // empty rather than an error.
+    final page = await profile.historyPage(
+      groupId: 'aa' * 16,
+      before: null,
+      limit: 10,
+    );
+    expect(page.events, isEmpty);
+    expect(page.next, isNull);
+
+    // A malformed identifier is a typed domain failure.
     await expectLater(
-      profile.conversations(),
-      throwsA(isA<CommandError_Domain>()
-          .having((e) => e.operation, 'operation', 'query-conversations')),
+      profile.historyPage(groupId: 'zz', before: null, limit: 10),
+      throwsA(isA<CommandError_Domain>()),
     );
 
     // A second independent open is a typed refusal, not a silent share.
@@ -52,10 +64,7 @@ Future<void> main() async {
       throwsA(isA<ProfileError_Unusable>()),
     );
     final reopened = await openProfile(dir: dir, key: key);
-    await expectLater(
-      reopened.conversations(),
-      throwsA(isA<CommandError_Domain>()),
-    );
+    expect(await reopened.conversations(), isEmpty);
     await reopened.close();
   });
 }

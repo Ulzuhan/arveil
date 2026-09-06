@@ -6,8 +6,8 @@
 //! learn what happened.
 
 use arveil_app::{
-    Application, ApplicationError, ApplicationOpenError, ConversationSummary, Operation,
-    ProfileConfig,
+    Application, ApplicationError, ApplicationOpenError, ConversationSummary, HistoryEvent,
+    Operation, ProfileConfig,
 };
 
 /// A session over one profile. Opaque to Dart: the database, the MLS engine
@@ -37,13 +37,61 @@ pub enum ProfileError {
 /// Why a command failed, in the category the application layer assigned.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandError {
-    Transport { operation: String, reason: String },
-    Storage { operation: String, reason: String },
-    Protocol { operation: String, reason: String },
-    Domain { operation: String, reason: String },
-    FileSystem { operation: String, reason: String },
-    Internal { operation: String, reason: String },
-    Interrupted { reason: String },
+    /// The profile already has as much work of this kind as it will hold.
+    /// Nothing was started, so a caller may retry once something finishes.
+    Busy {
+        operation: String,
+        active: u32,
+    },
+    Transport {
+        operation: String,
+        reason: String,
+    },
+    Storage {
+        operation: String,
+        reason: String,
+    },
+    Protocol {
+        operation: String,
+        reason: String,
+    },
+    Domain {
+        operation: String,
+        reason: String,
+    },
+    FileSystem {
+        operation: String,
+        reason: String,
+    },
+    Internal {
+        operation: String,
+        reason: String,
+    },
+    Interrupted {
+        reason: String,
+    },
+}
+
+/// One event of a conversation, as a screen shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoryEventView {
+    /// Position in the conversation. Pass the oldest one back as `before`
+    /// to read the page before this one.
+    pub cursor: i64,
+    pub event_id: String,
+    pub kind: String,
+    pub body: Vec<u8>,
+    /// Delivery state per mailbox, for events this device sent.
+    pub delivery: Vec<String>,
+}
+
+/// One page, oldest first within the page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoryPageView {
+    pub events: Vec<HistoryEventView>,
+    /// Cursor for the page before this one; absent at the beginning of the
+    /// conversation.
+    pub next: Option<i64>,
 }
 
 /// One row of the conversation list.
@@ -80,6 +128,26 @@ impl Profile {
         self.inner.close();
     }
 
+    /// One page of a conversation, newest page first: pass the previous
+    /// page's `next` as `before` to walk backwards. The application caps
+    /// the size whatever is asked for.
+    pub fn history_page(
+        &self,
+        group_id: String,
+        before: Option<i64>,
+        limit: u32,
+    ) -> Result<HistoryPageView, CommandError> {
+        let group = decode_hex(&group_id)?;
+        let page = self
+            .inner
+            .history_page(&group, before, limit as usize)
+            .map_err(command_error)?;
+        Ok(HistoryPageView {
+            events: page.events.into_iter().map(event_view).collect(),
+            next: page.next,
+        })
+    }
+
     /// The conversation list, as a query that answers from local state.
     pub fn conversations(&self) -> Result<Vec<ConversationView>, CommandError> {
         Ok(self
@@ -90,6 +158,38 @@ impl Profile {
             .map(view)
             .collect())
     }
+}
+
+fn event_view(event: HistoryEvent) -> HistoryEventView {
+    HistoryEventView {
+        cursor: event.cursor,
+        event_id: hex(&event.event_id),
+        kind: event.kind,
+        body: event.body,
+        delivery: event
+            .delivery_states
+            .into_iter()
+            .map(|state| state.state)
+            .collect(),
+    }
+}
+
+/// A group identifier arrives as the same hexadecimal the list handed out.
+fn decode_hex(value: &str) -> Result<Vec<u8>, CommandError> {
+    if !value.len().is_multiple_of(2) || !value.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(CommandError::Domain {
+            operation: "query-history-page".into(),
+            reason: "the conversation identifier is not hexadecimal".into(),
+        });
+    }
+    (0..value.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&value[i..i + 2], 16))
+        .collect::<Result<Vec<u8>, _>>()
+        .map_err(|_| CommandError::Domain {
+            operation: "query-history-page".into(),
+            reason: "the conversation identifier is not hexadecimal".into(),
+        })
 }
 
 fn view(summary: ConversationSummary) -> ConversationView {
@@ -145,6 +245,10 @@ fn command_error(error: ApplicationError) -> CommandError {
         .to_string();
     let reason = error.to_string();
     match error {
+        ApplicationError::Busy { active, .. } => CommandError::Busy {
+            operation,
+            active: active as u32,
+        },
         ApplicationError::Transport { .. } => CommandError::Transport { operation, reason },
         ApplicationError::Storage { .. } => CommandError::Storage { operation, reason },
         ApplicationError::Protocol { .. } => CommandError::Protocol { operation, reason },
@@ -178,6 +282,8 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::Sync => "sync",
         Operation::RevokeDevice => "revoke-device",
         Operation::QueryConversations => "query-conversations",
-        Operation::QueryHistory => "query-history",
+        Operation::QueryPeers => "query-peers",
+        Operation::QueryHistoryPage => "query-history-page",
+        Operation::QueryArchived => "query-archived",
     }
 }
