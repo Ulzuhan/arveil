@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -18,6 +19,90 @@ func enrollment(id byte) Enrollment {
 		NotAfter:       time.Now().Add(time.Hour).Unix(),
 		ManifestSeq:    1,
 		SignedManifest: []byte{id, 7},
+	}
+}
+
+func TestRedeemInviteAnswersARepeatWithoutConsumingAnotherUse(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	now := time.Now()
+	token := []byte("token-hash")
+	// Two uses, so an accidental second consumption would go unnoticed if
+	// the count were all this checked.
+	if err := s.CreateInvite(ctx, token, "member", now.Add(time.Hour), 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RedeemInvite(ctx, token, now, enrollment(1), nil); err != nil {
+		t.Fatal(err)
+	}
+
+	// The same token, identity and credential: the work was done, and
+	// saying so is not the same as doing it again.
+	if err := s.RedeemInvite(ctx, token, now, enrollment(1), nil); !errors.Is(err, ErrAlreadyRedeemed) {
+		t.Fatalf("a repeat should be recognised, got %v", err)
+	}
+	for _, table := range []string{"realm_memberships", "device_credentials", "device_manifests"} {
+		if n, _ := s.Count(ctx, table); n != 1 {
+			t.Fatalf("%s has %d rows after a repeated redeem", table, n)
+		}
+	}
+
+	// The second use is still there for somebody else.
+	if err := s.RedeemInvite(ctx, token, now, enrollment(2), nil); err != nil {
+		t.Fatalf("the untouched use should still redeem: %v", err)
+	}
+	if err := s.RedeemInvite(ctx, token, now, enrollment(3), nil); !errors.Is(err, ErrInviteInvalid) {
+		t.Fatalf("a third redeem of a two-use invite: %v", err)
+	}
+}
+
+func TestRedeemInviteRefusesAnotherCredentialForTheSameIdentity(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	now := time.Now()
+	token := []byte("token-hash")
+	if err := s.CreateInvite(ctx, token, "member", now.Add(time.Hour), 5); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RedeemInvite(ctx, token, now, enrollment(1), nil); err != nil {
+		t.Fatal(err)
+	}
+
+	// Same identity, different credential: this is a second device asking,
+	// not the first one asking twice, and it is refused rather than handed
+	// the earlier answer.
+	other := enrollment(1)
+	other.CredentialHash = []byte{9, 9}
+	other.TransportKey = []byte{9, 5}
+	if err := s.RedeemInvite(ctx, token, now, other, nil); !errors.Is(err, ErrAlreadyMember) {
+		t.Fatalf("another credential should conflict, got %v", err)
+	}
+}
+
+func TestOpenRefusesADatabaseFromANewerRelay(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "relay.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(
+		`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`,
+		SchemaVersion+1, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+
+	// Nothing is modified: an older binary cannot know what it would break.
+	if _, err := Open(path); !errors.Is(err, ErrSchemaTooNew) {
+		t.Fatalf("expected a refusal, got %v", err)
 	}
 }
 
