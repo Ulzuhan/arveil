@@ -30,7 +30,7 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, Weak, mpsc};
 
 use arveil_core::attachments::{self, FileDescriptor};
@@ -40,6 +40,7 @@ use arveil_core::delivery::Delivery;
 use arveil_core::envelope::{self, EnvelopeContext, KIND_MLS};
 use arveil_core::mls::Engine;
 use arveil_core::storage::SharedConn;
+use futures_util::FutureExt;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use mls_rs::client_builder::MlsConfig;
 use mls_rs::group::{Group, ReceivedMessage};
@@ -171,6 +172,10 @@ pub enum ClientCommand {
     QueryArchived {
         group: Option<Vec<u8>>,
     },
+    /// Panics on purpose, inside a transaction that has already written.
+    /// The contract for a panic is only worth what its test proves.
+    #[cfg(test)]
+    PanicProbe,
 }
 
 impl ClientCommand {
@@ -198,6 +203,8 @@ impl ClientCommand {
             Self::QueryPeers { .. } => Operation::QueryPeers,
             Self::QueryHistoryPage { .. } => Operation::QueryHistoryPage,
             Self::QueryArchived { .. } => Operation::QueryArchived,
+            #[cfg(test)]
+            Self::PanicProbe => Operation::Sync,
         }
     }
 }
@@ -530,6 +537,10 @@ pub enum ApplicationError {
     },
     #[error("{operation:?} refused: {active} operations of its kind are already in flight")]
     Busy { operation: Operation, active: usize },
+    #[error(
+        "{operation:?} failed and ended this session; the profile is intact, close it and open it again"
+    )]
+    Panicked { operation: Operation },
     #[error("{message}")]
     Interrupted {
         exit_code: u8,
@@ -547,7 +558,7 @@ impl ApplicationError {
             | Self::Domain { operation, .. }
             | Self::FileSystem { operation, .. }
             | Self::Internal { operation, .. } => Some(*operation),
-            Self::Busy { operation, .. } => Some(*operation),
+            Self::Busy { operation, .. } | Self::Panicked { operation } => Some(*operation),
             Self::Interrupted { .. } => None,
         }
     }
@@ -568,8 +579,9 @@ impl ApplicationError {
             | Self::FileSystem { partial, .. }
             | Self::Internal { partial, .. }
             | Self::Interrupted { partial, .. } => partial,
-            // A refusal never started, so it left nothing behind.
-            Self::Busy { .. } => {
+            // A refusal never started, and a panic left nothing a caller
+            // should act on: what is durable is on disk.
+            Self::Busy { .. } | Self::Panicked { .. } => {
                 static NOTHING: OnceLock<OperationResult> = OnceLock::new();
                 NOTHING.get_or_init(OperationResult::default)
             }
@@ -1204,6 +1216,9 @@ struct SerialExecutor {
     worker: Mutex<Option<std::thread::JoinHandle<()>>>,
     active: Arc<Active>,
     watchers: Arc<Subscribers>,
+    /// Set once a command has panicked. Nothing else runs on this session
+    /// afterwards: its state is only as good as what is durable on disk.
+    poisoned: Arc<AtomicBool>,
 }
 
 impl SerialExecutor {
@@ -1211,6 +1226,9 @@ impl SerialExecutor {
     /// executor when the command finishes, so a refusal means work is
     /// genuinely in flight and not that a caller walked away.
     fn submit(&self, request: Request) -> Result<(), Refusal> {
+        if self.poisoned.load(Ordering::Acquire) {
+            return Err(Refusal::Panicked);
+        }
         let admission = request.command.admission();
         self.active
             .admit(admission)
@@ -1257,7 +1275,12 @@ impl Drop for SerialExecutor {
 #[derive(Debug)]
 enum Refusal {
     Stopped,
-    Saturated { active: usize },
+    Saturated {
+        active: usize,
+    },
+    /// A command panicked, so this session is over. The profile is intact
+    /// on disk; the way back is to close and open it again.
+    Panicked,
 }
 
 #[derive(Debug)]
@@ -1397,32 +1420,49 @@ fn command_future(
     link_completion_lock: Rc<tokio::sync::Mutex<()>>,
     active: Arc<Active>,
     watchers: Arc<Subscribers>,
+    poisoned: Arc<AtomicBool>,
     request: Request,
 ) -> CommandFuture {
     Box::pin(async move {
-        let admission = request.command.admission();
-        let operation = request.command.operation();
+        let Request { command, reply } = request;
+        let admission = command.admission();
+        let operation = command.operation();
+        // Whatever was queued behind a panic is answered, not dropped: a
+        // caller waiting on a reply hears why instead of waiting forever.
+        if poisoned.load(Ordering::Acquire) {
+            let _ = reply.send(Err(ApplicationError::Panicked { operation }));
+            return;
+        }
         let watched = WATCHERS.scope((operation, watchers), async move {
-            let result = if matches!(&request.command, ClientCommand::Sync { .. }) {
+            if matches!(&command, ClientCommand::Sync { .. }) {
                 // A second sync waits cooperatively here: network waits from the
                 // active sync still yield to queries and non-sync commands.
                 let _single_flight = sync_lock.lock().await;
-                run_command(&config, request.command).await
+                run_command(&config, command).await
             } else if matches!(
-                &request.command,
+                &command,
                 ClientCommand::CompleteLink { .. } | ClientCommand::ConfirmPairing { .. }
             ) {
                 // Linking may wait on the relay between durable local phases.
                 // Only one finalizer may cross those phases for this profile;
                 // followers resume from the phase written by their predecessor.
                 let _single_finalizer = link_completion_lock.lock().await;
-                run_command(&config, request.command).await
+                run_command(&config, command).await
             } else {
-                run_command(&config, request.command).await
-            };
-            (result, request.reply)
+                run_command(&config, command).await
+            }
         });
-        let (result, reply) = watched.await;
+        // A panic may leave the connection or the MLS engine in a state
+        // nobody described, so the session ends here and the profile is
+        // read again from disk the next time it is opened. The reply is
+        // sent from out here, where the panic cannot take it with it.
+        let result = match std::panic::AssertUnwindSafe(watched).catch_unwind().await {
+            Ok(result) => result,
+            Err(_) => {
+                poisoned.store(true, Ordering::Release);
+                Err(ApplicationError::Panicked { operation })
+            }
+        };
         let _ = reply.send(result);
         // The slot is only free once the work is done, not when a caller
         // stops waiting for it.
@@ -1435,6 +1475,7 @@ async fn run_executor(
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<Request>,
     active: Arc<Active>,
     watchers: Arc<Subscribers>,
+    poisoned: Arc<AtomicBool>,
 ) {
     let mut running = FuturesUnordered::<CommandFuture>::new();
     let sync_lock = Rc::new(tokio::sync::Mutex::new(()));
@@ -1449,6 +1490,7 @@ async fn run_executor(
                     link_completion_lock.clone(),
                     active.clone(),
                     watchers.clone(),
+                    poisoned.clone(),
                     request,
                 )),
                 None => accepting = false,
@@ -1462,6 +1504,7 @@ async fn run_executor(
                         link_completion_lock.clone(),
                         active.clone(),
                         watchers.clone(),
+                        poisoned.clone(),
                         request,
                     )),
                     None => accepting = false,
@@ -1509,6 +1552,8 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
     let worker_active = active.clone();
     let watchers = Arc::new(Subscribers::default());
     let worker_watchers = watchers.clone();
+    let poisoned = Arc::new(AtomicBool::new(false));
+    let worker_poisoned = poisoned.clone();
     let worker = std::thread::Builder::new()
         .name("arveil-client-state".into())
         .stack_size(8 * 1024 * 1024)
@@ -1521,6 +1566,7 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
                 receiver,
                 worker_active,
                 worker_watchers,
+                worker_poisoned,
             ));
         })
         .map_err(|source| ApplicationOpenError::Io {
@@ -1534,6 +1580,7 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
         worker: Mutex::new(Some(worker)),
         active,
         watchers,
+        poisoned,
     });
     sessions.insert(dir, SessionSlot::Open(Arc::downgrade(&executor)));
     Ok(executor)
@@ -1584,6 +1631,7 @@ impl Application {
             .map_err(|refusal| match refusal {
                 Refusal::Stopped => executor_stopped(operation),
                 Refusal::Saturated { active } => ApplicationError::Busy { operation, active },
+                Refusal::Panicked => ApplicationError::Panicked { operation },
             })?;
         result.recv().map_err(|_| executor_stopped(operation))?
     }
@@ -2108,6 +2156,20 @@ async fn run_command(
         } => history_page(config, &group, before, limit)
             .map(CommandOutput::HistoryPage)
             .map_err(|source| application_error(Operation::QueryHistoryPage, source)),
+        #[cfg(test)]
+        ClientCommand::PanicProbe => {
+            let conn = SharedConn::open_file_keyed(&config.dir().join("client.db"), config.key())
+                .expect("the probe opens the profile");
+            let _: Result<(), rusqlite::Error> = conn.unit_of_work(|c| {
+                c.lock().execute(
+                    "INSERT INTO events (group_id, event_id, kind, body)
+                     VALUES (x'70', x'71', 'message', x'72')",
+                    [],
+                )?;
+                panic!("a command gave up half way");
+            });
+            unreachable!("the probe always panics")
+        }
         ClientCommand::QueryArchived { group } => archived_conversations(config, group.as_deref())
             .map(CommandOutput::Archived)
             .map_err(|source| application_error(Operation::QueryArchived, source)),
@@ -4597,6 +4659,84 @@ mod tests {
         assert_eq!(capped.events.len(), 6);
         assert!(capped.next.is_none());
 
+        app.close();
+        std::fs::remove_dir_all(profile).ok();
+    }
+
+    #[test]
+    fn a_panic_ends_the_session_and_leaves_the_profile_openable() {
+        let profile = std::env::temp_dir().join(format!(
+            "arveil-panic-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::remove_dir_all(&profile).ok();
+        std::fs::create_dir_all(&profile).unwrap();
+
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
+        // The probe writes inside a transaction and then panics.
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let failed = app
+            .execute(ClientCommand::PanicProbe)
+            .expect_err("the probe always fails");
+        std::panic::set_hook(previous);
+        assert!(
+            matches!(failed, ApplicationError::Panicked { .. }),
+            "expected a recognizable failure, got {failed:?}"
+        );
+
+        // The session is over: nothing else runs on it, and it says so
+        // rather than answering from state nobody described.
+        let after = app
+            .conversations()
+            .expect_err("a poisoned session accepts no work");
+        assert!(matches!(after, ApplicationError::Panicked { .. }));
+
+        // Closing releases the profile, and what the panic was writing is
+        // not there: the transaction rolled back on the way out.
+        app.close();
+        let reopened = Application::open(ProfileConfig::unencrypted(&profile))
+            .expect("the profile opens again");
+        assert!(reopened.conversations().unwrap().is_empty());
+        let conn = SharedConn::open_file(&profile.join("client.db")).unwrap();
+        assert_eq!(
+            conn.count("events").unwrap(),
+            0,
+            "a half written row survived"
+        );
+        reopened.close();
+        std::fs::remove_dir_all(profile).ok();
+    }
+
+    #[test]
+    fn work_queued_behind_a_panic_is_answered() {
+        let profile = std::env::temp_dir().join(format!(
+            "arveil-panic-queue-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::remove_dir_all(&profile).ok();
+        std::fs::create_dir_all(&profile).unwrap();
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
+
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let panicking = app.clone();
+        let probe = std::thread::spawn(move || panicking.execute(ClientCommand::PanicProbe));
+        assert!(matches!(
+            probe.join().unwrap(),
+            Err(ApplicationError::Panicked { .. })
+        ));
+        std::panic::set_hook(previous);
+
+        // Everything that follows is answered, not left waiting.
+        for _ in 0..4 {
+            assert!(matches!(
+                app.conversations(),
+                Err(ApplicationError::Panicked { .. })
+            ));
+        }
         app.close();
         std::fs::remove_dir_all(profile).ok();
     }

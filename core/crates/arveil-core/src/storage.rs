@@ -104,6 +104,27 @@ fn unlock(conn: &Connection, key: &str) -> Result<(), StorageError> {
 #[derive(Clone, Debug)]
 pub struct SharedConn(Arc<ReentrantMutex<Connection>>);
 
+/// A transaction that has begun and not yet ended. Dropping it rolls back,
+/// which is what keeps an unwind from leaving one open on a connection the
+/// next caller will use.
+struct OpenTransaction<'a> {
+    connection: &'a Connection,
+}
+
+impl OpenTransaction<'_> {
+    fn rollback(&mut self) {
+        // Best effort: if rollback itself fails the connection is unusable
+        // anyway, and the session that owns it is already ending.
+        let _ = self.connection.execute_batch("ROLLBACK");
+    }
+}
+
+impl Drop for OpenTransaction<'_> {
+    fn drop(&mut self) {
+        self.rollback();
+    }
+}
+
 impl SharedConn {
     /// In-memory database for tests and throwaway state.
     pub fn open_in_memory() -> Result<Self, StorageError> {
@@ -144,7 +165,9 @@ impl SharedConn {
     }
 
     /// Run `f` inside one transaction. Commits if `f` returns `Ok`, rolls
-    /// back otherwise. Other threads cannot interleave statements before the
+    /// back otherwise, and rolls back if `f` panics: an unwind that left the
+    /// transaction open would hand the next caller a connection already
+    /// inside one. Other threads cannot interleave statements before the
     /// transaction ends. `f` must not open its own transaction.
     pub fn unit_of_work<T, E>(&self, f: impl FnOnce(&Self) -> Result<T, E>) -> Result<T, E>
     where
@@ -152,14 +175,19 @@ impl SharedConn {
     {
         let transaction = self.lock();
         transaction.execute_batch("BEGIN IMMEDIATE")?;
+        // Declared after the lock, so it runs while the lock is still held.
+        let mut open = OpenTransaction {
+            connection: &transaction,
+        };
         match f(self) {
             Ok(value) => {
+                std::mem::forget(open);
                 transaction.execute_batch("COMMIT")?;
                 Ok(value)
             }
             Err(e) => {
-                // Best effort: if rollback itself fails the connection is unusable anyway.
-                let _ = transaction.execute_batch("ROLLBACK");
+                open.rollback();
+                std::mem::forget(open);
                 Err(e)
             }
         }
@@ -245,6 +273,35 @@ mod tests {
         assert_eq!(conn.count("scratch").unwrap(), 0);
 
         conn.unit_of_work(|c| insert(c).map(|_| ())).unwrap();
+        assert_eq!(conn.count("scratch").unwrap(), 1);
+    }
+
+    #[test]
+    fn a_panic_inside_a_unit_of_work_rolls_back_and_leaves_the_connection_usable() {
+        let conn = SharedConn::open_in_memory().unwrap();
+        conn.lock()
+            .execute_batch("CREATE TABLE scratch (v BLOB)")
+            .unwrap();
+
+        let panicking = conn.clone();
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _: Result<(), rusqlite::Error> = panicking.unit_of_work(|c| {
+                c.lock()
+                    .execute("INSERT INTO scratch (v) VALUES (x'01')", [])?;
+                panic!("the work gave up half way");
+            });
+        }));
+        assert!(panicked.is_err(), "the panic must reach the caller");
+
+        // The insert is gone, and no transaction was left open: a new one
+        // can begin and commit on the same connection.
+        assert_eq!(conn.count("scratch").unwrap(), 0);
+        conn.unit_of_work(|c| {
+            c.lock()
+                .execute("INSERT INTO scratch (v) VALUES (x'02')", [])
+                .map(|_| ())
+        })
+        .unwrap();
         assert_eq!(conn.count("scratch").unwrap(), 1);
     }
 

@@ -478,36 +478,38 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           active: dco_decode_u_32(raw[2]),
         );
       case 1:
+        return CommandError_Panicked(operation: dco_decode_String(raw[1]));
+      case 2:
         return CommandError_Transport(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 2:
+      case 3:
         return CommandError_Storage(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 3:
+      case 4:
         return CommandError_Protocol(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 4:
+      case 5:
         return CommandError_Domain(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 5:
+      case 6:
         return CommandError_FileSystem(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 6:
+      case 7:
         return CommandError_Internal(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 7:
+      case 8:
         return CommandError_Interrupted(reason: dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -818,47 +820,50 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
         return CommandError_Busy(operation: var_operation, active: var_active);
       case 1:
         var var_operation = sse_decode_String(deserializer);
-        var var_reason = sse_decode_String(deserializer);
-        return CommandError_Transport(
-          operation: var_operation,
-          reason: var_reason,
-        );
+        return CommandError_Panicked(operation: var_operation);
       case 2:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Storage(
+        return CommandError_Transport(
           operation: var_operation,
           reason: var_reason,
         );
       case 3:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Protocol(
+        return CommandError_Storage(
           operation: var_operation,
           reason: var_reason,
         );
       case 4:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Domain(
+        return CommandError_Protocol(
           operation: var_operation,
           reason: var_reason,
         );
       case 5:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_FileSystem(
+        return CommandError_Domain(
           operation: var_operation,
           reason: var_reason,
         );
       case 6:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Internal(
+        return CommandError_FileSystem(
           operation: var_operation,
           reason: var_reason,
         );
       case 7:
+        var var_operation = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return CommandError_Internal(
+          operation: var_operation,
+          reason: var_reason,
+        );
+      case 8:
         var var_reason = sse_decode_String(deserializer);
         return CommandError_Interrupted(reason: var_reason);
       default:
@@ -1246,50 +1251,53 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
         sse_encode_i_32(0, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_u_32(active, serializer);
-      case CommandError_Transport(
-        operation: final operation,
-        reason: final reason,
-      ):
+      case CommandError_Panicked(operation: final operation):
         sse_encode_i_32(1, serializer);
         sse_encode_String(operation, serializer);
-        sse_encode_String(reason, serializer);
-      case CommandError_Storage(
+      case CommandError_Transport(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(2, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Protocol(
+      case CommandError_Storage(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(3, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Domain(
+      case CommandError_Protocol(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(4, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_FileSystem(
+      case CommandError_Domain(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(5, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Internal(
+      case CommandError_FileSystem(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(6, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Interrupted(reason: final reason):
+      case CommandError_Internal(
+        operation: final operation,
+        reason: final reason,
+      ):
         sse_encode_i_32(7, serializer);
+        sse_encode_String(operation, serializer);
+        sse_encode_String(reason, serializer);
+      case CommandError_Interrupted(reason: final reason):
+        sse_encode_i_32(8, serializer);
         sse_encode_String(reason, serializer);
     }
   }

@@ -52,6 +52,11 @@ pub enum CommandError {
         operation: String,
         active: u32,
     },
+    /// A command failed in a way nobody described and ended this session.
+    /// The profile itself is intact: close it and open it again.
+    Panicked {
+        operation: String,
+    },
     Transport {
         operation: String,
         reason: String,
@@ -427,6 +432,7 @@ fn command_error(error: ApplicationError) -> CommandError {
             operation,
             active: active as u32,
         },
+        ApplicationError::Panicked { .. } => CommandError::Panicked { operation },
         ApplicationError::Transport { .. } => CommandError::Transport { operation, reason },
         ApplicationError::Storage { .. } => CommandError::Storage { operation, reason },
         ApplicationError::Protocol { .. } => CommandError::Protocol { operation, reason },
