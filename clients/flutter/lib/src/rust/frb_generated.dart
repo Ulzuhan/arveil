@@ -65,7 +65,7 @@ class ArveilRust
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1655380575;
+  int get rustContentHash => 862794526;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -95,6 +95,10 @@ abstract class ArveilRustApi extends BaseApi {
   void crateApiProfileProfileStopWatching({required Profile that});
 
   Stream<ProgressView> crateApiProfileProfileWatch({required Profile that});
+
+  Future<String> crateApiProfileGenerateProfileKey();
+
+  Future<bool> crateApiProfileHasProfile({required String dir});
 
   Future<Profile> crateApiProfileOpenProfile({
     required String dir,
@@ -331,6 +335,61 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Future<String> crateApiProfileGenerateProfileKey() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_profile_error,
+        ),
+        constMeta: kCrateApiProfileGenerateProfileKeyConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileGenerateProfileKeyConstMeta =>
+      const TaskConstMeta(debugName: "generate_profile_key", argNames: []);
+
+  @override
+  Future<bool> crateApiProfileHasProfile({required String dir}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiProfileHasProfileConstMeta,
+        argValues: [dir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileHasProfileConstMeta =>
+      const TaskConstMeta(debugName: "has_profile", argNames: ["dir"]);
+
+  @override
   Future<Profile> crateApiProfileOpenProfile({
     required String dir,
     required String key,
@@ -344,7 +403,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 9,
             port: port_,
           );
         },
@@ -373,7 +432,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 10,
             port: port_,
           );
         },
@@ -606,17 +665,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       case 0:
         return ProfileError_BadKey();
       case 1:
-        return ProfileError_AlreadyOpen(path: dco_decode_String(raw[1]));
+        return ProfileError_NoRandomness();
       case 2:
-        return ProfileError_Closing(path: dco_decode_String(raw[1]));
+        return ProfileError_AlreadyOpen(path: dco_decode_String(raw[1]));
       case 3:
-        return ProfileError_InUse(path: dco_decode_String(raw[1]));
+        return ProfileError_Closing(path: dco_decode_String(raw[1]));
       case 4:
+        return ProfileError_InUse(path: dco_decode_String(raw[1]));
+      case 5:
         return ProfileError_Unusable(
           path: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 5:
+      case 6:
         return ProfileError_Io(
           path: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
@@ -995,19 +1056,21 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       case 0:
         return ProfileError_BadKey();
       case 1:
-        var var_path = sse_decode_String(deserializer);
-        return ProfileError_AlreadyOpen(path: var_path);
+        return ProfileError_NoRandomness();
       case 2:
         var var_path = sse_decode_String(deserializer);
-        return ProfileError_Closing(path: var_path);
+        return ProfileError_AlreadyOpen(path: var_path);
       case 3:
         var var_path = sse_decode_String(deserializer);
-        return ProfileError_InUse(path: var_path);
+        return ProfileError_Closing(path: var_path);
       case 4:
+        var var_path = sse_decode_String(deserializer);
+        return ProfileError_InUse(path: var_path);
+      case 5:
         var var_path = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
         return ProfileError_Unusable(path: var_path, reason: var_reason);
-      case 5:
+      case 6:
         var var_path = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
         return ProfileError_Io(path: var_path, reason: var_reason);
@@ -1415,21 +1478,23 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     switch (self) {
       case ProfileError_BadKey():
         sse_encode_i_32(0, serializer);
-      case ProfileError_AlreadyOpen(path: final path):
+      case ProfileError_NoRandomness():
         sse_encode_i_32(1, serializer);
-        sse_encode_String(path, serializer);
-      case ProfileError_Closing(path: final path):
+      case ProfileError_AlreadyOpen(path: final path):
         sse_encode_i_32(2, serializer);
         sse_encode_String(path, serializer);
-      case ProfileError_InUse(path: final path):
+      case ProfileError_Closing(path: final path):
         sse_encode_i_32(3, serializer);
         sse_encode_String(path, serializer);
-      case ProfileError_Unusable(path: final path, reason: final reason):
+      case ProfileError_InUse(path: final path):
         sse_encode_i_32(4, serializer);
+        sse_encode_String(path, serializer);
+      case ProfileError_Unusable(path: final path, reason: final reason):
+        sse_encode_i_32(5, serializer);
         sse_encode_String(path, serializer);
         sse_encode_String(reason, serializer);
       case ProfileError_Io(path: final path, reason: final reason):
-        sse_encode_i_32(5, serializer);
+        sse_encode_i_32(6, serializer);
         sse_encode_String(path, serializer);
         sse_encode_String(reason, serializer);
     }

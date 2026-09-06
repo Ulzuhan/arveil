@@ -1,9 +1,10 @@
-// A deliberately small surface for M3b.0: open a profile, ask it something,
-// see a typed failure, close it. Screens belong to M3b.2 and later.
-import 'dart:io';
-
+// A deliberately small surface for M3b.1: the profile opens with a key the
+// platform keeps, answers a query, and closes. Screens belong to M3b.2 and
+// later.
 import 'package:flutter/material.dart';
 
+import 'src/profile_keys.dart';
+import 'src/profile_location.dart';
 import 'src/rust/api/profile.dart';
 import 'src/rust/frb_generated.dart';
 
@@ -36,13 +37,32 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _open() async {
     try {
-      final profile = await openProfile(
-        dir: '${Directory.systemTemp.path}/arveil-demo',
-        key: 'a' * 64,
+      final directory = await ProfileLocation.ensure();
+      final key = await ProfileKeys().forProfile(
+        profileExists: await hasProfile(dir: directory.path),
       );
+      if (key.state == KeyState.unavailable) {
+        setState(() => _status =
+            'this build cannot keep a key: it needs a signing identity');
+        return;
+      }
+      if (key.value == null) {
+        // The profile is there and its key is not. Saying so is the whole
+        // job: a new key here would answer "no conversations" to someone
+        // whose history is on disk, unreadable.
+        setState(() => _status =
+            'the key for this profile is gone; its history cannot be read');
+        return;
+      }
+      final profile = await openProfile(dir: directory.path, key: key.value!);
       setState(() {
         _profile = profile;
-        _status = 'open';
+        _status = switch (key.state) {
+          KeyState.fresh => 'new profile, key stored by the system',
+          KeyState.present => 'open',
+          KeyState.missing => 'open',
+          KeyState.unavailable => 'open',
+        };
       });
     } on ProfileError catch (error) {
       setState(() => _status = describe(error));
@@ -71,6 +91,7 @@ class _ProfilePageState extends State<ProfilePage> {
   /// The category comes from the sealed type, never from the message.
   static String describe(ProfileError error) => switch (error) {
         ProfileError_BadKey() => 'the key is not 64 hexadecimal characters',
+        ProfileError_NoRandomness() => 'the system would not produce a key',
         ProfileError_AlreadyOpen(:final path) => 'already open here: $path',
         ProfileError_Closing(:final path) => 'still closing: $path',
         ProfileError_InUse(:final path) => 'another process holds it: $path',

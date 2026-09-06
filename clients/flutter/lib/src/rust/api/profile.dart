@@ -11,6 +11,19 @@ part 'profile.freezed.dart';
 // These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
+/// Whether a profile already lives in this directory. The difference
+/// between "no key yet" and "the key is gone" depends on it, and only the
+/// second one is a problem.
+Future<bool> hasProfile({required String dir}) =>
+    ArveilRust.instance.api.crateApiProfileHasProfile(dir: dir);
+
+/// A fresh 32-byte key as 64 hexadecimal characters, from the operating
+/// system's generator. Generated here rather than in Dart so the entropy
+/// comes from the same source the rest of the client already trusts, and so
+/// a failure is a failure rather than a weaker key.
+Future<String> generateProfileKey() =>
+    ArveilRust.instance.api.crateApiProfileGenerateProfileKey();
+
 /// Open a profile encrypted at rest. The key comes from the platform store,
 /// never from this crate and never from the environment.
 Future<Profile> openProfile({required String dir, required String key}) =>
@@ -198,6 +211,10 @@ sealed class ProfileError with _$ProfileError implements FrbException {
 
   /// The key is not 32 bytes as 64 hexadecimal characters.
   const factory ProfileError.badKey() = ProfileError_BadKey;
+
+  /// The system would not produce randomness. Nothing weaker is used in
+  /// its place.
+  const factory ProfileError.noRandomness() = ProfileError_NoRandomness;
 
   /// This process already has a session over that profile. Sharing is a
   /// decision of the caller, not an accident of opening twice.

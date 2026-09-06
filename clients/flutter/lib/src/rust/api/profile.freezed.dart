@@ -865,11 +865,12 @@ extension ProfileErrorPatterns on ProfileError {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ProfileError_BadKey value)?  badKey,TResult Function( ProfileError_AlreadyOpen value)?  alreadyOpen,TResult Function( ProfileError_Closing value)?  closing,TResult Function( ProfileError_InUse value)?  inUse,TResult Function( ProfileError_Unusable value)?  unusable,TResult Function( ProfileError_Io value)?  io,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ProfileError_BadKey value)?  badKey,TResult Function( ProfileError_NoRandomness value)?  noRandomness,TResult Function( ProfileError_AlreadyOpen value)?  alreadyOpen,TResult Function( ProfileError_Closing value)?  closing,TResult Function( ProfileError_InUse value)?  inUse,TResult Function( ProfileError_Unusable value)?  unusable,TResult Function( ProfileError_Io value)?  io,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case ProfileError_BadKey() when badKey != null:
-return badKey(_that);case ProfileError_AlreadyOpen() when alreadyOpen != null:
+return badKey(_that);case ProfileError_NoRandomness() when noRandomness != null:
+return noRandomness(_that);case ProfileError_AlreadyOpen() when alreadyOpen != null:
 return alreadyOpen(_that);case ProfileError_Closing() when closing != null:
 return closing(_that);case ProfileError_InUse() when inUse != null:
 return inUse(_that);case ProfileError_Unusable() when unusable != null:
@@ -892,11 +893,12 @@ return io(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ProfileError_BadKey value)  badKey,required TResult Function( ProfileError_AlreadyOpen value)  alreadyOpen,required TResult Function( ProfileError_Closing value)  closing,required TResult Function( ProfileError_InUse value)  inUse,required TResult Function( ProfileError_Unusable value)  unusable,required TResult Function( ProfileError_Io value)  io,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ProfileError_BadKey value)  badKey,required TResult Function( ProfileError_NoRandomness value)  noRandomness,required TResult Function( ProfileError_AlreadyOpen value)  alreadyOpen,required TResult Function( ProfileError_Closing value)  closing,required TResult Function( ProfileError_InUse value)  inUse,required TResult Function( ProfileError_Unusable value)  unusable,required TResult Function( ProfileError_Io value)  io,}){
 final _that = this;
 switch (_that) {
 case ProfileError_BadKey():
-return badKey(_that);case ProfileError_AlreadyOpen():
+return badKey(_that);case ProfileError_NoRandomness():
+return noRandomness(_that);case ProfileError_AlreadyOpen():
 return alreadyOpen(_that);case ProfileError_Closing():
 return closing(_that);case ProfileError_InUse():
 return inUse(_that);case ProfileError_Unusable():
@@ -915,11 +917,12 @@ return io(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ProfileError_BadKey value)?  badKey,TResult? Function( ProfileError_AlreadyOpen value)?  alreadyOpen,TResult? Function( ProfileError_Closing value)?  closing,TResult? Function( ProfileError_InUse value)?  inUse,TResult? Function( ProfileError_Unusable value)?  unusable,TResult? Function( ProfileError_Io value)?  io,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ProfileError_BadKey value)?  badKey,TResult? Function( ProfileError_NoRandomness value)?  noRandomness,TResult? Function( ProfileError_AlreadyOpen value)?  alreadyOpen,TResult? Function( ProfileError_Closing value)?  closing,TResult? Function( ProfileError_InUse value)?  inUse,TResult? Function( ProfileError_Unusable value)?  unusable,TResult? Function( ProfileError_Io value)?  io,}){
 final _that = this;
 switch (_that) {
 case ProfileError_BadKey() when badKey != null:
-return badKey(_that);case ProfileError_AlreadyOpen() when alreadyOpen != null:
+return badKey(_that);case ProfileError_NoRandomness() when noRandomness != null:
+return noRandomness(_that);case ProfileError_AlreadyOpen() when alreadyOpen != null:
 return alreadyOpen(_that);case ProfileError_Closing() when closing != null:
 return closing(_that);case ProfileError_InUse() when inUse != null:
 return inUse(_that);case ProfileError_Unusable() when unusable != null:
@@ -941,10 +944,11 @@ return io(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  badKey,TResult Function( String path)?  alreadyOpen,TResult Function( String path)?  closing,TResult Function( String path)?  inUse,TResult Function( String path,  String reason)?  unusable,TResult Function( String path,  String reason)?  io,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  badKey,TResult Function()?  noRandomness,TResult Function( String path)?  alreadyOpen,TResult Function( String path)?  closing,TResult Function( String path)?  inUse,TResult Function( String path,  String reason)?  unusable,TResult Function( String path,  String reason)?  io,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case ProfileError_BadKey() when badKey != null:
-return badKey();case ProfileError_AlreadyOpen() when alreadyOpen != null:
+return badKey();case ProfileError_NoRandomness() when noRandomness != null:
+return noRandomness();case ProfileError_AlreadyOpen() when alreadyOpen != null:
 return alreadyOpen(_that.path);case ProfileError_Closing() when closing != null:
 return closing(_that.path);case ProfileError_InUse() when inUse != null:
 return inUse(_that.path);case ProfileError_Unusable() when unusable != null:
@@ -967,10 +971,11 @@ return io(_that.path,_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  badKey,required TResult Function( String path)  alreadyOpen,required TResult Function( String path)  closing,required TResult Function( String path)  inUse,required TResult Function( String path,  String reason)  unusable,required TResult Function( String path,  String reason)  io,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  badKey,required TResult Function()  noRandomness,required TResult Function( String path)  alreadyOpen,required TResult Function( String path)  closing,required TResult Function( String path)  inUse,required TResult Function( String path,  String reason)  unusable,required TResult Function( String path,  String reason)  io,}) {final _that = this;
 switch (_that) {
 case ProfileError_BadKey():
-return badKey();case ProfileError_AlreadyOpen():
+return badKey();case ProfileError_NoRandomness():
+return noRandomness();case ProfileError_AlreadyOpen():
 return alreadyOpen(_that.path);case ProfileError_Closing():
 return closing(_that.path);case ProfileError_InUse():
 return inUse(_that.path);case ProfileError_Unusable():
@@ -989,10 +994,11 @@ return io(_that.path,_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  badKey,TResult? Function( String path)?  alreadyOpen,TResult? Function( String path)?  closing,TResult? Function( String path)?  inUse,TResult? Function( String path,  String reason)?  unusable,TResult? Function( String path,  String reason)?  io,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  badKey,TResult? Function()?  noRandomness,TResult? Function( String path)?  alreadyOpen,TResult? Function( String path)?  closing,TResult? Function( String path)?  inUse,TResult? Function( String path,  String reason)?  unusable,TResult? Function( String path,  String reason)?  io,}) {final _that = this;
 switch (_that) {
 case ProfileError_BadKey() when badKey != null:
-return badKey();case ProfileError_AlreadyOpen() when alreadyOpen != null:
+return badKey();case ProfileError_NoRandomness() when noRandomness != null:
+return noRandomness();case ProfileError_AlreadyOpen() when alreadyOpen != null:
 return alreadyOpen(_that.path);case ProfileError_Closing() when closing != null:
 return closing(_that.path);case ProfileError_InUse() when inUse != null:
 return inUse(_that.path);case ProfileError_Unusable() when unusable != null:
@@ -1029,6 +1035,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'ProfileError.badKey()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class ProfileError_NoRandomness extends ProfileError {
+  const ProfileError_NoRandomness(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileError_NoRandomness);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'ProfileError.noRandomness()';
 }
 
 

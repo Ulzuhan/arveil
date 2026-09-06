@@ -1,8 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The profile is an encrypted database and its key is held by the
+         Keystore. Neither travels to a cloud backup or a device transfer:
+         exclusion is not encryption, it keeps the encrypted file out of an
+         account whose protection this application does not control. The
+         cost is stated in the documentation - losing the device loses local
+         history, and the identity kit brings back an identity, not
+         conversations. -->
     <application
         android:label="arveil"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
