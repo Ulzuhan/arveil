@@ -65,6 +65,11 @@ sealed class CommandError with _$CommandError implements FrbException {
     required String operation,
     required int active,
   }) = CommandError_Busy;
+
+  /// A command failed in a way nobody described and ended this session.
+  /// The profile itself is intact: close it and open it again.
+  const factory CommandError.panicked({required String operation}) =
+      CommandError_Panicked;
   const factory CommandError.transport({
     required String operation,
     required String reason,

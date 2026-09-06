@@ -500,16 +500,14 @@ impl SseDecode for crate::api::profile::CommandError {
             }
             1 => {
                 let mut var_operation = <String>::sse_decode(deserializer);
-                let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::api::profile::CommandError::Transport {
+                return crate::api::profile::CommandError::Panicked {
                     operation: var_operation,
-                    reason: var_reason,
                 };
             }
             2 => {
                 let mut var_operation = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::api::profile::CommandError::Storage {
+                return crate::api::profile::CommandError::Transport {
                     operation: var_operation,
                     reason: var_reason,
                 };
@@ -517,7 +515,7 @@ impl SseDecode for crate::api::profile::CommandError {
             3 => {
                 let mut var_operation = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::api::profile::CommandError::Protocol {
+                return crate::api::profile::CommandError::Storage {
                     operation: var_operation,
                     reason: var_reason,
                 };
@@ -525,7 +523,7 @@ impl SseDecode for crate::api::profile::CommandError {
             4 => {
                 let mut var_operation = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::api::profile::CommandError::Domain {
+                return crate::api::profile::CommandError::Protocol {
                     operation: var_operation,
                     reason: var_reason,
                 };
@@ -533,7 +531,7 @@ impl SseDecode for crate::api::profile::CommandError {
             5 => {
                 let mut var_operation = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::api::profile::CommandError::FileSystem {
+                return crate::api::profile::CommandError::Domain {
                     operation: var_operation,
                     reason: var_reason,
                 };
@@ -541,12 +539,20 @@ impl SseDecode for crate::api::profile::CommandError {
             6 => {
                 let mut var_operation = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
-                return crate::api::profile::CommandError::Internal {
+                return crate::api::profile::CommandError::FileSystem {
                     operation: var_operation,
                     reason: var_reason,
                 };
             }
             7 => {
+                let mut var_operation = <String>::sse_decode(deserializer);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::api::profile::CommandError::Internal {
+                    operation: var_operation,
+                    reason: var_reason,
+                };
+            }
+            8 => {
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::api::profile::CommandError::Interrupted { reason: var_reason };
             }
@@ -959,44 +965,47 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::CommandError {
                 active.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::profile::CommandError::Panicked { operation } => {
+                [1.into_dart(), operation.into_into_dart().into_dart()].into_dart()
+            }
             crate::api::profile::CommandError::Transport { operation, reason } => [
-                1.into_dart(),
-                operation.into_into_dart().into_dart(),
-                reason.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::api::profile::CommandError::Storage { operation, reason } => [
                 2.into_dart(),
                 operation.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::profile::CommandError::Protocol { operation, reason } => [
+            crate::api::profile::CommandError::Storage { operation, reason } => [
                 3.into_dart(),
                 operation.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::profile::CommandError::Domain { operation, reason } => [
+            crate::api::profile::CommandError::Protocol { operation, reason } => [
                 4.into_dart(),
                 operation.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::profile::CommandError::FileSystem { operation, reason } => [
+            crate::api::profile::CommandError::Domain { operation, reason } => [
                 5.into_dart(),
                 operation.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::profile::CommandError::Internal { operation, reason } => [
+            crate::api::profile::CommandError::FileSystem { operation, reason } => [
                 6.into_dart(),
                 operation.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::profile::CommandError::Internal { operation, reason } => [
+                7.into_dart(),
+                operation.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::api::profile::CommandError::Interrupted { reason } => {
-                [7.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+                [8.into_dart(), reason.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -1302,38 +1311,42 @@ impl SseEncode for crate::api::profile::CommandError {
                 <String>::sse_encode(operation, serializer);
                 <u32>::sse_encode(active, serializer);
             }
-            crate::api::profile::CommandError::Transport { operation, reason } => {
+            crate::api::profile::CommandError::Panicked { operation } => {
                 <i32>::sse_encode(1, serializer);
                 <String>::sse_encode(operation, serializer);
-                <String>::sse_encode(reason, serializer);
             }
-            crate::api::profile::CommandError::Storage { operation, reason } => {
+            crate::api::profile::CommandError::Transport { operation, reason } => {
                 <i32>::sse_encode(2, serializer);
                 <String>::sse_encode(operation, serializer);
                 <String>::sse_encode(reason, serializer);
             }
-            crate::api::profile::CommandError::Protocol { operation, reason } => {
+            crate::api::profile::CommandError::Storage { operation, reason } => {
                 <i32>::sse_encode(3, serializer);
                 <String>::sse_encode(operation, serializer);
                 <String>::sse_encode(reason, serializer);
             }
-            crate::api::profile::CommandError::Domain { operation, reason } => {
+            crate::api::profile::CommandError::Protocol { operation, reason } => {
                 <i32>::sse_encode(4, serializer);
                 <String>::sse_encode(operation, serializer);
                 <String>::sse_encode(reason, serializer);
             }
-            crate::api::profile::CommandError::FileSystem { operation, reason } => {
+            crate::api::profile::CommandError::Domain { operation, reason } => {
                 <i32>::sse_encode(5, serializer);
                 <String>::sse_encode(operation, serializer);
                 <String>::sse_encode(reason, serializer);
             }
-            crate::api::profile::CommandError::Internal { operation, reason } => {
+            crate::api::profile::CommandError::FileSystem { operation, reason } => {
                 <i32>::sse_encode(6, serializer);
                 <String>::sse_encode(operation, serializer);
                 <String>::sse_encode(reason, serializer);
             }
-            crate::api::profile::CommandError::Interrupted { reason } => {
+            crate::api::profile::CommandError::Internal { operation, reason } => {
                 <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(operation, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            crate::api::profile::CommandError::Interrupted { reason } => {
+                <i32>::sse_encode(8, serializer);
                 <String>::sse_encode(reason, serializer);
             }
             _ => {
