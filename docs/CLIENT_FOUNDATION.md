@@ -46,7 +46,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 - File/membership events need further correlation identifiers. Progress is a projection: changes it does not model reach a caller only in the durable result.
 - Actual MLS rejoin/recovery remains pending; the fictitious `recover_conversation` was removed. Sync does not solve desynchronization.
 - Coordinator succession relies on verified revocations, not automatic election on disconnection.
-- Relay SQLite pool/per-connection configuration needs independent follow-up.
+- The relay applied its pragmas once, so only the connection that ran them had a busy timeout or enforced foreign keys; they now travel in the connection string, and a test holds several connections and checks each. Pool sizing itself is still unbounded and remains open.
 - Recovery/archive/contact legacy commands still need application APIs where required by GUI.
 
 Next: [Flutter plan](PHASE3B.md), [ADR-009](adr/ADR-009-flutter-first.md).

@@ -63,7 +63,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. El progreso es una proyección: los cambios que no modela solo llegan en el resultado durable.
 - Recuperación de un grupo MLS desincronizado no es sinónimo de `sync`; el método ficticio `recover_conversation` fue retirado. Sigue pendiente un flujo real.
 - La sucesión del coordinador depende de revocaciones verificadas; no es una elección automática ante una desconexión.
-- El pool SQLite del relay y su configuración por conexión, señalado en la revisión arquitectónica inicial, necesita seguimiento independiente. Las refactorizaciones del cliente no lo resuelven.
+- El relay aplicaba sus pragmas una vez, así que solo la conexión que los ejecutó tenía tiempo de espera o exigía claves foráneas; ahora van en la cadena de conexión, y una prueba sostiene varias conexiones y comprueba cada una. El tamaño del pool sigue sin acotar y queda pendiente.
 - Todavía quedan comandos legacy, incluidos recuperación/archivos y contactos, que habrá que exponer por la capa de aplicación si la GUI los necesita.
 
 Siguiente fase: [plan Flutter](PHASE3B.md). Decisión: [ADR-009](adr/ADR-009-flutter-first.md).

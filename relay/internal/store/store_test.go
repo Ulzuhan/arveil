@@ -90,6 +90,51 @@ func TestRedeemInviteRefusesAnotherCredentialForTheSameIdentity(t *testing.T) {
 	}
 }
 
+func TestEveryPooledConnectionCarriesThePragmas(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(filepath.Join(t.TempDir(), "relay.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	// Hold several at once, so the pool has to open more than the one that
+	// happened to serve the first statement.
+	var conns []*sql.Conn
+	for range 4 {
+		c, err := s.db.Conn(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		conns = append(conns, c)
+	}
+	for i, c := range conns {
+		var busy, foreignKeys, synchronous int
+		if err := c.QueryRowContext(ctx, `PRAGMA busy_timeout`).Scan(&busy); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.QueryRowContext(ctx, `PRAGMA synchronous`).Scan(&synchronous); err != nil {
+			t.Fatal(err)
+		}
+		// Without a busy timeout the relay answers an internal error the
+		// moment two writers meet, and without foreign keys the schema's
+		// references are decoration on every connection but one.
+		if busy == 0 {
+			t.Fatalf("connection %d has no busy timeout", i)
+		}
+		if foreignKeys != 1 {
+			t.Fatalf("connection %d does not enforce foreign keys", i)
+		}
+		if synchronous != 2 {
+			t.Fatalf("connection %d is at synchronous=%d, not FULL (ADR-004)", i, synchronous)
+		}
+	}
+}
+
 func TestOpenChangesNothingWhenItRefusesAFutureSchema(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "relay.db")
 
