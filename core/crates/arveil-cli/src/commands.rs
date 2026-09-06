@@ -355,7 +355,17 @@ pub fn mailbox_create(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> 
             tls_ca().as_deref(),
         )
         .await?;
-        match conn.request(Payload::MailboxCreate).await? {
+        // The legacy path asks with the same persisted request as the
+        // application layer, so the two cannot create two mailboxes.
+        let request = c.mailbox_request().map_err(err("mailbox request"))?;
+        match conn
+            .request(Payload::MailboxCreate {
+                request_key: request.request_key,
+                read_capability: request.read_capability,
+                write_capability: request.write_capability,
+            })
+            .await?
+        {
             Payload::MailboxCreated {
                 mailbox_id,
                 read_capability,

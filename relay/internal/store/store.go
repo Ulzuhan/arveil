@@ -33,6 +33,12 @@ var (
 	ErrSchemaTooNew    = errors.New("schema: written by a newer relay")
 	ErrManifestOrder   = errors.New("manifest: sequence must exceed the stored one")
 	ErrUnknownIdentity = errors.New("membership: unknown identity")
+	// ErrRequestConflict reports a request key reused with other parameters,
+	// or by a device that does not own it.
+	ErrRequestConflict = errors.New("request: key reused with other parameters")
+	// ErrCapabilityInUse reports a capability already promised to another
+	// mailbox. Hash equality is not authorisation.
+	ErrCapabilityInUse = errors.New("capability: already in use")
 )
 
 const pragmas = `
@@ -187,7 +193,7 @@ func (s *Store) checkVersion() error {
 // far has been additive, which is why one number is enough: a database at an
 // older version is brought forward by the schema itself, and a database at a
 // newer one is refused rather than guessed at.
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 // refuseFutureSchema reads the recorded version and refuses a database from
 // a newer relay. It reads only: a database with no `schema_migrations` table

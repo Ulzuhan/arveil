@@ -966,7 +966,19 @@ async fn create_mailbox(
     client: &Client,
     connection: &mut Connection,
 ) -> Result<OwnMailbox, CliError> {
-    match connection.request(Payload::MailboxCreate).await? {
+    // Written before it is sent, and reused on a retry: the relay answers a
+    // repeat with the mailbox it already made rather than a second one.
+    let request = client
+        .mailbox_request()
+        .map_err(client_error("mailbox request"))?;
+    match connection
+        .request(Payload::MailboxCreate {
+            request_key: request.request_key,
+            read_capability: request.read_capability,
+            write_capability: request.write_capability,
+        })
+        .await?
+    {
         Payload::MailboxCreated {
             mailbox_id,
             read_capability,

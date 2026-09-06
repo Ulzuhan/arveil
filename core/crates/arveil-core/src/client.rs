@@ -41,6 +41,18 @@ CREATE TABLE IF NOT EXISTS manifest (
     hash        BLOB NOT NULL,
     PRIMARY KEY (identity_id, sequence)
 );
+-- The request this device makes for its mailbox, written before it is sent.
+-- A retry sends the same key and the same capabilities, so the relay can
+-- answer with the mailbox it already made instead of making another: a
+-- route carries the write capability inside it, and a second mailbox is a
+-- route that stops working.
+CREATE TABLE IF NOT EXISTS mailbox_request (
+    id               INTEGER PRIMARY KEY CHECK (id = 1),
+    request_key      BLOB NOT NULL,
+    read_capability  BLOB NOT NULL,
+    write_capability BLOB NOT NULL,
+    created_at       INTEGER NOT NULL DEFAULT (unixepoch())
+);
 CREATE TABLE IF NOT EXISTS mailbox_own (
     mailbox_id       BLOB PRIMARY KEY,
     read_capability  BLOB NOT NULL,
@@ -352,6 +364,16 @@ pub struct OwnDevice {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OwnMailbox {
     pub mailbox_id: Vec<u8>,
+    pub read_capability: Vec<u8>,
+    pub write_capability: Vec<u8>,
+}
+
+/// What this device asks the realm for when it creates its mailbox. The
+/// capabilities are the client's own: the relay stores only their hashes,
+/// which is why it can answer a repeat exactly instead of minting again.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MailboxRequest {
+    pub request_key: Vec<u8>,
     pub read_capability: Vec<u8>,
     pub write_capability: Vec<u8>,
 }
@@ -1779,6 +1801,53 @@ impl Client {
             }
         }
         Ok(out)
+    }
+
+    /// The mailbox request this device will make, created once and kept, so
+    /// that a retry after a lost answer asks for the same thing.
+    pub fn mailbox_request(&self) -> Result<MailboxRequest, ClientError> {
+        if let Some(existing) = self.conn.lock().query_row(
+            "SELECT request_key, read_capability, write_capability FROM mailbox_request WHERE id = 1",
+            [],
+            |r| {
+                Ok(MailboxRequest {
+                    request_key: r.get(0)?,
+                    read_capability: r.get(1)?,
+                    write_capability: r.get(2)?,
+                })
+            },
+        ).optional()? {
+            return Ok(existing);
+        }
+
+        let mut request_key = vec![0u8; 16];
+        let mut read_capability = vec![0u8; 32];
+        let mut write_capability = vec![0u8; 32];
+        for bytes in [
+            &mut request_key,
+            &mut read_capability,
+            &mut write_capability,
+        ] {
+            getrandom::fill(bytes)
+                .map_err(|_| ClientError::Identity(identity::IdentityError::Random))?;
+        }
+        let request = MailboxRequest {
+            request_key,
+            read_capability,
+            write_capability,
+        };
+        // Written before anything is sent: a capability the relay accepted
+        // and this device forgot would be a mailbox nobody can read.
+        self.conn.lock().execute(
+            "INSERT INTO mailbox_request (id, request_key, read_capability, write_capability)
+             VALUES (1, ?1, ?2, ?3)",
+            params![
+                request.request_key,
+                request.read_capability,
+                request.write_capability
+            ],
+        )?;
+        Ok(request)
     }
 
     pub fn mailbox_save(&self, m: &OwnMailbox) -> Result<(), ClientError> {

@@ -265,3 +265,19 @@ jobs:
         with:
           workspaces: core
       - run: ./scripts/phase4.sh
+  phase3b:
+    name: Phase 3b acceptance (repeatable mailbox creation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: core
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - run: ./scripts/phase3b.sh

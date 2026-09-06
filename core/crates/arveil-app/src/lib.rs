@@ -5096,7 +5096,7 @@ mod tests {
                 Payload::EndpointListGet => Payload::EndpointList {
                     signed: signed_endpoints.clone(),
                 },
-                Payload::MailboxCreate => {
+                Payload::MailboxCreate { .. } => {
                     let number = mailbox_creates.fetch_add(1, Ordering::SeqCst) + 1;
                     // Keep the network step open long enough for a second
                     // confirmation to reach the executor and wait behind it.
