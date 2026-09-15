@@ -9,7 +9,8 @@ Each image is built from a committed Git revision and reports it with
 
 Local requirements: Python 3, Git and authenticated SSH. Acceptance also needs
 the Rust toolchain pinned in `core/rust-toolchain.toml`. Remote requirements:
-rootless Podman with Quadlet, user systemd, lingering enabled and Tailscale.
+rootless Podman with Quadlet, user systemd, lingering enabled and Tailscale
+with permission for the deployment user to configure Serve.
 The host builds a native image; Linux ARM64 does not need an x86-64 release
 or Go/Rust installed on the host.
 
@@ -27,6 +28,7 @@ trusted file. Never commit passwords or private keys.
 |---|---|
 | Service / container | `arveil-staging.service` / `arveil-staging` |
 | Endpoint | `ws://<tailscale-ipv4>:8447/v1/channel` |
+| Host port | `127.0.0.1:8447`, forwarded by Tailscale Serve TCP port 8447 |
 | Data | Podman volume `arveil-staging-data`, mounted at `/data` |
 | Quadlet | `~/.config/containers/systemd/arveil-staging.container` |
 | Source | `~/.local/share/arveil/releases/<commit>/relay` |
@@ -36,8 +38,11 @@ trusted file. Never commit passwords or private keys.
 | Health / metrics | Container loopback `127.0.0.1:9090`, not published |
 
 `--name arveil-staging-<suffix>` and `--port` allow another instance. Use the
-same arguments for deployment and acceptance. Only the selected Tailscale
-address is published; Tailscale ACLs and the host firewall still apply.
+same arguments for deployment and acceptance. The container binds loopback;
+Tailscale Serve forwards just the selected TCP port within the tailnet. No
+Funnel or Internet endpoint is configured. Existing Serve routes are preserved.
+Tailscale ACLs still apply; the relay sees connections from the local forwarder,
+so its default per-address connection limit is shared by these clients.
 The container uses a read-only root filesystem, a non-root application user,
 no capabilities and no new privileges.
 
@@ -64,6 +69,8 @@ for the intended test client. Restarting preserves the volume. Stop with
 `systemctl --user stop`; disable startup by moving the `.container` file out
 of the Quadlet directory and running `systemctl --user daemon-reload`.
 Keep the volume unless deliberately discarding the realm.
+To remove its tailnet endpoint, run `tailscale serve --tcp=8447 off`.
+Never use `tailscale serve reset` for this: it removes other services' routes.
 
 ## Repeatable CLI acceptance
 

@@ -6,6 +6,7 @@ SSH handles authentication; no passwords or private keys are stored here.
 """
 import argparse
 import ipaddress
+import json
 import os
 from pathlib import Path
 import re
@@ -86,6 +87,16 @@ def deploy(args, remote):
         raise RuntimeError("enable user lingering on the server before deploying")
     if remote.command("podman", "info", "--format", "{{.Host.Security.Rootless}}") != "true":
         raise RuntimeError("this deployment requires rootless Podman")
+    if remote.command("tailscale", "ip", "-4") != args.address:
+        raise RuntimeError("address does not match this server's Tailscale IPv4")
+    serve = json.loads(remote.command("tailscale", "serve", "status", "--json"))
+    port = str(args.port)
+    forward = {"TCPForward": f"127.0.0.1:{args.port}"}
+    if serve.get("TCP", {}).get(port) not in (None, forward):
+        raise RuntimeError("Tailscale Serve already uses this port for another service")
+    if any(enabled and target.endswith(":" + port)
+           for target, enabled in serve.get("AllowFunnel", {}).items()):
+        raise RuntimeError("the staging port must not be exposed through Funnel")
     image = f"localhost/arveil-relay:{revision}"
     home = remote.shell('printf "%s" "$HOME"', text=True).stdout
     release = f"{home}/.local/share/arveil/releases/{revision}"
@@ -125,6 +136,15 @@ def deploy(args, remote):
     remote.command("systemctl", "--user", "daemon-reload")
     remote.command("systemctl", "--user", "restart", f"{args.name}.service")
     remote.healthy()
+    # Add only this port. Do not reset Serve or replace other services' routes.
+    remote.command("tailscale", "serve", "--bg", "--yes", f"--tcp={args.port}",
+                   f"tcp://127.0.0.1:{args.port}")
+    updated = json.loads(remote.command("tailscale", "serve", "status", "--json"))
+    for section in ("TCP", "Web", "AllowFunnel"):
+        for key, value in serve.get(section, {}).items():
+            if section != "TCP" or key != port:
+                if updated.get(section, {}).get(key) != value:
+                    raise RuntimeError("an unrelated Tailscale route changed")
     print(version)
     print(f"Active: {args.name}; ws://{args.address}:{args.port}/v1/channel")
     print(f"Data volume: {args.name}-data; unit: {target}")
@@ -206,7 +226,7 @@ def test_staging(args, remote):
             remote.command("podman", "run", "-d", "--name", restore_name,
                            "--memory=512m", "--cpus=1", "--read-only", "--cap-drop=ALL",
                            "--security-opt=no-new-privileges", "--volume", f"{restore_volume}:/data",
-                           "--publish", f"{args.address}:{args.port}:8447", image,
+                           "--publish", f"127.0.0.1:{args.port}:8447", image,
                            "-data-dir=/data", "-listen=0.0.0.0:8447", "-admin-listen=127.0.0.1:9090",
                            f"-advertise=tailnet=ws://{args.address}:{args.port}/v1/channel")
             original_name = remote.name
