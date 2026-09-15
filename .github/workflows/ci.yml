@@ -90,11 +90,12 @@ jobs:
       - name: Widget tests
         working-directory: clients/flutter
         run: flutter test test
-      # The application links the Rust adapter, so this builds SQLCipher and
-      # its vendored OpenSSL for the host as well.
-      - name: Build
-        working-directory: clients/flutter
-        run: flutter build macos --debug
+      - name: Package privacy regression checks
+        run: python3 -m unittest discover -s scripts -p 'test_package_clients.py'
+      # Build the same ad-hoc package a maintainer produces. This also checks
+      # the signed bundle, architecture and decompressed artifact contents.
+      - name: Verify macOS release packaging
+        run: python3 scripts/package_clients.py build macos
 
   bridge-android:
     name: Flutter bridge (Android)
@@ -123,11 +124,12 @@ jobs:
       - name: Resolve packages
         working-directory: clients/flutter
         run: flutter pub get
-      # One ABI keeps the vendored OpenSSL build to a single pass; the
-      # release matrix is a packaging concern for M3b.5.
-      - name: Build
-        working-directory: clients/flutter
-        run: flutter build apk --debug --target-platform android-arm64
+      # This disposable CI key only exercises the signing/package checks.
+      # It is never used for user downloads, and no APK is uploaded here.
+      - name: Verify Android release packaging
+        run: |
+          python3 scripts/package_clients.py init-android-key
+          python3 scripts/package_clients.py build android --signing-config .local/signing/android-signing.json
 
   mls-spike:
     name: MLS spike (M0.5)

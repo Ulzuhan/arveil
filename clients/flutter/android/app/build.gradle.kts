@@ -4,6 +4,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing is supplied privately by the packaging command or CI.
+// Never substitute the public debug key when release credentials are absent.
+val releaseStore = providers.environmentVariable("ARVEIL_ANDROID_KEYSTORE")
+val releaseStorePassword = providers.environmentVariable("ARVEIL_ANDROID_STORE_PASSWORD")
+val releaseKeyAlias = providers.environmentVariable("ARVEIL_ANDROID_KEY_ALIAS")
+val releaseKeyPassword = providers.environmentVariable("ARVEIL_ANDROID_KEY_PASSWORD")
+
 android {
     namespace = "io.github.ulzuhan.arveil"
     // flutter_secure_storage, which keeps the profile key in the Keystore,
@@ -17,21 +24,37 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "io.github.ulzuhan.arveil"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseStore.isPresent) {
+            create("distribution") {
+                storeFile = file(releaseStore.get())
+                storePassword = releaseStorePassword.get()
+                keyAlias = releaseKeyAlias.get()
+                keyPassword = releaseKeyPassword.get()
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("distribution")
+        }
+    }
+}
+
+// Debug builds stay usable without secrets; every release build must be signed.
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        check(releaseStore.isPresent && releaseStorePassword.isPresent &&
+            releaseKeyAlias.isPresent && releaseKeyPassword.isPresent) {
+            "Release signing is missing. Use scripts/package_clients.py; see docs/CLIENT_RELEASES.md."
         }
     }
 }

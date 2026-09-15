@@ -34,7 +34,10 @@ As of September 15, 2026, no GitHub releases are published: the relay can be
 built with Docker/Podman, while the Flutter app requires a development build.
 Downloadable app packages and installation/update acceptance are part of the
 client deliverable. The initial macOS development path must work without a
-paid Apple Developer account; its key-store adaptation is still pending.
+paid Apple Developer account, using the classic login Keychain. Experimental
+[macOS ZIP and Android APK packaging](docs/CLIENT_RELEASES.md) includes signature
+and artifact privacy checks; public app releases and physical-phone acceptance
+remain pending.
 
 ## Why another messenger
 

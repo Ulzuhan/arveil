@@ -13,8 +13,8 @@ Una plataforma cuenta como **probada** solo donde el flujo de aceptación se eje
 | Dart | 3.12.1 | incluido en el SDK de Flutter |
 | flutter_rust_bridge | 2.13.0 (runtime y generador) | `core/crates/arveil-flutter/Cargo.toml` (`=2.13.0`) |
 | NDK de Android | 28.2.13676358, API mínima 24 | instalación del SDK de Android |
-| SDK de Android | 36.1.0 | instalación del SDK de Android |
-| Xcode | 26.6 | instalación del anfitrión |
+| SDK de Android | compile SDK 37, mínimo API 24 | instalación del SDK de Android |
+| Xcode | 27.0 | instalación del anfitrión; mínimo macOS 12.0 |
 | `openssl-src` | 300.6.1+3.6.3 | `core/Cargo.lock` |
 | `libsqlite3-sys` | 0.38.2 (`bundled-sqlcipher-vendored-openssl`) | `core/Cargo.lock` |
 
@@ -44,9 +44,9 @@ promesa se vuelve falsa:
 La clave del perfil son 32 bytes aleatorios del generador del sistema,
 producidos en Rust con la misma llamada que usa el resto del cliente, y
 entregados al almacén de la plataforma. Nunca se deriva de nada que se
-teclee ni sale del dispositivo. Eso último es justo lo que permite que la
-futura exportación de historial no necesite esta clave: llevará la suya, y
-así la recuperación nunca exigió debilitar esta.
+teclee y Arveil no la sincroniza. La futura exportación de historial tendrá
+su propia clave. En macOS, las copias o migraciones manuales del llavero clásico
+quedan fuera del control de la aplicación; no se promete vinculación al dispositivo.
 
 Las copias de seguridad se rechazan en lugar de confiar en ellas:
 
@@ -57,8 +57,12 @@ Las copias de seguridad se rechazan en lugar de confiar en ellas:
   viaja en una copia.
 - **Apple** — el directorio del perfil se marca `isExcludedFromBackup` en
   cada arranque, porque un atributo puesto una vez no sobrevive a que se
-  sustituya el directorio. La clave se guarda ligada al dispositivo y no
-  sincronizable, así que nunca llega a iCloud Keychain.
+  sustituya el directorio. iOS utiliza Data Protection ligado al dispositivo. macOS
+  utiliza el llavero clásico de inicio de sesión con control de acceso por app.
+  No se solicita sincronización en ninguno. Las copias/migraciones manuales del
+  llavero clásico quedan fuera del control de Arveil; ese backend no ofrece
+  la misma vinculación al dispositivo. [Apple TN3137](https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains)
+  describe los modelos de protección.
 
 Excluir no es cifrar ni lo sustituye. Mantiene una base ya cifrada fuera de
 una cuenta cuya protección este proyecto no controla.
@@ -73,7 +77,7 @@ una cuenta cuya protección este proyecto no controla.
 | Otra clave sobre un perfil existente | la misma prueba | verificado: se rechaza al abrir |
 | Reinstalación | manual: desinstalar, instalar, arrancar | **sin hacer.** Desinstalar no se lleva necesariamente las entradas del almacén seguro, y las dos plataformas difieren; hay que observarlo, no suponerlo |
 | Restauración desde copia o transferencia | manual, en hardware | **sin hacer** |
-| Keychain de macOS | exige `keychain-access-groups`, que exige firma de desarrollo | **no disponible en una compilación sin firmar.** La aplicación lo dice en lugar de guardar la clave en un sitio más débil; la firma es una decisión de empaquetado de M3b.5 |
+| Llavero clásico de macOS | `profile_key_test.dart` con `ARVEIL_REQUIRE_SECURE_STORAGE=true`, firma ad hoc | verificado en el Mac Apple silicon local: guardar/leer, reabrir el perfil cifrado y rechazar claves ausentes/incorrectas; descarga nueva y actualización son pruebas separadas |
 
 ## Cómo reproducirlo
 
