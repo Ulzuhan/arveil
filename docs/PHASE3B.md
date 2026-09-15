@@ -1,6 +1,6 @@
 # Phase 3b: Flutter client
 
-Status: implementation direction accepted; all milestones below remain pending. See [ADR-009](adr/ADR-009-flutter-first.md) and the [implemented foundation](CLIENT_FOUNDATION.md). [Versión española](es/PHASE3B.md).
+Status: implementation direction accepted; milestone acceptance remains pending, with parts of M3b.0–M3b.2 already implemented. See [ADR-009](adr/ADR-009-flutter-first.md) and the [implemented foundation](CLIENT_FOUNDATION.md). [Versión española](es/PHASE3B.md).
 
 The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria. This condensed English translation must be updated in the same review; the Spanish text prevails if they diverge.
 
@@ -82,7 +82,7 @@ Compatibility includes relay data, not only clients. Prefer additive changes; im
 
 Assign every legacy command in M3b.1. Kit export/restore moves to application in M3b.2; contacts/naming/verification and archive export/import in M3b.4. Expose required status as typed queries. `probe`, `notify` and low-level `mailbox create`/`send`/`fetch` remain CLI unless a concrete product flow needs them.
 
-M3b.2 defines KeyPackage thresholds, replenishment and exhaustion behavior, including publication failure/retry. Increasing the initial count alone is not a solution. `PublishKeyPackages` deduplicates identical bytes, but currently checks `available + len(batch)` before deduplication and the client generates five fresh packages per call; enrollment retry is not thereby solved. Persist/reuse the pending batch or define an equivalent alternative. Test lost responses, retries near quota and consumed packages without reactivation. Document any relay quota/deduplication adjustment as a bounded correction in this milestone.
+M3b.2 defines KeyPackage thresholds, replenishment and exhaustion behavior for the GUI, including publication failure/retry. The initial enrollment batch is now persisted with its private MLS state and reused after lost responses; an acknowledged enrollment does not generate another batch. The relay applies quota after deduplication and never revives consumed packages. Regression tests cover lost acknowledgements, profile restart, completed enrollment retries and quota boundaries. GUI presentation and physical-device acceptance of these behaviors remain pending; see the [implementation record](CLIENT_FOUNDATION.md).
 
 ## Verification and delivery
 

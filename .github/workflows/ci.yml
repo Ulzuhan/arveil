@@ -214,6 +214,10 @@ jobs:
         with:
           workspaces: core
       - run: ./scripts/phase1.sh
+      - name: Acceptance with frequent cleanup
+        env:
+          ARVEIL_P1_SWEEP_INTERVAL: 1ms
+        run: ./scripts/phase1.sh
 
   phase2:
     name: Phase 2 acceptance (linking, multi-device, revocation, succession, recovery, at rest)

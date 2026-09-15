@@ -2,7 +2,7 @@
 
 [English version](../PHASE3B.md). Este documento en español es la fuente normativa de los criterios de aceptación; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: plan aprobado en dirección, implementación pendiente. Orden de ejecución por dependencias, sin estimaciones de calendario todavía. [ADR-009](adr/ADR-009-flutter-first.md) fija la elección de framework; [base implementada](CLIENT_FOUNDATION.md) se describe en la documentación del cliente.
+Estado: plan aprobado en dirección; la aceptación de los hitos sigue pendiente, con partes de M3b.0–M3b.2 ya implementadas. Orden de ejecución por dependencias, sin estimaciones de calendario todavía. [ADR-009](adr/ADR-009-flutter-first.md) fija la elección de framework; [base implementada](CLIENT_FOUNDATION.md) se describe en la documentación del cliente.
 
 ## Objetivo y alcance
 
@@ -89,7 +89,7 @@ La compatibilidad incluye los datos del relay, no solo sus clientes. Preferir ca
 
 En M3b.1 inventariar cada comando legacy y asignar su destino. Kit export/restore pasa a aplicación en M3b.2; contactos/nombres/verificación y archive export/import en M3b.4. El estado necesario para pantallas se expone como consulta tipada. `probe`, `notify` y primitivas de depuración `mailbox create`/`send`/`fetch` permanecen en CLI salvo necesidad concreta de producto. No trasladar comandos solo para replicar toda la terminal.
 
-M3b.2 define umbral, reposición y tratamiento de agotamiento de KeyPackages, incluyendo fallo de publicación y reintento. Aumentar el número inicial no constituye por sí solo una solución. `PublishKeyPackages` ya deduplica bytes idénticos, pero hoy comprueba `available + len(batch)` antes de deduplicar y el cliente genera cinco paquetes nuevos en cada llamada: no dar por resuelto el reintento del alta. Persistir/reutilizar el lote pendiente o definir una alternativa equivalente, y probar respuesta perdida, reintento cerca del cupo y paquetes ya consumidos sin reactivarlos. Cualquier ajuste de cupo/deduplicación del relay se documentará como corrección acotada dentro de este hito.
+M3b.2 define umbral, reposición y tratamiento de agotamiento de KeyPackages para la GUI, incluyendo fallo de publicación y reintento. El lote inicial del alta ya se persiste con su estado privado MLS y se reutiliza tras perder una respuesta; un alta confirmada no genera otro lote. El relay aplica el cupo después de deduplicar y nunca reactiva paquetes consumidos. Las regresiones cubren respuestas perdidas, reapertura del perfil, reintentos de altas completadas y límites de cupo. La presentación en la GUI y la aceptación de estos comportamientos en dispositivos físicos siguen pendientes; véase el [registro de implementación](CLIENT_FOUNDATION.md).
 
 ## Verificación y entregables
 

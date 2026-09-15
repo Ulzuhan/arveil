@@ -29,7 +29,7 @@ func (srv *Server) mailboxCreate(ctx context.Context, s *session, f channel.Fram
 	}
 	mb, err := srv.Store.CreateMailbox(ctx, s.device.IdentityID, s.device.DeviceID, now)
 	if err != nil {
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "mailbox create", err)
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{
 		Kind: channel.KindMailboxCreated, MailboxID: mb.MailboxID,
@@ -59,8 +59,7 @@ func (srv *Server) mailboxCreateForRequest(ctx context.Context, s *session, f ch
 	case errors.Is(err, store.ErrCapabilityInUse):
 		return errFrame(f.ID, channel.CodeConflict, "capability already in use")
 	case err != nil:
-		srv.Logger.Printf("mailbox create: store error")
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "mailbox create request", err)
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{
 		Kind: channel.KindMailboxCreated, MailboxID: mb.MailboxID,
@@ -85,7 +84,7 @@ func (srv *Server) envelopePut(ctx context.Context, s *session, f channel.Frame,
 	case errors.Is(err, store.ErrMailboxFull):
 		return errFrame(f.ID, channel.CodeQuota, "mailbox queue full")
 	case err != nil:
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "envelope put", err)
 	}
 	metrics.EnvelopesStored.Add(1)
 	// Only the empty to non-empty transition is worth a hint (M3.4).
@@ -105,7 +104,7 @@ func (srv *Server) envelopeFetch(ctx context.Context, s *session, f channel.Fram
 	}
 	items, next, err := srv.Store.FetchEnvelopes(ctx, p.MailboxID, p.Cursor, int(p.Limit), now)
 	if err != nil {
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "envelope fetch", err)
 	}
 	out := make([]channel.EnvelopeItem, 0, len(items))
 	for _, e := range items {
@@ -123,7 +122,7 @@ func (srv *Server) envelopeAck(ctx context.Context, s *session, f channel.Frame,
 		return errFrame(f.ID, channel.CodeForbidden, "read capability rejected")
 	}
 	if err := srv.Store.AckEnvelopes(ctx, p.MailboxID, p.DeliveryIDs); err != nil {
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "envelope ack", err)
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
@@ -139,7 +138,7 @@ func (srv *Server) keyPackagesPublish(ctx context.Context, s *session, f channel
 	case errors.Is(err, store.ErrEnvelopeTooBig):
 		return errFrame(f.ID, channel.CodeTooLarge, "key package too large")
 	case err != nil:
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "key packages publish", err)
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
@@ -152,7 +151,7 @@ func (srv *Server) keyPackagesStatus(ctx context.Context, s *session, f channel.
 	}
 	n, err := srv.Store.AvailableKeyPackages(ctx, s.device.DeviceID)
 	if err != nil {
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "key packages status", err)
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindKeyPackagesAvail, Count: uint32(n)}}
 }
@@ -166,7 +165,7 @@ func (srv *Server) keyPackagesClaim(ctx context.Context, s *session, f channel.F
 		return errFrame(f.ID, channel.CodeGone, "no key package available")
 	}
 	if err != nil {
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "key packages claim", err)
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindKeyPackageClaimed, KeyPackage: kp}}
 }
