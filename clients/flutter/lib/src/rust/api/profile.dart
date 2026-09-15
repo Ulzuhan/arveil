@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -48,6 +48,10 @@ abstract class Profile implements RustOpaqueInterface {
   /// the one that makes a profile more than a directory.
   Future<void> createIdentity();
 
+  /// Creates an identity if needed, then resumes the existing enrollment.
+  /// The invitation is hashed by Rust and is never persisted by Flutter.
+  Future<void> enroll({required String bootstrap, required String invite});
+
   /// One page of a conversation, newest page first: pass the previous
   /// page's `next` as `before` to walk backwards. The application caps
   /// the size whatever is asked for.
@@ -56,6 +60,10 @@ abstract class Profile implements RustOpaqueInterface {
     PlatformInt64? before,
     required int limit,
   });
+
+  /// Read durable setup state after opening, completing or retrying an
+  /// enrollment. Progress events are hints; this is the source of truth.
+  Future<SetupView> setup();
 
   /// Stop the stream this profile is feeding, without closing anything
   /// else. Dropping the subscription on the Rust side is what actually
@@ -316,4 +324,34 @@ class ProgressView {
           sequence == other.sequence &&
           operation == other.operation &&
           kind == other.kind;
+}
+
+enum SetupStage {
+  new_,
+  identityReady,
+  redeeming,
+  redeemed,
+  publishing,
+  ready,
+  linkedDevice,
+}
+
+class SetupView {
+  final SetupStage stage;
+  final String? identityId;
+  final String? bootstrap;
+
+  const SetupView({required this.stage, this.identityId, this.bootstrap});
+
+  @override
+  int get hashCode => stage.hashCode ^ identityId.hashCode ^ bootstrap.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetupView &&
+          runtimeType == other.runtimeType &&
+          stage == other.stage &&
+          identityId == other.identityId &&
+          bootstrap == other.bootstrap;
 }

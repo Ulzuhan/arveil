@@ -58,7 +58,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 
 ## Límites que permanecen
 
-- El cliente gráfico abre, consulta y cierra un perfil y nada más: alta, emparejamiento, conversación, adjuntos y gestión de dispositivos no tienen interfaz. No hay instaladores gráficos ni validación en un dispositivo móvil físico.
+- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento, kit de recuperación, conversación, adjuntos y gestión de dispositivos aún no tienen interfaz. No hay instaladores gráficos ni validación en un dispositivo móvil físico.
 - Solo la CLI lee ya variables de entorno, y sigue eligiendo perfil sin cifrar cuando no hay clave. La integración con los almacenes de claves del sistema sigue pendiente (M3b.1).
 - La API bloqueante necesita un adaptador asíncrono para Dart. Los eventos se devuelven por operación; una suscripción continua y cancelación general todavía requieren contrato.
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. El progreso es una proyección: los cambios que no modela solo llegan en el resultado durable.
@@ -68,3 +68,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 - Todavía quedan comandos legacy, incluidos recuperación/archivos y contactos, que habrá que exponer por la capa de aplicación si la GUI los necesita.
 
 Siguiente fase: [plan Flutter](PHASE3B.md). Decisión: [ADR-009](adr/ADR-009-flutter-first.md).
+
+## Alta por invitación
+
+El formulario mantiene la invitación solo en memoria y la borra al completar el alta o cerrar el perfil. El ejecutor responde con una consulta tipada del estado al abrir y tras los intentos de alta. Los datos de relay/invitación mal formados se rechazan antes de crear la identidad. La interfaz muestra categorías de error sin interpolar rutas ni diagnósticos remotos. Las pruebas cubren reintentos, envíos duplicados, cierre de aperturas tardías y mensajes sin detalles privados. Es la parte de alta por invitación de M3b.2; siguen pendientes el emparejamiento y la aceptación del kit de recuperación.

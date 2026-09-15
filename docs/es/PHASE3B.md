@@ -8,7 +8,7 @@ Estado: plan aprobado en dirección; la aceptación de los hitos sigue pendiente
 
 Una beta que permita a dos personas instalar Arveil, crear o vincular su identidad y conversar desde macOS y Android, incluyendo trabajo sin conexión y errores comprensibles. La misma base Flutter se ampliará a Windows, Linux e iOS.
 
-No incluye SwiftUI, UniFFI, federación, llamadas, IPC entre GUI y CLI ni rediseño del protocolo. El cliente gráfico existente abre, consulta y cierra un perfil; no hay ninguna pantalla de mensajería.
+No incluye SwiftUI, UniFFI, federación, llamadas, IPC entre GUI y CLI ni rediseño del protocolo. El cliente gráfico abre perfiles cifrados y da de alta una identidad mediante bootstrap e invitación, reanuda un alta fallida y reconoce la finalización al reabrir. Siguen pendientes las interfaces de emparejamiento, kit de recuperación y mensajería.
 
 ## Estructura prevista
 

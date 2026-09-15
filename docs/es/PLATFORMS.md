@@ -116,3 +116,15 @@ flutter build apk --debug --target-platform android-arm64
 `integration_test/profile_test.dart` se ejecuta en el propio sistema: un perfil abre con clave explícita de 64 caracteres hexadecimales, una consulta responde con un fallo tipado `Domain` que nombra `query-conversations` porque un perfil recién creado no tiene dispositivo, una segunda apertura independiente se rechaza con `AlreadyOpen`, una clave mal formada se rechaza con `BadKey` antes de crear nada, y tras `close` el mismo directorio vuelve a abrir mientras una clave incorrecta falla en la apertura con `Unusable`.
 
 Registrar cada ejecución contra un commit, un sistema operativo y un dispositivo. Una ejecución en emulador se anota como emulador: ejercita los mismos binarios, no el mismo hardware, y M3b.5 sigue debiendo un dispositivo físico.
+
+## Aceptación del alta desde la interfaz (15 de septiembre de 2026)
+
+Los cambios del alta por invitación quedan registrados en el commit que
+acompaña este documento. `integration_test/onboarding_test.dart` pasó en
+un emulador Android 15/API 35 arm64 contra un relay de staging ARM64 con
+Podman. Recorre el formulario, el almacén seguro real, Rust/SQLCipher nativo,
+un endpoint inaccesible, cierre/reapertura, reintento con la misma identidad
+y reapertura del perfil ya inscrito. No cubre teléfono físico, reinicio del
+sistema, reinstalación ni restauración desde la nube. Siguen pendientes las
+pantallas de emparejamiento y kit de recuperación. Los comandos y el manejo
+de datos privados están en el [README de Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).

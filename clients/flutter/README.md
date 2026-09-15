@@ -8,11 +8,18 @@ state only ([ADR-009](../../docs/adr/ADR-009-flutter-first.md)).
 
 ## What exists today
 
-A profile opens with an explicit key, answers a query and closes. That is
-the whole surface: enrollment, pairing, conversation, attachments and
-device management belong to later milestones of the
-[phase 3b plan](../../docs/PHASE3B.md). The screen is a technical one, not
-a design.
+The Spanish-language setup screen opens an encrypted profile, creates an
+identity and enrolls with relay bootstrap data and a one-use invitation.
+Network failure preserves the Rust enrollment state. Reopening reads that
+state; a pending enrollment asks for the same invitation again, while a
+completed one goes directly to the profile summary. Duplicate submissions
+are disabled. Tokens stay in memory and are cleared on success or close.
+
+Pairing, recovery-kit export/restore and conversation screens are still
+pending in the [phase 3b plan](../../docs/PHASE3B.md). The conversation
+button currently queries only the local count. Signed macOS Keychain
+acceptance and physical Android acceptance remain open; an unsigned macOS
+build reports unavailable secure storage.
 
 ## Running it
 
@@ -33,11 +40,34 @@ flutter analyze
 flutter test integration_test/profile_test.dart -d macos
 ```
 
-`integration_test/profile_test.dart` is the M3b.0 acceptance flow, and it
-runs on the device rather than in a test harness: explicit key, typed query
-failure, refusal of a second session, malformed key, close, reopen, wrong
-key. Run it on Android with `-d <device>` once an emulator or a phone is
-attached.
+`integration_test/profile_test.dart` exercises the native profile lifecycle,
+queries, typed errors, locking, encryption and reopening.
+`integration_test/profile_key_test.dart` exercises the real platform key store:
+
+```bash
+flutter test integration_test/profile_key_test.dart -d <device> \
+  --dart-define=ARVEIL_REQUIRE_SECURE_STORAGE=true
+```
+
+The flag makes unavailable key storage fail the run instead of skipping it.
+
+`integration_test/onboarding_test.dart` drives the real form against a
+**disposable test realm**. Create a private JSON file outside the checkout
+containing `ARVEIL_TEST_BOOTSTRAP` and `ARVEIL_TEST_INVITE`, then run:
+
+```bash
+flutter test integration_test/onboarding_test.dart -d <device> \
+  --dart-define-from-file="$ARVEIL_TEST_CONFIG"
+```
+
+It uses platform key storage, forces an unreachable endpoint, closes and
+reopens the encrypted profile, retries through the valid endpoint, and
+reopens the completed enrollment without an invitation. It deletes its
+temporary local profile/key; the disposable membership remains in the relay.
+The define file and test build contain connection data and a short-lived
+invitation: keep them private and delete them after the run. Do not use
+production credentials or publish that build. Host details and tokens never
+belong in committed fixtures, screenshots or test logs.
 
 ## Regenerating the bindings
 

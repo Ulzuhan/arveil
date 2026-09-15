@@ -112,6 +112,17 @@ flutter build apk --debug --target-platform android-arm64
 
 ## What the acceptance run covers
 
-`integration_test/profile_test.dart` runs on the device itself: a profile opens with an explicit 64-hexadecimal-character key, a query answers with a typed `Domain` failure naming `query-conversations` because a fresh profile has no device yet, a second independent open is refused with `AlreadyOpen`, a malformed key is refused with `BadKey` before anything is created, and after `close` the same directory opens again while a wrong key fails at open with `Unusable`.
+`integration_test/profile_test.dart` runs on the device itself: a profile opens with an explicit 64-hexadecimal-character key, the conversation query answers with an empty list and a malformed history identifier returns a typed `Domain` error, a second independent open is refused with `AlreadyOpen`, a malformed key is refused with `BadKey` before anything is created, and after `close` the same directory opens again while a wrong key fails at open with `Unusable`.
 
 Record every run against a commit, an operating system and a device. A run on an emulator is written down as an emulator run: it exercises the same binaries, not the same hardware, and M3b.5 still owes a physical device.
+
+## Invitation UI acceptance (September 15, 2026)
+
+The invitation-enrollment changes are recorded in the commit accompanying
+this document. `integration_test/onboarding_test.dart` passed on an Android
+15/API 35 arm64 emulator against an ARM64 Podman staging relay. It exercises
+the form, real platform key storage, native Rust/SQLCipher, unreachable
+endpoint, close/reopen, same-identity retry and completed-profile reopen.
+This does not cover a physical phone, an OS restart, app reinstall or cloud
+restore. Pairing and recovery-kit screens remain pending. Reproduction and
+private fixture handling are in the [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).

@@ -17,7 +17,7 @@
 pub mod carrier;
 mod onboarding;
 
-pub use arveil_core::client::PairingCompletionPhase;
+pub use arveil_core::client::{EnrollmentPhase, PairingCompletionPhase};
 pub use onboarding::{
     DeviceLinkAuthorization, DeviceLinkRequest, Enrollment, EnrollmentFinish, Identity,
     LinkedDevice, PairingSession, PairingVerification, finish_enrollment,
@@ -79,6 +79,7 @@ pub enum Operation {
     ConfirmPairing,
     CancelPairing,
     QueryPendingPairing,
+    QueryOnboarding,
     CreateConversation,
     AddDevice,
     RemoveDevice,
@@ -129,6 +130,7 @@ pub enum ClientCommand {
         session_id: Vec<u8>,
     },
     QueryPendingPairing,
+    QueryOnboarding,
     CreateConversation {
         bootstrap: String,
         peer_routes: Vec<String>,
@@ -192,6 +194,7 @@ impl ClientCommand {
             Self::ConfirmPairing { .. } => Operation::ConfirmPairing,
             Self::CancelPairing { .. } => Operation::CancelPairing,
             Self::QueryPendingPairing => Operation::QueryPendingPairing,
+            Self::QueryOnboarding => Operation::QueryOnboarding,
             Self::CreateConversation { .. } => Operation::CreateConversation,
             Self::AddDevice { .. } => Operation::AddDevice,
             Self::RemoveDevice { .. } => Operation::RemoveDevice,
@@ -911,6 +914,19 @@ pub struct ConversationSummary {
     pub last_event: Option<HistoryEvent>,
 }
 
+/// A local snapshot, read through the profile executor. No invitation or
+/// private keys are returned; the bootstrap is reconstructed from the realm
+/// already stored in the encrypted profile.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OnboardingStatus {
+    pub identity_id: Option<Vec<u8>>,
+    pub bootstrap: Option<String>,
+    pub phase: Option<EnrollmentPhase>,
+    /// A device-link flow has its own state machine. The enrollment screen
+    /// must not offer to create a new identity on top of that device.
+    pub linked_device: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PeerSummary {
     pub identity_id: Vec<u8>,
@@ -994,6 +1010,7 @@ pub enum CommandOutput {
         operation: OperationResult,
     },
     PendingPairing(Option<PairingVerification>),
+    OnboardingStatus(OnboardingStatus),
     Conversations(Vec<ConversationSummary>),
     Peers(Vec<PeerSummary>),
     HistoryPage(HistoryPage),
@@ -1156,6 +1173,7 @@ impl ClientCommand {
             | Self::QueryPeers { .. }
             | Self::QueryHistoryPage { .. }
             | Self::QueryArchived { .. }
+            | Self::QueryOnboarding
             | Self::QueryPendingPairing => Admission::Query,
             _ => Admission::Mutation,
         }
@@ -1655,6 +1673,13 @@ impl Application {
             OnboardingOutput::Identity(identity) => identity,
             _ => unreachable!("identity command returned another output type"),
         })
+    }
+
+    pub fn onboarding_status(&self) -> Result<OnboardingStatus, ApplicationError> {
+        match self.execute(ClientCommand::QueryOnboarding)? {
+            CommandOutput::OnboardingStatus(status) => Ok(status),
+            _ => unreachable!("onboarding query returned another output type"),
+        }
     }
 
     pub fn enroll(
@@ -2160,6 +2185,9 @@ async fn run_command(
         ClientCommand::QueryConversations => conversation_summaries(config)
             .map(CommandOutput::Conversations)
             .map_err(|source| application_error(Operation::QueryConversations, source)),
+        ClientCommand::QueryOnboarding => onboarding::status(config)
+            .map(CommandOutput::OnboardingStatus)
+            .map_err(|source| application_error(Operation::QueryOnboarding, source)),
         ClientCommand::QueryPeers { group } => conversation_peers(config, &group)
             .map(CommandOutput::Peers)
             .map_err(|source| application_error(Operation::QueryPeers, source)),
@@ -4300,6 +4328,75 @@ mod tests {
         );
         let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
         (profile, bootstrap, app)
+    }
+
+    #[test]
+    fn onboarding_snapshot_survives_failure_and_reopen() {
+        let profile = std::env::temp_dir().join(format!(
+            "arveil-setup-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let config = ProfileConfig::encrypted(&profile, "ab".repeat(32)).unwrap();
+        let app = Application::open(config.clone()).unwrap();
+        assert_eq!(
+            app.onboarding_status().unwrap(),
+            OnboardingStatus {
+                identity_id: None,
+                bootstrap: None,
+                phase: None,
+                linked_device: false,
+            }
+        );
+        // A local peer drops the connection before the WebSocket handshake.
+        let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = port.local_addr().unwrap();
+        let peer = std::thread::spawn(move || drop(port.accept().unwrap()));
+        let realm = PairingTestRealm::new(format!("ws://{address}/v1/channel"));
+        let bootstrap = realm.bootstrap();
+        // Malformed input must not create identity or pin a broken enrollment.
+        for (relay, invite) in [
+            ("bad-bootstrap".to_string(), "aa".repeat(32)),
+            (bootstrap.clone(), "aa".to_string()),
+            (bootstrap.replace("ws://", "file://"), "aa".repeat(32)),
+        ] {
+            assert!(matches!(
+                app.enroll(&relay, &invite),
+                Err(ApplicationError::Domain { .. })
+            ));
+            assert!(app.onboarding_status().unwrap().identity_id.is_none());
+        }
+        assert!(matches!(
+            app.enroll(&bootstrap, &"aa".repeat(32)),
+            Err(ApplicationError::Transport { .. })
+        ));
+        peer.join().unwrap();
+        let saved = app.onboarding_status().unwrap();
+        assert!(saved.identity_id.is_some());
+        assert_eq!(saved.phase, Some(EnrollmentPhase::Redeeming));
+        assert_eq!(saved.bootstrap.as_deref(), Some(bootstrap.as_str()));
+        app.close();
+        let reopened = Application::open(config.clone()).unwrap();
+        assert_eq!(reopened.onboarding_status().unwrap(), saved);
+        assert!(matches!(
+            reopened.enroll(&bootstrap, &"bb".repeat(32)),
+            Err(ApplicationError::Domain { .. })
+        ));
+        assert_eq!(reopened.onboarding_status().unwrap(), saved);
+        reopened.close();
+        // The GUI query reflects durable phases, including an already
+        // completed profile, rather than persisting its own setup flag.
+        let client = open_client(&config).unwrap();
+        let mut progress = client.enrollment().unwrap().unwrap();
+        progress.phase = EnrollmentPhase::Complete;
+        client.enrollment_save(&progress).unwrap();
+        drop(client);
+        let reopened = Application::open(config).unwrap();
+        let complete = reopened.onboarding_status().unwrap();
+        assert_eq!(complete.phase, Some(EnrollmentPhase::Complete));
+        assert_eq!(complete.identity_id, saved.identity_id);
+        reopened.close();
+        std::fs::remove_dir_all(profile).unwrap();
     }
 
     #[test]

@@ -4,7 +4,7 @@ Status: local implementation reviewed during the September 5, 2026 iterations. T
 
 ## Architecture and evidence
 
-CLI → `arveil-app` → `arveil-core`; the planned Flutter/bridge will call the same application layer. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. A Flutter client and its bridge now exist and open, query and close a profile; no messaging interface does.
+CLI → `arveil-app` → `arveil-core`; the planned Flutter/bridge will call the same application layer. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. The Flutter client opens encrypted profiles and performs invitation enrollment through the Rust bridge, including retries and durable state on reopen; no messaging interface exists yet.
 
 | Change | Implementation and verification |
 |---|---|
@@ -41,7 +41,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 
 ## Remaining limits
 
-- The graphical client opens, queries and closes a profile and nothing else: enrollment, pairing, conversation, attachments and device management have no interface. No graphical installers, and no validation on a physical mobile device.
+- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing, recovery-kit, conversation, attachment and device-management interfaces remain pending. No graphical installers, and no validation on a physical mobile device.
 - Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key stores remain pending (M3b.1).
 - Blocking API requires an asynchronous Dart adapter. Events return at operation completion; streaming and general cancellation need contracts.
 - File/membership events need further correlation identifiers. Progress is a projection: changes it does not model reach a caller only in the durable result.
@@ -51,3 +51,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 - Recovery/archive/contact legacy commands still need application APIs where required by GUI.
 
 Next: [Flutter plan](PHASE3B.md), [ADR-009](adr/ADR-009-flutter-first.md).
+
+## Invitation enrollment
+
+The invitation form keeps its token only in memory and clears it on completion or profile close. The profile executor answers a typed onboarding snapshot after open and enrollment attempts. Malformed relay/invitation input is rejected before identity creation. UI errors use fixed categories without interpolating paths or remote diagnostics. The tests cover retry, duplicate submission, late-open cleanup and failure-message redaction. This is the invitation slice of M3b.2; pairing and recovery-kit acceptance remain open.

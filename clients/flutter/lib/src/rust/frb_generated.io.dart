@@ -73,6 +73,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   HistoryPageView dco_decode_history_page_view(dynamic raw);
 
   @protected
+  int dco_decode_i_32(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
@@ -88,6 +91,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  String? dco_decode_opt_String(dynamic raw);
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -101,6 +107,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ProgressView dco_decode_progress_view(dynamic raw);
+
+  @protected
+  SetupStage dco_decode_setup_stage(dynamic raw);
+
+  @protected
+  SetupView dco_decode_setup_view(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -168,6 +180,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   HistoryPageView sse_decode_history_page_view(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
@@ -187,6 +202,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -202,6 +220,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   ProgressView sse_decode_progress_view(SseDeserializer deserializer);
 
   @protected
+  SetupStage sse_decode_setup_stage(SseDeserializer deserializer);
+
+  @protected
+  SetupView sse_decode_setup_view(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
@@ -215,9 +239,6 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -289,6 +310,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
@@ -313,6 +337,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -334,6 +361,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_progress_view(ProgressView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_setup_stage(SetupStage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_setup_view(SetupView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -347,9 +380,6 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class
