@@ -1,12 +1,30 @@
 # Arveil
 
-**Client update:** the reusable `arveil-app` layer, cooperative profile executor, resumable linking and process lock are implemented locally. Flutter is selected for all five client platforms, with macOS and Android first. The bridge and a technical client exist: a profile opens, answers a query and closes, verified on macOS. There is no messaging interface yet. See the [implementation record](docs/CLIENT_FOUNDATION.md), [Flutter plan](docs/PHASE3B.md) and [ADR-009](docs/adr/ADR-009-flutter-first.md).
-
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
-One Go binary, one SQLite file, one data directory. Runs on a Raspberry Pi in your home and stays reachable over LAN, Tailscale, or a Cloudflare Tunnel, without changing a single security guarantee.
 
-> **Status: everything except the graphical clients (2026-09-04). Installable, operable and used from the command line.**
-> Command-line clients chat in groups with real MLS through the Go relay, with several devices per person, several conversations, encrypted files, messages written while the relay is down, and honest expiry. A device is paired over a live channel with a number both screens show, and never silently; people verify each other with a safety number and name each other locally; revoking a device stops it at the realm and inside every group; losing the group's creator no longer means recreating the group; a lost identity comes back from its `age` kit and its history from its archive, with a rolled-back realm reported rather than believed; interrupted transfers resume; the local database is encrypted at rest. The realm ships as a container image, a compose file and a systemd unit, with limits per address, health and metrics on their own listener, TLS of its own or through your tunnel, and a backup that restores into a working realm. The relay never sees plaintext, a group id or a conversation table, and a TLS-terminating proxy records nothing but opaque frames. Every claim runs in CI: [`scripts/phase4.sh`](scripts/phase4.sh), [`scripts/phase3.sh`](scripts/phase3.sh), [`scripts/phase2.sh`](scripts/phase2.sh), [`scripts/phase1.sh`](scripts/phase1.sh), [`scripts/demo.sh`](scripts/demo.sh), [`scripts/interop.sh`](scripts/interop.sh), [`scripts/q3-capture.sh`](scripts/q3-capture.sh). Start here: [Running a realm](docs/OPERATIONS.md). What is left is the mobile and desktop clients and an external review; see the [roadmap](#roadmap).
+[![CI](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml)
+[Documentation](https://ulzuhan.github.io/arveil/) · [Español](docs/es/README.md) · [Quick demo](#try-the-phase-0-demo) · [Contributing](CONTRIBUTING.md)
+
+A Go relay transports encrypted messages; a Rust core handles identity, MLS,
+offline delivery and recovery. The relay uses SQLite and a data directory,
+with access over LAN, Tailscale or a tunnel. See the
+[threat model](docs/THREAT_MODEL.md) for the guarantees and their conditions.
+
+## Current status
+
+**Experimental implementation — not independently security audited.**
+
+| Component | Implemented | Next work |
+|---|---|---|
+| Go relay and Rust CLI | MLS group chat, encrypted attachments, offline outbox, multi-device identity, pairing, revocation and recovery | External security review and continued interoperability testing |
+| Flutter client | Rust bridge, encrypted profile lifecycle and a technical screen; macOS and Android build checks in CI | Enrollment, conversation UI and physical-device acceptance |
+| Operations | Container, Compose, systemd and rootless Podman; health checks, limits, backup and restore acceptance | Off-host encrypted backups, retention and reboot drills for each deployment |
+
+The [client implementation record](docs/CLIENT_FOUNDATION.md) distinguishes
+implemented behavior from the [remaining Flutter milestones](docs/PHASE3B.md).
+Acceptance scripts run in [CI](.github/workflows/ci.yml); passing tests do not
+replace an independent review. Start with [running a realm](docs/OPERATIONS.md)
+or the [rootless Podman guide](docs/PODMAN.md).
 
 ## Why another messenger
 
@@ -28,7 +46,7 @@ No federation, no voice or video, no bots or bridges, no web client served by th
 ```mermaid
 flowchart LR
   subgraph Device[Your device]
-    UI[Flutter UI, planned] --> App[arveil-app: operations and executor]
+    UI[Flutter client foundation] --> App[arveil-app: operations and executor]
     App --> Core[Rust core: identity, MLS, storage, recovery]
   end
   subgraph Realm[Realm: untrusted for content]
@@ -47,7 +65,7 @@ Full documentation, in reading order:
 | [Threat model](docs/THREAT_MODEL.md) | Assets, adversaries, what the server knows, conditional guarantees, verifiable invariants |
 | [Protocol](docs/PROTOCOL.md) | Layers, objects, bootstrap, MLS groups, durable delivery, frame catalog, recovery |
 | [Domain model](docs/DOMAIN_MODEL.md) | Entities, key lifecycle, server schema, local atomicity, state machines |
-| [Decision records](docs/adr/) | ADR-001 to ADR-008: Go + Rust, MLS, zero-trust server, SQLite, identity, local-first, redundancy, carrier-independent transport |
+| [Decision records](docs/adr/) | ADR-001 to ADR-009: Go + Rust, MLS, identity, storage, recovery, transport and Flutter |
 | [Running a realm](docs/OPERATIONS.md) | Install, tunnels, limits, health and metrics, backups and restore |
 | [Phase 0 plan](docs/PHASE0.md) | Milestones, acceptance criteria and results of the viability slice |
 | [Phase 1 plan](docs/PHASE1.md) | Groups, offline outbox, TTL, endpoint fallback, attachments: milestones and results |
@@ -79,7 +97,9 @@ It does **not** do platform code signing: there is no Apple notarization and no 
 
 ```text
 .
-├── core/       Rust workspace: arveil-core, arveil-app and arveil-cli
+├── core/       Rust core, application layer, CLI and Flutter bridge
+├── clients/    Flutter mobile and desktop client
+├── scripts/    Acceptance scenarios and deployment helpers
 ├── relay/      Go module: arveil-relay server
 ├── spikes/     Throwaway investigations; spikes/mls compares OpenMLS and mls-rs (M0.5)
 ├── docs/       Architecture docs (English), docs/es/ (Spanish), MkDocs site source
@@ -115,7 +135,7 @@ make docs-serve
 
 ## Contributing and security
 
-The project is at a stage where design review is more valuable than code. Open an issue against a specific ADR or threat-model row. Security-relevant findings: see [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development checks, publication hygiene and PR guidance. Design review is welcome against a specific ADR or threat-model row. Report security findings privately through [SECURITY.md](SECURITY.md).
 
 ## License
 

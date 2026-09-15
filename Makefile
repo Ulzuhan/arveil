@@ -1,4 +1,4 @@
-.PHONY: build test lint fmt docs-serve docs-build clean
+.PHONY: build test lint fmt docs-serve docs-build hygiene hygiene-staged clean
 
 build:
 	cd relay && go build -o bin/arveil-relay ./cmd/arveil-relay
@@ -22,6 +22,12 @@ docs-serve:
 
 docs-build:
 	uvx --with "mkdocs-material~=9.7" mkdocs build --strict
+
+hygiene:
+	gitleaks git --redact --no-banner --log-opts=HEAD .
+
+hygiene-staged:
+	gitleaks git --redact --no-banner --pre-commit --staged .
 
 clean:
 	rm -rf relay/bin core/target site

@@ -1,0 +1,50 @@
+title = "Arveil publication hygiene"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+# Public, fixed cross-language test vectors; other lines in this file are scanned.
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''(^|/)relay/internal/identity/identity_test\.go$''']
+regexTarget = "line"
+regexes = ['''^\s*vecCredential(?:Hash)?\s*=\s*"[a-f0-9]+"\s*$''']
+
+# Dependency names that the generic rule mistakes for a key across two lines.
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''(^|/)spikes/mls/Cargo\.lock$''']
+regexTarget = "match"
+regexes = ['''^libcrux-secrets",\n "libcrux-sha3"''']
+
+[[rules]]
+id = "personal-home-path"
+description = "Personal absolute home path; use a placeholder or environment variable"
+regex = '''/(?:Users|home)/[A-Za-z0-9._-]+'''
+[[rules.allowlists]]
+regexTarget = "match"
+regexes = ['''^/home/runner$''']
+
+[[rules]]
+id = "tailnet-address"
+description = "Live-looking Tailscale address; keep deployment inputs outside Git"
+regex = '''\b100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3}\b'''
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''(^|/)scripts/podman\.py$''']
+regexTarget = "line"
+regexes = ['''^\s*if ipaddress\.ip_address\(args\.address\) not in ipaddress\.ip_network\("100\.64\.0\.0/10"\):$''']
+
+[[rules]]
+id = "tailnet-hostname"
+description = "Private tailnet hostname; use a placeholder"
+regex = '''(?i)\b[a-z0-9][a-z0-9.-]*\.ts\.net\b'''
+
+[[rules]]
+id = "local-only-artifact"
+description = "Local notes, secrets or runtime artifact must stay outside Git"
+path = '''(?i)(^|/)(\.(agents|codex|ssh|local)/|ORIGINAL_REQUEST\.md$|\.env($|\.)|server-secrets/|backups/|data/|known_hosts[^/]*$|authorized_keys$|id_(rsa|ed25519)[^/]*$)|\.(db|sqlite|sqlite3)(-(wal|shm))?$|\.(pem|key|p12|pfx|jks|keystore|age|log|tar|tgz|zip)$|\.tar\.gz$'''
+[[rules.allowlists]]
+paths = ['''(^|/)\.env\.(example|sample)$''']

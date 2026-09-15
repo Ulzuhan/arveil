@@ -19,6 +19,10 @@ python3 scripts/podman.py deploy \
   --host "$ARVEIL_SSH_HOST" --address "$ARVEIL_TAILNET_IPV4"
 ```
 
+Set `ARVEIL_SSH_HOST` to your private SSH alias and `ARVEIL_TAILNET_IPV4` to
+your server's Tailscale IPv4 in your local shell. These are operator inputs;
+this repository contains no live server address, login or SSH configuration.
+
 Commit all intended changes first. `--revision` defaults to `HEAD`;
 uncommitted tracked changes are refused. SSH uses its normal authentication
 and host trust. `--known-hosts /path/to/known_hosts` can select an already
@@ -103,6 +107,12 @@ and archive mode 0600. They contain the realm's private keys. These are local,
 unencrypted snapshots for staging, not an off-host disaster-recovery policy.
 Before real use, encrypt and copy them off-host, define retention and test
 that recovery path.
+
+Keep host inventories, SSH files, command output, invites, client profiles
+and backup archives outside the repository. Logs can include bootstrap
+addresses and local paths; sanitize excerpts before sharing them in an issue
+or pull request. The paths above describe the generic application layout,
+not a particular machine. See [contribution hygiene](https://github.com/Ulzuhan/arveil/blob/main/CONTRIBUTING.md).
 
 Switching only the image is not a guaranteed rollback: the newer binary may
 have migrated the database. Restore the pre-update archive into a **new empty

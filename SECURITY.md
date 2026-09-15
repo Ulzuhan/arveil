@@ -1,11 +1,25 @@
 # Security policy
 
-Arveil is in its design phase. There is no release, no deployed instance and no audit. Even so, findings against the design are welcome and are the most useful contribution right now.
+Arveil is an experimental implementation: a Go relay, Rust core and CLI,
+plus a Flutter client foundation. Automated tests cover the documented
+protocol and recovery scenarios. The project has not received an independent
+security audit and does not claim production readiness.
 
 ## Reporting
 
-- **Design or protocol issues** (a flaw in an ADR, the threat model or the protocol draft): open a public GitHub issue. There is nothing to exploit yet, and public discussion improves the design.
-- **Issues in code**, once code exists: use GitHub's private vulnerability reporting on this repository. Do not open a public issue for anything exploitable in a tagged release.
+- **Vulnerabilities, suspected exploits or exposed credentials:** use
+  [private vulnerability reporting](https://github.com/Ulzuhan/arveil/security/advisories/new).
+  Include the affected revision, impact and a minimal reproduction using
+  disposable data. Do not include working credentials, backups or private
+  deployment details in a public issue or pull request.
+- **General design questions without an exploit or sensitive information:**
+  open a public issue against the relevant ADR or threat-model section.
+
+## Supported versions
+
+Fixes target the current `main` branch. Older revisions have no separate
+security-maintenance commitment. Check the release notes before upgrading;
+database migrations can affect rollback.
 
 ## What counts
 
@@ -13,4 +27,6 @@ Anything that contradicts a stated guarantee in [docs/THREAT_MODEL.md](docs/THRE
 
 ## What not to expect
 
-No bug bounty. No guaranteed response time during the design phase. No claims of security beyond what the documents state with their conditions.
+No bug bounty or guaranteed response time. No claims of security beyond what
+the documents state with their conditions. Public test vectors and disposable
+demo identities are examples, never credentials for a shared deployment.
