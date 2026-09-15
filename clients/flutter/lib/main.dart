@@ -18,10 +18,10 @@ class ArveilApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Arveil',
-        theme: ThemeData(colorSchemeSeed: Colors.teal),
-        home: const ProfilePage(),
-      );
+    title: 'Arveil',
+    theme: ThemeData(colorSchemeSeed: Colors.teal),
+    home: const ProfilePage(),
+  );
 }
 
 class ProfilePage extends StatefulWidget {
@@ -34,27 +34,39 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   Profile? _profile;
   String _status = 'no profile open';
+  bool _busy = false;
 
   Future<void> _open() async {
+    if (_busy || _profile != null) return;
+    setState(() => _busy = true);
     try {
       final directory = await ProfileLocation.ensure();
       final key = await ProfileKeys().forProfile(
         profileExists: await hasProfile(dir: directory.path),
       );
+      if (!mounted) return;
       if (key.state == KeyState.unavailable) {
-        setState(() => _status =
-            'this build cannot keep a key: it needs a signing identity');
+        setState(
+          () => _status =
+              'this build cannot keep a key: it needs a signing identity',
+        );
         return;
       }
       if (key.value == null) {
         // The profile is there and its key is not. Saying so is the whole
         // job: a new key here would answer "no conversations" to someone
         // whose history is on disk, unreadable.
-        setState(() => _status =
-            'the key for this profile is gone; its history cannot be read');
+        setState(
+          () => _status =
+              'the key for this profile is gone; its history cannot be read',
+        );
         return;
       }
       final profile = await openProfile(dir: directory.path, key: key.value!);
+      if (!mounted) {
+        await profile.close();
+        return;
+      }
       setState(() {
         _profile = profile;
         _status = switch (key.state) {
@@ -65,7 +77,9 @@ class _ProfilePageState extends State<ProfilePage> {
         };
       });
     } on ProfileError catch (error) {
-      setState(() => _status = describe(error));
+      if (mounted) setState(() => _status = describe(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -74,45 +88,64 @@ class _ProfilePageState extends State<ProfilePage> {
     if (profile == null) return;
     try {
       final conversations = await profile.conversations();
-      setState(() => _status = '${conversations.length} conversations');
+      if (mounted) {
+        setState(() => _status = '${conversations.length} conversations');
+      }
     } on CommandError catch (error) {
-      setState(() => _status = 'query failed: $error');
+      if (mounted) setState(() => _status = 'query failed: $error');
     }
   }
 
   Future<void> _close() async {
-    await _profile?.close();
-    setState(() {
-      _profile = null;
-      _status = 'closed';
-    });
+    if (_busy || _profile == null) return;
+    setState(() => _busy = true);
+    try {
+      await _profile!.close();
+      if (mounted) {
+        setState(() {
+          _profile = null;
+          _status = 'closed';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   /// The category comes from the sealed type, never from the message.
   static String describe(ProfileError error) => switch (error) {
-        ProfileError_BadKey() => 'the key is not 64 hexadecimal characters',
-        ProfileError_NoRandomness() => 'the system would not produce a key',
-        ProfileError_AlreadyOpen(:final path) => 'already open here: $path',
-        ProfileError_Closing(:final path) => 'still closing: $path',
-        ProfileError_InUse(:final path) => 'another process holds it: $path',
-        ProfileError_Unusable(:final reason) => 'did not open: $reason',
-        ProfileError_Io(:final reason) => 'directory problem: $reason',
-      };
+    ProfileError_BadKey() => 'the key is not 64 hexadecimal characters',
+    ProfileError_NoRandomness() => 'the system would not produce a key',
+    ProfileError_AlreadyOpen(:final path) => 'already open here: $path',
+    ProfileError_Closing(:final path) => 'still closing: $path',
+    ProfileError_InUse(:final path) => 'another process holds it: $path',
+    ProfileError_Unusable(:final reason) => 'did not open: $reason',
+    ProfileError_Io(:final reason) => 'directory problem: $reason',
+  };
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Arveil')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 12,
-            children: [
-              Text(_status, key: const Key('status')),
-              FilledButton(onPressed: _open, child: const Text('Open')),
-              FilledButton(onPressed: _list, child: const Text('Conversations')),
-              FilledButton(onPressed: _close, child: const Text('Close')),
-            ],
+    appBar: AppBar(title: const Text('Arveil')),
+    body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        spacing: 12,
+        children: [
+          Text(_status, key: const Key('status')),
+          FilledButton(
+            onPressed: _busy || _profile != null ? null : _open,
+            child: const Text('Open'),
           ),
-        ),
-      );
+          FilledButton(
+            onPressed: _busy || _profile == null ? null : _list,
+            child: const Text('Conversations'),
+          ),
+          FilledButton(
+            onPressed: _busy || _profile == null ? null : _close,
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

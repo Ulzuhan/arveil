@@ -58,6 +58,7 @@ nav:
   - Protocol: PROTOCOL.md
   - Domain model: DOMAIN_MODEL.md
   - Running a realm: OPERATIONS.md
+  - Podman staging: PODMAN.md
   - Phase 0 plan: PHASE0.md
   - Phase 1 plan: PHASE1.md
   - Phase 2 plan: PHASE2.md

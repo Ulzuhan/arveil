@@ -6,6 +6,10 @@ Lo que el realm guarda y lo que no es la razón de que todo esto sea corto: sin 
 
 ## Instalación
 
+**Pruebas con Podman sin root.** La [guía de staging](../PODMAN.md) describe
+el servicio persistente con systemd, imágenes por commit, actualizaciones,
+backups y una prueba CLI contra el servidor remoto.
+
 **Contenedor.** La imagen lleva el binario y nada más, ni siquiera una shell.
 
 ```
@@ -37,7 +41,7 @@ El canal es independiente del portador ([ADR-008](adr/ADR-008-carrier-independen
 Anuncia varios y los clientes los prueban en orden, saltándose los que no contestan:
 
 ```
-arveil-relay -advertise "lan=ws://192.168.1.10:8447/v1/channel,public=wss://realm.example.org/v1/channel"
+arveil-relay -advertise "lan=ws://192.0.2.10:8447/v1/channel,public=wss://realm.example.org/v1/channel"
 ```
 
 Detrás de un proxy todas las conexiones parecen venir del proxy, así que los límites por dirección dejan de separar a nadie. Activa `-trust-forwarded-for` **solo** si ese proxy es tuyo y sobrescribe `X-Forwarded-For`; si no, un cliente elige su propia dirección poniendo la cabecera él mismo.

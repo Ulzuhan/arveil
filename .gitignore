@@ -9,6 +9,9 @@ core/target/
 relay/bin/
 relay/arveil-relay
 
+# Python deployment helpers
+__pycache__/
+
 # Docs site
 site/
 .cache/
@@ -18,7 +21,44 @@ data/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
 server-secrets/
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+known_hosts*
+authorized_keys
+.ssh/
+backups/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.age
+*.log
+.local/
+
+# Local assistant notes and task inputs
+.agents/
+.codex/
+ORIGINAL_REQUEST.md
+
+# Build and release output
+dist/
 
 # Editors
 .idea/

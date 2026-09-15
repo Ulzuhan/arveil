@@ -11,6 +11,8 @@
 //    into a new profile under a new local key. That is a later milestone,
 //    and it needs nothing from this file, which is why the profile key is
 //    free to be unrecoverable.
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -47,25 +49,26 @@ class ProfileKey {
 
 class ProfileKeys {
   ProfileKeys({FlutterSecureStorage? storage, String? keyName})
-      : _keyName = keyName ?? _defaultKeyName,
-        _storage = storage ??
-            const FlutterSecureStorage(
-              // Device-bound and never synchronised: a key that travels to
-              // another device turns an excluded backup into a shared one.
-              iOptions: IOSOptions(
-                accessibility: KeychainAccessibility.first_unlock_this_device,
-                synchronizable: false,
-              ),
-              mOptions: MacOsOptions(
-                accessibility: KeychainAccessibility.first_unlock_this_device,
-                synchronizable: false,
-              ),
-              // The Android entry is wrapped by a Keystore key, which is
-              // what keeps it out of a copied file, and it is not carried
-              // into a backup: uninstalling takes the key with it, which is
-              // the behaviour this design wants.
-              aOptions: AndroidOptions(migrateWithBackup: false),
-            );
+    : _keyName = keyName ?? _defaultKeyName,
+      _storage =
+          storage ??
+          const FlutterSecureStorage(
+            // Device-bound and never synchronised: a key that travels to
+            // another device turns an excluded backup into a shared one.
+            iOptions: IOSOptions(
+              accessibility: KeychainAccessibility.first_unlock_this_device,
+              synchronizable: false,
+            ),
+            mOptions: MacOsOptions(
+              accessibility: KeychainAccessibility.first_unlock_this_device,
+              synchronizable: false,
+            ),
+            // The Android entry is wrapped by a Keystore key, which is
+            // what keeps it out of a copied file, and it is not carried
+            // into a backup: uninstalling takes the key with it, which is
+            // the behaviour this design wants.
+            aOptions: AndroidOptions(migrateWithBackup: false),
+          );
 
   final FlutterSecureStorage _storage;
 
@@ -74,11 +77,34 @@ class ProfileKeys {
 
   static const _defaultKeyName = 'profile-key-v1';
 
+  // Every caller in the UI isolate shares this queue, including callers
+  // that construct separate ProfileKeys objects. Protect read/generate/write
+  // as one operation: the secure store's individual calls are not a lock.
+  static final Map<String, Future<void>> _pending = {};
+
+  Future<T> _exclusive<T>(Future<T> Function() action) async {
+    final previous = _pending[_keyName] ?? Future<void>.value();
+    final done = Completer<void>();
+    _pending[_keyName] = done.future;
+    await previous;
+    try {
+      return await action();
+    } finally {
+      done.complete();
+      if (identical(_pending[_keyName], done.future)) {
+        _pending.remove(_keyName);
+      }
+    }
+  }
+
   /// Read the key for a profile that already exists, or make one for a
   /// profile that does not. Never invents a key for a profile that has one
   /// on disk: that would answer "empty" to someone whose history is right
   /// there, unreadable.
-  Future<ProfileKey> forProfile({required bool profileExists}) async {
+  Future<ProfileKey> forProfile({required bool profileExists}) =>
+      _exclusive(() => _forProfile(profileExists: profileExists));
+
+  Future<ProfileKey> _forProfile({required bool profileExists}) async {
     final String? stored;
     try {
       stored = await _storage.read(key: _keyName);
@@ -104,7 +130,9 @@ class ProfileKeys {
 
   /// Forget the key. The profile stays on disk and stays unreadable, which
   /// is the point: this is not a delete.
-  Future<void> forget() async {
+  Future<void> forget() => _exclusive(_forget);
+
+  Future<void> _forget() async {
     try {
       await _storage.delete(key: _keyName);
     } on PlatformException {

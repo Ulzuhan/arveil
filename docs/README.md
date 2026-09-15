@@ -2,13 +2,13 @@
 
 **Current client status:** see the [implemented client foundation](CLIENT_FOUNDATION.md), [Flutter implementation plan](PHASE3B.md) and [accepted ADR-009](adr/ADR-009-flutter-first.md). These updates supersede the earlier client proposals below. Flutter is selected; `mls-rs` is already in use. A Flutter client opens, queries and closes a profile through the Rust core, verified on macOS; there is no messaging interface yet. Earlier unresolved-item lists are historical, not the current backlog.
 
-**Status:** design proposal v0.4 · **Date:** 2026-09-04 · **Language:** English.
+**Status:** experimental implementation with historical design records · **Language:** English.
 
 *Versión en español: [es/README.md](es/README.md)*
 
 Self-hosted messenger for family, friends and small circles of trust. A Go server transports and temporarily retains encrypted data; a Rust core on each client controls identity, MLS, local storage and recovery. The differentiating goal is to combine privacy with simple household operation and understandable recovery.
 
-These documents describe the current bet, not an implemented product, a finished interoperable specification or audited security. Each ADR declares its own status; ADR-009 is accepted. The application foundation is implemented, while the GUI remains pending. "MUST" expresses a design requirement; it does not certify that code exists to satisfy it.
+The relay, Rust core and CLI are implemented; the Flutter client foundation is under development. These documents combine implementation records with historical proposals. Each ADR declares its own status; ADR-009 is accepted. The messaging GUI and an independent security review remain pending. "MUST" expresses a design requirement; use the acceptance records to determine which requirements have been tested.
 
 ## Map and reading order
 

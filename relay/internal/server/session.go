@@ -159,8 +159,7 @@ func (srv *Server) inviteRedeem(ctx context.Context, s *session, f channel.Frame
 	case errors.Is(err, store.ErrAlreadyMember), errors.Is(err, store.ErrDeviceKeyInUse):
 		return errFrame(f.ID, channel.CodeConflict, "already enrolled")
 	case err != nil:
-		srv.Logger.Printf("invite redeem: store error")
-		return errFrame(f.ID, channel.CodeInternal, "store error")
+		return srv.storeError(f.ID, "invite redeem", err)
 	}
 	s.device = &store.Device{
 		CredentialHash: v.Hash,

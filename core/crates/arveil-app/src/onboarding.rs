@@ -1061,18 +1061,17 @@ async fn publish_initial_key_packages(
     device: &StoredDevice,
     connection: &mut Connection,
 ) -> Result<usize, CliError> {
-    let engine = client.mls_engine(device.mls_identity());
-    let mut key_packages = Vec::new();
-    for _ in 0..5 {
-        let key_package = engine
-            .key_package()
-            .map_err(protocol_error("key package"))?;
-        key_packages.push(serde_bytes::ByteBuf::from(
-            key_package
-                .to_bytes()
-                .map_err(protocol_error("key package"))?,
-        ));
-    }
+    let Some(packages) = client
+        .initial_key_packages(device)
+        .map_err(client_error("initial key packages"))?
+    else {
+        return Ok(0);
+    };
+    let count = packages.len();
+    let key_packages = packages
+        .into_iter()
+        .map(serde_bytes::ByteBuf::from)
+        .collect();
     match connection
         .request(Payload::KeyPackagesPublish { key_packages })
         .await?
@@ -1080,7 +1079,10 @@ async fn publish_initial_key_packages(
         Payload::Ack => {}
         other => return Err(unexpected(other)),
     }
-    Ok(5)
+    client
+        .initial_key_packages_acknowledged(&device.keys.device_id)
+        .map_err(client_error("initial key packages"))?;
+    Ok(count)
 }
 
 fn record_finish(finish: &EnrollmentFinish) {

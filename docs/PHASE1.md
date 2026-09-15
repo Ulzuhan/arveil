@@ -39,3 +39,36 @@ All acceptance rows are exercised by `scripts/phase1.sh`, which runs in CI.
 - **M1.5** A 1 MiB file round-trips with a matching hash through `blob_upload_begin` / `blob_chunk` / `blob_commit` / `blob_fetch`; the relay's blob file holds ciphertext only; an expired blob is reported as `file unavailable` and recorded as a `file-unavailable` event.
 
 What Phase 1 leaves open, for Phase 2: multi-device per person, device linking, identity kit and history archive, SQLCipher at rest, the commit coordinator successor rule, resumable uploads.
+
+
+## Storage contention regression
+
+An accelerated cleanup run reproduced a `500: store error` during mailbox
+creation. Deferred SQLite transactions read first and then try to become a
+writer. A sweep or another request can write between those steps, causing
+`SQLITE_BUSY` (5) or `SQLITE_BUSY_SNAPSHOT` (517); a busy timeout cannot repair
+a stale read snapshot. See [SQLite isolation](https://www.sqlite.org/isolation.html).
+
+Write transactions now use `BEGIN IMMEDIATE` through the driver's connection
+options, reserving the writer before reading. The five-second busy timeout
+applies when acquiring that reservation; WAL readers remain concurrent.
+Explicitly read-only transactions retain deferred behavior. There is no
+schema change, retry of a partially executed transaction or longer timeout.
+Sustained contention beyond the timeout can still fail.
+
+The store regressions use a file-backed database and several connections:
+controlled read/write interleaving, concurrent enrollment/mailbox retries
+with cleanup, and concurrent claims that consume distinct KeyPackages. The
+controlled test and concurrent claims failed before the correction and pass
+after it. Enrollment and delivery diagnostics record fixed operation names
+and SQLite's numeric code, keeping error text and parameters out of logs.
+
+Run the same end-to-end scenario with frequent cleanup:
+
+```sh
+ARVEIL_P1_SWEEP_INTERVAL=1ms ./scripts/phase1.sh
+```
+
+The normal acceptance retains a one-second interval. On failure, the script
+prints only the selected operation/code diagnostics before removing its
+local disposable data. Production data and logs are not acceptance fixtures.

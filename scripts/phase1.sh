@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Phase 1 acceptance (docs/PHASE1.md). Each section maps to a milestone.
-# Exit 0 only if every check passes. ARVEIL_P1_KEEP=1 keeps the data dir.
+# Exit 0 only if every check passes. ARVEIL_P1_KEEP=1 keeps the data dir;
+# ARVEIL_P1_SWEEP_INTERVAL can accelerate cleanup to exercise contention.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,13 +15,20 @@ RELAY_PID=""
 step() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 fail() { echo "FAIL: $*"; exit 1; }
 cleanup() {
+  local status=$?
   if [ -n "$RELAY_PID" ]; then kill "$RELAY_PID" 2>/dev/null || true; wait "$RELAY_PID" 2>/dev/null || true; fi
+  if [ "$status" -ne 0 ] && [ -f "$DATA/relay.err" ]; then
+    # Fixed operation labels and numeric error codes only. Never dump a
+    # bootstrap string, client profile, capability or arbitrary SQL error.
+    grep -E ': store error \(sqlite_code=[0-9]+\)$' "$DATA/relay.err" >&2 || true
+  fi
   [ -n "${ARVEIL_P1_KEEP:-}" ] && echo "data kept in $DATA" || rm -rf "$DATA"
+  return "$status"
 }
 trap cleanup EXIT
 
 start_relay() {
-  "$RELAY" -data-dir "$DATA/relay" -listen "127.0.0.1:$PORT" -sweep-interval 1s "$@" > "$DATA/relay.out" 2>> "$DATA/relay.err" &
+  "$RELAY" -data-dir "$DATA/relay" -listen "127.0.0.1:$PORT" -sweep-interval "${ARVEIL_P1_SWEEP_INTERVAL:-1s}" "$@" > "$DATA/relay.out" 2>> "$DATA/relay.err" &
   RELAY_PID=$!
   for _ in $(seq 1 50); do grep -q '^bootstrap: ' "$DATA/relay.out" && return; sleep 0.1; done
   fail "relay did not start"
@@ -32,6 +40,7 @@ route_of() { sed -n 's/^route: //p' "$1"; }
 (cd "$ROOT/relay" && go build -o bin/arveil-relay ./cmd/arveil-relay)
 (cd "$ROOT/core" && cargo build -q -p arveil-cli)
 
+step "setup: enroll two disposable clients and start their conversation"
 start_relay
 BOOTSTRAP="$(sed -n 's/^bootstrap: //p' "$DATA/relay.out" | head -1)"
 "$CLI" enroll --data-dir "$DATA/alice" "$BOOTSTRAP" "$(invite)" > "$DATA/alice.enroll"

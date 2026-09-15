@@ -52,6 +52,14 @@ var (
 // set once below.
 const connectionPragmas = "_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=synchronous(FULL)"
 
+// Write transactions reserve SQLite's single writer before their first
+// SELECT. With deferred BEGIN, a sweep or another request can write after
+// that SELECT, and upgrading its old snapshot fails with SQLITE_BUSY or
+// SQLITE_BUSY_SNAPSHOT without waiting for busy_timeout. BEGIN IMMEDIATE
+// waits at the transaction boundary instead; WAL readers remain concurrent.
+// The driver keeps explicitly read-only transactions deferred.
+const connectionOptions = connectionPragmas + "&_txlock=immediate"
+
 const pragmas = `
 PRAGMA journal_mode = WAL;
 `
@@ -110,10 +118,10 @@ type Store struct {
 // Open opens or creates the database at path (":memory:" for tests), applies
 // pragmas and the schema, and refuses an embedded SQLite older than 3.51.3.
 func Open(path string) (*Store, error) {
-	dsn := "file:" + path + "?" + connectionPragmas
+	dsn := "file:" + path + "?" + connectionOptions
 	if path == ":memory:" {
 		// One shared in-memory database for the pool.
-		dsn = "file::memory:?cache=shared&" + connectionPragmas
+		dsn = "file::memory:?cache=shared&" + connectionOptions
 	}
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

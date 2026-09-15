@@ -6,6 +6,10 @@ What the realm holds and what it does not is the whole reason the rest of this i
 
 ## Install
 
+**Rootless Podman staging.** For a persistent test server with systemd startup,
+commit-tagged images, updates and remote CLI acceptance, follow the
+[Podman staging guide](PODMAN.md).
+
 **Container.** The image carries the binary and nothing else, not even a shell.
 
 ```
@@ -37,7 +41,7 @@ The channel is carrier independent ([ADR-008](adr/ADR-008-carrier-independent-tr
 Advertise several and clients try them in order, skipping the ones that do not answer:
 
 ```
-arveil-relay -advertise "lan=ws://192.168.1.10:8447/v1/channel,public=wss://realm.example.org/v1/channel"
+arveil-relay -advertise "lan=ws://192.0.2.10:8447/v1/channel,public=wss://realm.example.org/v1/channel"
 ```
 
 Behind a proxy every connection appears to come from the proxy, so the per-address limits stop separating people. Turn on `-trust-forwarded-for` **only** if that proxy is yours and overwrites `X-Forwarded-For`; a client that sets the header itself would otherwise pick its own address.
