@@ -10,10 +10,13 @@ Self-hosted messenger for family, friends and small circles of trust. A Go serve
 
 The relay, Rust core and CLI are implemented; the Flutter client foundation is under development. These documents combine implementation records with historical proposals. Each ADR declares its own status; ADR-009 is accepted. The messaging GUI and an independent security review remain pending. "MUST" expresses a design requirement; use the acceptance records to determine which requirements have been tested.
 
+**Start here:** [Install and try Arveil](INSTALLATION.md) — server, macOS and Android routes, current availability and release requirements.
+
 ## Map and reading order
 
 | Document | Content |
 |---|---|
+| [INSTALLATION.md](INSTALLATION.md) | Install/try entry point and distribution acceptance |
 | [CLIENT_FOUNDATION.md](CLIENT_FOUNDATION.md) | Implemented changes, evidence and limitations |
 | [PHASE3B.md](PHASE3B.md) | Flutter plan and acceptance criteria |
 | [ADR-009](adr/ADR-009-flutter-first.md) | Accepted Flutter-first decision |

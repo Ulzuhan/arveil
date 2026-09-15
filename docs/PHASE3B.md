@@ -33,6 +33,30 @@ Rust owns durable state and domain decisions. Dart holds presentation projection
 
 Complete M3b.0 before designing every screen. Windows/Linux and iOS may change order according to usage. macOS/Android priority does not establish compatibility elsewhere.
 
+## Installation and distribution contract
+
+Simple installation is a product requirement. Keep the README's
+[installation entry point](INSTALLATION.md) current as M3b.0–M3b.2 evolve;
+package trial builds alongside usable client flows instead of leaving all
+installation work until the end. This does not waive missing milestone or
+platform acceptance.
+
+M3b.5 must deliver versioned server images for Linux x86-64/ARM64, a packaged
+macOS app and an Android APK, English/Spanish instructions, checksums and a
+verified first-install/update path that preserves profile access. End users
+must not need developer toolchains or undocumented terminal steps to install
+the app or enroll. Server instructions include prerequisites, network access,
+invitations, persistence, health, reboot, backup and recovery. Demonstrate
+installation from a clean machine/phone using only published instructions.
+
+No paid Apple Developer membership is assumed for local development or the
+initial macOS evaluation path. Verify the selected key store, first launch,
+reopen and rebuild behavior; document signing and notarization limits. Android
+releases need a persistent private signing key and an update test; debug APKs
+are not release artifacts. iPhone distribution is a separate milestone and
+must not inherit Android installation claims. Follow the complete acceptance
+criteria in the [installation guide](INSTALLATION.md#installation-is-part-of-the-deliverable).
+
 ## Minimum M3b.0 contract
 
 - `ProfileConfig` supplies path, key and transport/policy configuration. The library does not depend on global environment variables; CLI may translate them. Never log secrets or include them in events. GUI rejects absent keys before opening/creating a database. Any plaintext development mode must be explicit. The spike injects a test key; secure platform storage follows in M3b.1.

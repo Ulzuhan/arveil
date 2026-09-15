@@ -21,6 +21,16 @@ button currently queries only the local count. Signed macOS Keychain
 acceptance and physical Android acceptance remain open; an unsigned macOS
 build reports unavailable secure storage.
 
+## Installing versus developing
+
+See the [installation entry point](../../docs/INSTALLATION.md)
+([español](../../docs/es/INSTALLATION.md)) for availability and the end-user
+installation requirements. There are no downloadable app releases yet.
+The commands below are for developers; the intended macOS app package and
+Android APK must install without Flutter/Rust on the user's machine.
+The initial macOS development path must work without paid Apple membership;
+its key-store adaptation and acceptance are still pending.
+
 ## Running it
 
 ```bash

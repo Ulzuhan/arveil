@@ -37,6 +37,32 @@ No introducir reglas de negocio en el puente ni duplicar el estado durable en ot
 
 M3b.0 debe completarse antes de diseñar todas las pantallas. macOS/Android son prioritarios, no una promesa de que las otras plataformas se implementarán sin trabajo adicional. El orden Windows/Linux frente a iOS puede ajustarse según uso real sin cambiar la arquitectura.
 
+## Contrato de instalación y distribución
+
+La instalación sencilla es un requisito de producto. Mantener actualizada
+la [entrada de instalación](INSTALLATION.md) del README mientras avanza
+M3b.0–M3b.2 y preparar paquetes de prueba junto a los flujos utilizables;
+el empaquetado no se deja íntegramente para el final. Esto no da por cerrados
+los hitos ni las plataformas cuya aceptación siga pendiente.
+
+M3b.5 debe entregar imágenes versionadas del servidor para Linux x86-64/ARM64,
+app macOS empaquetada y APK Android, instrucciones en español/inglés,
+checksums y una ruta verificada de primera instalación y actualización que
+conserve el acceso al perfil. El usuario de la app no debe necesitar toolchains
+ni pasos de terminal no documentados para instalarla o darse de alta. La guía
+del servidor incluye requisitos, acceso de red, invitaciones, persistencia,
+salud, reinicio, copia y recuperación. Demostrar la instalación desde una
+máquina/teléfono limpios siguiendo únicamente las instrucciones publicadas.
+
+No se presupone una membresía Apple Developer de pago para desarrollo local
+ni para la ruta inicial de evaluación en macOS. Verificar el almacén de claves
+elegido, primera apertura, reapertura y recompilación; documentar las
+limitaciones de firma y notarización. Las releases Android requieren clave de
+firma privada persistente y prueba de actualización; un APK de depuración no
+es un artefacto de release. La distribución para iPhone tiene un hito separado
+y no hereda las afirmaciones de instalación de Android. Los criterios completos
+están en la [guía de instalación](INSTALLATION.md).
+
 ## Contrato mínimo de M3b.0
 
 - `ProfileConfig` proporciona ruta, clave y configuración de transporte/políticas; la biblioteca no depende del entorno global. La CLI puede traducir sus variables a esta configuración. No registrar secretos ni incluirlos en eventos. La GUI no abre ni crea perfiles sin clave; cualquier modo de desarrollo sin cifrar debe ser explícito. Keychain/Keystore se integra en M3b.1; el spike usa una clave de prueba inyectada.

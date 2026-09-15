@@ -24,6 +24,17 @@ and `flutter analyze` / `flutter test` from `clients/flutter` for Dart changes.
 Keep dependency lockfiles and generated Rust/Dart bridge bindings committed.
 Regenerate bindings when changing their API; do not edit generated code by hand.
 
+## Installation is part of a feature
+
+Keep the [installation guide](docs/INSTALLATION.md) and its Spanish version
+aligned with changes to setup, packaging or first use. State prerequisites,
+expected success, known blockers and how to update without losing profile
+access. A release must be installable from its published artifacts and guide
+on a clean supported system; end users should not install a development
+stack to run the app. Record actual installation/update acceptance and keep
+unverified platforms explicit. Never include private deployment settings or
+signing keys in examples or packages.
+
 ## Before publishing
 
 Install [Gitleaks 8.30.1](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1).

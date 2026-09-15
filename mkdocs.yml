@@ -53,6 +53,7 @@ markdown_extensions:
 
 nav:
   - Overview: README.md
+  - Install and try: INSTALLATION.md
   - Architecture: ARCHITECTURE.md
   - Threat model: THREAT_MODEL.md
   - Protocol: PROTOCOL.md
@@ -88,6 +89,7 @@ nav:
       - Why the server has no rooms table: articles/no-rooms-table.md
   - Español:
       - Índice: es/README.md
+      - Instalar y probar: es/INSTALLATION.md
       - Arquitectura: es/ARCHITECTURE.md
       - Base de aplicación implementada: es/CLIENT_FOUNDATION.md
       - Plan Flutter (fase 3b): es/PHASE3B.md
