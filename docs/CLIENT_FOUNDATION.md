@@ -1,10 +1,10 @@
 # Application foundation: implemented status
 
-Status: local implementation reviewed during the September 5, 2026 iterations. This is neither a release nor a security audit. [Versión española](es/CLIENT_FOUNDATION.md).
+Status: implementation record updated September 15, 2026; earlier acceptance results retain their original scope. This is neither a release nor a security audit. [Versión española](es/CLIENT_FOUNDATION.md).
 
 ## Architecture and evidence
 
-CLI → `arveil-app` → `arveil-core`; the planned Flutter/bridge will call the same application layer. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. The Flutter client opens encrypted profiles and performs invitation enrollment through the Rust bridge, including retries and durable state on reopen; no messaging interface exists yet.
+CLI → `arveil-app` → `arveil-core`; Flutter calls the same application layer through its Rust bridge. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. The Flutter client opens encrypted profiles and performs invitation enrollment through the Rust bridge, including retries and durable state on reopen; no messaging interface exists yet.
 
 | Change | Implementation and verification |
 |---|---|
@@ -42,8 +42,8 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 ## Remaining limits
 
 - The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing, recovery-kit, conversation, attachment and device-management interfaces remain pending. No graphical installers, and no validation on a physical mobile device.
-- Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key stores remain pending (M3b.1).
-- Blocking API requires an asynchronous Dart adapter. Events return at operation completion; streaming and general cancellation need contracts.
+- Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key storage is implemented and tested on an Android emulator; signed macOS Keychain and physical-device acceptance remain pending.
+- The Rust bridge runs blocking calls off the UI thread and exposes incremental progress streams. General operation cancellation and full platform lifecycle acceptance remain pending.
 - File/membership events need further correlation identifiers. Progress is a projection: changes it does not model reach a caller only in the durable result.
 - Actual MLS rejoin/recovery remains pending; the fictitious `recover_conversation` was removed. Sync does not solve desynchronization.
 - Coordinator succession relies on verified revocations, not automatic election on disconnection.
