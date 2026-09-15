@@ -30,14 +30,12 @@ or the [rootless Podman guide](docs/PODMAN.md).
 
 Start with the [installation guide](docs/INSTALLATION.md)
 ([español](docs/es/INSTALLATION.md)) to choose a server, macOS or Android path.
-As of September 15, 2026, no GitHub releases are published: the relay can be
-built with Docker/Podman, while the Flutter app requires a development build.
-Downloadable app packages and installation/update acceptance are part of the
-client deliverable. The initial macOS development path must work without a
-paid Apple Developer account, using the classic login Keychain. Experimental
-[macOS ZIP and Android APK packaging](docs/CLIENT_RELEASES.md) includes signature
-and artifact privacy checks; public app releases and physical-phone acceptance
-remain pending.
+As of September 15, 2026, no public GitHub releases are published. Maintainers
+can build the relay with Docker/Podman and prepare experimental
+[macOS ZIP and Android APK packages](docs/CLIENT_RELEASES.md). These packages
+install without development tools. The macOS app uses the classic login
+Keychain without paid Apple Developer membership. Local installation/update
+checks pass; physical-phone and fresh-download acceptance remain pending.
 
 ## Why another messenger
 

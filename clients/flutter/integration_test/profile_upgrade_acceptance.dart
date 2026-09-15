@@ -14,34 +14,50 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const stage = String.fromEnvironment('ARVEIL_TEST_UPGRADE');
   var result = 'ARVEIL_TEST_UPGRADE_FAILED';
+  var checkpoint = 'stage';
   Profile? profile;
   try {
     if (stage != 'create' && stage != 'reopen') throw StateError('stage');
+    checkpoint = 'native-init';
     await ArveilRust.init();
-    final directory = await ProfileLocation.ensure();
+    checkpoint = 'location';
+    final location = await ProfileLocation.ensure();
+    final directory = Directory('${location.parent.path}/upgrade-acceptance');
+    await directory.create(recursive: true);
+    await ProfileLocation.excludeFromBackup(directory);
     final exists = await hasProfile(dir: directory.path);
+    checkpoint = 'profile-existence';
     if (exists != (stage == 'reopen')) throw StateError('profile existence');
-    final key = await ProfileKeys().forProfile(profileExists: exists);
+    checkpoint = 'key-store';
+    final key = await ProfileKeys(
+      keyName: 'upgrade-acceptance-key-v1',
+    ).forProfile(profileExists: exists);
+    checkpoint = 'key-${key.state.name}';
     final expected = stage == 'create' ? KeyState.fresh : KeyState.present;
     if (key.state != expected) throw StateError('key state');
+    checkpoint = 'open';
     profile = await openProfile(dir: directory.path, key: key.value!);
-    final marker = File('${directory.parent.path}/upgrade-acceptance-identity');
+    final marker = File('${directory.path}/expected-identity');
     if (stage == 'create') {
+      checkpoint = 'create-identity';
       await profile.createIdentity();
       final identity = (await profile.setup()).identityId;
       if (identity == null) throw StateError('identity');
       await marker.writeAsString(identity, flush: true);
     } else {
+      checkpoint = 'compare-identity';
       final identity = (await profile.setup()).identityId;
       if (identity == null || identity != await marker.readAsString()) {
         throw StateError('identity changed');
       }
     }
+    checkpoint = 'close';
     await profile.close();
     profile = null;
     result = 'ARVEIL_TEST_UPGRADE_OK:$stage';
-  } catch (_) {
+  } catch (error) {
     // A failure signal must not include keys, platform paths or diagnostics.
+    result = 'ARVEIL_TEST_UPGRADE_FAILED:$checkpoint:${error.runtimeType}';
   } finally {
     await profile?.close();
   }

@@ -132,3 +132,27 @@ y reapertura del perfil ya inscrito. No cubre teléfono físico, reinicio del
 sistema, reinstalación ni restauración desde la nube. Siguen pendientes las
 pantallas de emparejamiento y kit de recuperación. Los comandos y el manejo
 de datos privados están en el [README de Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+
+## Aceptación de paquetes experimentales (15 de septiembre de 2026)
+
+Los paquetes `0.1.0+2` se compilaron desde el commit limpio
+`a1d954c7a13ae9a2f189ba19e49d2f52e8fd5b19`. Incluyen revisión y checksums; pasaron
+las comprobaciones de firma, arquitectura y privacidad del contenido ZIP/APK.
+El ZIP macOS tiene firma ad hoc, sin Developer ID ni notarización. El APK
+Android usa una clave privada de release persistente.
+
+- macOS Apple silicon, Xcode 27: pasó la aceptación nativa del llavero clásico
+  exigiendo que estuviera disponible. La app empaquetada abrió el perfil cifrado,
+  lo reabrió tras salir y abrió el mismo perfil después de sustituir la
+  compilación 1 por la 2 en la misma ubicación. El llavero puede pedir permiso
+  para una app recompilada. Falta una descarga nueva en otro Mac.
+- Emulador Android 15/API 35 ARM64: el APK de release se instaló y arrancó.
+  La prueba nativa de actualización crea una identidad de prueba con clave
+  del sistema y comprueba esa identidad tras reemplazar el APK; no lee ni
+  sustituye el perfil normal. Ambas señales de crear/reabrir pasaron al cambiar
+  de compilación 1 → APK de producción 2 → verificador 2, sin desinstalar ni
+  borrar datos. Sigue pendiente el teléfono físico.
+
+Son resultados locales experimentales, no aceptación de beta ni revisión de
+seguridad de producción. La [guía de empaquetado](CLIENT_RELEASES.md) explica
+cómo reproducirlos y la [guía de instalación](INSTALLATION.md) cubre al usuario final.

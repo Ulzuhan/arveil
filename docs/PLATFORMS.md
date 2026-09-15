@@ -128,3 +128,27 @@ endpoint, close/reopen, same-identity retry and completed-profile reopen.
 This does not cover a physical phone, an OS restart, app reinstall or cloud
 restore. Pairing and recovery-kit screens remain pending. Reproduction and
 private fixture handling are in the [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+
+## Experimental package acceptance (September 15, 2026)
+
+Client packages `0.1.0+2` were built from clean commit
+`a1d954c7a13ae9a2f189ba19e49d2f52e8fd5b19`. Each includes revision metadata and
+checksums; ZIP/APK signatures, architecture and decompressed-content privacy
+checks passed. The macOS ZIP is ad-hoc signed, with no Developer ID/notarization.
+The Android APK uses a persistent private release key.
+
+- macOS Apple silicon, Xcode 27: native login-Keychain acceptance passed with
+  unavailable storage treated as failure. The packaged app opened its encrypted
+  profile, reopened it after quitting, and opened the same profile after replacing
+  build 1 with build 2 at the same location. Keychain may request authorization
+  for a rebuilt app. A fresh download on another Mac is still unverified.
+- Android 15/API 35 ARM64 emulator: the release APK installed and cold-started.
+  The separate native upgrade harness creates a test identity with a platform
+  key and verifies that identity after APK replacement; it never reads or
+  replaces the normal app profile. Both create/reopen signals passed across
+  build 1 → production APK 2 → verifier 2, without uninstalling or clearing data.
+  Physical-phone acceptance is still pending.
+
+These are local experimental results, not beta acceptance or a production
+security review. The [packaging guide](CLIENT_RELEASES.md) explains reproduction
+and the [installation guide](INSTALLATION.md) explains end-user installation.
