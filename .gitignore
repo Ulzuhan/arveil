@@ -9,6 +9,9 @@ core/target/
 relay/bin/
 relay/arveil-relay
 
+# Python deployment helpers
+__pycache__/
+
 # Docs site
 site/
 .cache/

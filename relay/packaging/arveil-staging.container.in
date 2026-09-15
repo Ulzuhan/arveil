@@ -1,0 +1,32 @@
+# Rendered by scripts/podman.py from a specific Git commit.
+[Unit]
+Description=Arveil staging relay (@REVISION@)
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Container]
+Image=@IMAGE@
+Pull=never
+ContainerName=@NAME@
+Volume=@NAME@-data:/data
+PublishPort=@ADDRESS@:@PORT@:8447
+Exec=-data-dir=/data -listen=0.0.0.0:8447 -admin-listen=127.0.0.1:9090 -advertise=tailnet=ws://@ADDRESS@:@PORT@/v1/channel
+ReadOnly=true
+DropCapability=all
+NoNewPrivileges=true
+PodmanArgs=--memory=512m --cpus=1 --pids-limit=128
+HealthCmd=["/arveil-relay","healthcheck","-admin","http://127.0.0.1:9090"]
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=5s
+HealthOnFailure=kill
+LogDriver=journald
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

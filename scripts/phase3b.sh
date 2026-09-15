@@ -73,6 +73,19 @@ PHASE="$(sqlite3 "$DATA/carol/client.db" 'SELECT phase FROM enrollment;')"
 [ "$PHASE" = "complete" ] || fail "the enrollment did not record completion: $PHASE"
 echo "same identity, same mailbox, same route"
 
+step "M3b.2 repeated completed enrollment does not publish fresh KeyPackages"
+PACKAGES_BEFORE="$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM key_packages;')"
+for _ in $(seq 1 12); do
+  "$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP" "$INVITE_C" > "$DATA/carol.again"
+  [ "$(route_of "$DATA/carol.again")" = "$CAROL_ROUTE" ] || fail "retry changed the route"
+done
+[ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM key_packages;')" = "$PACKAGES_BEFORE" ] || fail "completed enrollment generated more KeyPackages"
+# Simulate upgrading a completed profile made before the publication table.
+sqlite3 "$DATA/carol/client.db" 'DELETE FROM initial_key_package_publication;'
+"$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP" "$INVITE_C" > "$DATA/carol.upgraded"
+[ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM key_packages;')" = "$PACKAGES_BEFORE" ] || fail "upgraded profile generated another batch"
+echo "twelve retries and a legacy profile upgrade kept the same package count"
+
 step "M3b.2 a different invite does not disturb an enrollment already made"
 if "$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP" "$(invite)" > "$DATA/carol.other" 2>&1; then
   fail "a different invite was accepted: $(cat "$DATA/carol.other")"

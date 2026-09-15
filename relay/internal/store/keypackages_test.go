@@ -44,3 +44,59 @@ func TestKeyPackagesPublishAndClaimOnce(t *testing.T) {
 	_ = context.Background()
 	_ = time.Now()
 }
+
+func TestKeyPackageRetriesAtCapacityDoNotReviveConsumedPackages(t *testing.T) {
+	s, ctx, now := memberStore(t)
+	id, dev := []byte{1, 1}, []byte{1, 4}
+	batch := make([][]byte, MaxKeyPackagesPerDevice)
+	for i := range batch {
+		batch[i] = []byte{byte(i), 1}
+	}
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := s.PublishKeyPackages(ctx, id, dev, batch, now); err != nil {
+			t.Fatalf("attempt %d: %v", attempt, err)
+		}
+	}
+	consumed, err := s.ClaimKeyPackage(ctx, id, dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 49 existing entries, one duplicate, and one genuinely new entry.
+	if err := s.PublishKeyPackages(ctx, id, dev, [][]byte{batch[1], []byte("new"), []byte("new")}, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.PublishKeyPackages(ctx, id, dev, [][]byte{consumed}, now); err != nil {
+		t.Fatalf("retry of consumed package: %v", err)
+	}
+	for i := 0; i < MaxKeyPackagesPerDevice; i++ {
+		p, err := s.ClaimKeyPackage(ctx, id, dev)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(p) == string(consumed) {
+			t.Fatal("retry revived a consumed package")
+		}
+	}
+	if _, err := s.ClaimKeyPackage(ctx, id, dev); !errors.Is(err, ErrNoKeyPackage) {
+		t.Fatalf("expected all packages consumed: %v", err)
+	}
+}
+
+func TestKeyPackageOverflowRollsBackWholeBatch(t *testing.T) {
+	s, ctx, now := memberStore(t)
+	id, dev := []byte{1, 1}, []byte{1, 4}
+	batch := make([][]byte, MaxKeyPackagesPerDevice-1)
+	for i := range batch {
+		batch[i] = []byte{byte(i), 1}
+	}
+	if err := s.PublishKeyPackages(ctx, id, dev, batch, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.PublishKeyPackages(ctx, id, dev, [][]byte{[]byte("new-a"), []byte("new-b")}, now); !errors.Is(err, ErrKeyPackageBatch) {
+		t.Fatalf("expected quota rejection: %v", err)
+	}
+	n, err := s.AvailableKeyPackages(ctx, dev)
+	if err != nil || n != MaxKeyPackagesPerDevice-1 {
+		t.Fatalf("overflow partially committed: count=%d err=%v", n, err)
+	}
+}

@@ -5069,12 +5069,19 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct PublicationProbe {
+        batches: std::sync::Mutex<Vec<Vec<Vec<u8>>>>,
+        lose_first_ack: AtomicBool,
+    }
+
     async fn serve_completion_connection(
         socket: tokio::net::TcpStream,
         realm: arveil_core::channel::StaticKeypair,
         realm_id: Vec<u8>,
         signed_endpoints: Vec<u8>,
         mailbox_creates: Arc<AtomicUsize>,
+        publication: Option<Arc<PublicationProbe>>,
     ) {
         use arveil_core::channel::codec::{Frame, Payload};
         use tokio_tungstenite::tungstenite::Message;
@@ -5122,7 +5129,19 @@ mod tests {
                     }
                 }
                 Payload::KeyPackagesStatus => Payload::KeyPackagesAvailable { count: 0 },
-                Payload::KeyPackagesPublish { .. } => Payload::Ack,
+                Payload::KeyPackagesPublish { key_packages } => {
+                    if let Some(probe) = &publication {
+                        probe
+                            .batches
+                            .lock()
+                            .unwrap()
+                            .push(key_packages.into_iter().map(|p| p.into_vec()).collect());
+                        if probe.lose_first_ack.swap(false, Ordering::SeqCst) {
+                            return;
+                        }
+                    }
+                    Payload::Ack
+                }
                 other => panic!("unexpected completion request: {other:?}"),
             };
             let response = Frame {
@@ -5141,6 +5160,19 @@ mod tests {
         listener: std::net::TcpListener,
         realm: &PairingTestRealm,
         drop_first: usize,
+    ) -> (
+        Arc<AtomicUsize>,
+        tokio::sync::oneshot::Sender<()>,
+        std::thread::JoinHandle<()>,
+    ) {
+        start_completion_relay_with_publication(listener, realm, drop_first, None)
+    }
+
+    fn start_completion_relay_with_publication(
+        listener: std::net::TcpListener,
+        realm: &PairingTestRealm,
+        drop_first: usize,
+        publication: Option<Arc<PublicationProbe>>,
     ) -> (
         Arc<AtomicUsize>,
         tokio::sync::oneshot::Sender<()>,
@@ -5178,6 +5210,7 @@ mod tests {
                                     realm_id.clone(),
                                     signed_endpoints.clone(),
                                     server_count.clone(),
+                                    publication.clone(),
                                 )));
                             }
                         }
@@ -5358,6 +5391,43 @@ mod tests {
         server.join().unwrap();
         drop(app);
         std::fs::remove_dir_all(profile).ok();
+    }
+
+    #[test]
+    fn lost_key_package_ack_reuses_the_batch_after_profile_restart() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let realm = PairingTestRealm::new(format!("ws://{}", listener.local_addr().unwrap()));
+        let probe = Arc::new(PublicationProbe::default());
+        probe.lose_first_ack.store(true, Ordering::SeqCst);
+        let (_, shutdown, server) =
+            start_completion_relay_with_publication(listener, &realm, 0, Some(probe.clone()));
+        let (profile, app, _, bootstrap, _, grant) =
+            valid_pairing_test_profile("key-package-ack", &realm);
+        assert!(matches!(
+            app.complete_link(&bootstrap, &grant),
+            Err(ApplicationError::Transport { .. })
+        ));
+        app.close();
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
+        app.complete_link(&bootstrap, &grant).unwrap();
+        // Direct-grant completion reports AlreadyLinked after success;
+        // it must still leave the initial batch untouched.
+        assert!(matches!(
+            app.complete_link(&bootstrap, &grant),
+            Err(ApplicationError::Domain { .. })
+        ));
+        let batches = probe.batches.lock().unwrap();
+        assert_eq!(batches.len(), 2, "a completed retry publishes nothing");
+        assert_eq!(batches[0].len(), 5);
+        assert_eq!(
+            batches[0], batches[1],
+            "a lost ACK must not generate new keys"
+        );
+        drop(batches);
+        app.close();
+        shutdown.send(()).unwrap();
+        server.join().unwrap();
+        std::fs::remove_dir_all(profile).unwrap();
     }
 
     #[test]

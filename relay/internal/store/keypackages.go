@@ -44,19 +44,15 @@ func (s *Store) initKeyPackages() error {
 // PublishKeyPackages stores a batch for a device, refusing to exceed the
 // available bound. Duplicates (same bytes) are ignored.
 func (s *Store) PublishKeyPackages(ctx context.Context, identityID, deviceID []byte, packages [][]byte, now time.Time) error {
+	// Bound work per request independently of the number of new packages.
+	if len(packages) > MaxKeyPackagesPerDevice {
+		return ErrKeyPackageBatch
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	var available int
-	if err := tx.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM key_packages WHERE device_id = ? AND consumed = 0`, deviceID).Scan(&available); err != nil {
-		return err
-	}
-	if available+len(packages) > MaxKeyPackagesPerDevice {
-		return ErrKeyPackageBatch
-	}
 	for _, p := range packages {
 		if len(p) == 0 || len(p) > MaxKeyPackageBytes {
 			return ErrEnvelopeTooBig
@@ -67,6 +63,17 @@ func (s *Store) PublishKeyPackages(ctx context.Context, identityID, deviceID []b
 			ref[:], identityID, deviceID, p, now.Unix()); err != nil {
 			return err
 		}
+	}
+	// Count after deduplication, in the same transaction. An identical retry
+	// takes no additional quota, and INSERT OR IGNORE never revives a consumed
+	// package. A genuinely oversized result rolls back the entire batch.
+	var available int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM key_packages WHERE device_id = ? AND consumed = 0`, deviceID).Scan(&available); err != nil {
+		return err
+	}
+	if available > MaxKeyPackagesPerDevice {
+		return ErrKeyPackageBatch
 	}
 	return tx.Commit()
 }

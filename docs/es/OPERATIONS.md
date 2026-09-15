@@ -6,6 +6,10 @@ Lo que el realm guarda y lo que no es la razón de que todo esto sea corto: sin 
 
 ## Instalación
 
+**Pruebas con Podman sin root.** La [guía de staging](../PODMAN.md) describe
+el servicio persistente con systemd, imágenes por commit, actualizaciones,
+backups y una prueba CLI contra el servidor remoto.
+
 **Contenedor.** La imagen lleva el binario y nada más, ni siquiera una shell.
 
 ```

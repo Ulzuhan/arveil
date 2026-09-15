@@ -6,6 +6,10 @@ What the realm holds and what it does not is the whole reason the rest of this i
 
 ## Install
 
+**Rootless Podman staging.** For a persistent test server with systemd startup,
+commit-tagged images, updates and remote CLI acceptance, follow the
+[Podman staging guide](PODMAN.md).
+
 **Container.** The image carries the binary and nothing else, not even a shell.
 
 ```

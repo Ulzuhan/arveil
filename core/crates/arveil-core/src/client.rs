@@ -54,6 +54,13 @@ CREATE TABLE IF NOT EXISTS enrollment (
     phase           TEXT NOT NULL,
     updated_at      INTEGER NOT NULL
 );
+-- The initial public KeyPackage batch is committed alongside its MLS private
+-- state before publication. NULL means acknowledged, not absent: consumed
+-- packages must never be replaced just because enrollment is retried.
+CREATE TABLE IF NOT EXISTS initial_key_package_publication (
+    device_id BLOB PRIMARY KEY,
+    batch     BLOB
+);
 -- The request this device makes for its mailbox, written before it is sent.
 -- A retry sends the same key and the same capabilities, so the relay can
 -- answer with the mailbox it already made instead of making another: a
@@ -180,6 +187,8 @@ pub enum ClientError {
     NoDevice,
     #[error("client: mls error: {0}")]
     Mls(String),
+    #[error("client: invalid initial key package publication: {0}")]
+    KeyPackagePublication(String),
     #[error("client: this device holds no root key; run this on the administration device")]
     NoRoot,
     #[error("client: link grant does not name this device's keys")]
@@ -1912,6 +1921,63 @@ impl Client {
         Ok(())
     }
 
+    /// Return the same initial batch until acknowledged, or None once done.
+    /// Generation, the MLS private keys and the public bytes share one commit.
+    pub fn initial_key_packages(
+        &self,
+        device: &StoredDevice,
+    ) -> Result<Option<Vec<Vec<u8>>>, ClientError> {
+        self.conn.unit_of_work(|shared| {
+            let stored: Option<Option<Vec<u8>>> = shared.lock().query_row(
+                "SELECT batch FROM initial_key_package_publication WHERE device_id = ?1",
+                [&device.keys.device_id[..]],
+                |r| r.get(0),
+            ).optional()?;
+            if let Some(batch) = stored {
+                return batch.map(|bytes| ciborium::de::from_reader(bytes.as_slice())
+                    .map_err(|e| ClientError::KeyPackagePublication(e.to_string()))).transpose();
+            }
+            // Profiles completed by older versions have no publication row.
+            // Their durable completion is sufficient; do not seed them again.
+            if self.enrollment()?.is_some_and(|p| p.phase == EnrollmentPhase::Complete) {
+                shared.lock().execute(
+                    "INSERT INTO initial_key_package_publication (device_id, batch) VALUES (?1, NULL)",
+                    [&device.keys.device_id[..]],
+                )?;
+                return Ok(None);
+            }
+            let engine = self.mls_engine(device.mls_identity());
+            let mut packages = Vec::new();
+            for _ in 0..5 {
+                packages.push(engine.key_package()
+                    .and_then(|p| p.to_bytes())
+                    .map_err(|e| ClientError::Mls(e.to_string()))?);
+            }
+            let mut bytes = Vec::new();
+            ciborium::ser::into_writer(&packages, &mut bytes)
+                .map_err(|e| ClientError::KeyPackagePublication(e.to_string()))?;
+            shared.lock().execute(
+                "INSERT INTO initial_key_package_publication (device_id, batch) VALUES (?1, ?2)",
+                params![device.keys.device_id, bytes],
+            )?;
+            Ok(Some(packages))
+        })
+    }
+
+    /// Retain an acknowledgement marker and discard the outgoing public bytes.
+    pub fn initial_key_packages_acknowledged(&self, device_id: &[u8]) -> Result<(), ClientError> {
+        let updated = self.conn.lock().execute(
+            "UPDATE initial_key_package_publication SET batch = NULL WHERE device_id = ?1",
+            [device_id],
+        )?;
+        if updated != 1 {
+            return Err(ClientError::KeyPackagePublication(
+                "no prepared batch".into(),
+            ));
+        }
+        Ok(())
+    }
+
     /// The mailbox request this device will make, created once and kept, so
     /// that a retry after a lost answer asks for the same thing.
     pub fn mailbox_request(&self) -> Result<MailboxRequest, ClientError> {
@@ -2031,6 +2097,89 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn initial_key_packages_survive_reopen_and_acknowledgement() {
+        let path = std::env::temp_dir().join(format!(
+            "arveil-initial-kp-{}.db",
+            hex::encode(getrandom::u64().unwrap().to_le_bytes())
+        ));
+        let conn = SharedConn::open_file(&path).unwrap();
+        let c = Client::open(conn.clone()).unwrap();
+        c.identity_new().unwrap();
+        let (device, _) = c.device_new(1_800_000_000).unwrap();
+        let packages = c.initial_key_packages(&device).unwrap().unwrap();
+        assert_eq!(packages.len(), 5);
+        assert_eq!(conn.count("mls_key_package").unwrap(), 5);
+        drop(c);
+        drop(conn);
+
+        let conn = SharedConn::open_file(&path).unwrap();
+        let c = Client::open(conn.clone()).unwrap();
+        assert_eq!(c.initial_key_packages(&device).unwrap().unwrap(), packages);
+        // Prove the saved public bytes still have usable private material.
+        let alice = crate::mls::open(
+            SharedConn::open_in_memory().unwrap(),
+            MlsIdentity::generate("alice").unwrap(),
+        );
+        let mut group = alice.create_group().unwrap();
+        let commit = group
+            .commit_builder()
+            .add_member(mls_rs::MlsMessage::from_bytes(&packages[0]).unwrap())
+            .unwrap()
+            .build()
+            .unwrap();
+        c.mls_engine(device.mls_identity())
+            .join(&commit.welcome_messages[0])
+            .unwrap()
+            .write_to_storage()
+            .unwrap();
+        c.initial_key_packages_acknowledged(&device.keys.device_id)
+            .unwrap();
+        drop(c);
+        drop(conn);
+
+        let conn = SharedConn::open_file(&path).unwrap();
+        let c = Client::open(conn.clone()).unwrap();
+        assert!(c.initial_key_packages(&device).unwrap().is_none());
+        assert_eq!(conn.count("mls_key_package").unwrap(), 4);
+        drop(c);
+        drop(conn);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn failed_initial_batch_persistence_rolls_back_private_keys() {
+        let conn = SharedConn::open_in_memory().unwrap();
+        let c = Client::open(conn.clone()).unwrap();
+        c.identity_new().unwrap();
+        let (device, _) = c.device_new(1_800_000_000).unwrap();
+        conn.lock().execute_batch("CREATE TRIGGER fail_batch BEFORE INSERT ON initial_key_package_publication BEGIN SELECT RAISE(ABORT, 'injected storage failure'); END;").unwrap();
+        assert!(c.initial_key_packages(&device).is_err());
+        assert_eq!(conn.count("mls_key_package").unwrap(), 0);
+        assert_eq!(conn.count("initial_key_package_publication").unwrap(), 0);
+        conn.lock()
+            .execute_batch("DROP TRIGGER fail_batch")
+            .unwrap();
+        assert_eq!(c.initial_key_packages(&device).unwrap().unwrap().len(), 5);
+    }
+
+    #[test]
+    fn legacy_completed_enrollment_does_not_generate_another_batch() {
+        let conn = SharedConn::open_in_memory().unwrap();
+        let c = Client::open(conn.clone()).unwrap();
+        c.identity_new().unwrap();
+        let (device, _) = c.device_new(1_800_000_000).unwrap();
+        c.enrollment_save(&EnrollmentProgress {
+            realm_id: vec![1; 32],
+            invite_hash: vec![2; 32],
+            credential_hash: device.credential_hash.clone(),
+            phase: EnrollmentPhase::Complete,
+        })
+        .unwrap();
+        assert!(c.initial_key_packages(&device).unwrap().is_none());
+        assert_eq!(conn.count("mls_key_package").unwrap(), 0);
+    }
 
     #[test]
     fn identity_device_and_manifest_persist_and_reload() {
