@@ -8,7 +8,7 @@ Estado: plan aprobado en dirección; la aceptación de los hitos sigue pendiente
 
 Una beta que permita a dos personas instalar Arveil, crear o vincular su identidad y conversar desde macOS y Android, incluyendo trabajo sin conexión y errores comprensibles. La misma base Flutter se ampliará a Windows, Linux e iOS.
 
-No incluye SwiftUI, UniFFI, federación, llamadas, IPC entre GUI y CLI ni rediseño del protocolo. El cliente gráfico existente abre, consulta y cierra un perfil; no hay ninguna pantalla de mensajería.
+No incluye SwiftUI, UniFFI, federación, llamadas, IPC entre GUI y CLI ni rediseño del protocolo. El cliente gráfico abre perfiles cifrados y da de alta una identidad mediante bootstrap e invitación, reanuda un alta fallida y reconoce la finalización al reabrir. Siguen pendientes las interfaces de emparejamiento, kit de recuperación y mensajería.
 
 ## Estructura prevista
 
@@ -36,6 +36,32 @@ No introducir reglas de negocio en el puente ni duplicar el estado durable en ot
 | M3b.8 — Salida de fase y producción | Revisión externa de seguridad del cliente, puente y su integración con el protocolo; actualizaciones firmadas y matriz final. | Informe con alcance y commit; hallazgos bloqueantes corregidos y verificados, riesgos restantes documentados, builds/actualizaciones firmados y plataformas probadas. Este hito cierra 3b; M3b.5 es una beta limitada, no acredita auditoría. |
 
 M3b.0 debe completarse antes de diseñar todas las pantallas. macOS/Android son prioritarios, no una promesa de que las otras plataformas se implementarán sin trabajo adicional. El orden Windows/Linux frente a iOS puede ajustarse según uso real sin cambiar la arquitectura.
+
+## Contrato de instalación y distribución
+
+La instalación sencilla es un requisito de producto. Mantener actualizada
+la [entrada de instalación](INSTALLATION.md) del README mientras avanza
+M3b.0–M3b.2 y preparar paquetes de prueba junto a los flujos utilizables;
+el empaquetado no se deja íntegramente para el final. Esto no da por cerrados
+los hitos ni las plataformas cuya aceptación siga pendiente.
+
+M3b.5 debe entregar imágenes versionadas del servidor para Linux x86-64/ARM64,
+app macOS empaquetada y APK Android, instrucciones en español/inglés,
+checksums y una ruta verificada de primera instalación y actualización que
+conserve el acceso al perfil. El usuario de la app no debe necesitar toolchains
+ni pasos de terminal no documentados para instalarla o darse de alta. La guía
+del servidor incluye requisitos, acceso de red, invitaciones, persistencia,
+salud, reinicio, copia y recuperación. Demostrar la instalación desde una
+máquina/teléfono limpios siguiendo únicamente las instrucciones publicadas.
+
+No se presupone una membresía Apple Developer de pago para desarrollo local
+ni para la ruta inicial de evaluación en macOS. Verificar el almacén de claves
+elegido, primera apertura, reapertura y recompilación; documentar las
+limitaciones de firma y notarización. Las releases Android requieren clave de
+firma privada persistente y prueba de actualización; un APK de depuración no
+es un artefacto de release. La distribución para iPhone tiene un hito separado
+y no hereda las afirmaciones de instalación de Android. Los criterios completos
+están en la [guía de instalación](INSTALLATION.md).
 
 ## Contrato mínimo de M3b.0
 

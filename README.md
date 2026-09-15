@@ -3,7 +3,7 @@
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 
 [![CI](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml)
-[Documentation](https://ulzuhan.github.io/arveil/) · [Español](docs/es/README.md) · [Quick demo](#try-the-phase-0-demo) · [Contributing](CONTRIBUTING.md)
+[Install / try](docs/INSTALLATION.md) · [Instalar / probar](docs/es/INSTALLATION.md) · [Documentation](https://ulzuhan.github.io/arveil/) · [Español](docs/es/README.md) · [Quick demo](#try-the-phase-0-demo) · [Contributing](CONTRIBUTING.md)
 
 A Go relay transports encrypted messages; a Rust core handles identity, MLS,
 offline delivery and recovery. The relay uses SQLite and a data directory,
@@ -17,7 +17,7 @@ with access over LAN, Tailscale or a tunnel. See the
 | Component | Implemented | Next work |
 |---|---|---|
 | Go relay and Rust CLI | MLS group chat, encrypted attachments, offline outbox, multi-device identity, pairing, revocation and recovery | External security review and continued interoperability testing |
-| Flutter client | Rust bridge, encrypted profile lifecycle and a technical screen; macOS and Android build checks in CI | Enrollment, conversation UI and physical-device acceptance |
+| Flutter client | Rust bridge, encrypted profile lifecycle and invitation enrollment with durable retries; macOS and Android build checks in CI | Pairing/recovery UI, conversation UI and physical-device acceptance |
 | Operations | Container, Compose, systemd and rootless Podman; health checks, limits, backup and restore acceptance | Off-host encrypted backups, retention and reboot drills for each deployment |
 
 The [client implementation record](docs/CLIENT_FOUNDATION.md) distinguishes
@@ -25,6 +25,16 @@ implemented behavior from the [remaining Flutter milestones](docs/PHASE3B.md).
 Acceptance scripts run in [CI](.github/workflows/ci.yml); passing tests do not
 replace an independent review. Start with [running a realm](docs/OPERATIONS.md)
 or the [rootless Podman guide](docs/PODMAN.md).
+
+## Install and try
+
+Start with the [installation guide](docs/INSTALLATION.md)
+([español](docs/es/INSTALLATION.md)) to choose a server, macOS or Android path.
+As of September 15, 2026, no GitHub releases are published: the relay can be
+built with Docker/Podman, while the Flutter app requires a development build.
+Downloadable app packages and installation/update acceptance are part of the
+client deliverable. The initial macOS development path must work without a
+paid Apple Developer account; its key-store adaptation is still pending.
 
 ## Why another messenger
 
@@ -78,7 +88,9 @@ La documentación completa también está disponible en español en [`docs/es/`]
 
 ## Releases
 
-Tagging `v*` runs [the release workflow](.github/workflows/release.yml): it builds the relay and the client for Linux x86-64 and macOS arm64, injects the commit each binary reports through `arveil version` and `arveil-relay -version`, publishes a `SHA256SUMS.txt`, and attaches signed build provenance so somebody who did not build them can check where they came from.
+The current workflow packages command-line binaries, not the Flutter app.
+
+Tagging `v*` runs [the release workflow](.github/workflows/release.yml): it builds the relay and the CLI for Linux x86-64 and macOS arm64, injects the commit each binary reports through `arveil version` and `arveil-relay -version`, publishes a `SHA256SUMS.txt`, and attaches signed build provenance so somebody who did not build them can check where they came from.
 
 It does **not** do platform code signing: there is no Apple notarization and no Windows Authenticode certificate, so those systems will still warn on first run. Verify a download with its checksum and its provenance attestation (`gh attestation verify <file> --repo Ulzuhan/arveil`), not with the absence of a warning.
 

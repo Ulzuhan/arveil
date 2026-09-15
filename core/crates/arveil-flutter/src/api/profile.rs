@@ -6,8 +6,8 @@
 //! learn what happened.
 
 use arveil_app::{
-    Application, ApplicationError, ApplicationOpenError, ConversationSummary, HistoryEvent,
-    Operation, ProfileConfig, ProgressEvent, ProgressKind, Waited,
+    Application, ApplicationError, ApplicationOpenError, ConversationSummary, EnrollmentPhase,
+    HistoryEvent, Operation, ProfileConfig, ProgressEvent, ProgressKind, Waited,
 };
 use flutter_rust_bridge::frb;
 
@@ -23,6 +23,24 @@ pub struct Profile {
     /// Set while a stream is wanted. Cleared by `stop_watching`, which is
     /// how a screen unsubscribes without closing the profile.
     watching: Arc<AtomicBool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SetupStage {
+    New,
+    IdentityReady,
+    Redeeming,
+    Redeemed,
+    Publishing,
+    Ready,
+    LinkedDevice,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetupView {
+    pub stage: SetupStage,
+    pub identity_id: Option<String>,
+    pub bootstrap: Option<String>,
 }
 
 /// Why a profile could not be opened.
@@ -230,6 +248,35 @@ impl Profile {
     /// the one that makes a profile more than a directory.
     pub fn create_identity(&self) -> Result<(), CommandError> {
         self.inner.create_identity().map_err(command_error)?;
+        Ok(())
+    }
+
+    /// Read durable setup state after opening, completing or retrying an
+    /// enrollment. Progress events are hints; this is the source of truth.
+    pub fn setup(&self) -> Result<SetupView, CommandError> {
+        let status = self.inner.onboarding_status().map_err(command_error)?;
+        let stage = match status.phase {
+            Some(EnrollmentPhase::Redeeming) => SetupStage::Redeeming,
+            Some(EnrollmentPhase::Redeemed) => SetupStage::Redeemed,
+            Some(EnrollmentPhase::Endpoints) => SetupStage::Publishing,
+            Some(EnrollmentPhase::Complete) => SetupStage::Ready,
+            None if status.linked_device => SetupStage::LinkedDevice,
+            None if status.identity_id.is_some() => SetupStage::IdentityReady,
+            None => SetupStage::New,
+        };
+        Ok(SetupView {
+            stage,
+            identity_id: status.identity_id.map(|id| hex(&id)),
+            bootstrap: status.bootstrap,
+        })
+    }
+
+    /// Creates an identity if needed, then resumes the existing enrollment.
+    /// The invitation is hashed by Rust and is never persisted by Flutter.
+    pub fn enroll(&self, bootstrap: String, invite: String) -> Result<(), CommandError> {
+        self.inner
+            .enroll(bootstrap.trim(), invite.trim())
+            .map_err(command_error)?;
         Ok(())
     }
 
@@ -478,6 +525,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::ConfirmPairing => "confirm-pairing",
         Operation::CancelPairing => "cancel-pairing",
         Operation::QueryPendingPairing => "query-pending-pairing",
+        Operation::QueryOnboarding => "query-onboarding",
         Operation::CreateConversation => "create-conversation",
         Operation::AddDevice => "add-device",
         Operation::RemoveDevice => "remove-device",

@@ -10,10 +10,13 @@ Messenger autohosteado para familiares, amigos y pequeños círculos de confianz
 
 El relay, el núcleo Rust y la CLI están implementados; la base del cliente Flutter está en desarrollo. Esta documentación combina registros de implementación con propuestas históricas. Cada ADR declara su estado; ADR-009 está aceptada. La interfaz de mensajería y una revisión de seguridad independiente siguen pendientes. «DEBE» expresa un requisito del diseño; los registros de aceptación indican qué requisitos se han probado.
 
+**Empieza aquí:** [Instalar y probar Arveil](INSTALLATION.md) — rutas para servidor, macOS y Android, disponibilidad actual y criterios de distribución.
+
 ## Mapa y orden de lectura
 
 | Documento | Contenido |
 |---|---|
+| [INSTALLATION.md](INSTALLATION.md) | Entrada de instalación/pruebas y aceptación de distribución |
 | [CLIENT_FOUNDATION.md](CLIENT_FOUNDATION.md) | Cambios implementados, evidencia y límites |
 | [PHASE3B.md](PHASE3B.md) | Plan Flutter y criterios de aceptación |
 | [ADR-009](adr/ADR-009-flutter-first.md) | Flutter primero, decisión aceptada |

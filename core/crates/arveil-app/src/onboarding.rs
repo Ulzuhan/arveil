@@ -22,6 +22,30 @@ use super::{
 use crate::ProfileConfig;
 use crate::carrier::Bootstrap;
 
+pub fn status(config: &ProfileConfig) -> Result<super::OnboardingStatus, CliError> {
+    let client = open_client(config)?;
+    let enrollment = client.enrollment().map_err(client_error("enrollment"))?;
+    let device = client.device().map_err(client_error("device"))?;
+    let identity_id = client.identity_id().map_err(client_error("identity"))?;
+    let has_root = client.root().map_err(client_error("identity"))?.is_some();
+    let realm = client.realm().map_err(client_error("realm"))?;
+    let bootstrap = realm.map(|realm| {
+        format!(
+            "arveil-bootstrap:v0:{}:{}:{}:{}",
+            hex::encode(realm.realm_id),
+            hex::encode(realm.signing_public.as_bytes()),
+            hex::encode(realm.noise_public),
+            realm.bootstrap_url,
+        )
+    });
+    Ok(super::OnboardingStatus {
+        identity_id,
+        bootstrap,
+        linked_device: enrollment.is_none() && device.is_some() && !has_root,
+        phase: enrollment.map(|progress| progress.phase),
+    })
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Identity {
     pub identity_id: Vec<u8>,
@@ -200,6 +224,20 @@ pub async fn enroll(
 ) -> Result<Enrollment, CliError> {
     let bootstrap = Bootstrap::parse(bootstrap)?;
     let token = hex::decode(invite).map_err(domain_error("invite token"))?;
+    // Refuse malformed input before creating an identity or saving a
+    // one-enrollment-per-profile marker that a corrected input cannot resume.
+    if bootstrap.realm_id.len() != 32 || token.len() != 32 {
+        return Err(CliError::Domain("realm and invite must be 32 bytes".into()));
+    }
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+    let request = bootstrap
+        .url
+        .as_str()
+        .into_client_request()
+        .map_err(domain_error("relay URL"))?;
+    if !matches!(request.uri().scheme_str(), Some("ws" | "wss")) {
+        return Err(CliError::Domain("relay URL must use ws or wss".into()));
+    }
     let client = open_client(config)?;
     if client.root().map_err(client_error("identity"))?.is_none() {
         let root = client.identity_new().map_err(client_error("identity"))?;
