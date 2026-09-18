@@ -17,9 +17,9 @@ are disabled. Tokens stay in memory and are cleared on success or close.
 
 Pairing, recovery-kit export/restore and conversation screens are still
 pending in the [phase 3b plan](../../docs/PHASE3B.md). The conversation
-button currently queries only the local count. Signed macOS Keychain
-acceptance and physical Android acceptance remain open; an unsigned macOS
-build reports unavailable secure storage.
+button currently queries only the local count. The classic macOS login
+Keychain works with ad-hoc signing; physical Android and fresh downloaded
+macOS acceptance remain open.
 
 ## Installing versus developing
 
@@ -29,7 +29,8 @@ installation requirements. There are no downloadable app releases yet.
 The commands below are for developers; the intended macOS app package and
 Android APK must install without Flutter/Rust on the user's machine.
 The initial macOS development path must work without paid Apple membership;
-its key-store adaptation and acceptance are still pending.
+the login Keychain is selected explicitly, with no plaintext fallback.
+For ZIP/APK creation, see [client packaging](../../docs/CLIENT_RELEASES.md).
 
 ## Running it
 

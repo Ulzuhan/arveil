@@ -54,6 +54,7 @@ markdown_extensions:
 nav:
   - Overview: README.md
   - Install and try: INSTALLATION.md
+  - Build client packages: CLIENT_RELEASES.md
   - Architecture: ARCHITECTURE.md
   - Threat model: THREAT_MODEL.md
   - Protocol: PROTOCOL.md
@@ -90,6 +91,7 @@ nav:
   - Español:
       - Índice: es/README.md
       - Instalar y probar: es/INSTALLATION.md
+      - Crear paquetes del cliente: es/CLIENT_RELEASES.md
       - Arquitectura: es/ARCHITECTURE.md
       - Base de aplicación implementada: es/CLIENT_FOUNDATION.md
       - Plan Flutter (fase 3b): es/PHASE3B.md

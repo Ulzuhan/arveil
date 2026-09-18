@@ -147,7 +147,11 @@ class RustBuilder {
   CargoBuildOptions? get _buildOptions =>
       environment.crateOptions.cargo[environment.configuration];
 
-  String get _toolchain => _buildOptions?.toolchain.name ?? 'stable';
+  // Packaging supplies the version pinned by the Rust workspace.
+  String get _toolchain =>
+      Platform.environment['RUSTUP_TOOLCHAIN'] ??
+      _buildOptions?.toolchain.name ??
+      'stable';
   String get _effectiveToolchain => _resolvedToolchain ?? _toolchain;
 
   /// Returns the path of directory containing build artifacts.

@@ -1,6 +1,7 @@
-# Release builds (M3.5). Runs on a tag, produces one archive per target with
-# a SHA256SUMS file and signed build provenance, so somebody who did not
+# CLI/relay release builds (M3.5). Runs on v* tags, produces binaries with
+# SHA256SUMS-cli-relay.txt and signed build provenance, so somebody who did not
 # build it can check where it came from.
+# Flutter packages use clients-v* tags and SHA256SUMS-clients.txt.
 #
 # What this does not do: platform code signing. There is no Apple
 # notarization and no Windows Authenticode certificate, so macOS and Windows
@@ -95,16 +96,15 @@ jobs:
     name: Attach the artifacts to the release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
+          pattern: arveil-*
           path: dist
           merge-multiple: true
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          cd dist && cat SHA256SUMS-*.txt > SHA256SUMS.txt && rm SHA256SUMS-*.txt
-          gh release upload "${GITHUB_REF_NAME}" ./* --clobber --repo "${GITHUB_REPOSITORY}"
+        run: bash scripts/publish_binaries.sh dist

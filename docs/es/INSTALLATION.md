@@ -3,18 +3,18 @@
 [English](../INSTALLATION.md).
 
 **Disponibilidad actual (15 de septiembre de 2026):** todavía no hay releases
-publicadas en GitHub. El flujo de releases prepara binarios del relay y de la
-CLI; no empaqueta la app Flutter. La interfaz permite el alta por invitación,
-pero faltan emparejamiento, kit de recuperación y mensajería. Estas
-instrucciones describen las rutas de desarrollo disponibles.
+publicadas en GitHub. El [comando de empaquetado](CLIENT_RELEASES.md) prepara
+candidatos experimentales: ZIP para macOS y APK para Android. La interfaz permite
+el alta por invitación, pero faltan emparejamiento, kit de recuperación y
+mensajería. En esta fase, utiliza perfiles de prueba desechables.
 
 ## Elige por dónde empezar
 
 | Quiero… | Ruta disponible | Qué falta para una versión descargable |
 |---|---|---|
 | Desplegar un relay | Compilar con Docker Compose o usar el asistente de staging con Podman sin root | Imágenes versionadas para Linux x86-64/ARM64 y guía de instalación/actualización probada |
-| Probar la app en macOS | Compilar desde el código; la app arranca, pero abrir el perfil requiere un almacén de claves funcional | App empaquetada, claves verificadas sin cuenta Apple de pago e instrucciones de primera apertura y actualización |
-| Probar la app en Android | Compilar y ejecutar en emulador o teléfono conectado | APK descargable con clave de firma de release persistente; aceptación de instalación y actualización en teléfono físico |
+| Probar la app en macOS | ZIP experimental del mantenedor o compilar desde el código | Release pública y aceptación de una instalación nueva descargada |
+| Probar la app en Android | APK experimental del mantenedor o compilar desde el código | Release pública y aceptación de instalación/actualización en teléfono físico |
 | Usar un iPhone | Hito posterior y separado | Aceptación nativa y una vía compatible de firma/distribución |
 
 ## Relay: primer arranque local con Docker Compose
@@ -55,7 +55,63 @@ sigue las instrucciones de [copias](OPERATIONS.md#copias-de-seguridad) y
 [actualización](OPERATIONS.md#actualizaciones). Las copias contienen claves privadas
 del realm.
 
-## Apps: por ahora, compilaciones de desarrollo
+## Instalar un paquete experimental
+
+Las releases del cliente usan tags `clients-v…` e incluyen `BUILD-macos.json`,
+`BUILD-android.json` y `SHA256SUMS-clients.txt`. Un candidato local de una sola
+plataforma incluye `BUILD.json` y `SHA256SUMS.txt`.
+Las descargas públicas aparecerán en
+[GitHub Releases](https://github.com/Ulzuhan/arveil/releases) cuando se publiquen.
+Para instalar estos paquetes no necesitas Flutter, Rust, Xcode ni Android Studio.
+
+### macOS: Apple silicon, macOS 12 o posterior
+
+1. Abre el archivo `macos-arm64.zip` y arrastra `arveil.app` a Aplicaciones.
+2. Abre Arveil. Esta compilación tiene firma ad hoc y **no está notarizada por
+   Apple**. Si macOS bloquea una descarga de confianza, usa **Abrir igualmente**
+   para esta app en Ajustes del Sistema → Privacidad y seguridad, siguiendo las
+   [instrucciones de Apple](https://support.apple.com/guide/mac-help/mh40616/mac).
+3. Pulsa **Abrir perfil**. La clave se guarda en el llavero de inicio de sesión.
+   Si macOS lo pide, autoriza el acceso de esta app; una recompilación puede
+   volver a solicitarlo. Un llavero bloqueado o sin permiso se informa en la
+   interfaz y no se sustituye por un archivo de clave en texto plano.
+4. Pega los datos del relay y la invitación de un solo uso para completar el alta.
+
+**Actualizar:** cierra Arveil, reemplaza la app en Aplicaciones por la nueva
+versión y vuelve a abrirla. Conserva el perfil y la entrada del llavero. No uses
+un limpiador de aplicaciones para borrar sus datos. Si no puede acceder a la
+clave, conserva el perfil y resuelve el permiso del llavero antes de continuar.
+
+El llavero clásico no ofrece la misma vinculación al dispositivo que Data
+Protection en iOS. Arveil no lo sincroniza, pero las copias o migraciones
+manuales del llavero quedan fuera de su control. No se migran automáticamente
+perfiles creados con el anterior backend Data Protection. Consulta las
+[garantías y pruebas por plataforma](PLATFORMS.md).
+
+### Android: ARM64, Android 7.0 / API 24 o posterior
+
+1. Descarga el archivo `android-arm64.apk` en el teléfono y ábrelo.
+2. Si lo pide, permite **Instalar aplicaciones desconocidas** al navegador o
+   gestor de archivos que abre ese APK. Instala Arveil; después puedes retirar
+   ese permiso.
+3. Abre Arveil, pulsa **Abrir perfil** e introduce datos del relay e invitación.
+   Si el relay es privado, el teléfono debe estar conectado a su red.
+
+**Actualizar:** abre el APK nuevo e instálalo sobre la app existente. Debe usar
+el mismo certificado y un número de compilación superior. **No desinstales ni
+borres el almacenamiento para actualizar:** perderías el perfil y su clave.
+Un APK con otra firma, incluida la de depuración, no puede actualizar esta
+instalación. Conserva la app actual si Android informa de un conflicto.
+`BUILD.json` identifica la versión y el certificado.
+
+### Primer uso y límites
+
+La interfaz actual está en español. El alta completada muestra el resumen del
+perfil. Si falla la conexión, cierra/reabre y reintenta con el **mismo relay y
+la misma invitación**. Al reabrir un alta completada no necesitas otra
+invitación. Las pantallas de emparejamiento, kit y conversaciones siguen pendientes.
+
+## Compilar desde el código
 
 El [README de Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
 y la [matriz de plataformas](PLATFORMS.md) describen la compilación nativa y su
@@ -65,10 +121,8 @@ final.
 
 - **macOS:** desde `clients/flutter`, ejecuta `flutter pub get` y
   `flutter run -d macos`. Arrancar una compilación local no requiere una cuenta
-  Apple de pago. La configuración actual del almacén seguro puede impedir
-  abrir el perfil sin la firma correspondiente. Queda pendiente adaptar y
-  verificar esa ruta para desarrollo local; que la app arranque no basta como
-  aceptación.
+  Apple de pago para arrancar y abrir un perfil: utiliza el llavero clásico
+  explicado arriba. Para compilar, Xcode debe tener su licencia aceptada.
 - **Android:** para desarrollo, habilita la depuración USB, conecta y autoriza
   el teléfono; ejecuta `flutter devices` y `flutter run` desde `clients/flutter`.
   Instala antes el SDK/NDK requerido por el proyecto. Elige el dispositivo

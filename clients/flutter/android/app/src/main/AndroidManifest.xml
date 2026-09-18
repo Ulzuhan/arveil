@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- The profile is an encrypted database and its key is held by the
          Keystore. Neither travels to a cloud backup or a device transfer:
          exclusion is not encryption, it keeps the encrypted file out of an
@@ -7,7 +8,7 @@
          history, and the identity kit brings back an identity, not
          conversations. -->
     <application
-        android:label="arveil"
+        android:label="Arveil"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

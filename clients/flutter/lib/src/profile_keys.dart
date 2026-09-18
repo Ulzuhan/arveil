@@ -30,11 +30,7 @@ enum KeyState {
   /// nothing here will quietly replace it with a new one.
   missing,
 
-  /// The platform refused to keep a key at all. On macOS that is what an
-  /// application without a signing identity gets: the Keychain wants the
-  /// `keychain-access-groups` entitlement, and that entitlement wants a
-  /// development team. It is a packaging decision, so this says so rather
-  /// than falling back to a key kept somewhere weaker.
+  /// The platform refused access. Never falls back to a plaintext key.
   unavailable,
 }
 
@@ -53,14 +49,18 @@ class ProfileKeys {
       _storage =
           storage ??
           const FlutterSecureStorage(
-            // Device-bound and never synchronised: a key that travels to
-            // another device turns an excluded backup into a shared one.
+            // iOS uses the device-bound Data Protection Keychain.
             iOptions: IOSOptions(
               accessibility: KeychainAccessibility.first_unlock_this_device,
               synchronizable: false,
             ),
             mOptions: MacOsOptions(
-              accessibility: KeychainAccessibility.first_unlock_this_device,
+              // The login Keychain works with ad-hoc macOS builds. Its
+              // access-control prompts apply; it does not provide iOS's
+              // device-bound protection. This is an explicit backend,
+              // never a fallback after a Data Protection access failure.
+              usesDataProtectionKeychain: false,
+              accountName: 'io.github.ulzuhan.arveil.profile-keys',
               synchronizable: false,
             ),
             // The Android entry is wrapped by a Keystore key, which is
@@ -122,6 +122,10 @@ class ProfileKeys {
     final fresh = await generateProfileKey();
     try {
       await _storage.write(key: _keyName, value: fresh);
+      // Do not create an encrypted profile until its key can be retrieved.
+      if (await _storage.read(key: _keyName) != fresh) {
+        return const ProfileKey(KeyState.unavailable, null);
+      }
     } on PlatformException {
       return const ProfileKey(KeyState.unavailable, null);
     }
