@@ -57,8 +57,10 @@ del realm.
 
 ## Instalar un paquete experimental
 
-Los candidatos probados que entregue el mantenedor incluyen `BUILD.json` y
-`SHA256SUMS.txt`. Las descargas públicas aparecerán en
+Las releases del cliente usan tags `clients-v…` e incluyen `BUILD-macos.json`,
+`BUILD-android.json` y `SHA256SUMS-clients.txt`. Un candidato local de una sola
+plataforma incluye `BUILD.json` y `SHA256SUMS.txt`.
+Las descargas públicas aparecerán en
 [GitHub Releases](https://github.com/Ulzuhan/arveil/releases) cuando se publiquen.
 Para instalar estos paquetes no necesitas Flutter, Rust, Xcode ni Android Studio.
 

@@ -55,8 +55,10 @@ before replacing a version. Backups contain private realm keys.
 
 ## Install an experimental app package
 
-When a maintainer supplies a tested candidate, it includes `BUILD.json` and
-`SHA256SUMS.txt`. Public downloads will be listed on
+Client releases use tags named `clients-v…` and include `BUILD-macos.json`,
+`BUILD-android.json` and `SHA256SUMS-clients.txt`. A single-platform local
+candidate instead includes `BUILD.json` and `SHA256SUMS.txt`.
+Public downloads will be listed on
 [GitHub Releases](https://github.com/Ulzuhan/arveil/releases) when published.
 Installing these packages does not require Flutter, Rust, Xcode or Android Studio.
 

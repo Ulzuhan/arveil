@@ -87,6 +87,46 @@ Instala con `adb install -r` y arranca de nuevo. La señal fija
 con la clave del sistema conservada entre procesos y reemplazos del APK.
 No publiques esta compilación: genera después la app normal con el asistente.
 
+## Preparar el borrador en GitHub
+
+Las releases del cliente usan tags **`clients-v<versión>`**, por ejemplo
+`clients-v0.1.0-alpha.1`. Los tags `v*` corresponden al workflow de CLI/relay;
+los del cliente no activan ese filtro, tampoco en revisiones antiguas.
+El [filtro de tags de GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushbranchestagsbranches-ignoretags-ignore)
+y el script de publicación mantienen separadas ambas releases.
+
+1. Verifica el `SHA256SUMS.txt` local de cada plataforma desde su directorio de
+   salida con `shasum -a 256 --check SHA256SUMS.txt`. Comprueba que ambos
+   `BUILD.json` indican el mismo commit y versión/compilación, con `dirty_source: false`.
+2. Copia el ZIP y el APK probados a un directorio de preparación nuevo y vacío.
+   Copia sus metadatos como `BUILD-macos.json` y `BUILD-android.json`, conservando
+   el contenido. Deja fuera los registros, archivos de firma y símbolos de depuración.
+3. Desde ese directorio, genera y verifica el manifiesto conjunto del cliente:
+
+   ```sh
+   shasum -a 256 arveil-*-macos-arm64.zip arveil-*-android-arm64.apk \
+     BUILD-macos.json BUILD-android.json > SHA256SUMS-clients.txt
+   shasum -a 256 --check SHA256SUMS-clients.txt
+   ```
+
+4. Crea una **prerelease en borrador** con el tag del cliente. Su destino debe
+   ser el commit exacto de ambos metadatos, no una rama que pueda avanzar.
+   Adjunta solo los dos paquetes, los dos metadatos y `SHA256SUMS-clients.txt`.
+   Registra en las notas el alcance y las pruebas de aceptación descritas debajo.
+
+El workflow de CLI/relay publica `SHA256SUMS-cli-relay.txt` con una lista
+explícita de binarios y rechaza sobrescribir archivos de la release. Repetir
+una subida con nombres duplicados falla: revisa la release existente antes
+de reintentar. No uses `--clobber` para sustituir un paquete distribuido por
+una compilación diferente.
+
+Si un borrador aún sin publicar se preparó con `v*`, confirma primero que el
+tag no existe, cambia el tag previsto a `clients-v*` y renombra su manifiesto
+conjunto a `SHA256SUMS-clients.txt`. Actualiza las notas y verifica los hashes
+remotos. Conserva los bytes originales y su revisión de origen. Corregir un
+workflow en una rama posterior no modifica el guardado en el commit antiguo
+de la release. No muevas un tag publicado para aparentar un origen más reciente.
+
 ## Aceptación antes de publicar
 
 Registra commit, checksum, sistema/dispositivo y resultado de cada paso:

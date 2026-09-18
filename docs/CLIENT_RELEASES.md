@@ -86,6 +86,45 @@ the same stored identity with the retained platform key across processes and
 APK replacement. Never publish this test build; rebuild the normal main entry
 point with the packaging helper afterward.
 
+## Prepare the GitHub draft
+
+Client releases use **`clients-v<version>`** tags, for example
+`clients-v0.1.0-alpha.1`. The `v*` namespace belongs to the CLI/relay workflow;
+client tags do not match that trigger, including at older source revisions.
+The [GitHub tag filter](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushbranchestagsbranches-ignoretags-ignore)
+and the publication script both keep these releases separate.
+
+1. Verify each platform's local `SHA256SUMS.txt` from its output directory with
+   `shasum -a 256 --check SHA256SUMS.txt`. Check that both `BUILD.json` files
+   report the same committed revision and version/build, with `dirty_source: false`.
+2. Copy the tested ZIP and APK to a new, empty staging directory. Copy their
+   metadata as `BUILD-macos.json` and `BUILD-android.json`, without changing its
+   contents. Keep build logs, signing files and debug symbols outside that directory.
+3. In the staging directory, create and verify the combined client manifest:
+
+   ```sh
+   shasum -a 256 arveil-*-macos-arm64.zip arveil-*-android-arm64.apk \
+     BUILD-macos.json BUILD-android.json > SHA256SUMS-clients.txt
+   shasum -a 256 --check SHA256SUMS-clients.txt
+   ```
+
+4. Create a **draft prerelease** using the client tag. Set its target to the exact
+   source commit recorded in both metadata files, not a moving branch. Attach
+   only the two packages, the two metadata files and `SHA256SUMS-clients.txt`.
+   Record the scope and acceptance evidence below in its notes.
+
+The CLI/relay workflow publishes `SHA256SUMS-cli-relay.txt` with an explicit
+binary list and refuses to overwrite existing release assets. A repeated upload
+with duplicate names fails; investigate the existing release before retrying.
+Do not use `--clobber` to replace a distributed package with a different build.
+
+For a still-unpublished draft prepared under `v*`, first confirm no tag exists,
+rename the draft tag to `clients-v*`, and rename its combined manifest to
+`SHA256SUMS-clients.txt`. Update its notes and recheck remote asset hashes.
+Preserve the original package bytes and source revision. A workflow fix on a
+newer branch does not change the workflow stored at an older release commit.
+Do not move a published tag to make its source appear newer.
+
 ## Acceptance before publication
 
 Record the commit, package checksum, OS/device and each result:
