@@ -18,9 +18,9 @@ are disabled. Tokens stay in memory and are cleared on success or close.
 Pairing with manual code comparison, cancellation and resumed completion,
 and encrypted identity-kit export/restore are implemented. The profile shows
 dated KeyPackage availability and can replenish or resume a failed publication.
-Conversation screens remain pending in the
-[phase 3b plan](../../docs/PHASE3B.md). The conversation
-button currently queries only the local count. The classic macOS login
+The conversation screen lists local groups, compares contact-route safety
+numbers, creates groups, pages history, queues text offline and synchronizes.
+The [phase 3b plan](../../docs/PHASE3B.md) keeps physical-device acceptance open. The classic macOS login
 Keychain works with ad-hoc signing; physical Android and fresh downloaded
 macOS acceptance remain open.
 
@@ -141,3 +141,26 @@ Failed Flutter diagnostics remain private under ignored
 `.local/client-acceptance/` and may contain connection data or local paths.
 It accepts no shared relay or physical-phone target. Physical-device acceptance
 and native file-dialog interaction are separate checks.
+
+## Conversation acceptance
+
+From the repository root, with Flutter and Go on `PATH`:
+
+```sh
+python3 scripts/test_client_conversations.py --device macos
+# Or a disposable Android emulator, with adb on PATH:
+python3 scripts/test_client_conversations.py --device emulator-5554
+```
+
+The helper starts its own loopback relay and an authenticated loopback test
+control service, creates two invitations, and drives the GUI with two temporary
+encrypted profiles and platform key storage. It compares routes, creates a group,
+exchanges text, stops only its own relay, queues text offline, reopens the profile,
+loads older messages and reconnects without duplicates. The peer uses the native
+bridge within the test app; this is not a Mac–Android cross-device test.
+Text is injected by the test framework, so native keyboard/IME behavior needs
+separate hands-on acceptance.
+
+Temporary credentials and port forwards are removed; the Flutter build is cleaned.
+Do not run another Flutter build concurrently. Failed diagnostics stay in ignored
+`.local/client-acceptance/`. Never publish an integration-test build.

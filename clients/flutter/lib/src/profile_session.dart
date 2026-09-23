@@ -53,6 +53,8 @@ class ProfileSession extends ChangeNotifier {
   KeyPackageSupplyView? keyPackages;
   bool keyPackagesUnavailable = false;
 
+  Profile? get profile => _profile;
+
   bool get isOpen => _profile != null;
 
   void _changed() {

@@ -57,6 +57,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  CommandError dco_decode_box_autoadd_command_error(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -67,6 +70,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  ChatMutationView dco_decode_chat_mutation_view(dynamic raw);
 
   @protected
   CommandError dco_decode_command_error(dynamic raw);
@@ -111,7 +117,13 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<RoutePreviewView> dco_decode_list_route_preview_view(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  CommandError? dco_decode_opt_box_autoadd_command_error(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -138,10 +150,16 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   ProgressView dco_decode_progress_view(dynamic raw);
 
   @protected
+  RoutePreviewView dco_decode_route_preview_view(dynamic raw);
+
+  @protected
   SetupStage dco_decode_setup_stage(dynamic raw);
 
   @protected
   SetupView dco_decode_setup_view(dynamic raw);
+
+  @protected
+  SyncView dco_decode_sync_view(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -191,6 +209,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  CommandError sse_decode_box_autoadd_command_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -201,6 +224,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  ChatMutationView sse_decode_chat_mutation_view(SseDeserializer deserializer);
 
   @protected
   CommandError sse_decode_command_error(SseDeserializer deserializer);
@@ -253,7 +279,17 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<RoutePreviewView> sse_decode_list_route_preview_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  CommandError? sse_decode_opt_box_autoadd_command_error(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -282,10 +318,16 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   ProgressView sse_decode_progress_view(SseDeserializer deserializer);
 
   @protected
+  RoutePreviewView sse_decode_route_preview_view(SseDeserializer deserializer);
+
+  @protected
   SetupStage sse_decode_setup_stage(SseDeserializer deserializer);
 
   @protected
   SetupView sse_decode_setup_view(SseDeserializer deserializer);
+
+  @protected
+  SyncView sse_decode_sync_view(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -342,6 +384,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_command_error(
+    CommandError self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -358,6 +406,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_chat_mutation_view(
+    ChatMutationView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_command_error(CommandError self, SseSerializer serializer);
@@ -426,7 +480,19 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_list_route_preview_view(
+    List<RoutePreviewView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_command_error(
+    CommandError? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_i_64(
@@ -462,10 +528,19 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_progress_view(ProgressView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_route_preview_view(
+    RoutePreviewView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_setup_stage(SetupStage self, SseSerializer serializer);
 
   @protected
   void sse_encode_setup_view(SetupView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sync_view(SyncView self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

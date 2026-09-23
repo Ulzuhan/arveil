@@ -12,7 +12,7 @@ use arveil_app::{
 use flutter_rust_bridge::frb;
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 
 use crate::frb_generated::StreamSink;
 
@@ -20,9 +20,9 @@ use crate::frb_generated::StreamSink;
 /// and the keys stay on this side.
 pub struct Profile {
     inner: Application,
-    /// Set while a stream is wanted. Cleared by `stop_watching`, which is
-    /// how a screen unsubscribes without closing the profile.
-    watching: Arc<AtomicBool>,
+    /// Each watcher owns a generation. Replacing/stopping it invalidates the
+    /// previous loop even when a screen immediately starts another watcher.
+    watching: Arc<AtomicU64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,6 +77,25 @@ pub struct KeyPackageSupplyView {
 pub struct KitView {
     pub encrypted: Vec<u8>,
     pub secret: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoutePreviewView {
+    pub identity_id: String,
+    pub device_id: String,
+    pub safety_number: String,
+}
+
+/// A committed mutation may carry a later failure. Retry publication with sync,
+/// never by creating a second message or conversation.
+pub struct ChatMutationView {
+    pub group_id: String,
+    pub event_id: Option<String>,
+    pub warning: Option<CommandError>,
+}
+
+pub struct SyncView {
+    pub processed_envelopes: u32,
 }
 
 /// Why a profile could not be opened.
@@ -259,7 +278,7 @@ pub fn open_profile(dir: String, key: String) -> Result<Profile, ProfileError> {
     let config = ProfileConfig::encrypted(dir, key).map_err(profile_error)?;
     Ok(Profile {
         inner: Application::open(config).map_err(profile_error)?,
-        watching: Arc::new(AtomicBool::new(false)),
+        watching: Arc::new(AtomicU64::new(0)),
     })
 }
 
@@ -268,7 +287,7 @@ pub fn open_profile(dir: String, key: String) -> Result<Profile, ProfileError> {
 pub fn open_unencrypted_profile(dir: String) -> Result<Profile, ProfileError> {
     Ok(Profile {
         inner: Application::open(ProfileConfig::unencrypted(dir)).map_err(profile_error)?,
-        watching: Arc::new(AtomicBool::new(false)),
+        watching: Arc::new(AtomicU64::new(0)),
     })
 }
 
@@ -435,13 +454,91 @@ impl Profile {
         Ok(())
     }
 
+    pub fn own_route(&self) -> Result<String, CommandError> {
+        self.inner.own_route().map_err(command_error)
+    }
+
+    pub fn preview_routes(
+        &self,
+        routes: Vec<String>,
+    ) -> Result<Vec<RoutePreviewView>, CommandError> {
+        Ok(self
+            .inner
+            .preview_routes(routes)
+            .map_err(command_error)?
+            .into_iter()
+            .map(|r| RoutePreviewView {
+                identity_id: hex(&r.identity_id),
+                device_id: hex(&r.device_id),
+                safety_number: r.safety_number,
+            })
+            .collect())
+    }
+
+    pub fn create_conversation(
+        &self,
+        bootstrap: String,
+        routes: Vec<String>,
+        safety_numbers: Vec<String>,
+    ) -> Result<ChatMutationView, CommandError> {
+        if routes.len() != safety_numbers.len() {
+            return Err(CommandError::Domain {
+                operation: "create-conversation".into(),
+                reason: "compare every route first".into(),
+            });
+        }
+        chat_mutation(
+            self.inner.create_verified_conversation(
+                &bootstrap,
+                routes
+                    .into_iter()
+                    .zip(safety_numbers)
+                    .map(|(route, safety_number)| arveil_app::ConfirmedRoute {
+                        route,
+                        safety_number,
+                    })
+                    .collect(),
+            ),
+        )
+    }
+
+    pub fn queue_message(
+        &self,
+        group_id: String,
+        text: String,
+    ) -> Result<ChatMutationView, CommandError> {
+        chat_mutation(self.inner.queue_message(&text, &group_id))
+    }
+
+    pub fn sync(&self, bootstrap: String) -> Result<SyncView, CommandError> {
+        let result = self.inner.sync(&bootstrap).map_err(command_error)?;
+        Ok(SyncView {
+            processed_envelopes: result
+                .changes
+                .iter()
+                .filter_map(|change| match change {
+                    arveil_app::StateChange::SyncCompleted { new, .. } => Some(*new as u32),
+                    _ => None,
+                })
+                .sum(),
+        })
+    }
+
+    /// Reserve a watcher synchronously before its asynchronous worker starts.
+    /// Stopping during dispatch therefore cannot accidentally revive a stream.
+    #[frb(sync)]
+    pub fn start_watching(&self) -> u64 {
+        self.watching
+            .fetch_add(1, AtomicOrdering::AcqRel)
+            .wrapping_add(1)
+    }
+
     /// Watch progress while operations run. The stream ends when the
     /// profile closes or when `stop_watching` is called; a listener should
     /// stop before cancelling, since the stream is closed from this side.
-    pub fn watch(&self, sink: StreamSink<ProgressView>) {
+    pub fn watch(&self, generation: u64, sink: StreamSink<ProgressView>) {
         let subscription = self.inner.watch();
-        self.watching.store(true, AtomicOrdering::Release);
-        while self.watching.load(AtomicOrdering::Acquire) {
+        while self.watching.load(AtomicOrdering::Acquire) == generation {
             match subscription.wait(std::time::Duration::from_millis(100)) {
                 Waited::Event(event) => {
                     if sink.add(progress_view(event)).is_err() {
@@ -460,8 +557,14 @@ impl Profile {
     /// else. Dropping the subscription on the Rust side is what actually
     /// unsubscribes.
     #[frb(sync)]
-    pub fn stop_watching(&self) {
-        self.watching.store(false, AtomicOrdering::Release);
+    pub fn stop_watching(&self, generation: u64) {
+        // An older screen finishing its exit animation cannot stop its successor.
+        let _ = self.watching.compare_exchange(
+            generation,
+            generation.wrapping_add(1),
+            AtomicOrdering::AcqRel,
+            AtomicOrdering::Acquire,
+        );
     }
 
     /// One page of a conversation, newest page first: pass the previous
@@ -494,6 +597,40 @@ impl Profile {
             .map(view)
             .collect())
     }
+}
+
+fn chat_mutation(
+    result: Result<arveil_app::OperationResult, ApplicationError>,
+) -> Result<ChatMutationView, CommandError> {
+    let (operation, failure) = match result {
+        Ok(value) => (value, None),
+        Err(error) => (error.partial_result().clone(), Some(error)),
+    };
+    let accepted = operation
+        .messages
+        .first()
+        .map(|m| (hex(&m.group_id), Some(hex(&m.event_id))))
+        .or_else(|| {
+            operation.changes.iter().find_map(|change| match change {
+                arveil_app::StateChange::ConversationCreated { group_id, .. } => {
+                    Some((hex(group_id), None))
+                }
+                _ => None,
+            })
+        });
+    if let Some((group_id, event_id)) = accepted {
+        return Ok(ChatMutationView {
+            group_id,
+            event_id,
+            warning: failure.map(command_error),
+        });
+    }
+    Err(failure
+        .map(command_error)
+        .unwrap_or_else(|| CommandError::Internal {
+            operation: "chat-mutation".into(),
+            reason: "no durable result returned".into(),
+        }))
 }
 
 fn progress_view(event: ProgressEvent) -> ProgressView {
@@ -703,6 +840,10 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::ExportKit => "export-kit",
         Operation::RestoreKit => "restore-kit",
         Operation::ResumeRecovery => "resume-recovery",
+        Operation::QueryOwnRoute => "query-own-route",
+        Operation::PreviewRoutes => "preview-routes",
+        Operation::CreateVerifiedConversation => "create-verified-conversation",
+        Operation::QueueMessage => "queue-message",
         Operation::CreateConversation => "create-conversation",
         Operation::AddDevice => "add-device",
         Operation::RemoveDevice => "remove-device",
@@ -714,5 +855,32 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::QueryPeers => "query-peers",
         Operation::QueryHistoryPage => "query-history-page",
         Operation::QueryArchived => "query-archived",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arveil_app::{OperationResult, StateChange};
+
+    #[test]
+    fn a_post_commit_failure_returns_the_saved_group_instead_of_inviting_a_duplicate() {
+        let result = chat_mutation(Err(ApplicationError::Domain {
+            operation: Operation::CreateVerifiedConversation,
+            source: arveil_app::carrier::CliError::Domain("after commit".into()),
+            partial: OperationResult {
+                changes: vec![StateChange::ConversationCreated {
+                    group_id: vec![1, 2],
+                    peers: 1,
+                    epoch: 1,
+                }],
+                messages: vec![],
+            },
+        }))
+        .unwrap();
+        assert_eq!(result.group_id, "0102");
+        assert!(result.event_id.is_none());
+        assert!(matches!(result.warning, Some(CommandError::Domain { .. })));
+        assert!(chat_mutation(Ok(OperationResult::default())).is_err());
     }
 }

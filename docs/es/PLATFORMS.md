@@ -187,3 +187,20 @@ CLI. El [README de Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/
 aporta un script que prepara todo el entorno. Esta ejecución y las pruebas de
 widgets no cubren teléfono físico, emparejamiento entre plataformas ni
 interacción con los diálogos nativos de archivos.
+
+## Aceptación de conversaciones GUI (23 de septiembre de 2026)
+
+El código `0.1.0+5` que acompaña este registro pasó
+`integration_test/conversations_test.dart` de forma nativa en macOS Apple
+silicon con Xcode 27 y llavero de inicio de sesión, y en un emulador desechable
+Android 15/API 35 ARM64 con Keystore. El asistente aislado crea
+dos perfiles cifrados y comprueba creación verificada de grupo, texto en ambos
+sentidos, parada del relay, aceptación sin conexión, reapertura del perfil,
+paginación y reconexión con 55 eventos sin duplicados. También verifica la
+cancelación antes de arrancar el observador.
+
+El interlocutor utiliza el bridge nativo dentro de la app de prueba. Flutter
+inyecta el texto mediante su canal de pruebas. No es aceptación cruzada
+Mac–Android, teléfono físico, teclado/IME nativo ni instalación recién descargada.
+Los paquetes experimentales anteriores `0.1.0+2` siguen iguales. Reproducción en
+el [README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).

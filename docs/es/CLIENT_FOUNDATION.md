@@ -11,7 +11,7 @@ Flutter → puente Rust ─┴→ arveil-app → arveil-core
                                       └→ transporte Noise/WebSocket → relay Go
 ```
 
-`arveil-app` coordina operaciones y devuelve resultados estructurados. `arveil-core` conserva identidad, MLS, persistencia y primitivas de entrega. El relay sigue siendo un proceso Go independiente; no contiene las claves E2EE de los clientes. El cliente Flutter abre perfiles cifrados, da de alta por invitación, vincula dispositivos y exporta/restaura kits cifrados de identidad mediante el puente. No existe interfaz de mensajería.
+`arveil-app` coordina operaciones y devuelve resultados estructurados. `arveil-core` conserva identidad, MLS, persistencia y primitivas de entrega. El relay sigue siendo un proceso Go independiente; no contiene las claves E2EE de los clientes. El cliente Flutter abre perfiles cifrados, da de alta por invitación, vincula dispositivos y exporta/restaura kits cifrados de identidad mediante el puente. La interfaz permite crear conversaciones tras comparar rutas, leer historial paginado, enviar texto sin conexión y sincronizar.
 
 ## Cambios realizados y evidencia
 
@@ -58,7 +58,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 
 ## Límites que permanecen
 
-- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. Siguen pendientes conversación, adjuntos y gestión de dispositivos. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
+- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. La conversación de texto está implementada; siguen pendientes adjuntos y gestión de dispositivos. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
 - Solo la CLI lee ya variables de entorno, y sigue eligiendo perfil sin cifrar cuando no hay clave. El almacén seguro se ha probado en emulador Android y en macOS con firma ad hoc y llavero clásico. Quedan pendientes teléfono físico y una instalación nueva descargada.
 - El puente Rust ejecuta las llamadas bloqueantes fuera del hilo de interfaz y expone un flujo incremental de eventos. Siguen pendientes la cancelación general de operaciones y la aceptación completa del ciclo de vida de cada plataforma.
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. El progreso es una proyección: los cambios que no modela solo llegan en el resultado durable.
@@ -141,3 +141,37 @@ Docker al no estar disponible. La [matriz de plataformas](PLATFORMS.md)
 delimita la prueba GUI con consumo simulado y la evidencia por plataforma.
 Siguen pendientes teléfono físico y diálogos nativos. La versión fuente es
 `0.1.0+4`; el candidato alfa existente no cambia.
+
+## Interfaz de conversaciones (M3b.3)
+
+El cliente fuente `0.1.0+5` incorpora lista/detalle adaptable, compartir la ruta de
+este dispositivo explícitamente, comparación del número de seguridad de cada
+contacto, creación verificada de grupos, historial paginado y composición de texto.
+Editar las rutas invalida la comparación. Rust valida tamaños, dispositivos
+repetidos y los números exactos antes de verificar los contactos. Se utiliza el
+protocolo de identidad/MLS existente; no equivale a una auditoría independiente.
+
+`QueueMessage` confirma estado MLS, evento y outbox cifrado antes de devolver el
+recibo, sin acceder a la red. Flutter borra solo el borrador aceptado y sincroniza
+los sobres guardados. Si la creación falla después del commit, el bridge devuelve
+el grupo guardado con un aviso para no crearlo otra vez. La CLI comparte la misma
+transacción local de envío. El texto admite hasta 32 KiB de UTF-8.
+
+El historial responde durante una sincronización. La pantalla relee las
+proyecciones con el progreso y al completar operaciones; en primer plano sincroniza
+cada diez segundos y al reanudarse, además del reintento manual. No hay push ni
+entrega en segundo plano. La actualización reconcilia el historial mostrado en páginas de 50, conserva
+las páginas anteriores que abrió el usuario y se detiene si cambia de pantalla
+o selección. Se distingue
+almacenamiento local, aceptación del relay, entrega no disponible y recepción en
+este dispositivo. No se afirma lectura humana, autor autenticado ni hora del
+mensaje. Nombres de contactos, acciones de adjuntos y gestión de miembros quedan
+para entregas posteriores.
+
+Las regresiones cubren comparación simétrica y confirmación atómica de contactos,
+encolado/reapertura sin relay, resultados del bridge tras commit, historial durante
+red bloqueada, esperas compartidas de sincronización, cancelación del observador antes de su arranque, selecciones tardías, paginación con nuevos mensajes, invalidación de
+rutas editadas, texto recibido, conservación de borradores y doble envío.
+La [matriz de plataformas](PLATFORMS.md) detalla el alcance nativo y el
+[README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
+aporta el comando reproducible con un relay aislado.

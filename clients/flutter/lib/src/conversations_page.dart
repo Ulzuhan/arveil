@@ -1,0 +1,544 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'conversation_controller.dart';
+import 'rust/api/profile.dart';
+
+String shortId(String id) => id.length <= 12 ? id : id.substring(0, 12);
+
+class ConversationsPage extends StatefulWidget {
+  const ConversationsPage({super.key, required this.controller});
+  final ConversationController controller;
+
+  @override
+  State<ConversationsPage> createState() => _ConversationsPageState();
+}
+
+class _ConversationsPageState extends State<ConversationsPage>
+    with WidgetsBindingObserver {
+  final _draft = TextEditingController();
+  final Map<String, String> _drafts = {};
+  ConversationController get chat => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(chat.start());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    chat.setActive(state == AppLifecycleState.resumed);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _draft.dispose();
+    chat.dispose();
+    super.dispose();
+  }
+
+  Future<void> _select(String? group) async {
+    if (chat.selected case final id?) _drafts[id] = _draft.text;
+    _draft.text = _drafts[group] ?? '';
+    await chat.select(group);
+  }
+
+  Future<void> _send() async {
+    final group = chat.selected;
+    final text = _draft.text;
+    if (await chat.send(text) && mounted) {
+      if (chat.selected == group && _draft.text == text) _draft.clear();
+      if (_drafts[group] == text) _drafts.remove(group);
+    }
+  }
+
+  Future<void> _create() async {
+    if (chat.selected case final id?) _drafts[id] = _draft.text;
+    final group = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => NewConversationPage(chat: chat)),
+    );
+    if (group != null && mounted) _draft.text = _drafts[group] ?? '';
+  }
+
+  Future<void> _shareRoute() async {
+    try {
+      final route = await chat.profile.ownRoute();
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Tu ruta de contacto'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Compártela solo con las personas que quieras que puedan escribir a este dispositivo. Comparad después el número de seguridad por otro canal.',
+                ),
+                const SizedBox(height: 16),
+                SelectableText(route, key: const Key('own-route')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: route));
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Copiar ruta'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo obtener la ruta de este dispositivo.'),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: chat,
+    builder: (context, _) => LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 760;
+        final selected = chat.selected != null;
+        return PopScope(
+          canPop: wide || !selected,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) unawaited(_select(null));
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              leading: !wide && selected
+                  ? IconButton(
+                      tooltip: 'Volver a conversaciones',
+                      onPressed: () => _select(null),
+                      icon: const Icon(Icons.arrow_back),
+                    )
+                  : null,
+              title: Text(
+                !wide && selected
+                    ? 'Conversación ${shortId(chat.selected!)}'
+                    : 'Conversaciones',
+              ),
+              actions: [
+                IconButton(
+                  tooltip: 'Mi ruta',
+                  onPressed: _shareRoute,
+                  icon: const Icon(Icons.share_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Nueva conversación',
+                  onPressed: chat.creating ? null : _create,
+                  icon: const Icon(Icons.edit_square),
+                ),
+                IconButton(
+                  tooltip: 'Sincronizar',
+                  onPressed: chat.syncing ? null : chat.sync,
+                  icon: const Icon(Icons.sync),
+                ),
+              ],
+            ),
+            body: SafeArea(
+              child: Column(
+                children: [
+                  if (chat.syncing)
+                    const LinearProgressIndicator(
+                      semanticsLabel: 'Sincronizando',
+                    ),
+                  if (chat.networkError case final message?) _banner(message),
+                  if (chat.error case final message?)
+                    _banner(message, error: true),
+                  if (chat.notice case final message?) _banner(message),
+                  Expanded(
+                    child: wide
+                        ? Row(
+                            children: [
+                              SizedBox(width: 280, child: _list()),
+                              const VerticalDivider(width: 1),
+                              Expanded(
+                                child: selected
+                                    ? _history()
+                                    : const Center(
+                                        child: Text(
+                                          'Elige una conversación para leerla.',
+                                        ),
+                                      ),
+                              ),
+                            ],
+                          )
+                        : selected
+                        ? _history()
+                        : _list(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+
+  Widget _banner(String message, {bool error = false}) => Semantics(
+    liveRegion: true,
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: error
+          ? Theme.of(context).colorScheme.errorContainer
+          : Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Text(message, style: Theme.of(context).textTheme.bodySmall),
+    ),
+  );
+
+  Widget _list() => chat.conversations.isEmpty
+      ? ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const Icon(Icons.forum_outlined, size: 40),
+            const SizedBox(height: 16),
+            const Text('Todavía no hay conversaciones guardadas.'),
+            const SizedBox(height: 12),
+            const Text(
+              'Crea una con una ruta de contacto o sincroniza para recibir una invitación.',
+            ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: chat.creating ? null : _create,
+              child: const Text('Nueva conversación'),
+            ),
+          ],
+        )
+      : ListView.builder(
+          itemCount: chat.conversations.length,
+          itemBuilder: (context, index) {
+            final row = chat.conversations[index];
+            return ListTile(
+              key: Key('conversation-${row.groupId}'),
+              selected: chat.selected == row.groupId,
+              leading: const Icon(Icons.forum_outlined),
+              title: Text('Conversación ${shortId(row.groupId)}'),
+              subtitle: Text(
+                '${row.peerDevices} dispositivos · ${row.eventCount} mensajes',
+              ),
+              onTap: () => _select(row.groupId),
+            );
+          },
+        );
+
+  Widget _history() => Column(
+    children: [
+      if (chat.sending)
+        const LinearProgressIndicator(semanticsLabel: 'Guardando mensaje'),
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text(
+          'Historial local · ${shortId(chat.selected!)}',
+          style: Theme.of(context).textTheme.labelMedium,
+        ),
+      ),
+      Expanded(
+        child: chat.loading
+            ? const Center(child: CircularProgressIndicator())
+            : chat.events.isEmpty
+            ? const Center(child: Text('Escribe el primer mensaje.'))
+            : ListView.builder(
+                key: ValueKey('history-${chat.selected}'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                reverse: true,
+                itemCount: chat.events.length + (chat.before == null ? 0 : 1),
+                itemBuilder: (context, index) {
+                  if (index == chat.events.length) {
+                    return TextButton(
+                      onPressed: chat.loadingOlder ? null : chat.older,
+                      child: Text(
+                        chat.loadingOlder ? 'Leyendo…' : 'Cargar anteriores',
+                      ),
+                    );
+                  }
+                  return MessageBubble(
+                    event: chat.events[chat.events.length - 1 - index],
+                  );
+                },
+              ),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                key: const Key('message-draft'),
+                controller: _draft,
+                minLines: 1,
+                maxLines: 5,
+                maxLength: 32768,
+                autocorrect: false,
+                enableSuggestions: false,
+                enableIMEPersonalizedLearning: false,
+                decoration: const InputDecoration(
+                  labelText: 'Mensaje',
+                  counterText: '',
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              key: const Key('send-message'),
+              tooltip: 'Enviar',
+              onPressed: chat.sending ? null : _send,
+              icon: const Icon(Icons.send),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class MessageBubble extends StatelessWidget {
+  const MessageBubble({super.key, required this.event});
+  final HistoryEventView event;
+  @override
+  Widget build(BuildContext context) {
+    final sent = event.kind == 'sent';
+    final text = event.kind == 'received' || sent
+        ? utf8.decode(event.body, allowMalformed: true)
+        : event.kind.startsWith('file')
+        ? 'Adjunto (consulta disponible desde la CLI)'
+        : 'Evento de conversación';
+    final status = !sent
+        ? 'Recibido en este dispositivo'
+        : event.delivery.isEmpty
+        ? 'Guardado localmente · sin destinatarios disponibles'
+        : event.delivery.any((s) => s.startsWith('undeliverable'))
+        ? 'Algún buzón rechazó el mensaje'
+        : event.delivery.any((s) => s == 'expired/unknown')
+        ? 'Entrega caducada o desconocida'
+        : event.delivery.every((s) => s.startsWith('accepted'))
+        ? 'Aceptado por el relay · lectura sin confirmar'
+        : 'Guardado localmente · envío pendiente';
+    return Align(
+      alignment: sent ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        key: Key('message-${event.eventId}'),
+        constraints: const BoxConstraints(maxWidth: 560),
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: sent
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SelectableText(text),
+            const SizedBox(height: 6),
+            Text(status, style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class NewConversationPage extends StatefulWidget {
+  const NewConversationPage({super.key, required this.chat});
+  final ConversationController chat;
+  @override
+  State<NewConversationPage> createState() => _NewConversationPageState();
+}
+
+class _NewConversationPageState extends State<NewConversationPage> {
+  final _routes = TextEditingController();
+  List<String> _checkedRoutes = [];
+  List<RoutePreviewView> _previews = [];
+  bool _compared = false;
+  bool _checking = false;
+  String? _error;
+  int _revision = 0;
+  @override
+  void dispose() {
+    _routes.dispose();
+    super.dispose();
+  }
+
+  Future<void> _preview() async {
+    final routes = _routes.text
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final revision = ++_revision;
+    setState(() {
+      _checking = true;
+      _error = null;
+      _compared = false;
+      _previews = [];
+    });
+    try {
+      final previews = await widget.chat.profile.previewRoutes(routes: routes);
+      if (mounted && revision == _revision) {
+        setState(() {
+          _checkedRoutes = routes;
+          _previews = previews;
+        });
+      }
+    } catch (_) {
+      if (mounted && revision == _revision) {
+        setState(
+          () => _error =
+              'Revisa las rutas completas: entre uno y dieciséis dispositivos distintos, sin incluir este dispositivo.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<void> _create() async {
+    final group = await widget.chat.create(
+      _checkedRoutes,
+      _previews.map((p) => p.safetyNumber).toList(),
+    );
+    if (!mounted) return;
+    if (group != null) {
+      Navigator.pop(context, group);
+    } else {
+      setState(() => _error = widget.chat.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.chat,
+    builder: (context, _) {
+      final busy = _checking || widget.chat.creating;
+      return PopScope(
+        canPop: !widget.chat.creating,
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Nueva conversación')),
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    const Text(
+                      'Pide a tus contactos su ruta de este relay. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.',
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      key: const Key('peer-routes'),
+                      controller: _routes,
+                      enabled: !busy,
+                      minLines: 3,
+                      maxLines: 6,
+                      maxLength: 65536,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      enableIMEPersonalizedLearning: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Rutas de contacto',
+                        counterText: '',
+                      ),
+                      onChanged: (_) => setState(() {
+                        _revision++;
+                        _previews = [];
+                        _checkedRoutes = [];
+                        _compared = false;
+                        _error = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: busy ? null : _preview,
+                      child: const Text('Preparar comparación'),
+                    ),
+                    for (final preview in _previews)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Identidad ${shortId(preview.identityId)} · dispositivo ${shortId(preview.deviceId)}',
+                              ),
+                              const SizedBox(height: 12),
+                              SelectableText(
+                                preview.safetyNumber,
+                                key: Key('safety-${preview.deviceId}'),
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (_previews.isNotEmpty) ...[
+                      CheckboxListTile(
+                        key: const Key('compared-routes'),
+                        contentPadding: EdgeInsets.zero,
+                        value: _compared,
+                        onChanged: busy
+                            ? null
+                            : (v) => setState(() => _compared = v!),
+                        title: const Text(
+                          'Hemos comparado todos los números por otro canal y coinciden.',
+                        ),
+                      ),
+                      FilledButton(
+                        key: const Key('create-conversation'),
+                        onPressed: busy || !_compared ? null : _create,
+                        child: const Text('Crear conversación'),
+                      ),
+                    ],
+                    if (busy)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 16),
+                        child: LinearProgressIndicator(),
+                      ),
+                    if (_error case final message?)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text(message),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}

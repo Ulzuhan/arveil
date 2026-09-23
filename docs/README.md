@@ -1,6 +1,6 @@
 # Arveil — architecture documentation
 
-**Current client status:** see the [implemented client foundation](CLIENT_FOUNDATION.md), [Flutter implementation plan](PHASE3B.md) and [accepted ADR-009](adr/ADR-009-flutter-first.md). These updates supersede the earlier client proposals below. Flutter is selected; `mls-rs` is already in use. A Flutter client opens, queries and closes a profile through the Rust core, verified on macOS; there is no messaging interface yet. Earlier unresolved-item lists are historical, not the current backlog.
+**Current client status:** see the [implemented client foundation](CLIENT_FOUNDATION.md), [Flutter implementation plan](PHASE3B.md) and [accepted ADR-009](adr/ADR-009-flutter-first.md). These updates supersede the earlier client proposals below. Flutter is selected; `mls-rs` is already in use. The Flutter client supports encrypted profiles, enrollment, pairing, recovery kits and conversations through Rust; the platform record distinguishes implemented features from acceptance. Earlier unresolved-item lists are historical, not the current backlog.
 
 **Status:** experimental implementation with historical design records · **Language:** English.
 
@@ -8,7 +8,7 @@
 
 Self-hosted messenger for family, friends and small circles of trust. A Go server transports and temporarily retains encrypted data; a Rust core on each client controls identity, MLS, local storage and recovery. The differentiating goal is to combine privacy with simple household operation and understandable recovery.
 
-The relay, Rust core and CLI are implemented; the Flutter client foundation is under development. These documents combine implementation records with historical proposals. Each ADR declares its own status; ADR-009 is accepted. The messaging GUI and an independent security review remain pending. "MUST" expresses a design requirement; use the acceptance records to determine which requirements have been tested.
+The relay, Rust core and CLI are implemented; the Flutter client foundation is under development. These documents combine implementation records with historical proposals. Each ADR declares its own status; ADR-009 is accepted. Cross-device acceptance and an independent security review remain pending. "MUST" expresses a design requirement; use the acceptance records to determine which requirements have been tested.
 
 **Start here:** [Install and try Arveil](INSTALLATION.md) — server, macOS and Android routes, current availability and release requirements.
 

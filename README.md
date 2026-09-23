@@ -17,7 +17,7 @@ with access over LAN, Tailscale or a tunnel. See the
 | Component | Implemented | Next work |
 |---|---|---|
 | Go relay and Rust CLI | MLS group chat, encrypted attachments, offline outbox, multi-device identity, pairing, revocation and recovery | External security review and continued interoperability testing |
-| Flutter client | Rust bridge, encrypted profiles, invitation enrollment, pairing, identity-kit export/restore and KeyPackage replenishment with durable retries; macOS and Android build checks in CI | Conversation UI and physical-device acceptance |
+| Flutter client | Rust bridge, encrypted profiles, invitation enrollment, pairing, identity-kit export/restore, KeyPackage replenishment, verified group creation, paginated conversations and offline text; macOS and Android build checks in CI | Attachments, device management and physical-device acceptance |
 | Operations | Container, Compose, systemd and rootless Podman; health checks, limits, backup and restore acceptance | Off-host encrypted backups, retention and reboot drills for each deployment |
 
 The [client implementation record](docs/CLIENT_FOUNDATION.md) distinguishes

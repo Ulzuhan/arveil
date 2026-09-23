@@ -180,3 +180,19 @@ separately verifies actual MLS group consumption and CLI replenishment.
 The [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
 provides a self-contained helper. Neither this run nor widget tests cover
 physical hardware, cross-device pairing or native file-dialog interaction.
+
+## Conversation GUI acceptance (September 23, 2026)
+
+The `0.1.0+5` source accompanying this record passed
+`integration_test/conversations_test.dart` natively on Apple silicon macOS
+with Xcode 27 and the login Keychain, and on a disposable Android 15/API 35
+ARM64 emulator with Keystore. The isolated helper creates two encrypted
+profiles and drives verified group creation, duplex text, relay shutdown,
+offline acceptance, profile reopen, pagination and reconnect with 55 events
+and no duplicates. It also checks cancellation before watcher dispatch.
+
+The peer runs through the native bridge inside the test app. Text input is
+injected by Flutter's test framework. This is not Mac–Android cross-device,
+physical-phone, native keyboard/IME or clean-download acceptance. The earlier
+`0.1.0+2` experimental packages are unchanged. Reproduce with the
+[Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
