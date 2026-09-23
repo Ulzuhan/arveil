@@ -13,7 +13,10 @@ y el `PATH` de Flutter y Java según tu instalación.
 
 Los primeros paquetes se destinan a macOS Apple silicon y Android ARM64.
 `BUILD.json` registra la versión mínima del sistema/SDK. Son experimentales:
-la interfaz permite el alta por invitación; la mensajería sigue pendiente.
+la interfaz actual permite alta por invitación, emparejamiento y
+exportación/restauración del kit de identidad; la mensajería sigue pendiente.
+Cada candidato corresponde a su revisión registrada: estos cambios no
+actualizan los binarios anteriores.
 
 ## Android: crear la clave de firma una sola vez
 

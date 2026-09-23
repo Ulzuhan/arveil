@@ -34,6 +34,7 @@ pub enum SetupStage {
     Publishing,
     Ready,
     LinkedDevice,
+    Recovering,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,6 +42,24 @@ pub struct SetupView {
     pub stage: SetupStage,
     pub identity_id: Option<String>,
     pub bootstrap: Option<String>,
+    pub administrator: bool,
+    pub recovery_warning: bool,
+    pub pairing: Option<PairingView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PairingView {
+    pub session_id: Vec<u8>,
+    pub code: String,
+    pub expires_at: u64,
+    pub verification_code: Option<String>,
+    pub committing: bool,
+    pub expired: bool,
+}
+
+pub struct KitView {
+    pub encrypted: Vec<u8>,
+    pub secret: String,
 }
 
 /// Why a profile could not be opened.
@@ -256,6 +275,8 @@ impl Profile {
     pub fn setup(&self) -> Result<SetupView, CommandError> {
         let status = self.inner.onboarding_status().map_err(command_error)?;
         let stage = match status.phase {
+            _ if status.recovering => SetupStage::Recovering,
+            _ if status.ready => SetupStage::Ready,
             Some(EnrollmentPhase::Redeeming) => SetupStage::Redeeming,
             Some(EnrollmentPhase::Redeemed) => SetupStage::Redeemed,
             Some(EnrollmentPhase::Endpoints) => SetupStage::Publishing,
@@ -268,6 +289,16 @@ impl Profile {
             stage,
             identity_id: status.identity_id.map(|id| hex(&id)),
             bootstrap: status.bootstrap,
+            administrator: status.administrator,
+            recovery_warning: status.recovery_warning,
+            pairing: status.pairing.map(|p| PairingView {
+                session_id: p.session.session_id,
+                code: p.session.code,
+                expires_at: p.session.expires_at,
+                verification_code: p.verification_code,
+                committing: p.committing,
+                expired: p.expired,
+            }),
         })
     }
 
@@ -277,6 +308,91 @@ impl Profile {
         self.inner
             .enroll(bootstrap.trim(), invite.trim())
             .map_err(command_error)?;
+        Ok(())
+    }
+
+    pub fn begin_pairing(&self, bootstrap: String) -> Result<(), CommandError> {
+        self.inner
+            .begin_pairing(bootstrap.trim())
+            .map_err(command_error)?;
+        Ok(())
+    }
+
+    pub fn await_pairing(
+        &self,
+        bootstrap: String,
+        session: PairingView,
+    ) -> Result<(), CommandError> {
+        self.inner
+            .await_pairing(
+                bootstrap.trim(),
+                arveil_app::PairingSession {
+                    session_id: session.session_id,
+                    code: session.code,
+                    expires_at: session.expires_at,
+                },
+            )
+            .map_err(command_error)?;
+        Ok(())
+    }
+
+    pub fn approve_pairing(&self, bootstrap: String, code: String) -> Result<String, CommandError> {
+        Ok(self
+            .inner
+            .approve_pairing(bootstrap.trim(), code.trim())
+            .map_err(command_error)?
+            .value
+            .verification_code)
+    }
+
+    pub fn confirm_pairing(
+        &self,
+        bootstrap: String,
+        session_id: Vec<u8>,
+        verification_code: String,
+    ) -> Result<(), CommandError> {
+        self.inner
+            .confirm_pairing(bootstrap.trim(), &session_id, &verification_code)
+            .map_err(command_error)?;
+        Ok(())
+    }
+
+    /// False means finalization already committed: resume it, never claim it was undone.
+    pub fn cancel_pairing(&self, session_id: Vec<u8>) -> Result<bool, CommandError> {
+        Ok(self
+            .inner
+            .cancel_pairing(&session_id)
+            .map_err(command_error)?
+            .value
+            == arveil_app::PairingCancellation::Cancelled)
+    }
+
+    pub fn export_kit(&self) -> Result<KitView, CommandError> {
+        let kit = self.inner.export_kit().map_err(command_error)?;
+        Ok(KitView {
+            encrypted: kit.encrypted,
+            secret: kit.secret,
+        })
+    }
+
+    pub fn restore_kit(
+        &self,
+        bootstrap: String,
+        encrypted: Vec<u8>,
+        secret: String,
+    ) -> Result<(), CommandError> {
+        self.inner
+            .restore_kit(arveil_app::RecoveryRequest {
+                bootstrap,
+                encrypted,
+                secret,
+            })
+            .map_err(command_error)?;
+        Ok(())
+    }
+
+    pub fn resume_recovery(&self) -> Result<(), CommandError> {
+        self.inner.resume_recovery().map_err(command_error)?;
         Ok(())
     }
 
@@ -526,6 +642,9 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::CancelPairing => "cancel-pairing",
         Operation::QueryPendingPairing => "query-pending-pairing",
         Operation::QueryOnboarding => "query-onboarding",
+        Operation::ExportKit => "export-kit",
+        Operation::RestoreKit => "restore-kit",
+        Operation::ResumeRecovery => "resume-recovery",
         Operation::CreateConversation => "create-conversation",
         Operation::AddDevice => "add-device",
         Operation::RemoveDevice => "remove-device",

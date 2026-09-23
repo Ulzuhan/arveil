@@ -2,11 +2,12 @@
 
 [English](../INSTALLATION.md).
 
-**Disponibilidad actual (15 de septiembre de 2026):** todavía no hay releases
+**Disponibilidad actual (23 de septiembre de 2026):** todavía no hay releases
 publicadas en GitHub. El [comando de empaquetado](CLIENT_RELEASES.md) prepara
-candidatos experimentales: ZIP para macOS y APK para Android. La interfaz permite
-el alta por invitación, pero faltan emparejamiento, kit de recuperación y
-mensajería. En esta fase, utiliza perfiles de prueba desechables.
+candidatos experimentales: ZIP para macOS y APK para Android. El código actual permite
+alta por invitación, emparejamiento y exportación/restauración del kit cifrado
+de identidad. La mensajería sigue pendiente. Los paquetes experimentales
+anteriores pueden incluir solo el alta: comprueba la revisión y sus notas. En esta fase, utiliza perfiles de prueba desechables.
 
 ## Elige por dónde empezar
 

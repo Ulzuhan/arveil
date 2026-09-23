@@ -348,3 +348,61 @@ func TestLatestManifestAndCredentialStatus(t *testing.T) {
 		t.Fatalf("second revoke changed %d rows", n)
 	}
 }
+
+func TestRecoveryRetryPreservesResultAcrossRestartAndRejectsChangedOrRevokedRequest(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "realm.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := enrollment(61)
+	token := []byte("recovery-fixture-invite")
+	if err := s.CreateInvite(ctx, token, "member", time.Now().Add(time.Hour), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RedeemInvite(ctx, token, time.Now(), old, nil); err != nil {
+		t.Fatal(err)
+	}
+	newDevice := enrollment(62)
+	newDevice.IdentityID = old.IdentityID
+	newDevice.ManifestSeq = 2
+	previous, err := s.RecoverIdentity(ctx, newDevice, [][]byte{old.CredentialHash}, time.Now())
+	if err != nil || previous != 1 {
+		t.Fatalf("first recovery: previous=%d err=%v", previous, err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	for i := 0; i < 2; i++ {
+		previous, err = s.RecoverIdentity(ctx, newDevice, [][]byte{old.CredentialHash}, time.Now())
+		if err != nil || previous != 1 {
+			t.Fatalf("repeated recovery: previous=%d err=%v", previous, err)
+		}
+	}
+	if _, err := s.RecoverIdentity(ctx, newDevice, nil, time.Unix(newDevice.NotAfter, 0)); !errors.Is(err, ErrRequestConflict) {
+		t.Fatalf("expired request: %v", err)
+	}
+	changed := newDevice
+	changed.SignedManifest = []byte("different signed manifest")
+	if _, err := s.RecoverIdentity(ctx, changed, nil, time.Now()); !errors.Is(err, ErrRequestConflict) {
+		t.Fatalf("changed request: %v", err)
+	}
+	if count, _ := s.Count(ctx, "device_credentials"); count != 2 {
+		t.Fatalf("credentials duplicated: %d", count)
+	}
+	if count, _ := s.Count(ctx, "identity_recoveries"); count != 1 {
+		t.Fatalf("recovery duplicated: %d", count)
+	}
+	if _, err := s.RevokeCredentials(ctx, old.IdentityID, [][]byte{newDevice.CredentialHash}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RecoverIdentity(ctx, newDevice, nil, time.Now()); !errors.Is(err, ErrRequestConflict) {
+		t.Fatalf("revoked request: %v", err)
+	}
+}

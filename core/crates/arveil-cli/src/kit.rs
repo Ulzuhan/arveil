@@ -8,15 +8,13 @@
 
 use std::path::Path;
 
-use arveil_core::channel::codec::Payload;
-use arveil_core::recovery::{
-    self, ARCHIVE_VERSION, ArchiveRecord, HistoryArchive, IdentityKit, KIT_VERSION, Secret,
-};
+use arveil_core::recovery::{self, ARCHIVE_VERSION, ArchiveRecord, HistoryArchive, Secret};
 
-use crate::carrier::{Bootstrap, CliError, Connection, block_on, err};
-use arveil_app::finish_enrollment;
+use crate::carrier::{CliError, err};
+use crate::chat::cli_error;
+use arveil_app::RecoveryRequest;
 
-use crate::commands::{now, open_client, tls_ca};
+use crate::commands::{now, open_client, open_session};
 
 fn read(path: &Path) -> Result<Vec<u8>, CliError> {
     std::fs::read(path).map_err(err("read file"))
@@ -28,136 +26,50 @@ fn write(path: &Path, bytes: &[u8]) -> Result<(), CliError> {
 
 /// `arveil kit export --data-dir D <path>`
 pub fn kit_export(data_dir: &Path, path: &Path) -> Result<(), CliError> {
-    let c = open_client(data_dir)?;
-    let root = c.root().map_err(err("identity"))?.ok_or_else(|| {
-        CliError(
-            "this device holds no root key; export the kit from the administration device".into(),
-        )
-    })?;
-    let latest_manifest = c
-        .latest_manifest()
-        .map_err(err("manifest"))?
-        .ok_or_else(|| CliError("no manifest to export".into()))?;
-    let state = c
-        .manifest_state()
-        .map_err(err("manifest"))?
-        .ok_or_else(|| CliError("no manifest to export".into()))?;
-    let kit = IdentityKit {
-        version: KIT_VERSION,
-        root_seed: root.signing.to_bytes().to_vec(),
-        identity_id: root.identity_id(),
-        manifest_sequence: state.sequence,
-        latest_manifest,
-        exported_at: now(),
-    };
-    let secret = Secret::generate();
-    write(
-        path,
-        &recovery::kit_seal(&kit, &secret).map_err(err("kit"))?,
-    )?;
-    println!(
-        "kit: identity {} at manifest {} written to {}",
-        hex::encode(&kit.identity_id),
-        kit.manifest_sequence,
-        path.display()
-    );
-    println!("secret: {}", secret.to_string_once());
+    let kit = open_session(data_dir)?.export_kit().map_err(cli_error)?;
+    write(path, &kit.encrypted)?;
+    println!("kit: written to {}", path.display());
+    println!("secret: {}", kit.secret);
     println!(
         "Keep that secret away from the file and from this realm: together they are the identity."
     );
     Ok(())
 }
 
-/// `arveil kit restore --data-dir NEW <bootstrap> <path> <secret>`
-///
-/// Total loss: a clean client, the kit and its secret. The root signs a
-/// credential for the new device and a manifest that revokes everything the
-/// chain listed, and the realm accepts it because the root is the authority.
+/// Restore into a clean profile, or retry the same persisted recovery after
+/// an interrupted request. Uses the same atomic preparation as the GUI.
 pub fn kit_restore(
     data_dir: &Path,
     bootstrap: &str,
     path: &Path,
     secret: &str,
 ) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let secret = Secret::parse(secret).map_err(err("secret"))?;
-    let kit = recovery::kit_open(&read(path)?, &secret).map_err(err("kit"))?;
-    let c = open_client(data_dir)?;
-    let identity_id = c
-        .identity_restore(&kit.root_seed, &kit.latest_manifest)
-        .map_err(err("restore"))?;
-    println!(
-        "restored: identity {} from a kit exported at manifest {}",
-        hex::encode(&identity_id),
-        kit.manifest_sequence
-    );
-    let (device, manifest) = c.device_new(now()).map_err(err("device"))?;
-    c.realm_save(&b.realm_id, &b.signing_key, &b.noise_public, &b.url)
-        .map_err(err("realm"))?;
-    println!(
-        "device: {} (new keys; every earlier device is revoked by manifest {})",
-        hex::encode(device.keys.device_id),
-        kit.manifest_sequence + 1
-    );
-
-    block_on(async {
-        let mut conn = Connection::open(
-            &b.url,
-            &b.realm_id,
-            &b.noise_public,
-            &device.keys.transport_noise,
-            tls_ca().as_deref(),
-        )
-        .await?;
-        let previous = match conn
-            .request(Payload::RecoverIdentity {
-                credential: device.credential.clone(),
-                manifest,
-            })
-            .await
-        {
-            Ok(Payload::Recovered {
-                previous_sequence, ..
-            }) => previous_sequence,
-            Ok(other) => return Err(CliError(format!("unexpected reply: {other:?}"))),
-            Err(e) if e.relay_code() == Some(409) => {
-                return Err(CliError(format!(
-                    "{e}. The kit is older than what the realm holds: recover the newest \
-                     manifest from a surviving device or a contact before using this kit"
-                )));
-            }
-            Err(e) => return Err(e),
-        };
-        println!("recovered: the realm accepted the new device");
-        // A realm restored from a snapshot older than the kit is reported,
-        // never silently accepted as the truth (I-08).
-        if previous < kit.manifest_sequence {
-            println!(
-                "warning: the realm held manifest {previous} while this kit knows {}. \
-                 The realm was restored from an older snapshot, or it is hiding versions: \
-                 check revocations against a surviving device or a contact.",
-                kit.manifest_sequence
-            );
-        }
-        match conn.request(Payload::EndpointListGet).await? {
-            Payload::EndpointList { signed } => {
-                let list = c
-                    .realm_accept_endpoint_list(&b.realm_id, &signed)
-                    .map_err(err("endpoint list"))?;
-                println!("endpoint list: sequence {} stored", list.sequence);
-            }
-            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
-        }
-        c.realm_mark_enrolled(&b.realm_id).map_err(err("realm"))?;
-        let finish = finish_enrollment(&c, &mut conn, &device).await?;
-        println!("key packages: {} published", finish.key_packages_published);
-        println!("route: {}", finish.route);
+    // Bound the read before handing untrusted files to the recovery service.
+    use std::io::Read;
+    let mut encrypted = Vec::new();
+    std::fs::File::open(path)
+        .map_err(err("read kit"))?
+        .take(4 * 1024 * 1024 + 1)
+        .read_to_end(&mut encrypted)
+        .map_err(err("read kit"))?;
+    let result = open_session(data_dir)?
+        .restore_kit(RecoveryRequest {
+            bootstrap: bootstrap.to_owned(),
+            encrypted,
+            secret: secret.to_owned(),
+        })
+        .map_err(cli_error)?;
+    println!("restored: identity {}", hex::encode(result.identity_id));
+    println!("recovered: the realm accepted the new device");
+    if result.rollback_warning {
         println!(
-            "history: none. Import an archive, or ask a member to add this device to each group."
+            "warning: the realm held manifest {} while this kit knows {}. The realm was restored from an older snapshot, or it is hiding versions: check revocations against a surviving device or a contact.",
+            result.previous_sequence, result.kit_sequence
         );
-        conn.close().await;
-        Ok::<_, CliError>(())
-    })?
+    }
+    println!("route: {}", result.route);
+    println!("history: none. Import an archive, or ask a member to add this device to each group.");
+    Ok(())
 }
 
 /// `arveil archive export --data-dir D <path>`

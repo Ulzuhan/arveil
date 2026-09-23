@@ -105,4 +105,28 @@ fi
 grep -qi "conflict\|reused" "$DATA/bob.steal" || fail "unexpected refusal: $(cat "$DATA/bob.steal")"
 echo "refused, and the message says why"
 
+step "M3b.2 recovery retries the exact credential after both processes restart"
+"$CLI" kit export --data-dir "$DATA/carol" "$DATA/carol.kit" > "$DATA/carol.kitout"
+KIT_SECRET="$(sed -n 's/^secret: //p' "$DATA/carol.kitout")"
+"$CLI" kit restore --data-dir "$DATA/carol-new" "$BOOTSTRAP" "$DATA/carol.kit" "$KIT_SECRET" > "$DATA/carol.restore"
+RECOVERED_ROUTE="$(route_of "$DATA/carol.restore")"
+RECOVERED_CREDENTIAL="$(sqlite3 "$DATA/carol-new/client.db" 'SELECT hex(credential_hash) FROM device;')"
+RECOVERED_PACKAGES="$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM key_packages;')"
+RECOVERED_MAILBOXES="$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM mailboxes;')"
+# Simulate losing the recovery acknowledgement: the relay's transaction is
+# durable, but the client will have to send the stored request again.
+sqlite3 "$DATA/carol-new/client.db" 'UPDATE identity_recovery SET previous_sequence = NULL, complete = 0;'
+kill "$RELAY_PID"; wait "$RELAY_PID" 2>/dev/null || true; RELAY_PID=""
+start_relay
+for _ in 1 2; do
+  "$CLI" kit restore --data-dir "$DATA/carol-new" "$BOOTSTRAP" "$DATA/carol.kit" "$KIT_SECRET" > "$DATA/carol.retry"
+  [ "$(route_of "$DATA/carol.retry")" = "$RECOVERED_ROUTE" ] || fail "recovery changed the route"
+done
+[ "$(sqlite3 "$DATA/carol-new/client.db" 'SELECT hex(credential_hash) FROM device;')" = "$RECOVERED_CREDENTIAL" ] || fail "recovery changed device keys"
+[ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM key_packages;')" = "$RECOVERED_PACKAGES" ] || fail "recovery duplicated packages"
+[ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT count(*) FROM mailboxes;')" = "$RECOVERED_MAILBOXES" ] || fail "recovery duplicated mailboxes"
+[ "$(sqlite3 "$DATA/carol-new/client.db" 'SELECT previous_sequence FROM identity_recovery;')" = "1" ] || fail "original recovery result was lost"
+[ "$(sqlite3 "$DATA/carol-new/client.db" 'SELECT complete FROM identity_recovery;')" = "1" ] || fail "recovery did not finish"
+echo "same identity, device, mailbox, route, package count and original result"
+
 printf '\n\033[1m== phase 3b ok\033[0m\n'

@@ -108,6 +108,11 @@ CREATE TABLE IF NOT EXISTS device_manifests (
     signed      BLOB NOT NULL,
     PRIMARY KEY (identity_id, sequence)
 );
+CREATE TABLE IF NOT EXISTS identity_recoveries (
+    credential_hash BLOB PRIMARY KEY REFERENCES device_credentials(credential_hash),
+    signed_manifest BLOB NOT NULL,
+    previous_sequence INTEGER NOT NULL
+);
 `
 
 // Store wraps the connection pool.
@@ -209,7 +214,7 @@ func (s *Store) checkVersion() error {
 // far has been additive, which is why one number is enough: a database at an
 // older version is brought forward by the schema itself, and a database at a
 // newer one is refused rather than guessed at.
-const SchemaVersion = 3
+const SchemaVersion = 4
 
 // refuseFutureSchema reads the recorded version and refuses a database from
 // a newer relay. It reads only: a database with no `schema_migrations` table
@@ -446,12 +451,34 @@ func (s *Store) SetCredentialStatus(ctx context.Context, identityID []byte, hash
 // status and its mailboxes' capabilities in the same transaction. Returns
 // the sequence the realm held before the call, so a device recovering from
 // a kit can see a realm restored from an older snapshot (I-08).
-func (s *Store) RecoverIdentity(ctx context.Context, e Enrollment, revoked [][]byte) (uint64, error) {
+func (s *Store) RecoverIdentity(ctx context.Context, e Enrollment, revoked [][]byte, now time.Time) (uint64, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
+	// Preserve the original result across a lost reply. Only the exact signed
+	// request under a still-active credential may repeat; never revive a
+	// revoked device or roll the manifest chain backwards.
+	var acceptedManifest, acceptedIdentity, acceptedCredential []byte
+	var acceptedPrevious uint64
+	var status string
+	var notAfter int64
+	err = tx.QueryRowContext(ctx, `SELECT r.signed_manifest, r.previous_sequence,
+		c.identity_id, c.signed, c.status, c.not_after
+		FROM identity_recoveries r JOIN device_credentials c USING (credential_hash)
+		WHERE r.credential_hash = ?`, e.CredentialHash).Scan(
+		&acceptedManifest, &acceptedPrevious, &acceptedIdentity, &acceptedCredential, &status, &notAfter)
+	if err == nil {
+		if !bytes.Equal(acceptedManifest, e.SignedManifest) || !bytes.Equal(acceptedIdentity, e.IdentityID) ||
+			!bytes.Equal(acceptedCredential, e.SignedCred) || status != "active" || notAfter <= now.Unix() {
+			return 0, ErrRequestConflict
+		}
+		return acceptedPrevious, tx.Commit()
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, err
+	}
 	var prev sql.NullInt64
 	if err := tx.QueryRowContext(ctx, `SELECT MAX(sequence) FROM device_manifests WHERE identity_id = ?`, e.IdentityID).Scan(&prev); err != nil {
 		return 0, err
@@ -488,6 +515,11 @@ func (s *Store) RecoverIdentity(ctx context.Context, e Enrollment, revoked [][]b
 			e.IdentityID, deviceID); err != nil {
 			return previous, err
 		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO identity_recoveries
+		(credential_hash, signed_manifest, previous_sequence) VALUES (?, ?, ?)`,
+		e.CredentialHash, e.SignedManifest, previous); err != nil {
+		return previous, err
 	}
 	return previous, tx.Commit()
 }

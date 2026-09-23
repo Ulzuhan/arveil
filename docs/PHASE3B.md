@@ -6,7 +6,7 @@ The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria
 
 ## Scope and structure
 
-Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. The client opens encrypted profiles and enrolls an identity through invitation/bootstrap fields, resumes a failed enrollment and recognizes completion after reopening. Pairing, recovery-kit and messaging interfaces remain pending. SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.
+Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. The client opens encrypted profiles and enrolls an identity through invitation/bootstrap fields, resumes a failed enrollment and recognizes completion after reopening. Pairing with manual code comparison and encrypted identity-kit export/restore are implemented. Messaging, GUI KeyPackage exhaustion/replenishment and physical-device acceptance remain pending. SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.
 
 ```text
 clients/flutter/             Adaptive UI and platform adapters
