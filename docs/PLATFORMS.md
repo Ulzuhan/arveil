@@ -156,7 +156,8 @@ and the [installation guide](INSTALLATION.md) explains end-user installation.
 ## Pairing and recovery acceptance (September 23, 2026)
 
 `integration_test/pairing_recovery_test.dart` passed natively on Apple silicon
-macOS with Xcode 27 and the classic login Keychain against a disposable local
+macOS with Xcode 27 and the classic login Keychain, and on a disposable
+Android 15/API 35 ARM64 emulator with Keystore, against a disposable local
 relay. Three encrypted profiles exercise enrollment, pairing, wrong comparison,
 reopen before confirmation, encrypted kit export, wrong recovery key, restore,
 repeat, reopen and empty recovered conversation history. The current source

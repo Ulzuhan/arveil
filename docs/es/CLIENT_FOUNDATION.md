@@ -112,5 +112,5 @@ Estos cambios no publican ni reemplazan el candidato alfa existente.
 
 Comprobaciones de este cambio: 87 tests Rust pasan (uno ignorado), Go con
 detector de carreras, análisis Flutter y 16 pruebas de widgets/unidad,
-aceptación nativa macOS, fases 2 y 3b y documentación bilingüe en modo estricto.
+aceptación nativa macOS y emulador Android, fases 2, 3 y 3b y documentación bilingüe en modo estricto.
 Son resultados locales; la matriz de plataformas delimita su alcance.

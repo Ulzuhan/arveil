@@ -160,7 +160,8 @@ cómo reproducirlos y la [guía de instalación](INSTALLATION.md) cubre al usuar
 ## Aceptación de emparejamiento y recuperación (23 de septiembre de 2026)
 
 `integration_test/pairing_recovery_test.dart` pasó de forma nativa en macOS
-Apple silicon con Xcode 27 y llavero clásico, contra un relay local desechable.
+Apple silicon con Xcode 27 y llavero clásico, y en un emulador temporal
+Android 15/API 35 ARM64 con Keystore, contra un relay local desechable.
 Tres perfiles cifrados recorren alta, vinculación, comparación incorrecta,
 reapertura antes de confirmar, exportación del kit, clave incorrecta,
 restauración, repetición, reapertura y ausencia de historial recuperado.

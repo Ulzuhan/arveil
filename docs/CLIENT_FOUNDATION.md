@@ -94,5 +94,5 @@ These changes do not publish or replace the existing alpha candidate.
 
 Fresh checks for this change: 87 Rust tests passed (one ignored), Go tests with
 the race detector, Flutter analysis and 16 widget/unit tests, native macOS
-acceptance, phase 2 and phase 3b acceptance, and strict bilingual documentation
+and Android-emulator acceptance, phases 2, 3 and 3b acceptance, and strict bilingual documentation
 build. These are local results; see the platform matrix for the precise scope.
