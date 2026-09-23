@@ -30,7 +30,7 @@ Flutter → puente Rust ─┴→ arveil-app → arveil-core
 | Historial paginado | `QueryHistoryPage` recibe conversación, cursor y límite acotado; los identificadores solo crecen, así que una página no se desplaza cuando llegan eventos mientras alguien lee hacia atrás. Los resúmenes leen un recuento y la fila más reciente en lugar de todos los cuerpos. Las lecturas locales ya no exigen un realm inscrito. |
 | Admisión acotada | El trabajo se cuenta por tipo: dos sincronizaciones, treinta y dos mutaciones y ciento veintiocho consultas. Más allá, el comando se rechaza con un `Busy` tipado que no empezó nada; los huecos se liberan cuando el trabajo termina, no cuando quien llamó se marcha. Las consultas tienen sitio propio y responden mientras las sincronizaciones están saturadas. |
 | Ejecutor por perfil | `Application` comparte ejecutor por ruta canónica. Un runtime de una hebra multiplexa futuros durante la red; los tramos síncronos de MLS/SQLite no se intercalan. Los eventos usan contexto por operación. La API pública de llamada sigue siendo bloqueante. |
-| Exclusión por operación | Una sola sincronización activa por perfil. `CompleteLink` y `ConfirmPairing` comparten otra exclusión, para evitar finalizadores simultáneos. Las consultas pueden avanzar durante esperas de red. |
+| Exclusión por operación | Sincronización, consulta de KeyPackages por red y reposición comparten una exclusión por perfil. `CompleteLink` y `ConfirmPairing` comparten otra exclusión, para evitar finalizadores simultáneos. Las consultas pueden avanzar durante esperas de red. |
 | Exclusión transaccional | [SharedConn::unit_of_work](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-core/src/storage.rs) mantiene un mutex reentrante durante toda la transacción; los callbacks de almacenamiento MLS pueden utilizar la misma conexión. `Client.conn` es privado. |
 | Transporte con límites de tiempo | [carrier.rs](https://github.com/Ulzuhan/arveil/blob/main/core/crates/arveil-app/src/carrier.rs) limita conexión, handshake, petición y cierre. Un timeout de petición elimina el socket y el estado Noise. Se exige reconexión. |
 | Descargas recuperables | Un error de transporte conserva `file-pending` y el archivo `.part`; una sincronización posterior puede reanudar. No se convierte ese fallo transitorio en indisponibilidad definitiva. |
@@ -45,7 +45,7 @@ Los enlaces a código siguen `main` del repositorio; este registro local debe in
 
 ## Evidencia de revisión
 
-La última ejecución de `cargo test --workspace --locked` terminó con 72 pruebas correctas (incluida una prueba auxiliar de procesos) y una ignorada; demo, interop, q3-capture y las fases 1–4 también se ejecutaron en local. La aceptación de M3b.0 se ejecutó sobre el propio sistema en macOS y en un emulador Android (Android 15, API 35, arm64); todavía sin teléfono físico. La [matriz de plataformas](PLATFORMS.md) recoge el toolchain fijado y los comandos. `git diff --check` pasó. Es un resultado del checkout local en ese momento, no una afirmación sobre todas las plataformas o la CI remota.
+La ejecución original de la base con `cargo test --workspace --locked` terminó con 72 pruebas correctas (incluida una prueba auxiliar de procesos) y una ignorada; demo, interop, q3-capture y las fases 1–4 también se ejecutaron en local. La aceptación de M3b.0 se ejecutó sobre el propio sistema en macOS y en un emulador Android (Android 15, API 35, arm64); todavía sin teléfono físico. La [matriz de plataformas](PLATFORMS.md) recoge el toolchain fijado y los comandos. `git diff --check` pasó. Es un resultado del checkout local en ese momento, no una afirmación sobre todas las plataformas o la CI remota.
 
 Pruebas destacadas:
 
@@ -71,7 +71,7 @@ Siguiente fase: [plan Flutter](PHASE3B.md). Decisión: [ADR-009](adr/ADR-009-flu
 
 ## Alta por invitación
 
-El formulario mantiene la invitación solo en memoria y la borra al completar el alta o cerrar el perfil. El ejecutor responde con una consulta tipada del estado al abrir y tras los intentos de alta. Los datos de relay/invitación mal formados se rechazan antes de crear la identidad. La interfaz muestra categorías de error sin interpolar rutas ni diagnósticos remotos. Las pruebas cubren reintentos, envíos duplicados, cierre de aperturas tardías y mensajes sin detalles privados. Es la parte de alta por invitación de M3b.2. Los cambios de emparejamiento y kit descritos abajo no cierran el hito: faltan agotamiento/reposición de KeyPackages en la GUI y aceptación en dispositivos físicos.
+El formulario mantiene la invitación solo en memoria y la borra al completar el alta o cerrar el perfil. El ejecutor responde con una consulta tipada del estado al abrir y tras los intentos de alta. Los datos de relay/invitación mal formados se rechazan antes de crear la identidad. La interfaz muestra categorías de error sin interpolar rutas ni diagnósticos remotos. Las pruebas cubren reintentos, envíos duplicados, cierre de aperturas tardías y mensajes sin detalles privados. Es la parte de alta por invitación de M3b.2. Los cambios de emparejamiento y kit descritos abajo no cierran el hito: faltan aceptación en dispositivos físicos y comprobaciones de los diálogos nativos. La implementación de KeyPackages se registra más abajo.
 
 ## Emparejamiento y kit de identidad (23 de septiembre de 2026)
 
@@ -114,3 +114,30 @@ Comprobaciones de este cambio: 87 tests Rust pasan (uno ignorado), Go con
 detector de carreras, análisis Flutter y 16 pruebas de widgets/unidad,
 aceptación nativa macOS y emulador Android, fases 2, 3 y 3b y documentación bilingüe en modo estricto.
 Son resultados locales; la matriz de plataformas delimita su alcance.
+
+## Disponibilidad y reposición de KeyPackages (23 de septiembre de 2026)
+
+El perfil muestra una consulta fechada de las claves de un solo uso disponibles
+en el relay. Abrir el perfil lee el estado local sin consultar la red; un dato
+desconocido se distingue de cero. Si falla la actualización, se conserva el
+último dato con una advertencia visible. El agotamiento impide que otros
+dispositivos inicien conversaciones nuevas con este dispositivo; las
+conversaciones existentes conservan sus propias claves.
+
+Cuando quedan tres paquetes o menos, la reposición prepara los necesarios
+para llegar a diez. Los bytes públicos del lote y su estado privado MLS se
+confirman juntos antes de publicar. La sincronización CLI y la GUI comparten
+ese registro y serializan las operaciones de red. Tras perder una respuesta,
+reabrir y reintentar envía el mismo lote; el relay no reactiva claves consumidas.
+Si todo el lote se consumió antes del reintento, la confirmación elimina el
+registro pendiente y otra reposición explícita puede generar claves nuevas.
+La interfaz consulta de nuevo tras publicar para mostrar el recuento del relay,
+teniendo en cuenta que otra persona puede consumir claves mientras tanto.
+
+Comprobaciones actuales: 89 pruebas Rust pasan (una ignorada), Clippy, 20 pruebas
+Flutter de widgets/unidad y aceptación nativa macOS y emulador Android. La fase 4 local pasó,
+incluyendo consumo real por grupos MLS y reposición CLI; omitió la compilación
+Docker al no estar disponible. La [matriz de plataformas](PLATFORMS.md)
+delimita la prueba GUI con consumo simulado y la evidencia por plataforma.
+Siguen pendientes teléfono físico y diálogos nativos. La versión fuente es
+`0.1.0+4`; el candidato alfa existente no cambia.

@@ -15,8 +15,10 @@
 //! the send unit committed and before anything is published (I-04).
 
 pub mod carrier;
+mod key_packages;
 mod onboarding;
 mod recovery;
+pub use key_packages::{KeyPackageLevel, KeyPackageSupply};
 pub use recovery::{KitExport, RecoveryRequest, RecoveryResult};
 
 pub use arveil_core::client::{EnrollmentPhase, PairingCompletionPhase};
@@ -85,6 +87,9 @@ pub enum Operation {
     RestoreKit,
     ResumeRecovery,
     QueryOnboarding,
+    QueryKeyPackageSupply,
+    CheckKeyPackages,
+    ReplenishKeyPackages,
     CreateConversation,
     AddDevice,
     RemoveDevice,
@@ -141,6 +146,9 @@ pub enum ClientCommand {
     },
     ResumeRecovery,
     QueryOnboarding,
+    QueryKeyPackageSupply,
+    CheckKeyPackages,
+    ReplenishKeyPackages,
     CreateConversation {
         bootstrap: String,
         peer_routes: Vec<String>,
@@ -205,6 +213,9 @@ impl ClientCommand {
             Self::CancelPairing { .. } => Operation::CancelPairing,
             Self::QueryPendingPairing => Operation::QueryPendingPairing,
             Self::QueryOnboarding => Operation::QueryOnboarding,
+            Self::QueryKeyPackageSupply => Operation::QueryKeyPackageSupply,
+            Self::CheckKeyPackages => Operation::CheckKeyPackages,
+            Self::ReplenishKeyPackages => Operation::ReplenishKeyPackages,
             Self::ExportKit => Operation::ExportKit,
             Self::RestoreKit { .. } => Operation::RestoreKit,
             Self::ResumeRecovery => Operation::ResumeRecovery,
@@ -1037,6 +1048,7 @@ pub enum CommandOutput {
     },
     PendingPairing(Option<PairingVerification>),
     Kit(KitExport),
+    KeyPackageSupply(KeyPackageSupply),
     Recovery(RecoveryResult),
     OnboardingStatus(OnboardingStatus),
     Conversations(Vec<ConversationSummary>),
@@ -1202,6 +1214,7 @@ impl ClientCommand {
             | Self::QueryHistoryPage { .. }
             | Self::QueryArchived { .. }
             | Self::QueryOnboarding
+            | Self::QueryKeyPackageSupply
             | Self::QueryPendingPairing => Admission::Query,
             _ => Admission::Mutation,
         }
@@ -1489,7 +1502,12 @@ fn command_future(
             return;
         }
         let watched = WATCHERS.scope((operation, watchers), async move {
-            if matches!(&command, ClientCommand::Sync { .. }) {
+            if matches!(
+                &command,
+                ClientCommand::Sync { .. }
+                    | ClientCommand::CheckKeyPackages
+                    | ClientCommand::ReplenishKeyPackages
+            ) {
                 // A second sync waits cooperatively here: network waits from the
                 // active sync still yield to queries and non-sync commands.
                 let _single_flight = exclusions.sync.lock().await;
@@ -1715,6 +1733,27 @@ impl Application {
             OnboardingOutput::Identity(identity) => identity,
             _ => unreachable!("identity command returned another output type"),
         })
+    }
+
+    pub fn key_package_supply(&self) -> Result<KeyPackageSupply, ApplicationError> {
+        match self.execute(ClientCommand::QueryKeyPackageSupply)? {
+            CommandOutput::KeyPackageSupply(value) => Ok(value),
+            _ => unreachable!("key package output"),
+        }
+    }
+
+    pub fn check_key_packages(&self) -> Result<KeyPackageSupply, ApplicationError> {
+        match self.execute(ClientCommand::CheckKeyPackages)? {
+            CommandOutput::KeyPackageSupply(value) => Ok(value),
+            _ => unreachable!("key package output"),
+        }
+    }
+
+    pub fn replenish_key_packages(&self) -> Result<KeyPackageSupply, ApplicationError> {
+        match self.execute(ClientCommand::ReplenishKeyPackages)? {
+            CommandOutput::KeyPackageSupply(value) => Ok(value),
+            _ => unreachable!("key package output"),
+        }
     }
 
     pub fn export_kit(&self) -> Result<KitExport, ApplicationError> {
@@ -2095,6 +2134,18 @@ async fn run_command(
     command: ClientCommand,
 ) -> Result<CommandOutput, ApplicationError> {
     match command {
+        ClientCommand::QueryKeyPackageSupply => key_packages::snapshot(config)
+            .map(CommandOutput::KeyPackageSupply)
+            .map_err(|e| application_error(Operation::QueryKeyPackageSupply, e)),
+        ClientCommand::CheckKeyPackages | ClientCommand::ReplenishKeyPackages => {
+            let replenish = matches!(command, ClientCommand::ReplenishKeyPackages);
+            Box::pin(run_operation_with_value(
+                command.operation(),
+                key_packages::update(config, replenish),
+            ))
+            .await
+            .map(|(value, _)| CommandOutput::KeyPackageSupply(value))
+        }
         ClientCommand::ExportKit => recovery::export(config)
             .map(CommandOutput::Kit)
             .map_err(|e| application_error(Operation::ExportKit, e)),
@@ -3921,43 +3972,9 @@ async fn revoke(config: &ProfileConfig, bootstrap: &str, device_hex: &str) -> Re
     Ok(())
 }
 
-/// Top up the KeyPackages the realm holds for this device (M4.6).
-///
-/// Each is consumed by one person starting a conversation with this device.
-/// Without this, the batch published at enrolment runs out and the next
-/// person is refused, which looks like a broken realm rather than an empty
-/// shelf.
+/// CLI sync and GUI replenishment use the same persisted retry batch.
 async fn replenish_key_packages(s: &Session, conn: &mut Connection) -> Result<(), CliError> {
-    const FLOOR: u32 = 3;
-    const TARGET: u32 = 10;
-    let available = match conn.request(Payload::KeyPackagesStatus).await? {
-        Payload::KeyPackagesAvailable { count } => count,
-        other => return Err(CliError::Protocol(format!("unexpected reply: {other:?}"))),
-    };
-    if available > FLOOR {
-        return Ok(());
-    }
-    let engine = s.client.mls_engine(s.device.mls_identity());
-    let mut key_packages = Vec::new();
-    for _ in 0..(TARGET - available) {
-        let kp = engine
-            .key_package()
-            .map_err(protocol_error("key package"))?;
-        key_packages.push(serde_bytes::ByteBuf::from(
-            kp.to_bytes().map_err(protocol_error("key package"))?,
-        ));
-    }
-    let n = key_packages.len();
-    match conn
-        .request(Payload::KeyPackagesPublish { key_packages })
-        .await?
-    {
-        Payload::Ack => record_change(StateChange::KeyPackagesReplenished {
-            previous: available,
-            published: n,
-        }),
-        other => return Err(CliError::Protocol(format!("unexpected reply: {other:?}"))),
-    }
+    key_packages::maintain(&s.client, &s.device, conn, true).await?;
     Ok(())
 }
 
@@ -5265,6 +5282,8 @@ mod tests {
     struct PublicationProbe {
         batches: std::sync::Mutex<Vec<Vec<Vec<u8>>>>,
         lose_first_ack: AtomicBool,
+        inventory: std::sync::Mutex<std::collections::HashSet<Vec<u8>>>,
+        consumed: AtomicUsize,
     }
 
     async fn serve_completion_connection(
@@ -5320,9 +5339,24 @@ mod tests {
                         write_capability: vec![number as u8 + 20; 32],
                     }
                 }
-                Payload::KeyPackagesStatus => Payload::KeyPackagesAvailable { count: 0 },
+                Payload::KeyPackagesStatus => Payload::KeyPackagesAvailable {
+                    count: publication.as_ref().map_or(0, |probe| {
+                        probe
+                            .inventory
+                            .lock()
+                            .unwrap()
+                            .len()
+                            .saturating_sub(probe.consumed.load(Ordering::SeqCst))
+                            as u32
+                    }),
+                },
                 Payload::KeyPackagesPublish { key_packages } => {
                     if let Some(probe) = &publication {
+                        probe
+                            .inventory
+                            .lock()
+                            .unwrap()
+                            .extend(key_packages.iter().map(|p| p.to_vec()));
                         probe
                             .batches
                             .lock()
@@ -5586,6 +5620,62 @@ mod tests {
     }
 
     #[test]
+    fn replenishment_retries_after_restart_without_reviving_consumed_packages() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let realm = PairingTestRealm::new(format!(
+            "ws://{}/v1/channel",
+            listener.local_addr().unwrap()
+        ));
+        let probe = Arc::new(PublicationProbe::default());
+        let (_, stop, server) =
+            start_completion_relay_with_publication(listener, &realm, 0, Some(probe.clone()));
+        let (directory, app, _, bootstrap, _, grant) =
+            valid_pairing_test_profile("replenish-retry", &realm);
+        app.complete_link(&bootstrap, &grant).unwrap();
+        assert_eq!(
+            app.key_package_supply().unwrap().level,
+            KeyPackageLevel::Unknown
+        );
+        assert_eq!(app.check_key_packages().unwrap().available, Some(5));
+        probe.consumed.store(5, Ordering::SeqCst);
+        assert_eq!(
+            app.check_key_packages().unwrap().level,
+            KeyPackageLevel::Empty
+        );
+        probe.lose_first_ack.store(true, Ordering::SeqCst);
+        assert!(matches!(
+            app.replenish_key_packages(),
+            Err(ApplicationError::Transport { .. })
+        ));
+        assert!(app.key_package_supply().unwrap().publication_pending);
+        assert_eq!(probe.inventory.lock().unwrap().len(), 15);
+        // Every package of the lost-ACK batch is claimed before retry.
+        probe.consumed.store(15, Ordering::SeqCst);
+        app.close();
+        let app = Application::open(ProfileConfig::unencrypted(&directory)).unwrap();
+        assert!(app.key_package_supply().unwrap().publication_pending);
+        let retried = app.replenish_key_packages().unwrap();
+        assert_eq!(retried.level, KeyPackageLevel::Empty);
+        assert!(!retried.publication_pending);
+        let batches = probe.batches.lock().unwrap();
+        assert_eq!(batches[1], batches[2]);
+        drop(batches);
+        assert_eq!(probe.inventory.lock().unwrap().len(), 15);
+        // A new operation can now replenish with fresh keys. Equivalent
+        // overlapping calls serialize and do not publish twice.
+        let other = app.clone();
+        let concurrent = std::thread::spawn(move || other.replenish_key_packages().unwrap());
+        assert_eq!(app.replenish_key_packages().unwrap().available, Some(10));
+        assert_eq!(concurrent.join().unwrap().available, Some(10));
+        assert_eq!(probe.inventory.lock().unwrap().len(), 25);
+        assert_eq!(probe.batches.lock().unwrap().len(), 4);
+        app.close();
+        let _ = stop.send(());
+        server.join().unwrap();
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn lost_key_package_ack_reuses_the_batch_after_profile_restart() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let realm = PairingTestRealm::new(format!("ws://{}", listener.local_addr().unwrap()));
@@ -5599,6 +5689,8 @@ mod tests {
             app.complete_link(&bootstrap, &grant),
             Err(ApplicationError::Transport { .. })
         ));
+        // All five keys are claimed before the lost ACK is retried.
+        probe.consumed.store(5, Ordering::SeqCst);
         app.close();
         let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
         app.complete_link(&bootstrap, &grant).unwrap();

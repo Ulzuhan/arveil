@@ -172,3 +172,18 @@ Las 16 pruebas de widgets/unidad cubren la presentación con un sustituto del
 diálogo de archivos. La interacción nativa guardar/abrir/cancelar, vinculación
 entre Mac y Android, teléfono físico y descarga limpia quedan fuera de esta
 prueba.
+
+## Aceptación GUI de KeyPackages (23 de septiembre de 2026)
+
+El código `0.1.0+4` que acompaña este registro pasó
+`integration_test/key_packages_test.dart` en macOS Apple silicon con Xcode 27
+y el llavero clásico, y en un emulador desechable Android 15/API 35 ARM64 con
+Keystore, contra un relay local desechable. La GUI real comprueba
+agotamiento, repone y reabre el recuento persistido con su fecha. El entorno
+de prueba marca como consumidos los cinco paquetes iniciales en su propia base;
+el inventario final tiene 15 paquetes, cinco consumidos y diez disponibles.
+La fase 4 comprueba por separado el consumo real por grupos MLS y la reposición
+CLI. El [README de Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
+aporta un script que prepara todo el entorno. Esta ejecución y las pruebas de
+widgets no cubren teléfono físico, emparejamiento entre plataformas ni
+interacción con los diálogos nativos de archivos.

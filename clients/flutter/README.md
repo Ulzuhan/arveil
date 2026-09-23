@@ -16,8 +16,9 @@ completed one goes directly to the profile summary. Duplicate submissions
 are disabled. Tokens stay in memory and are cleared on success or close.
 
 Pairing with manual code comparison, cancellation and resumed completion,
-and encrypted identity-kit export/restore are implemented. Conversation
-screens and GUI KeyPackage exhaustion remain pending in the
+and encrypted identity-kit export/restore are implemented. The profile shows
+dated KeyPackage availability and can replenish or resume a failed publication.
+Conversation screens remain pending in the
 [phase 3b plan](../../docs/PHASE3B.md). The conversation
 button currently queries only the local count. The classic macOS login
 Keychain works with ad-hoc signing; physical Android and fresh downloaded
@@ -115,3 +116,28 @@ receiving a pairing comparison, an interrupted handshake needs a new code.
 Cancelling local pairing does not revoke an authorization already issued by
 the administrator. Export the newest kit after device changes and keep its
 secret separate; identity recovery cannot restore old history or MLS state.
+
+## KeyPackage acceptance
+
+From the repository root, with the pinned Flutter SDK and Go on `PATH`:
+
+```sh
+python3 scripts/test_client_key_packages.py --device macos
+# Alternatively, start a disposable Android emulator; put adb on PATH:
+python3 scripts/test_client_key_packages.py --device emulator-5554
+```
+
+Use the serial of your disposable emulator. The helper builds and starts its
+own loopback relay, creates a private invitation and runs
+`integration_test/key_packages_test.dart` with real platform key storage.
+It consumes the initial five packages directly in that disposable relay's
+database, then drives the UI through exhaustion, replenishment and reopen.
+It verifies 15 stored packages: five consumed and ten available. The CLI
+`scripts/phase4.sh` separately covers consumption by multiple real MLS groups.
+
+The helper removes the temporary relay, credentials and emulator port forward,
+then runs `flutter clean`; do not run another Flutter build concurrently.
+Failed Flutter diagnostics remain private under ignored
+`.local/client-acceptance/` and may contain connection data or local paths.
+It accepts no shared relay or physical-phone target. Physical-device acceptance
+and native file-dialog interaction are separate checks.

@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -51,6 +51,8 @@ abstract class Profile implements RustOpaqueInterface {
   /// False means finalization already committed: resume it, never claim it was undone.
   Future<bool> cancelPairing({required List<int> sessionId});
 
+  Future<KeyPackageSupplyView> checkKeyPackages();
+
   /// Stop admitting work, wait for what is running and release the
   /// profile. Idempotent, and every later call fails instead of quietly
   /// opening it again.
@@ -83,6 +85,11 @@ abstract class Profile implements RustOpaqueInterface {
     PlatformInt64? before,
     required int limit,
   });
+
+  /// Local snapshot only: its timestamp identifies an earlier relay report.
+  Future<KeyPackageSupplyView> keyPackageSupply();
+
+  Future<KeyPackageSupplyView> replenishKeyPackages();
 
   Future<void> restoreKit({
     required String bootstrap,
@@ -242,6 +249,43 @@ class HistoryPageView {
           runtimeType == other.runtimeType &&
           events == other.events &&
           next == other.next;
+}
+
+enum KeyPackageLevelView { unknown, empty, low, ready }
+
+class KeyPackageSupplyView {
+  final int? available;
+  final BigInt? checkedAt;
+  final KeyPackageLevelView level;
+  final bool publicationPending;
+  final int target;
+
+  const KeyPackageSupplyView({
+    this.available,
+    this.checkedAt,
+    required this.level,
+    required this.publicationPending,
+    required this.target,
+  });
+
+  @override
+  int get hashCode =>
+      available.hashCode ^
+      checkedAt.hashCode ^
+      level.hashCode ^
+      publicationPending.hashCode ^
+      target.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is KeyPackageSupplyView &&
+          runtimeType == other.runtimeType &&
+          available == other.available &&
+          checkedAt == other.checkedAt &&
+          level == other.level &&
+          publicationPending == other.publicationPending &&
+          target == other.target;
 }
 
 class KitView {

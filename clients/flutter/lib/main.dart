@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'src/profile_session.dart';
 import 'src/kit_files.dart';
+import 'src/key_packages_panel.dart';
 import 'src/pairing_panel.dart';
 import 'src/recovery_panel.dart';
 import 'src/rust/api/profile.dart';
@@ -323,9 +324,7 @@ class _ProfilePageState extends State<ProfilePage> {
       style: Theme.of(context).textTheme.headlineLarge,
     ),
     const SizedBox(height: 16),
-    const Text(
-      'Identidad registrada, buzón preparado y claves de mensajería publicadas.',
-    ),
+    const Text('Identidad registrada y buzón preparado.'),
     const SizedBox(height: 24),
     if (_session.setup!.recoveryWarning) ...[
       const Text(
@@ -333,6 +332,8 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       const SizedBox(height: 24),
     ],
+    KeyPackagesPanel(session: _session),
+    const Divider(height: 48),
     if (_session.setup!.administrator) ...[
       RecoveryPanel(
         key: const Key('export-panel'),
