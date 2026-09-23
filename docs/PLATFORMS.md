@@ -13,8 +13,8 @@ A platform counts as **tested** only where the acceptance flow ran on that syste
 | Dart | 3.12.1 | bundled with the Flutter SDK |
 | flutter_rust_bridge | 2.13.0 (runtime and generator) | `core/crates/arveil-flutter/Cargo.toml` (`=2.13.0`) |
 | Android NDK | 28.2.13676358, minimum API 24 | Android SDK installation |
-| Android SDK | 36.1.0 | Android SDK installation |
-| Xcode | 26.6 | host installation |
+| Android SDK | compile SDK 37, minimum API 24 | Android SDK installation |
+| Xcode | 27.0 | host installation; macOS deployment target 12.0 |
 | `openssl-src` | 300.6.1+3.6.3 | `core/Cargo.lock` |
 | `libsqlite3-sys` | 0.38.2 (`bundled-sqlcipher-vendored-openssl`) | `core/Cargo.lock` |
 
@@ -44,9 +44,9 @@ promise becomes false:
 The profile key is 32 random bytes from the operating system's generator,
 made in Rust with the same call the rest of the client uses, and handed to
 the platform store. It is never derived from anything a person types and
-never leaves the device. That last part is why the future history export
-does not need the profile key: it will carry its own, so recovery never
-required weakening this one.
+is not synchronized by Arveil. The future history export will use its own
+key. On macOS, a manual backup/migration of the classic login Keychain is
+outside the application’s control; do not claim that this backend is device-bound.
 
 Backups are refused rather than trusted:
 
@@ -56,8 +56,10 @@ Backups are refused rather than trusted:
   backup. The stored key is not carried into a backup either.
 - **Apple** — the profile directory is marked `isExcludedFromBackup` on
   every start, since an attribute set once does not survive a directory
-  being replaced. The key is stored device-bound and not synchronisable, so
-  it never reaches iCloud Keychain.
+  being replaced. iOS uses the device-bound Data Protection Keychain. macOS
+  uses the classic login Keychain with app access control; neither backend
+  requests synchronization. [Apple TN3137](https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains)
+  describes the different protection models.
 
 Exclusion is not encryption and does not replace it. It keeps an encrypted
 database out of an account whose protection this project does not control.
@@ -72,7 +74,7 @@ database out of an account whose protection this project does not control.
 | A different key on an existing profile | same test | verified: refused at open |
 | Reinstall | manual: uninstall, install, start | **not done.** An uninstall does not necessarily take secure-store entries with it, and the two platforms differ; this must be observed, not assumed |
 | Restore from cloud backup or device transfer | manual, on hardware | **not done** |
-| macOS Keychain | needs `keychain-access-groups`, which needs development signing | **not available in an unsigned build.** The application says so instead of keeping the key somewhere weaker; signing is a packaging decision for M3b.5 |
+| macOS login Keychain | `profile_key_test.dart` with `ARVEIL_REQUIRE_SECURE_STORAGE=true`, ad-hoc build | verified on the local Apple silicon Mac: write/read, encrypted reopen, missing/wrong-key rejection; fresh-download and upgrade acceptance are separate |
 
 ## Reproducing it
 
@@ -126,3 +128,27 @@ endpoint, close/reopen, same-identity retry and completed-profile reopen.
 This does not cover a physical phone, an OS restart, app reinstall or cloud
 restore. Pairing and recovery-kit screens remain pending. Reproduction and
 private fixture handling are in the [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+
+## Experimental package acceptance (September 15, 2026)
+
+Client packages `0.1.0+2` were built from clean commit
+`a1d954c7a13ae9a2f189ba19e49d2f52e8fd5b19`. Each includes revision metadata and
+checksums; ZIP/APK signatures, architecture and decompressed-content privacy
+checks passed. The macOS ZIP is ad-hoc signed, with no Developer ID/notarization.
+The Android APK uses a persistent private release key.
+
+- macOS Apple silicon, Xcode 27: native login-Keychain acceptance passed with
+  unavailable storage treated as failure. The packaged app opened its encrypted
+  profile, reopened it after quitting, and opened the same profile after replacing
+  build 1 with build 2 at the same location. Keychain may request authorization
+  for a rebuilt app. A fresh download on another Mac is still unverified.
+- Android 15/API 35 ARM64 emulator: the release APK installed and cold-started.
+  The separate native upgrade harness creates a test identity with a platform
+  key and verifies that identity after APK replacement; it never reads or
+  replaces the normal app profile. Both create/reopen signals passed across
+  build 1 → production APK 2 → verifier 2, without uninstalling or clearing data.
+  Physical-phone acceptance is still pending.
+
+These are local experimental results, not beta acceptance or a production
+security review. The [packaging guide](CLIENT_RELEASES.md) explains reproduction
+and the [installation guide](INSTALLATION.md) explains end-user installation.

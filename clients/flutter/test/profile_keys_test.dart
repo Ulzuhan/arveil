@@ -26,6 +26,7 @@ class _Store implements FlutterSecureStorage {
   int reads = 0;
   int writes = 0;
   bool failFirstWrite = false;
+  bool loseWrites = false;
 
   Future<void> _write(String next) async {
     if (++writes == 1) {
@@ -33,7 +34,7 @@ class _Store implements FlutterSecureStorage {
       await release.future;
       if (failFirstWrite) throw PlatformException(code: 'unavailable');
     }
-    value = next;
+    if (!loseWrites) value = next;
   }
 
   @override
@@ -109,5 +110,30 @@ void main() {
     ).forProfile(profileExists: true);
     expect(missing.state, KeyState.missing);
     expect(store.writes, 1);
+  });
+
+  test(
+    'a successful write without a readable key cannot create a profile',
+    () async {
+      final store = _Store()..loseWrites = true;
+      store.release.complete();
+      final result = await ProfileKeys(
+        storage: store,
+      ).forProfile(profileExists: false);
+      expect(result.state, KeyState.unavailable);
+      expect(result.value, isNull);
+    },
+  );
+
+  test('a missing key for an existing profile is never replaced', () async {
+    final store = _Store();
+    final before = api.generated;
+    final result = await ProfileKeys(
+      storage: store,
+    ).forProfile(profileExists: true);
+    expect(result.state, KeyState.missing);
+    expect(result.value, isNull);
+    expect(api.generated, before);
+    expect(store.writes, 0);
   });
 }

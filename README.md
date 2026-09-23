@@ -30,11 +30,12 @@ or the [rootless Podman guide](docs/PODMAN.md).
 
 Start with the [installation guide](docs/INSTALLATION.md)
 ([español](docs/es/INSTALLATION.md)) to choose a server, macOS or Android path.
-As of September 15, 2026, no GitHub releases are published: the relay can be
-built with Docker/Podman, while the Flutter app requires a development build.
-Downloadable app packages and installation/update acceptance are part of the
-client deliverable. The initial macOS development path must work without a
-paid Apple Developer account; its key-store adaptation is still pending.
+As of September 15, 2026, no public GitHub releases are published. Maintainers
+can build the relay with Docker/Podman and prepare experimental
+[macOS ZIP and Android APK packages](docs/CLIENT_RELEASES.md). These packages
+install without development tools. The macOS app uses the classic login
+Keychain without paid Apple Developer membership. Local installation/update
+checks pass; physical-phone and fresh-download acceptance remain pending.
 
 ## Why another messenger
 
@@ -90,7 +91,11 @@ La documentación completa también está disponible en español en [`docs/es/`]
 
 The current workflow packages command-line binaries, not the Flutter app.
 
-Tagging `v*` runs [the release workflow](.github/workflows/release.yml): it builds the relay and the CLI for Linux x86-64 and macOS arm64, injects the commit each binary reports through `arveil version` and `arveil-relay -version`, publishes a `SHA256SUMS.txt`, and attaches signed build provenance so somebody who did not build them can check where they came from.
+Tagging `v*` runs [the release workflow](.github/workflows/release.yml): it builds the relay and the CLI for Linux x86-64 and macOS arm64, injects the commit each binary reports through `arveil version` and `arveil-relay -version`, publishes `SHA256SUMS-cli-relay.txt`, and attaches signed build provenance so somebody who did not build them can check where they came from. Create the corresponding GitHub release before attaching artifacts; uploads fail if an asset with the same name already exists.
+
+Experimental Flutter packages use separate `clients-v*` release tags and
+`SHA256SUMS-clients.txt`. Follow the [client release guide](docs/CLIENT_RELEASES.md)
+to prepare their draft from tested packages and preserve the recorded source revision.
 
 It does **not** do platform code signing: there is no Apple notarization and no Windows Authenticode certificate, so those systems will still warn on first run. Verify a download with its checksum and its provenance attestation (`gh attestation verify <file> --repo Ulzuhan/arveil`), not with the absence of a warning.
 

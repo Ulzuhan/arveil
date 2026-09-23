@@ -21,7 +21,7 @@ Future<Profile> openDeviceProfile() async {
   if (key.state == KeyState.unavailable) {
     throw const ProfileAccessException(
       'El almacén seguro del dispositivo no está disponible. '
-      'Comprueba los permisos y la firma de la aplicación.',
+      'Desbloquea el dispositivo y comprueba el permiso de acceso al almacén seguro.',
     );
   }
   if (key.state == KeyState.missing) {

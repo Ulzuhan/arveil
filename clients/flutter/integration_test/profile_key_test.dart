@@ -38,10 +38,7 @@ Future<void> main() async {
           reason:
               'A working platform key store is required for this acceptance.',
         );
-        // macOS without a signing identity cannot reach the Keychain at all.
-        // That is a packaging decision, recorded in docs/PLATFORMS.md; there
-        // is nothing to test here until it is made.
-        markTestSkipped('this platform has no key store for an unsigned build');
+        markTestSkipped('platform key storage is unavailable or access denied');
         return;
       }
       await keys.forget();
