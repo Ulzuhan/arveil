@@ -326,9 +326,6 @@ func (srv *Server) recoverIdentity(ctx context.Context, s *session, f channel.Fr
 	if srv.Store == nil {
 		return errFrame(f.ID, channel.CodeInternal, "no store")
 	}
-	if s.member() {
-		return errFrame(f.ID, channel.CodeConflict, "session is already a member")
-	}
 	v, err := identity.VerifyCredential(f.Payload.Credential, uint64(now.Unix()))
 	if err != nil {
 		return errFrame(f.ID, channel.CodeUnauthorized, "credential rejected")
@@ -359,8 +356,10 @@ func (srv *Server) recoverIdentity(ctx context.Context, s *session, f channel.Fr
 		NotAfter:       int64(v.Credential.Validity.NotAfter),
 		ManifestSeq:    m.ManifestSequence,
 		SignedManifest: f.Payload.Manifest,
-	}, m.RevokedCredentialHashes)
+	}, m.RevokedCredentialHashes, now)
 	switch {
+	case errors.Is(err, store.ErrRequestConflict):
+		return errFrame(f.ID, channel.CodeConflict, "recovery request changed or credential is no longer active")
 	case errors.Is(err, store.ErrManifestOrder):
 		return errFrame(f.ID, channel.CodeConflict, "the realm holds a newer manifest for this identity")
 	case errors.Is(err, store.ErrDeviceKeyInUse):

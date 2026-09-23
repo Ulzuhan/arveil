@@ -224,7 +224,6 @@ fn legacy(words: &[&str]) -> bool {
         Some(
             &"probe"
                 | &"status"
-                | &"kit"
                 | &"archive"
                 | &"notify"
                 | &"contact"

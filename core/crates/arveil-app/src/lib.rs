@@ -16,6 +16,8 @@
 
 pub mod carrier;
 mod onboarding;
+mod recovery;
+pub use recovery::{KitExport, RecoveryRequest, RecoveryResult};
 
 pub use arveil_core::client::{EnrollmentPhase, PairingCompletionPhase};
 pub use onboarding::{
@@ -79,6 +81,9 @@ pub enum Operation {
     ConfirmPairing,
     CancelPairing,
     QueryPendingPairing,
+    ExportKit,
+    RestoreKit,
+    ResumeRecovery,
     QueryOnboarding,
     CreateConversation,
     AddDevice,
@@ -130,6 +135,11 @@ pub enum ClientCommand {
         session_id: Vec<u8>,
     },
     QueryPendingPairing,
+    ExportKit,
+    RestoreKit {
+        request: RecoveryRequest,
+    },
+    ResumeRecovery,
     QueryOnboarding,
     CreateConversation {
         bootstrap: String,
@@ -195,6 +205,9 @@ impl ClientCommand {
             Self::CancelPairing { .. } => Operation::CancelPairing,
             Self::QueryPendingPairing => Operation::QueryPendingPairing,
             Self::QueryOnboarding => Operation::QueryOnboarding,
+            Self::ExportKit => Operation::ExportKit,
+            Self::RestoreKit { .. } => Operation::RestoreKit,
+            Self::ResumeRecovery => Operation::ResumeRecovery,
             Self::CreateConversation { .. } => Operation::CreateConversation,
             Self::AddDevice { .. } => Operation::AddDevice,
             Self::RemoveDevice { .. } => Operation::RemoveDevice,
@@ -925,6 +938,19 @@ pub struct OnboardingStatus {
     /// A device-link flow has its own state machine. The enrollment screen
     /// must not offer to create a new identity on top of that device.
     pub linked_device: bool,
+    pub ready: bool,
+    pub administrator: bool,
+    pub recovering: bool,
+    pub recovery_warning: bool,
+    pub pairing: Option<PairingStatus>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PairingStatus {
+    pub session: PairingSession,
+    pub verification_code: Option<String>,
+    pub committing: bool,
+    pub expired: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1010,6 +1036,8 @@ pub enum CommandOutput {
         operation: OperationResult,
     },
     PendingPairing(Option<PairingVerification>),
+    Kit(KitExport),
+    Recovery(RecoveryResult),
     OnboardingStatus(OnboardingStatus),
     Conversations(Vec<ConversationSummary>),
     Peers(Vec<PeerSummary>),
@@ -1439,6 +1467,7 @@ struct Exclusions {
     sync: Rc<tokio::sync::Mutex<()>>,
     enrollment: Rc<tokio::sync::Mutex<()>>,
     link_completion: Rc<tokio::sync::Mutex<()>>,
+    pairing_wait: Rc<tokio::sync::Mutex<()>>,
 }
 
 fn command_future(
@@ -1464,24 +1493,37 @@ fn command_future(
                 // A second sync waits cooperatively here: network waits from the
                 // active sync still yield to queries and non-sync commands.
                 let _single_flight = exclusions.sync.lock().await;
-                run_command(&config, command).await
-            } else if matches!(&command, ClientCommand::Enroll { .. }) {
+                Box::pin(run_command(&config, command)).await
+            } else if matches!(
+                &command,
+                ClientCommand::Enroll { .. }
+                    | ClientCommand::RestoreKit { .. }
+                    | ClientCommand::ResumeRecovery
+            ) {
                 // Equivalent calls wait and then read what the first one
                 // made durable; an incompatible one is refused by the
                 // enrollment itself, not by this lock.
                 let _single_enrollment = exclusions.enrollment.lock().await;
-                run_command(&config, command).await
+                Box::pin(run_command(&config, command)).await
             } else if matches!(
                 &command,
-                ClientCommand::CompleteLink { .. } | ClientCommand::ConfirmPairing { .. }
+                ClientCommand::CompleteLink { .. }
+                    | ClientCommand::ConfirmPairing { .. }
+                    | ClientCommand::BeginPairing { .. }
             ) {
                 // Linking may wait on the relay between durable local phases.
                 // Only one finalizer may cross those phases for this profile;
                 // followers resume from the phase written by their predecessor.
                 let _single_finalizer = exclusions.link_completion.lock().await;
-                run_command(&config, command).await
+                Box::pin(run_command(&config, command)).await
+            } else if matches!(
+                &command,
+                ClientCommand::AwaitPairing { .. } | ClientCommand::ApprovePairing { .. }
+            ) {
+                let _single_pairing_wait = exclusions.pairing_wait.lock().await;
+                Box::pin(run_command(&config, command)).await
             } else {
-                run_command(&config, command).await
+                Box::pin(run_command(&config, command)).await
             }
         });
         // A panic may leave the connection or the MLS engine in a state
@@ -1673,6 +1715,30 @@ impl Application {
             OnboardingOutput::Identity(identity) => identity,
             _ => unreachable!("identity command returned another output type"),
         })
+    }
+
+    pub fn export_kit(&self) -> Result<KitExport, ApplicationError> {
+        match self.execute(ClientCommand::ExportKit)? {
+            CommandOutput::Kit(kit) => Ok(kit),
+            _ => unreachable!("kit output"),
+        }
+    }
+
+    pub fn restore_kit(
+        &self,
+        request: RecoveryRequest,
+    ) -> Result<RecoveryResult, ApplicationError> {
+        match self.execute(ClientCommand::RestoreKit { request })? {
+            CommandOutput::Recovery(result) => Ok(result),
+            _ => unreachable!("recovery output"),
+        }
+    }
+
+    pub fn resume_recovery(&self) -> Result<RecoveryResult, ApplicationError> {
+        match self.execute(ClientCommand::ResumeRecovery)? {
+            CommandOutput::Recovery(result) => Ok(result),
+            _ => unreachable!("recovery output"),
+        }
     }
 
     pub fn onboarding_status(&self) -> Result<OnboardingStatus, ApplicationError> {
@@ -2029,6 +2095,21 @@ async fn run_command(
     command: ClientCommand,
 ) -> Result<CommandOutput, ApplicationError> {
     match command {
+        ClientCommand::ExportKit => recovery::export(config)
+            .map(CommandOutput::Kit)
+            .map_err(|e| application_error(Operation::ExportKit, e)),
+        ClientCommand::RestoreKit { request } => Box::pin(run_operation_with_value(
+            Operation::RestoreKit,
+            recovery::restore(config, request),
+        ))
+        .await
+        .map(|(value, _)| CommandOutput::Recovery(value)),
+        ClientCommand::ResumeRecovery => Box::pin(run_operation_with_value(
+            Operation::ResumeRecovery,
+            recovery::resume(config),
+        ))
+        .await
+        .map(|(value, _)| CommandOutput::Recovery(value)),
         ClientCommand::CreateIdentity => {
             onboarding_command(
                 Operation::CreateIdentity,
@@ -2584,6 +2665,15 @@ fn route_string(
 
 fn enrolled(config: &ProfileConfig) -> Result<(Client, StoredDevice, StoredRealm), CliError> {
     let client = open_client(config)?;
+    if client
+        .recovery_progress()
+        .map_err(storage_error("recovery"))?
+        .is_some_and(|p| !p.complete)
+    {
+        return Err(CliError::Domain(
+            "finish recovery before starting other operations".into(),
+        ));
+    }
     let device = client
         .device()
         .map_err(storage_error("device"))?
@@ -4346,6 +4436,11 @@ mod tests {
                 bootstrap: None,
                 phase: None,
                 linked_device: false,
+                ready: false,
+                administrator: false,
+                recovering: false,
+                recovery_warning: false,
+                pairing: None,
             }
         );
         // A local peer drops the connection before the WebSocket handshake.

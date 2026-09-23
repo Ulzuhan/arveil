@@ -1,6 +1,6 @@
 # Base de aplicación: estado implementado
 
-Estado: registro actualizado el 15 de septiembre de 2026; los resultados de aceptación anteriores conservan su alcance original. No equivale a una release ni a una auditoría de seguridad. Esta página actualiza las propuestas anteriores para la capa de cliente.
+Estado: registro actualizado el 23 de septiembre de 2026; los resultados de aceptación anteriores conservan su alcance original. No equivale a una release ni a una auditoría de seguridad. Esta página actualiza las propuestas anteriores para la capa de cliente.
 
 ## Arquitectura actual
 
@@ -11,7 +11,7 @@ Flutter → puente Rust ─┴→ arveil-app → arveil-core
                                       └→ transporte Noise/WebSocket → relay Go
 ```
 
-`arveil-app` coordina operaciones y devuelve resultados estructurados. `arveil-core` conserva identidad, MLS, persistencia y primitivas de entrega. El relay sigue siendo un proceso Go independiente; no contiene las claves E2EE de los clientes. Ya existen cliente Flutter y puente: abren, consultan y cierran un perfil. No existe interfaz de mensajería.
+`arveil-app` coordina operaciones y devuelve resultados estructurados. `arveil-core` conserva identidad, MLS, persistencia y primitivas de entrega. El relay sigue siendo un proceso Go independiente; no contiene las claves E2EE de los clientes. El cliente Flutter abre perfiles cifrados, da de alta por invitación, vincula dispositivos y exporta/restaura kits cifrados de identidad mediante el puente. No existe interfaz de mensajería.
 
 ## Cambios realizados y evidencia
 
@@ -58,17 +58,59 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 
 ## Límites que permanecen
 
-- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento, kit de recuperación, conversación, adjuntos y gestión de dispositivos aún no tienen interfaz. No hay instaladores gráficos ni validación en un dispositivo móvil físico.
+- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. Siguen pendientes conversación, adjuntos y gestión de dispositivos. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
 - Solo la CLI lee ya variables de entorno, y sigue eligiendo perfil sin cifrar cuando no hay clave. El almacén seguro se ha probado en emulador Android y en macOS con firma ad hoc y llavero clásico. Quedan pendientes teléfono físico y una instalación nueva descargada.
 - El puente Rust ejecuta las llamadas bloqueantes fuera del hilo de interfaz y expone un flujo incremental de eventos. Siguen pendientes la cancelación general de operaciones y la aceptación completa del ciclo de vida de cada plataforma.
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. El progreso es una proyección: los cambios que no modela solo llegan en el resultado durable.
 - Recuperación de un grupo MLS desincronizado no es sinónimo de `sync`; el método ficticio `recover_conversation` fue retirado. Sigue pendiente un flujo real.
 - La sucesión del coordinador depende de revocaciones verificadas; no es una elección automática ante una desconexión.
 - El relay aplicaba sus pragmas una vez, así que solo la conexión que los ejecutó tenía tiempo de espera o exigía claves foráneas; ahora van en la cadena de conexión, y una prueba sostiene varias conexiones y comprueba cada una. Las transacciones de escritura también reservan el turno antes de leer (`BEGIN IMMEDIATE`), evitando el fallo al pasar de lectura a escritura durante la limpieza u otras peticiones; las lecturas WAL siguen siendo concurrentes. Véase la [regresión de concurrencia](../PHASE1.md#storage-contention-regression). El tamaño del pool sigue sin acotar y queda pendiente.
-- Todavía quedan comandos legacy, incluidos recuperación/archivos y contactos, que habrá que exponer por la capa de aplicación si la GUI los necesita.
+- La CLI del kit de identidad ya usa el servicio de aplicación. Archivos y contactos conservan comandos legacy que habrá que exponer por esa capa si la GUI los necesita.
 
 Siguiente fase: [plan Flutter](PHASE3B.md). Decisión: [ADR-009](adr/ADR-009-flutter-first.md).
 
 ## Alta por invitación
 
-El formulario mantiene la invitación solo en memoria y la borra al completar el alta o cerrar el perfil. El ejecutor responde con una consulta tipada del estado al abrir y tras los intentos de alta. Los datos de relay/invitación mal formados se rechazan antes de crear la identidad. La interfaz muestra categorías de error sin interpolar rutas ni diagnósticos remotos. Las pruebas cubren reintentos, envíos duplicados, cierre de aperturas tardías y mensajes sin detalles privados. Es la parte de alta por invitación de M3b.2; siguen pendientes el emparejamiento y la aceptación del kit de recuperación.
+El formulario mantiene la invitación solo en memoria y la borra al completar el alta o cerrar el perfil. El ejecutor responde con una consulta tipada del estado al abrir y tras los intentos de alta. Los datos de relay/invitación mal formados se rechazan antes de crear la identidad. La interfaz muestra categorías de error sin interpolar rutas ni diagnósticos remotos. Las pruebas cubren reintentos, envíos duplicados, cierre de aperturas tardías y mensajes sin detalles privados. Es la parte de alta por invitación de M3b.2. Los cambios de emparejamiento y kit descritos abajo no cierran el hito: faltan agotamiento/reposición de KeyPackages en la GUI y aceptación en dispositivos físicos.
+
+## Emparejamiento y kit de identidad (23 de septiembre de 2026)
+
+El alta ofrece invitación, vinculación y restauración. El dispositivo nuevo
+compara manualmente el código corto antes de aplicar su autorización; un código
+incorrecto impide finalizar. Si la espera se interrumpe **antes de recibir la
+comparación**, hay que cancelar y generar otro código. La comparación recibida
+sobrevive a la reapertura; tras confirmar, la finalización retoma el mismo
+dispositivo y buzón. Cancelar solo detiene el alta local: no revoca una
+autorización ya emitida por el administrador. Su pantalla lo explica antes
+de autorizar y muestra después la comparación. La espera del administrador
+está acotada a 90 segundos; todavía no dispone de cancelación.
+
+La exportación guarda solo el archivo cifrado mediante el diálogo del sistema.
+Su clave separada aparece únicamente tras guardar, desaparece al salir o pasar
+a segundo plano y Arveil no la conserva. Posponer el kit muestra el riesgo de
+pérdida de identidad. Restaurar exige perfil vacío, kit, clave y bootstrap del
+relay original, con confirmación de revocación y ausencia del historial anterior.
+Usa el kit más reciente y expórtalo de nuevo tras cambiar dispositivos. Un kit
+antiguo puede rechazarse si el relay conoce un manifiesto posterior. Recuperar
+identidad no restaura historial ni estado de grupos MLS.
+
+CLI y GUI comparten preparación local atómica y un registro durable. Un error
+de transporte conserva la misma credencial y permite reanudar sin volver a
+importar el archivo. El relay guarda la petición firmada exacta y la secuencia
+previa en una sola transacción: acepta su repetición autenticada y rechaza
+credenciales cambiadas, caducadas o revocadas. Requiere el relay actualizado
+(esquema 4); los anteriores no garantizan el reintento tras perder la respuesta
+de recuperación. Haz una copia antes de actualizar: una versión anterior
+rechaza el esquema nuevo. Las advertencias de retroceso persisten al reabrir.
+
+Las pruebas cubren consentimiento, comparación incorrecta/caducada, cancelación
+durante la espera, exportación cancelada, eliminación de la clave al pasar a
+segundo plano, rollback de la preparación y reintentos tras reiniciar cliente
+y relay. La reproducción nativa está en el
+[README de Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+Estos cambios no publican ni reemplazan el candidato alfa existente.
+
+Comprobaciones de este cambio: 87 tests Rust pasan (uno ignorado), Go con
+detector de carreras, análisis Flutter y 16 pruebas de widgets/unidad,
+aceptación nativa macOS, fases 2 y 3b y documentación bilingüe en modo estricto.
+Son resultados locales; la matriz de plataformas delimita su alcance.

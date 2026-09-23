@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -36,10 +36,31 @@ Future<Profile> openUnencryptedProfile({required String dir}) =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>>
 abstract class Profile implements RustOpaqueInterface {
+  Future<String> approvePairing({
+    required String bootstrap,
+    required String code,
+  });
+
+  Future<void> awaitPairing({
+    required String bootstrap,
+    required PairingView session,
+  });
+
+  Future<void> beginPairing({required String bootstrap});
+
+  /// False means finalization already committed: resume it, never claim it was undone.
+  Future<bool> cancelPairing({required List<int> sessionId});
+
   /// Stop admitting work, wait for what is running and release the
   /// profile. Idempotent, and every later call fails instead of quietly
   /// opening it again.
   Future<void> close();
+
+  Future<void> confirmPairing({
+    required String bootstrap,
+    required List<int> sessionId,
+    required String verificationCode,
+  });
 
   /// The conversation list, as a query that answers from local state.
   Future<List<ConversationView>> conversations();
@@ -52,6 +73,8 @@ abstract class Profile implements RustOpaqueInterface {
   /// The invitation is hashed by Rust and is never persisted by Flutter.
   Future<void> enroll({required String bootstrap, required String invite});
 
+  Future<KitView> exportKit();
+
   /// One page of a conversation, newest page first: pass the previous
   /// page's `next` as `before` to walk backwards. The application caps
   /// the size whatever is asked for.
@@ -60,6 +83,14 @@ abstract class Profile implements RustOpaqueInterface {
     PlatformInt64? before,
     required int limit,
   });
+
+  Future<void> restoreKit({
+    required String bootstrap,
+    required List<int> encrypted,
+    required String secret,
+  });
+
+  Future<void> resumeRecovery();
 
   /// Read durable setup state after opening, completing or retrying an
   /// enrollment. Progress events are hints; this is the source of truth.
@@ -213,6 +244,63 @@ class HistoryPageView {
           next == other.next;
 }
 
+class KitView {
+  final Uint8List encrypted;
+  final String secret;
+
+  const KitView({required this.encrypted, required this.secret});
+
+  @override
+  int get hashCode => encrypted.hashCode ^ secret.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is KitView &&
+          runtimeType == other.runtimeType &&
+          encrypted == other.encrypted &&
+          secret == other.secret;
+}
+
+class PairingView {
+  final Uint8List sessionId;
+  final String code;
+  final BigInt expiresAt;
+  final String? verificationCode;
+  final bool committing;
+  final bool expired;
+
+  const PairingView({
+    required this.sessionId,
+    required this.code,
+    required this.expiresAt,
+    this.verificationCode,
+    required this.committing,
+    required this.expired,
+  });
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^
+      code.hashCode ^
+      expiresAt.hashCode ^
+      verificationCode.hashCode ^
+      committing.hashCode ^
+      expired.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PairingView &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          code == other.code &&
+          expiresAt == other.expiresAt &&
+          verificationCode == other.verificationCode &&
+          committing == other.committing &&
+          expired == other.expired;
+}
+
 @freezed
 sealed class ProfileError with _$ProfileError implements FrbException {
   const ProfileError._();
@@ -334,17 +422,34 @@ enum SetupStage {
   publishing,
   ready,
   linkedDevice,
+  recovering,
 }
 
 class SetupView {
   final SetupStage stage;
   final String? identityId;
   final String? bootstrap;
+  final bool administrator;
+  final bool recoveryWarning;
+  final PairingView? pairing;
 
-  const SetupView({required this.stage, this.identityId, this.bootstrap});
+  const SetupView({
+    required this.stage,
+    this.identityId,
+    this.bootstrap,
+    required this.administrator,
+    required this.recoveryWarning,
+    this.pairing,
+  });
 
   @override
-  int get hashCode => stage.hashCode ^ identityId.hashCode ^ bootstrap.hashCode;
+  int get hashCode =>
+      stage.hashCode ^
+      identityId.hashCode ^
+      bootstrap.hashCode ^
+      administrator.hashCode ^
+      recoveryWarning.hashCode ^
+      pairing.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -353,5 +458,8 @@ class SetupView {
           runtimeType == other.runtimeType &&
           stage == other.stage &&
           identityId == other.identityId &&
-          bootstrap == other.bootstrap;
+          bootstrap == other.bootstrap &&
+          administrator == other.administrator &&
+          recoveryWarning == other.recoveryWarning &&
+          pairing == other.pairing;
 }

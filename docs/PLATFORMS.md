@@ -126,7 +126,7 @@ this document. `integration_test/onboarding_test.dart` passed on an Android
 the form, real platform key storage, native Rust/SQLCipher, unreachable
 endpoint, close/reopen, same-identity retry and completed-profile reopen.
 This does not cover a physical phone, an OS restart, app reinstall or cloud
-restore. Pairing and recovery-kit screens remain pending. Reproduction and
+restore. Pairing and recovery-kit were outside that acceptance run. Reproduction and
 private fixture handling are in the [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
 
 ## Experimental package acceptance (September 15, 2026)
@@ -152,3 +152,16 @@ The Android APK uses a persistent private release key.
 These are local experimental results, not beta acceptance or a production
 security review. The [packaging guide](CLIENT_RELEASES.md) explains reproduction
 and the [installation guide](INSTALLATION.md) explains end-user installation.
+
+## Pairing and recovery acceptance (September 23, 2026)
+
+`integration_test/pairing_recovery_test.dart` passed natively on Apple silicon
+macOS with Xcode 27 and the classic login Keychain against a disposable local
+relay. Three encrypted profiles exercise enrollment, pairing, wrong comparison,
+reopen before confirmation, encrypted kit export, wrong recovery key, restore,
+repeat, reopen and empty recovered conversation history. The current source
+is client `0.1.0+3`; this run does not rebuild or publish the `0.1.0+2` alpha.
+
+The 16 widget/unit tests cover presentation using a file-dialog substitute.
+Native save/open/cancel dialog interaction, cross-device Mac–Android pairing,
+a physical phone and a fresh downloaded installation remain outside this run.

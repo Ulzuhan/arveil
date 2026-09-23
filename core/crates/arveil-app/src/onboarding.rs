@@ -29,6 +29,35 @@ pub fn status(config: &ProfileConfig) -> Result<super::OnboardingStatus, CliErro
     let identity_id = client.identity_id().map_err(client_error("identity"))?;
     let has_root = client.root().map_err(client_error("identity"))?.is_some();
     let realm = client.realm().map_err(client_error("realm"))?;
+    let recovery = client
+        .recovery_progress()
+        .map_err(client_error("recovery"))?;
+    let session = client
+        .latest_pairing_session()
+        .map_err(client_error("pairing"))?;
+    let completion = session
+        .as_ref()
+        .map(|s| client.pairing_completion_phase(&s.session_id))
+        .transpose()
+        .map_err(client_error("pairing"))?
+        .flatten();
+    let linked_ready = completion == Some(PairingCompletionPhase::Complete)
+        || client
+            .link_completion_phase()
+            .map_err(client_error("link"))?
+            == Some(PairingCompletionPhase::Complete);
+    let pairing = session
+        .filter(|_| completion != Some(PairingCompletionPhase::Complete))
+        .map(|s| super::PairingStatus {
+            expired: completion.is_none() && now() >= s.expires_at,
+            committing: completion.is_some(),
+            verification_code: s.sas,
+            session: PairingSession {
+                session_id: s.session_id,
+                code: s.code,
+                expires_at: s.expires_at,
+            },
+        });
     let bootstrap = realm.map(|realm| {
         format!(
             "arveil-bootstrap:v0:{}:{}:{}:{}",
@@ -42,6 +71,17 @@ pub fn status(config: &ProfileConfig) -> Result<super::OnboardingStatus, CliErro
         identity_id,
         bootstrap,
         linked_device: enrollment.is_none() && device.is_some() && !has_root,
+        ready: enrollment
+            .as_ref()
+            .is_some_and(|p| p.phase == EnrollmentPhase::Complete)
+            || recovery.as_ref().is_some_and(|p| p.complete)
+            || linked_ready,
+        administrator: has_root,
+        recovering: recovery.as_ref().is_some_and(|p| !p.complete),
+        recovery_warning: recovery
+            .as_ref()
+            .is_some_and(|p| p.previous_sequence.is_some_and(|n| n < p.kit_sequence)),
+        pairing,
         phase: enrollment.map(|progress| progress.phase),
     })
 }
@@ -115,14 +155,16 @@ struct Grant {
     root_public: Vec<u8>,
 }
 
-fn now() -> u64 {
+pub(super) fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0)
 }
 
-fn client_error(context: &str) -> impl FnOnce(arveil_core::client::ClientError) -> CliError + '_ {
+pub(super) fn client_error(
+    context: &str,
+) -> impl FnOnce(arveil_core::client::ClientError) -> CliError + '_ {
     move |error| match error {
         arveil_core::client::ClientError::Sqlite(error) => {
             CliError::Storage(format!("{context}: {error}"))
@@ -239,6 +281,15 @@ pub async fn enroll(
         return Err(CliError::Domain("relay URL must use ws or wss".into()));
     }
     let client = open_client(config)?;
+    if client
+        .recovery_progress()
+        .map_err(client_error("recovery"))?
+        .is_some()
+    {
+        return Err(CliError::Domain(
+            "this profile belongs to an identity recovery".into(),
+        ));
+    }
     if client.root().map_err(client_error("identity"))?.is_none() {
         let root = client.identity_new().map_err(client_error("identity"))?;
         record_change(StateChange::IdentityCreated {
@@ -455,6 +506,33 @@ pub async fn begin_pairing(
     let bootstrap = Bootstrap::parse(bootstrap)?;
     let client = open_client(config)?;
     let device = pending_device(&client)?;
+    if let Some(session) = client
+        .latest_pairing_session()
+        .map_err(client_error("pairing"))?
+    {
+        if client
+            .pairing_completion_phase(&session.session_id)
+            .map_err(client_error("pairing"))?
+            .is_some()
+            || now() < session.expires_at
+        {
+            return Err(CliError::Domain(
+                "cancel or complete the existing pairing first".into(),
+            ));
+        }
+        client
+            .pairing_session_clear(&session.session_id)
+            .map_err(client_error("pairing"))?;
+    }
+    // Retain the relay for the GUI to resume confirmation after reopening.
+    client
+        .realm_save(
+            &bootstrap.realm_id,
+            &bootstrap.signing_key,
+            &bootstrap.noise_public,
+            &bootstrap.url,
+        )
+        .map_err(client_error("realm"))?;
     let mut connection = Connection::open(
         &bootstrap.url,
         &bootstrap.realm_id,
@@ -509,6 +587,13 @@ pub async fn await_pairing(
         ));
     }
     ensure_not_expired(&client, &stored)?;
+    if let Some(verification_code) = stored.sas {
+        return Ok(PairingVerification {
+            session_id: session.session_id,
+            verification_code,
+            expires_at: Some(session.expires_at),
+        });
+    }
     let code = PairingCode::parse(&session.code).map_err(domain_error("code"))?;
     code.check_realm(&bootstrap.realm_id)
         .map_err(domain_error("code"))?;
@@ -1023,7 +1108,7 @@ fn linked_device_from_local(
     })
 }
 
-async fn accept_endpoint_list(
+pub(super) async fn accept_endpoint_list(
     client: &Client,
     bootstrap: &Bootstrap,
     connection: &mut Connection,

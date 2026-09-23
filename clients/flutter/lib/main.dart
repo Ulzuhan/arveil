@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'src/profile_session.dart';
+import 'src/kit_files.dart';
+import 'src/pairing_panel.dart';
+import 'src/recovery_panel.dart';
 import 'src/rust/api/profile.dart';
 import 'src/rust/frb_generated.dart';
 
@@ -11,8 +14,9 @@ Future<void> main() async {
 }
 
 class ArveilApp extends StatelessWidget {
-  const ArveilApp({super.key, this.session});
+  const ArveilApp({super.key, this.session, this.kitFiles = const KitFiles()});
   final ProfileSession? session;
+  final KitFiles kitFiles;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -24,13 +28,14 @@ class ArveilApp extends StatelessWidget {
         border: OutlineInputBorder(),
       ),
     ),
-    home: ProfilePage(session: session),
+    home: ProfilePage(session: session, kitFiles: kitFiles),
   );
 }
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key, this.session});
+  const ProfilePage({super.key, this.session, required this.kitFiles});
   final ProfileSession? session;
+  final KitFiles kitFiles;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -39,6 +44,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   late final ProfileSession _session = widget.session ?? ProfileSession();
   final _form = GlobalKey<FormState>();
+  String _entry = 'enroll';
   final _bootstrap = TextEditingController();
   final _invite = TextEditingController();
 
@@ -54,6 +60,7 @@ class _ProfilePageState extends State<ProfilePage> {
     await _session.open();
     if (!mounted) return;
     _bootstrap.text = _session.setup?.bootstrap ?? '';
+    setState(() => _entry = 'enroll');
   }
 
   Future<void> _enroll() async {
@@ -81,7 +88,9 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: [
           if (_session.isOpen)
             TextButton.icon(
-              onPressed: _session.busy ? null : _close,
+              onPressed: _session.busy || _session.cancellingPairing
+                  ? null
+                  : _close,
               icon: const Icon(Icons.lock_outline),
               label: const Text('Cerrar perfil'),
             ),
@@ -106,15 +115,34 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ] else if (_session.setup!.stage == SetupStage.ready)
                   ..._ready(context)
-                else if (_session.setup!.stage == SetupStage.linkedDevice) ...[
-                  Text(
-                    'Dispositivo vinculado',
-                    style: Theme.of(context).textTheme.headlineMedium,
+                else if (_session.setup!.stage == SetupStage.recovering)
+                  RecoveryResumePanel(session: _session)
+                else if (_session.setup!.stage == SetupStage.linkedDevice ||
+                    _session.setup!.pairing != null ||
+                    _entry == 'pair') ...[
+                  PairingPanel(
+                    key: const Key('pair-new-device'),
+                    session: _session,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Este perfil usa el flujo de vinculación de dispositivos. '
-                    'Su gestión desde la interfaz estará disponible en una próxima versión.',
+                  if (_session.setup!.stage == SetupStage.new_ &&
+                      _session.setup!.pairing == null)
+                    TextButton(
+                      onPressed: _session.busy
+                          ? null
+                          : () => setState(() => _entry = 'enroll'),
+                      child: const Text('Volver al alta'),
+                    ),
+                ] else if (_entry == 'restore') ...[
+                  RecoveryPanel(
+                    key: const Key('restore-panel'),
+                    session: _session,
+                    files: widget.kitFiles,
+                  ),
+                  TextButton(
+                    onPressed: _session.busy
+                        ? null
+                        : () => setState(() => _entry = 'enroll'),
+                    child: const Text('Volver al alta'),
                   ),
                 ] else
                   ..._onboarding(context),
@@ -124,7 +152,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     semanticsLabel: 'Operación en curso',
                   ),
                   const SizedBox(height: 12),
-                  const Text('Guardando el avance. Espera un momento…'),
+                  const Text(
+                    'Operación en curso. El avance confirmado queda guardado en el perfil.',
+                  ),
                 ],
                 if (_session.error case final message?) ...[
                   const SizedBox(height: 24),
@@ -260,6 +290,28 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
+      if (state.stage == SetupStage.new_) ...[
+        const SizedBox(height: 24),
+        OutlinedButton(
+          onPressed: _session.busy
+              ? null
+              : () {
+                  _invite.clear();
+                  setState(() => _entry = 'pair');
+                },
+          child: const Text('Vincular con mi otro dispositivo'),
+        ),
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: _session.busy
+              ? null
+              : () {
+                  _invite.clear();
+                  setState(() => _entry = 'restore');
+                },
+          child: const Text('Restaurar desde un kit'),
+        ),
+      ],
     ];
   }
 
@@ -275,6 +327,32 @@ class _ProfilePageState extends State<ProfilePage> {
       'Identidad registrada, buzón preparado y claves de mensajería publicadas.',
     ),
     const SizedBox(height: 24),
+    if (_session.setup!.recoveryWarning) ...[
+      const Text(
+        'El relay conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.',
+      ),
+      const SizedBox(height: 24),
+    ],
+    if (_session.setup!.administrator) ...[
+      RecoveryPanel(
+        key: const Key('export-panel'),
+        session: _session,
+        files: widget.kitFiles,
+        export: true,
+      ),
+      const Divider(height: 48),
+      PairingPanel(
+        key: const Key('pair-administration'),
+        session: _session,
+        administration: true,
+      ),
+      const Divider(height: 48),
+    ] else ...[
+      const Text(
+        'Este dispositivo está vinculado. El kit de recuperación se exporta desde el dispositivo administrador.',
+      ),
+      const SizedBox(height: 24),
+    ],
     const Text(
       'Conversaciones',
       style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),

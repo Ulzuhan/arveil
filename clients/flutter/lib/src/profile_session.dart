@@ -46,6 +46,10 @@ class ProfileSession extends ChangeNotifier {
   bool busy = false;
   bool _disposed = false;
   String? error;
+  bool waitingForPairing = false;
+  bool cancellingPairing = false;
+  bool _cancelledWait = false;
+  String? approvalCode;
 
   bool get isOpen => _profile != null;
 
@@ -62,9 +66,10 @@ class ProfileSession extends ChangeNotifier {
       await action();
       return true;
     } catch (failure) {
-      error = describeFailure(failure);
+      if (!_cancelledWait) error = describeFailure(failure);
       return false;
     } finally {
+      _cancelledWait = false;
       busy = false;
       _changed();
     }
@@ -106,9 +111,142 @@ class ProfileSession extends ChangeNotifier {
     }
   });
 
+  Future<void> _reloadAfter(Future<void> Function(Profile) command) async {
+    final profile = _profile!;
+    try {
+      await command(profile);
+    } finally {
+      try {
+        setup = await profile.setup();
+      } catch (_) {
+        setup = null;
+      }
+    }
+    if (setup == null) {
+      throw const ProfileAccessException(
+        'La operación terminó, pero no se pudo leer el perfil. Ciérralo y vuelve a abrirlo.',
+      );
+    }
+  }
+
+  Future<bool> beginPairing(String bootstrap) => _run(() async {
+    _cancelledWait = false;
+    await _reloadAfter((p) => p.beginPairing(bootstrap: bootstrap));
+  });
+
+  Future<bool> waitForPairing() => _run(() async {
+    final state = setup!;
+    waitingForPairing = true;
+    _changed();
+    try {
+      await _reloadAfter(
+        (p) => p.awaitPairing(
+          bootstrap: state.bootstrap!,
+          session: state.pairing!,
+        ),
+      );
+    } finally {
+      waitingForPairing = false;
+    }
+  });
+
+  Future<bool> confirmPairing(String code) => _run(() async {
+    _cancelledWait = false;
+    final state = setup!;
+    await _reloadAfter(
+      (p) => p.confirmPairing(
+        bootstrap: state.bootstrap!,
+        sessionId: state.pairing!.sessionId,
+        verificationCode: code,
+      ),
+    );
+  });
+
+  // Cancellation must be able to enter Rust while the rendezvous wait is
+  // suspended. It does not promise to undo a confirmation that committed.
+  Future<bool> cancelPairing() async {
+    final state = setup;
+    if (_disposed ||
+        cancellingPairing ||
+        state?.pairing == null ||
+        (busy && !waitingForPairing)) {
+      return false;
+    }
+    cancellingPairing = true;
+    _changed();
+    try {
+      final cancelled = await _profile!.cancelPairing(
+        sessionId: state!.pairing!.sessionId,
+      );
+      _cancelledWait = cancelled && waitingForPairing;
+      setup = await _profile!.setup();
+      error = cancelled
+          ? null
+          : 'La confirmación ya empezó. Reanuda la finalización de la vinculación.';
+      return cancelled;
+    } catch (failure) {
+      error = describeFailure(failure);
+      return false;
+    } finally {
+      cancellingPairing = false;
+      _changed();
+    }
+  }
+
+  Future<bool> approvePairing(String code) => _run(() async {
+    _cancelledWait = false;
+    approvalCode = await _profile!.approvePairing(
+      bootstrap: setup!.bootstrap!,
+      code: code,
+    );
+  });
+
+  void dismissApproval() {
+    approvalCode = null;
+    _changed();
+  }
+
+  Future<String?> saveKit(Future<bool> Function(List<int>) save) async {
+    String? secret;
+    await _run(() async {
+      _cancelledWait = false;
+      final kit = await _profile!.exportKit();
+      if (await save(kit.encrypted) && !_disposed) secret = kit.secret;
+    });
+    return secret;
+  }
+
+  Future<bool> restoreKit(
+    String bootstrap,
+    List<int> encrypted,
+    String secret,
+  ) => _run(() async {
+    _cancelledWait = false;
+    await _reloadAfter(
+      (p) => p.restoreKit(
+        bootstrap: bootstrap,
+        encrypted: encrypted,
+        secret: secret,
+      ),
+    );
+  });
+
+  Future<bool> resumeRecovery() => _run(() async {
+    _cancelledWait = false;
+    await _reloadAfter((p) => p.resumeRecovery());
+  });
+
+  void reportFailure(Object failure) {
+    error = describeFailure(failure);
+    _changed();
+  }
+
   Future<bool> refresh() => _run(() async {
+    _cancelledWait = false;
     setup = await _profile!.setup();
-    conversations = await _profile!.conversations();
+    if (setup!.stage == SetupStage.ready) {
+      conversations = await _profile!.conversations();
+    }
   });
 
   Future<bool> close() => _run(() async {
@@ -116,6 +254,8 @@ class ProfileSession extends ChangeNotifier {
     _profile = null;
     setup = null;
     conversations = null;
+    approvalCode = null;
+    _cancelledWait = false;
   });
 
   @override
@@ -144,11 +284,11 @@ String describeFailure(Object failure) => switch (failure) {
   PlatformException() =>
     'No se pudo preparar el almacenamiento seguro del perfil. Vuelve a intentarlo.',
   CommandError_Transport() =>
-    'No se pudo conectar con el relay. Comprueba la conexión y reintenta con la misma invitación.',
+    'No se pudo conectar con el relay. Comprueba la conexión y sigue las indicaciones de la operación pendiente.',
   CommandError_Domain() =>
-    'Comprueba los datos de alta. Si ya empezaste, usa el mismo relay y la misma invitación.',
+    'Revisa los datos y la vigencia de la operación. Conserva el perfil; no empieces un alta diferente para reintentar.',
   CommandError_Protocol() =>
-    'El relay no aceptó el alta. Comprueba la invitación con su administrador y vuelve a intentarlo.',
+    'El relay no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.',
   CommandError_Busy() =>
     'Hay otra operación en curso. Espera y vuelve a intentarlo.',
   CommandError_Storage() || CommandError_FileSystem() =>

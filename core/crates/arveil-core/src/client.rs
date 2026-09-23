@@ -146,6 +146,13 @@ CREATE TABLE IF NOT EXISTS link_completion (
     root_public BLOB NOT NULL,
     phase       INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS identity_recovery (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    request_digest BLOB NOT NULL,
+    kit_sequence INTEGER NOT NULL,
+    previous_sequence INTEGER,
+    complete INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS archived_events (
     group_id   BLOB NOT NULL,
     event_id   BLOB NOT NULL,
@@ -222,6 +229,14 @@ pub const DEFAULT_VALIDITY_SECS: u64 = 365 * 24 * 3600;
 
 pub struct Client {
     conn: SharedConn,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RecoveryProgress {
+    pub request_digest: Vec<u8>,
+    pub kit_sequence: u64,
+    pub previous_sequence: Option<u64>,
+    pub complete: bool,
 }
 
 type DeviceRow = (
@@ -586,6 +601,10 @@ impl Client {
     /// manifest under the local root, and persist everything in one unit of
     /// work. Returns the device and the signed manifest bytes.
     pub fn device_new(&self, now: u64) -> Result<(StoredDevice, Vec<u8>), ClientError> {
+        self.conn.unit_of_work(|_| self.device_new_in_unit(now))
+    }
+
+    fn device_new_in_unit(&self, now: u64) -> Result<(StoredDevice, Vec<u8>), ClientError> {
         let root = self.root()?.ok_or(ClientError::NoIdentity)?;
         let mut device_id = [0u8; 16];
         getrandom::fill(&mut device_id).map_err(|_| identity::IdentityError::Random)?;
@@ -630,8 +649,8 @@ impl Client {
         let (body, state) =
             identity::accept_manifest(&manifest, &root.public(), previous.as_ref())?;
 
-        self.conn.unit_of_work(|c| {
-            let conn = c.lock();
+        {
+            let conn = self.conn.lock();
             conn.execute(
                 "INSERT INTO device (device_id, noise_private, noise_public, hpke_private, hpke_public,
                  mls_signing_secret, mls_signing_public, credential, credential_hash)
@@ -656,8 +675,7 @@ impl Client {
                 "INSERT INTO identity_devices (device_id, credential_hash) VALUES (?1, ?2)",
                 params![keys.device_id.to_vec(), credential_hash],
             )?;
-            Ok::<_, rusqlite::Error>(())
-        })?;
+        }
 
         Ok((
             StoredDevice {
@@ -848,6 +866,15 @@ impl Client {
         root_seed: &[u8],
         latest_manifest: &[u8],
     ) -> Result<Vec<u8>, ClientError> {
+        self.conn
+            .unit_of_work(|_| self.identity_restore_in_unit(root_seed, latest_manifest))
+    }
+
+    fn identity_restore_in_unit(
+        &self,
+        root_seed: &[u8],
+        latest_manifest: &[u8],
+    ) -> Result<Vec<u8>, ClientError> {
         if self.identity_id()?.is_some() {
             return Err(ClientError::IdentityExists);
         }
@@ -860,8 +887,8 @@ impl Client {
         if body.identity_id != identity_id {
             return Err(ClientError::UnknownIdentity);
         }
-        self.conn.unit_of_work(|c| {
-            let conn = c.lock();
+        {
+            let conn = self.conn.lock();
             conn.execute(
                 "INSERT INTO identity (id, root_seed, root_public, identity_id) VALUES (1, ?1, ?2, ?3)",
                 params![
@@ -879,9 +906,60 @@ impl Client {
                     state.hash
                 ],
             )?;
-            Ok::<_, rusqlite::Error>(())
-        })?;
+        }
         Ok(identity_id)
+    }
+
+    /// Prepare a recovery atomically, so a failed request can reuse exactly
+    /// the same credential. The kit's decryption secret is never persisted.
+    #[cfg(feature = "recovery")]
+    pub fn recovery_prepare(
+        &self,
+        kit: &crate::recovery::IdentityKit,
+        digest: &[u8],
+        realm: &StoredRealm,
+        now: u64,
+    ) -> Result<(), ClientError> {
+        self.conn.unit_of_work(|_| {
+            if self.device()?.is_some() || self.enrollment()?.is_some() {
+                return Err(ClientError::DeviceExists);
+            }
+            self.identity_restore_in_unit(&kit.root_seed, &kit.latest_manifest)?;
+            self.device_new_in_unit(now)?;
+            self.realm_save(&realm.realm_id, &realm.signing_public, &realm.noise_public, &realm.bootstrap_url)?;
+            self.conn.lock().execute(
+                "INSERT INTO identity_recovery (id, request_digest, kit_sequence) VALUES (1, ?1, ?2)",
+                params![digest, kit.manifest_sequence as i64],
+            )?;
+            Ok(())
+        })
+    }
+
+    pub fn recovery_progress(&self) -> Result<Option<RecoveryProgress>, ClientError> {
+        Ok(self.conn.lock().query_row(
+            "SELECT request_digest, kit_sequence, previous_sequence, complete FROM identity_recovery WHERE id = 1",
+            [], |row| Ok(RecoveryProgress {
+                request_digest: row.get(0)?,
+                kit_sequence: row.get::<_, i64>(1)? as u64,
+                previous_sequence: row.get::<_, Option<i64>>(2)?.map(|n| n as u64),
+                complete: row.get(3)?,
+            }),
+        ).optional()?)
+    }
+
+    pub fn recovery_accepted(&self, previous: u64) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "UPDATE identity_recovery SET previous_sequence = COALESCE(previous_sequence, ?1) WHERE id = 1",
+            params![previous as i64],
+        )?;
+        Ok(())
+    }
+
+    pub fn recovery_complete(&self) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "UPDATE identity_recovery SET complete = 1 WHERE id = 1 AND previous_sequence IS NOT NULL", [],
+        )?;
+        Ok(())
     }
 
     /// Import archived records. They land in their own table: history, never
@@ -2146,6 +2224,57 @@ mod tests {
         drop(c);
         drop(conn);
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[cfg(feature = "recovery")]
+    #[test]
+    fn recovery_preparation_rolls_back_identity_keys_realm_and_journal_together() {
+        let source = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        let root = source.identity_new().unwrap();
+        source.device_new(1_800_000_000).unwrap();
+        let kit = crate::recovery::IdentityKit {
+            version: crate::recovery::KIT_VERSION,
+            root_seed: root.signing.to_bytes().to_vec(),
+            identity_id: root.identity_id(),
+            manifest_sequence: 1,
+            latest_manifest: source.latest_manifest().unwrap().unwrap(),
+            exported_at: 1_800_000_000,
+        };
+        let realm = StoredRealm {
+            realm_id: vec![7; 32],
+            signing_public: root.public(),
+            noise_public: vec![8; 32],
+            bootstrap_url: "ws://127.0.0.1:1/v1/channel".into(),
+            endpoint_list: None,
+            enrolled: false,
+        };
+        let conn = SharedConn::open_in_memory().unwrap();
+        let client = Client::open(conn.clone()).unwrap();
+        conn.lock().execute_batch("CREATE TRIGGER fail_recovery BEFORE INSERT ON identity_recovery BEGIN SELECT RAISE(ABORT, 'injected storage failure'); END;").unwrap();
+        assert!(
+            client
+                .recovery_prepare(&kit, &[9; 32], &realm, 1_800_000_001)
+                .is_err()
+        );
+        for table in [
+            "identity",
+            "device",
+            "manifest",
+            "identity_devices",
+            "realm",
+            "identity_recovery",
+        ] {
+            assert_eq!(conn.count(table).unwrap(), 0, "{table} escaped rollback");
+        }
+        conn.lock()
+            .execute_batch("DROP TRIGGER fail_recovery")
+            .unwrap();
+        client
+            .recovery_prepare(&kit, &[9; 32], &realm, 1_800_000_001)
+            .unwrap();
+        assert_eq!(client.identity_id().unwrap(), Some(kit.identity_id));
+        assert!(client.device().unwrap().is_some());
+        assert!(!client.recovery_progress().unwrap().unwrap().complete);
     }
 
     #[test]

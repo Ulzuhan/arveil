@@ -15,8 +15,10 @@ state; a pending enrollment asks for the same invitation again, while a
 completed one goes directly to the profile summary. Duplicate submissions
 are disabled. Tokens stay in memory and are cleared on success or close.
 
-Pairing, recovery-kit export/restore and conversation screens are still
-pending in the [phase 3b plan](../../docs/PHASE3B.md). The conversation
+Pairing with manual code comparison, cancellation and resumed completion,
+and encrypted identity-kit export/restore are implemented. Conversation
+screens and GUI KeyPackage exhaustion remain pending in the
+[phase 3b plan](../../docs/PHASE3B.md). The conversation
 button currently queries only the local count. The classic macOS login
 Keychain works with ad-hoc signing; physical Android and fresh downloaded
 macOS acceptance remain open.
@@ -90,3 +92,26 @@ flutter_rust_bridge_codegen generate
 
 Both the Rust and the Dart generated files are committed, so a review sees
 what the generator produced.
+
+## Pairing and identity-kit acceptance
+
+With another fresh invitation in a disposable realm:
+
+```sh
+flutter test integration_test/pairing_recovery_test.dart -d <device> \
+  --dart-define-from-file="$ARVEIL_TEST_CONFIG"
+```
+
+This uses three temporary encrypted profiles and real platform key storage:
+invitation enrollment, pairing, wrong comparison, reopen before confirmation,
+kit export, wrong key, restore/retry/reopen and empty recovered history. It
+does not automate the native file chooser: widget tests inject file selection;
+manual platform acceptance must also verify save/open/cancel dialogs. Never
+publish a test build containing private defines. Clean the Flutter build before
+packaging a public candidate.
+
+The updated relay is required for safe lost-response recovery retries. Before
+receiving a pairing comparison, an interrupted handshake needs a new code.
+Cancelling local pairing does not revoke an authorization already issued by
+the administrator. Export the newest kit after device changes and keep its
+secret separate; identity recovery cannot restore old history or MLS state.

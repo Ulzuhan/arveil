@@ -11,7 +11,11 @@ const relay = 'arveil-bootstrap:v0:fixture';
 final invitation = 'ab' * 32;
 
 class FakeProfile implements Profile {
-  SetupView state = const SetupView(stage: SetupStage.new_);
+  SetupView state = const SetupView(
+    administrator: false,
+    recoveryWarning: false,
+    stage: SetupStage.new_,
+  );
   int enrollments = 0;
   int closes = 0;
   bool failSetup = false;
@@ -34,13 +38,23 @@ class FakeProfile implements Profile {
     expect(bootstrap, relay);
     expect(invite, invitation);
     if (failEnrollment) {
-      state = const SetupView(stage: SetupStage.redeeming, bootstrap: relay);
+      state = const SetupView(
+        administrator: false,
+        recoveryWarning: false,
+        stage: SetupStage.redeeming,
+        bootstrap: relay,
+      );
       throw const CommandError.transport(
         operation: 'enroll',
         reason: 'PRIVATE_TOKEN_AND_PATH',
       );
     }
-    state = const SetupView(stage: SetupStage.ready, bootstrap: relay);
+    state = const SetupView(
+      administrator: false,
+      recoveryWarning: false,
+      stage: SetupStage.ready,
+      bootstrap: relay,
+    );
   }
 
   @override

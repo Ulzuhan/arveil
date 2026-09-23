@@ -129,8 +129,8 @@ un emulador Android 15/API 35 arm64 contra un relay de staging ARM64 con
 Podman. Recorre el formulario, el almacén seguro real, Rust/SQLCipher nativo,
 un endpoint inaccesible, cierre/reapertura, reintento con la misma identidad
 y reapertura del perfil ya inscrito. No cubre teléfono físico, reinicio del
-sistema, reinstalación ni restauración desde la nube. Siguen pendientes las
-pantallas de emparejamiento y kit de recuperación. Los comandos y el manejo
+sistema, reinstalación ni restauración desde la nube. Emparejamiento y kit
+de recuperación no formaron parte de esa aceptación. Los comandos y el manejo
 de datos privados están en el [README de Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
 
 ## Aceptación de paquetes experimentales (15 de septiembre de 2026)
@@ -156,3 +156,18 @@ Android usa una clave privada de release persistente.
 Son resultados locales experimentales, no aceptación de beta ni revisión de
 seguridad de producción. La [guía de empaquetado](CLIENT_RELEASES.md) explica
 cómo reproducirlos y la [guía de instalación](INSTALLATION.md) cubre al usuario final.
+
+## Aceptación de emparejamiento y recuperación (23 de septiembre de 2026)
+
+`integration_test/pairing_recovery_test.dart` pasó de forma nativa en macOS
+Apple silicon con Xcode 27 y llavero clásico, contra un relay local desechable.
+Tres perfiles cifrados recorren alta, vinculación, comparación incorrecta,
+reapertura antes de confirmar, exportación del kit, clave incorrecta,
+restauración, repetición, reapertura y ausencia de historial recuperado.
+El código actual identifica el cliente como `0.1.0+3`; esta prueba no recompila
+ni publica la alfa `0.1.0+2`.
+
+Las 16 pruebas de widgets/unidad cubren la presentación con un sustituto del
+diálogo de archivos. La interacción nativa guardar/abrir/cancelar, vinculación
+entre Mac y Android, teléfono físico y descarga limpia quedan fuera de esta
+prueba.

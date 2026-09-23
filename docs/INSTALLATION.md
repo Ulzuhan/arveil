@@ -2,10 +2,12 @@
 
 [Español](es/INSTALLATION.md).
 
-**Current availability (September 15, 2026):** there are no published GitHub
+**Current availability (September 23, 2026):** there are no published GitHub
 releases yet. A [packaging command](CLIENT_RELEASES.md) prepares experimental
-macOS ZIP and Android APK candidates. The GUI supports invitation enrollment
-and is still missing pairing, recovery-kit and messaging screens. Use disposable
+macOS ZIP and Android APK candidates. The current source supports invitation enrollment,
+pairing and encrypted identity-kit export/restore. Messaging remains pending.
+Earlier experimental packages may contain only invitation enrollment; check
+the package revision and release notes. Use disposable
 test profiles at this stage.
 
 ## Choose your starting point
