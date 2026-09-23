@@ -58,6 +58,16 @@ class FakeProfile implements Profile {
   }
 
   @override
+  Future<KeyPackageSupplyView> keyPackageSupply() async =>
+      const KeyPackageSupplyView(
+        available: null,
+        checkedAt: null,
+        level: KeyPackageLevelView.unknown,
+        publicationPending: false,
+        target: 10,
+      );
+
+  @override
   Future<void> close() async {
     closes++;
   }

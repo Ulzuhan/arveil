@@ -61,6 +61,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView dco_decode_box_autoadd_pairing_view(dynamic raw);
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
   @protected
@@ -80,6 +83,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  KeyPackageLevelView dco_decode_key_package_level_view(dynamic raw);
+
+  @protected
+  KeyPackageSupplyView dco_decode_key_package_supply_view(dynamic raw);
 
   @protected
   KitView dco_decode_kit_view(dynamic raw);
@@ -107,6 +116,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   PairingView? dco_decode_opt_box_autoadd_pairing_view(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
@@ -183,6 +195,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView sse_decode_box_autoadd_pairing_view(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
@@ -202,6 +217,16 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  KeyPackageLevelView sse_decode_key_package_level_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KeyPackageSupplyView sse_decode_key_package_supply_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   KitView sse_decode_kit_view(SseDeserializer deserializer);
@@ -235,6 +260,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView? sse_decode_opt_box_autoadd_pairing_view(
     SseDeserializer deserializer,
   );
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
@@ -324,6 +352,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
   @protected
@@ -352,6 +383,18 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_key_package_level_view(
+    KeyPackageLevelView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_key_package_supply_view(
+    KeyPackageSupplyView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_kit_view(KitView self, SseSerializer serializer);
@@ -394,6 +437,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
     PairingView? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);

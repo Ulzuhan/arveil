@@ -166,3 +166,17 @@ is client `0.1.0+3`; this run does not rebuild or publish the `0.1.0+2` alpha.
 The 16 widget/unit tests cover presentation using a file-dialog substitute.
 Native save/open/cancel dialog interaction, cross-device Mac–Android pairing,
 a physical phone and a fresh downloaded installation remain outside this run.
+
+## KeyPackage GUI acceptance (September 23, 2026)
+
+The `0.1.0+4` source accompanying this record passed
+`integration_test/key_packages_test.dart` on Apple silicon macOS with Xcode 27
+and the login Keychain, and on a disposable Android 15/API 35 ARM64 emulator
+with Keystore, against a disposable local relay. The real GUI checks
+exhaustion, replenishes and reopens the persisted count and timestamp. The
+fixture marks the initial five packages consumed in its own relay database;
+the final inventory is 15 total, five consumed, ten available. Phase 4
+separately verifies actual MLS group consumption and CLI replenishment.
+The [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
+provides a self-contained helper. Neither this run nor widget tests cover
+physical hardware, cross-device pairing or native file-dialog interaction.

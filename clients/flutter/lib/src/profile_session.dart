@@ -50,6 +50,8 @@ class ProfileSession extends ChangeNotifier {
   bool cancellingPairing = false;
   bool _cancelledWait = false;
   String? approvalCode;
+  KeyPackageSupplyView? keyPackages;
+  bool keyPackagesUnavailable = false;
 
   bool get isOpen => _profile != null;
 
@@ -85,6 +87,7 @@ class ProfileSession extends ChangeNotifier {
       _profile = profile;
       setup = state;
       adopted = true;
+      await _loadKeyPackages();
     } finally {
       if (!adopted) await profile.close();
     }
@@ -99,6 +102,7 @@ class ProfileSession extends ChangeNotifier {
       // widget or roll it back because the last network request failed.
       try {
         setup = await profile.setup();
+        await _loadKeyPackages();
       } catch (_) {
         // A failed query must not hide the original command failure.
         setup = null;
@@ -118,6 +122,7 @@ class ProfileSession extends ChangeNotifier {
     } finally {
       try {
         setup = await profile.setup();
+        await _loadKeyPackages();
       } catch (_) {
         setup = null;
       }
@@ -128,6 +133,33 @@ class ProfileSession extends ChangeNotifier {
       );
     }
   }
+
+  Future<void> _loadKeyPackages() async {
+    if (setup?.stage != SetupStage.ready || _profile == null) {
+      keyPackages = null;
+      return;
+    }
+    try {
+      keyPackages = await _profile!.keyPackageSupply();
+    } catch (_) {
+      keyPackages = null;
+    }
+  }
+
+  Future<bool> checkKeyPackages({bool replenish = false}) => _run(() async {
+    keyPackagesUnavailable = false;
+    try {
+      keyPackages = replenish
+          ? await _profile!.replenishKeyPackages()
+          : await _profile!.checkKeyPackages();
+    } catch (_) {
+      // Persisted pending publication and the last dated report survive a
+      // failed request. Never replace an unknown count with zero.
+      keyPackagesUnavailable = true;
+      await _loadKeyPackages();
+      rethrow;
+    }
+  });
 
   Future<bool> beginPairing(String bootstrap) => _run(() async {
     _cancelledWait = false;
@@ -254,6 +286,8 @@ class ProfileSession extends ChangeNotifier {
     _profile = null;
     setup = null;
     conversations = null;
+    keyPackages = null;
+    keyPackagesUnavailable = false;
     approvalCode = null;
     _cancelledWait = false;
   });

@@ -8,7 +8,7 @@ Estado: plan aprobado en dirección; la aceptación de los hitos sigue pendiente
 
 Una beta que permita a dos personas instalar Arveil, crear o vincular su identidad y conversar desde macOS y Android, incluyendo trabajo sin conexión y errores comprensibles. La misma base Flutter se ampliará a Windows, Linux e iOS.
 
-No incluye SwiftUI, UniFFI, federación, llamadas, IPC entre GUI y CLI ni rediseño del protocolo. El cliente gráfico abre perfiles cifrados y da de alta una identidad mediante bootstrap e invitación, reanuda un alta fallida y reconoce la finalización al reabrir. Ya existen emparejamiento con comparación manual y exportación/restauración del kit cifrado de identidad. Siguen pendientes mensajería, presentación del agotamiento/reposición de KeyPackages y aceptación en dispositivos físicos.
+No incluye SwiftUI, UniFFI, federación, llamadas, IPC entre GUI y CLI ni rediseño del protocolo. El cliente gráfico abre perfiles cifrados y da de alta una identidad mediante bootstrap e invitación, reanuda un alta fallida y reconoce la finalización al reabrir. Ya existen emparejamiento con comparación manual y exportación/restauración del kit cifrado de identidad. La disponibilidad de KeyPackages incluye fecha de consulta, agotamiento y reposición reanudable. Siguen pendientes mensajería y aceptación en dispositivos físicos.
 
 ## Estructura prevista
 
@@ -115,7 +115,7 @@ La compatibilidad incluye los datos del relay, no solo sus clientes. Preferir ca
 
 En M3b.1 inventariar cada comando legacy y asignar su destino. Kit export/restore pasa a aplicación en M3b.2; contactos/nombres/verificación y archive export/import en M3b.4. El estado necesario para pantallas se expone como consulta tipada. `probe`, `notify` y primitivas de depuración `mailbox create`/`send`/`fetch` permanecen en CLI salvo necesidad concreta de producto. No trasladar comandos solo para replicar toda la terminal.
 
-M3b.2 define umbral, reposición y tratamiento de agotamiento de KeyPackages para la GUI, incluyendo fallo de publicación y reintento. El lote inicial del alta ya se persiste con su estado privado MLS y se reutiliza tras perder una respuesta; un alta confirmada no genera otro lote. El relay aplica el cupo después de deduplicar y nunca reactiva paquetes consumidos. Las regresiones cubren respuestas perdidas, reapertura del perfil, reintentos de altas completadas y límites de cupo. La presentación en la GUI y la aceptación de estos comportamientos en dispositivos físicos siguen pendientes; véase el [registro de implementación](CLIENT_FOUNDATION.md).
+M3b.2 define umbral, reposición y tratamiento de agotamiento de KeyPackages para la GUI, incluyendo fallo de publicación y reintento. El lote inicial del alta ya se persiste con su estado privado MLS y se reutiliza tras perder una respuesta; un alta confirmada no genera otro lote. El relay aplica el cupo después de deduplicar y nunca reactiva paquetes consumidos. Las regresiones cubren respuestas perdidas, reapertura del perfil, reintentos de altas completadas y límites de cupo. La GUI muestra el último recuento fechado del relay, distingue dato desconocido de cero y ofrece reponer cuando quedan tres claves o menos, con objetivo de diez. La sincronización CLI y la reposición GUI persisten el lote junto al estado privado MLS y lo reutilizan tras una respuesta perdida. La aceptación en dispositivos físicos sigue pendiente; véase el [registro de implementación](CLIENT_FOUNDATION.md).
 
 ## Verificación y entregables
 

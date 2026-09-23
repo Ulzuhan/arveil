@@ -6,7 +6,7 @@ The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria
 
 ## Scope and structure
 
-Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. The client opens encrypted profiles and enrolls an identity through invitation/bootstrap fields, resumes a failed enrollment and recognizes completion after reopening. Pairing with manual code comparison and encrypted identity-kit export/restore are implemented. Messaging, GUI KeyPackage exhaustion/replenishment and physical-device acceptance remain pending. SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.
+Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. The client opens encrypted profiles and enrolls an identity through invitation/bootstrap fields, resumes a failed enrollment and recognizes completion after reopening. Pairing with manual code comparison and encrypted identity-kit export/restore are implemented. Dated KeyPackage availability, exhaustion and resumable replenishment are implemented. Messaging and physical-device acceptance remain pending. SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.
 
 ```text
 clients/flutter/             Adaptive UI and platform adapters
@@ -106,7 +106,7 @@ Compatibility includes relay data, not only clients. Prefer additive changes; im
 
 Assign every legacy command in M3b.1. Kit export/restore moves to application in M3b.2; contacts/naming/verification and archive export/import in M3b.4. Expose required status as typed queries. `probe`, `notify` and low-level `mailbox create`/`send`/`fetch` remain CLI unless a concrete product flow needs them.
 
-M3b.2 defines KeyPackage thresholds, replenishment and exhaustion behavior for the GUI, including publication failure/retry. The initial enrollment batch is now persisted with its private MLS state and reused after lost responses; an acknowledged enrollment does not generate another batch. The relay applies quota after deduplication and never revives consumed packages. Regression tests cover lost acknowledgements, profile restart, completed enrollment retries and quota boundaries. GUI presentation and physical-device acceptance of these behaviors remain pending; see the [implementation record](CLIENT_FOUNDATION.md).
+M3b.2 defines KeyPackage thresholds, replenishment and exhaustion behavior for the GUI, including publication failure/retry. The initial enrollment batch is now persisted with its private MLS state and reused after lost responses; an acknowledged enrollment does not generate another batch. The relay applies quota after deduplication and never revives consumed packages. Regression tests cover lost acknowledgements, profile restart, completed enrollment retries and quota boundaries. The GUI now shows the last dated relay count, distinguishes unknown from empty, and offers replenishment at three or fewer packages towards a target of ten. CLI sync and GUI replenishment persist the retry batch with private MLS state and reuse it after lost acknowledgements. Physical-device acceptance remains pending; see the [implementation record](CLIENT_FOUNDATION.md).
 
 ## Verification and delivery
 

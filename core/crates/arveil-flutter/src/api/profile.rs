@@ -57,6 +57,23 @@ pub struct PairingView {
     pub expired: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KeyPackageLevelView {
+    Unknown,
+    Empty,
+    Low,
+    Ready,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeyPackageSupplyView {
+    pub available: Option<u32>,
+    pub checked_at: Option<u64>,
+    pub level: KeyPackageLevelView,
+    pub publication_pending: bool,
+    pub target: u32,
+}
+
 pub struct KitView {
     pub encrypted: Vec<u8>,
     pub secret: String,
@@ -367,6 +384,28 @@ impl Profile {
             == arveil_app::PairingCancellation::Cancelled)
     }
 
+    /// Local snapshot only: its timestamp identifies an earlier relay report.
+    pub fn key_package_supply(&self) -> Result<KeyPackageSupplyView, CommandError> {
+        self.inner
+            .key_package_supply()
+            .map(key_package_view)
+            .map_err(command_error)
+    }
+
+    pub fn check_key_packages(&self) -> Result<KeyPackageSupplyView, CommandError> {
+        self.inner
+            .check_key_packages()
+            .map(key_package_view)
+            .map_err(command_error)
+    }
+
+    pub fn replenish_key_packages(&self) -> Result<KeyPackageSupplyView, CommandError> {
+        self.inner
+            .replenish_key_packages()
+            .map(key_package_view)
+            .map_err(command_error)
+    }
+
     pub fn export_kit(&self) -> Result<KitView, CommandError> {
         let kit = self.inner.export_kit().map_err(command_error)?;
         Ok(KitView {
@@ -558,6 +597,22 @@ fn decode_hex(value: &str) -> Result<Vec<u8>, CommandError> {
         })
 }
 
+fn key_package_view(value: arveil_app::KeyPackageSupply) -> KeyPackageSupplyView {
+    use arveil_app::KeyPackageLevel;
+    KeyPackageSupplyView {
+        available: value.available,
+        checked_at: value.checked_at,
+        publication_pending: value.publication_pending,
+        target: value.target,
+        level: match value.level {
+            KeyPackageLevel::Unknown => KeyPackageLevelView::Unknown,
+            KeyPackageLevel::Empty => KeyPackageLevelView::Empty,
+            KeyPackageLevel::Low => KeyPackageLevelView::Low,
+            KeyPackageLevel::Ready => KeyPackageLevelView::Ready,
+        },
+    }
+}
+
 fn view(summary: ConversationSummary) -> ConversationView {
     ConversationView {
         group_id: hex(&summary.group_id),
@@ -642,6 +697,9 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::CancelPairing => "cancel-pairing",
         Operation::QueryPendingPairing => "query-pending-pairing",
         Operation::QueryOnboarding => "query-onboarding",
+        Operation::QueryKeyPackageSupply => "query-key-package-supply",
+        Operation::CheckKeyPackages => "check-key-packages",
+        Operation::ReplenishKeyPackages => "replenish-key-packages",
         Operation::ExportKit => "export-kit",
         Operation::RestoreKit => "restore-kit",
         Operation::ResumeRecovery => "resume-recovery",

@@ -1,7 +1,7 @@
 //! Client-side persistence of identity, device and realm (Phase 0).
 //!
-//! Secrets are stored in plain SQLite for now; SQLCipher and the OS key
-//! store arrive in Phase 2 (ADR-006). The tables are the local half of
+//! The caller supplies the storage connection; production GUI profiles use
+//! SQLCipher and a platform-held key. The tables are the local half of
 //! `docs/DOMAIN_MODEL.md` §1.
 
 use ed25519_dalek::VerifyingKey;
@@ -60,6 +60,16 @@ CREATE TABLE IF NOT EXISTS enrollment (
 CREATE TABLE IF NOT EXISTS initial_key_package_publication (
     device_id BLOB PRIMARY KEY,
     batch     BLOB
+);
+CREATE TABLE IF NOT EXISTS key_package_replenishment (
+    device_id BLOB PRIMARY KEY,
+    batch BLOB NOT NULL,
+    previous INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS key_package_observation (
+    device_id BLOB PRIMARY KEY,
+    available INTEGER NOT NULL,
+    checked_at INTEGER NOT NULL
 );
 -- The request this device makes for its mailbox, written before it is sent.
 -- A retry sends the same key and the same capabilities, so the relay can
@@ -509,6 +519,21 @@ pub struct StoredRealm {
     pub bootstrap_url: String,
     pub endpoint_list: Option<RealmEndpointList>,
     pub enrolled: bool,
+}
+
+pub const KEY_PACKAGE_FLOOR: u32 = 3;
+pub const KEY_PACKAGE_TARGET: u32 = 10;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingKeyPackages {
+    pub packages: Vec<Vec<u8>>,
+    pub previous: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeyPackageObservation {
+    pub available: u32,
+    pub checked_at: u64,
 }
 
 impl Client {
@@ -2042,6 +2067,111 @@ impl Client {
         })
     }
 
+    /// Last relay report, never an estimate of current remote availability.
+    pub fn key_package_observation(
+        &self,
+        device_id: &[u8],
+    ) -> Result<Option<KeyPackageObservation>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT available, checked_at FROM key_package_observation WHERE device_id = ?1",
+                [device_id],
+                |row| {
+                    Ok(KeyPackageObservation {
+                        available: row.get(0)?,
+                        checked_at: row.get::<_, i64>(1)? as u64,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn key_package_observe(
+        &self,
+        device_id: &[u8],
+        available: u32,
+        checked_at: u64,
+    ) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT INTO key_package_observation (device_id, available, checked_at) VALUES (?1, ?2, ?3)
+             ON CONFLICT(device_id) DO UPDATE SET available = excluded.available, checked_at = excluded.checked_at",
+            params![device_id, available, checked_at as i64],
+        )?;
+        Ok(())
+    }
+
+    pub fn pending_key_packages(
+        &self,
+        device_id: &[u8],
+    ) -> Result<Option<PendingKeyPackages>, ClientError> {
+        let row: Option<(Vec<u8>, u32)> = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT batch, previous FROM key_package_replenishment WHERE device_id = ?1",
+                [device_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        row.map(|(bytes, previous)| {
+            let packages = ciborium::de::from_reader(bytes.as_slice())
+                .map_err(|e| ClientError::KeyPackagePublication(e.to_string()))?;
+            Ok(PendingKeyPackages { packages, previous })
+        })
+        .transpose()
+    }
+
+    /// Commit public retry bytes and their private MLS keys together. Once
+    /// prepared, reuse that batch even if a later count changed after a lost ACK.
+    pub fn prepare_key_package_replenishment(
+        &self,
+        device: &StoredDevice,
+        available: u32,
+    ) -> Result<Option<PendingKeyPackages>, ClientError> {
+        self.conn.unit_of_work(|shared| {
+            if let Some(pending) = self.pending_key_packages(&device.keys.device_id)? {
+                return Ok(Some(pending));
+            }
+            if available > KEY_PACKAGE_FLOOR {
+                return Ok(None);
+            }
+            let engine = self.mls_engine(device.mls_identity());
+            let mut packages = Vec::new();
+            for _ in available..KEY_PACKAGE_TARGET {
+                packages.push(
+                    engine
+                        .key_package()
+                        .and_then(|p| p.to_bytes())
+                        .map_err(|e| ClientError::Mls(e.to_string()))?,
+                );
+            }
+            let mut bytes = Vec::new();
+            ciborium::ser::into_writer(&packages, &mut bytes)
+                .map_err(|e| ClientError::KeyPackagePublication(e.to_string()))?;
+            shared.lock().execute(
+                "INSERT INTO key_package_replenishment (device_id, batch, previous) VALUES (?1, ?2, ?3)",
+                params![device.keys.device_id, bytes, available],
+            )?;
+            Ok(Some(PendingKeyPackages {
+                packages,
+                previous: available,
+            }))
+        })
+    }
+
+    pub fn key_package_replenishment_acknowledged(
+        &self,
+        device_id: &[u8],
+    ) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "DELETE FROM key_package_replenishment WHERE device_id = ?1",
+            [device_id],
+        )?;
+        Ok(())
+    }
+
     /// Retain an acknowledgement marker and discard the outgoing public bytes.
     pub fn initial_key_packages_acknowledged(&self, device_id: &[u8]) -> Result<(), ClientError> {
         let updated = self.conn.lock().execute(
@@ -2275,6 +2405,76 @@ mod tests {
         assert_eq!(client.identity_id().unwrap(), Some(kit.identity_id));
         assert!(client.device().unwrap().is_some());
         assert!(!client.recovery_progress().unwrap().unwrap().complete);
+    }
+
+    #[test]
+    fn replenishment_commits_private_keys_and_retry_bytes_atomically() {
+        let conn = SharedConn::open_in_memory().unwrap();
+        let client = Client::open(conn.clone()).unwrap();
+        client.identity_new().unwrap();
+        let (device, _) = client.device_new(1_800_000_000).unwrap();
+        conn.lock().execute_batch("CREATE TRIGGER fail_replenishment BEFORE INSERT ON key_package_replenishment BEGIN SELECT RAISE(ABORT, 'injected storage failure'); END;").unwrap();
+        assert!(
+            client
+                .prepare_key_package_replenishment(&device, 0)
+                .is_err()
+        );
+        assert_eq!(conn.count("mls_key_package").unwrap(), 0);
+        assert!(
+            client
+                .pending_key_packages(&device.keys.device_id)
+                .unwrap()
+                .is_none()
+        );
+        conn.lock()
+            .execute_batch("DROP TRIGGER fail_replenishment")
+            .unwrap();
+        assert!(
+            client
+                .prepare_key_package_replenishment(&device, 4)
+                .unwrap()
+                .is_none()
+        );
+        let batch = client
+            .prepare_key_package_replenishment(&device, 3)
+            .unwrap()
+            .unwrap();
+        assert_eq!(batch.packages.len(), 7);
+        assert_eq!(conn.count("mls_key_package").unwrap(), 7);
+        let reopened = Client::open(conn.clone()).unwrap();
+        assert_eq!(
+            reopened
+                .prepare_key_package_replenishment(&device, 10)
+                .unwrap(),
+            Some(batch)
+        );
+        assert_eq!(conn.count("mls_key_package").unwrap(), 7);
+        reopened
+            .key_package_observe(&device.keys.device_id, 2, 1_800_000_001)
+            .unwrap();
+        assert_eq!(
+            client
+                .key_package_observation(&device.keys.device_id)
+                .unwrap()
+                .unwrap()
+                .available,
+            2
+        );
+        reopened
+            .key_package_replenishment_acknowledged(&device.keys.device_id)
+            .unwrap();
+        assert!(
+            client
+                .pending_key_packages(&device.keys.device_id)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            client
+                .prepare_key_package_replenishment(&device, 10)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
