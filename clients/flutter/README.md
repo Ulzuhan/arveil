@@ -176,3 +176,25 @@ file-dialog and fresh-download checks.
 Temporary credentials and port forwards are removed; the Flutter build is cleaned.
 Do not run another Flutter build concurrently. Failed diagnostics stay in ignored
 `.local/client-acceptance/`. Never publish an integration-test build.
+
+### Local Android test tooling
+
+The conversation helper uses `flutter test` on macOS and the official
+`integrationDriver` through `flutter drive --no-dds` on Android. This avoids
+Flutter's golden-file proxy connection failure on the local Android toolchain;
+the same integration test runs and any failed assertion still fails the helper.
+No golden comparisons are used in this scenario.
+
+A local run with Android Studio's JDK 25 also needed a fresh Gradle process and
+non-incremental, in-process Kotlin compilation after the file-picker module
+could not resolve Java/Android classes. These options apply only to that command:
+
+```sh
+GRADLE_OPTS='-Dorg.gradle.daemon=false -Dorg.gradle.project.kotlin.compiler.execution.strategy=in-process -Dorg.gradle.project.kotlin.incremental=false' \
+  python3 scripts/test_client_conversations.py --device emulator-5554
+```
+
+Use your disposable emulator's serial. The debug CargoKit build also compiles
+x86/x86-64 bridge libraries, so a clean run can take several minutes even on
+an ARM64 emulator. These test-tool settings do not alter release signing or
+add configuration to the app.

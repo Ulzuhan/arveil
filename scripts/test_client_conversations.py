@@ -111,9 +111,18 @@ def main():
                         subprocess.run([adb, "-s", args.device, "reverse", f"tcp:{number}", f"tcp:{number}"], check=True, stdout=subprocess.DEVNULL)
                         reversed_ports.append(number)
                 print("Running native conversation acceptance with a disposable relay.", flush=True)
+                # flutter test's golden-file proxy needs a DDS custom stream,
+                # even though this scenario has no golden comparisons. Android
+                # uses the official integration driver over the VM service.
+                command = [flutter]
+                if adb:
+                    command += ["drive", "--no-dds", "--driver", "test_driver/integration_test.dart", "--target"]
+                else:
+                    command += ["test"]
+                command += ["integration_test/conversations_test.dart", "-d", args.device, "--dart-define-from-file", str(config)]
                 with (directory / "flutter.log").open("w") as log:
                     try:
-                        result = subprocess.run([flutter, "test", "integration_test/conversations_test.dart", "-d", args.device, "--dart-define-from-file", str(config)], cwd=ROOT / "clients/flutter", stdout=log, stderr=log, timeout=1200)
+                        result = subprocess.run(command, cwd=ROOT / "clients/flutter", stdout=log, stderr=log, timeout=1200)
                         failed = result.returncode != 0
                     except subprocess.TimeoutExpired:
                         failed = True
