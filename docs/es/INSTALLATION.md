@@ -2,12 +2,17 @@
 
 [English](../INSTALLATION.md).
 
-**Disponibilidad actual (23 de septiembre de 2026):** todavía no hay releases
+**Disponibilidad actual (24 de septiembre de 2026):** todavía no hay releases
 publicadas en GitHub. El [comando de empaquetado](CLIENT_RELEASES.md) prepara
 candidatos experimentales: ZIP para macOS y APK para Android. El código actual permite
 alta por invitación, emparejamiento y exportación/restauración del kit cifrado
-de identidad. El código incluye creación verificada de conversaciones, historial paginado, texto sin conexión y sincronización. Los paquetes experimentales
-anteriores pueden incluir solo el alta: comprueba la revisión y sus notas. En esta fase, utiliza perfiles de prueba desechables.
+de identidad, creación verificada de conversaciones, historial paginado, texto
+sin conexión y sincronización. Los paquetes experimentales `0.1.0+5` pasaron
+la prueba de conversación Mac ↔ emulador Android y la actualización desde
+`0.1.0+2` conservando los perfiles inscritos; véase el
+[registro de aceptación](PLATFORMS.md#aceptación-cruzada-de-paquetes-24-de-septiembre-de-2026).
+Los paquetes anteriores pueden incluir solo el alta: comprueba la revisión
+y sus notas. En esta fase, utiliza perfiles de prueba desechables.
 
 ## Elige por dónde empezar
 

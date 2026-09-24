@@ -161,6 +161,13 @@ bridge within the test app; this is not a Mac–Android cross-device test.
 Text is injected by the test framework, so native keyboard/IME behavior needs
 separate hands-on acceptance.
 
+The normal release packages `0.1.0+5` separately passed Mac ↔ Android-emulator
+GUI messaging, upgrade from build 2, native keyboard input, offline process
+restart and reconnect without duplicates on September 24, 2026. The
+[dated platform record](../../docs/PLATFORMS.md#cross-platform-package-acceptance-september-24-2026)
+records the exact revision, package hashes, steps and remaining hardware,
+file-dialog and fresh-download checks.
+
 Temporary credentials and port forwards are removed; the Flutter build is cleaned.
 Do not run another Flutter build concurrently. Failed diagnostics stay in ignored
 `.local/client-acceptance/`. Never publish an integration-test build.

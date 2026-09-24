@@ -74,7 +74,7 @@ database out of an account whose protection this project does not control.
 | A different key on an existing profile | same test | verified: refused at open |
 | Reinstall | manual: uninstall, install, start | **not done.** An uninstall does not necessarily take secure-store entries with it, and the two platforms differ; this must be observed, not assumed |
 | Restore from cloud backup or device transfer | manual, on hardware | **not done** |
-| macOS login Keychain | `profile_key_test.dart` with `ARVEIL_REQUIRE_SECURE_STORAGE=true`, ad-hoc build | verified on the local Apple silicon Mac: write/read, encrypted reopen, missing/wrong-key rejection; fresh-download and upgrade acceptance are separate |
+| macOS login Keychain | `profile_key_test.dart` with `ARVEIL_REQUIRE_SECURE_STORAGE=true`, ad-hoc build | verified on the local Apple silicon Mac: write/read, encrypted reopen, missing/wrong-key rejection; package upgrade verified below, fresh download still pending |
 
 ## Reproducing it
 
@@ -196,3 +196,57 @@ injected by Flutter's test framework. This is not Mac–Android cross-device,
 physical-phone, native keyboard/IME or clean-download acceptance. The earlier
 `0.1.0+2` experimental packages are unchanged. Reproduce with the
 [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+
+## Cross-platform package acceptance (September 24, 2026)
+
+Normal release packages `0.1.0+5`, built from clean commit
+`4d4362b5f27d3782d992254fc494cd9967f37417`, passed a conversation test between
+two separate apps: macOS 26.6.2 on Apple silicon (Xcode 27.0, build 27A266a)
+and an Android 15/API 35 ARM64 emulator (Pixel 7 device definition).
+Both used an ARM64 Podman staging relay over a private network. This run used
+the packaged `lib/main.dart` applications, not integration-test entry points.
+
+| Package | SHA-256 |
+|---|---|
+| `arveil-0.1.0-5-macos-arm64.zip` | `5ac26a37b64c82c7d2a58427739de4e4a5056bf29b9215babd984a5a36997ae9` |
+| `arveil-0.1.0-5-android-arm64.apk` | `c275634f32f91d7fa25c35603ca52493d232149c1de0aaafb43ec2f3f9bc17e3` |
+
+The packages retain ad-hoc macOS signing (no Developer ID/notarization) and
+the persistent Android release certificate used for build 2. Both revision
+metadata files report `dirty_source: false`. Signature, architecture, checksum
+and decompressed-content privacy checks passed. These candidates are not a
+published release; the previous `0.1.0+2` packages are unchanged.
+
+### Procedure and observed results
+
+Use disposable test identities and a reachable relay. Keep invitations,
+connection data, contact routes and raw UI diagnostics private.
+
+1. Enroll a separate identity through each build 2 app's invitation form.
+   Replace the Mac app at the same location and install APK 5 over APK 2,
+   without uninstalling or clearing data. Both apps reopened their enrolled
+   profiles after the upgrade. macOS requested login-Keychain access for the
+   updated app; the user authorized it locally. A later restart required no
+   additional prompt.
+2. Exchange contact routes through the GUI. Compare both displayed safety
+   numbers before confirming, then create one conversation on the Mac.
+   The numbers matched and both apps opened the same conversation.
+3. Send one text from each app. Both appeared on the peer. Enable airplane
+   mode and disable Wi-Fi/mobile data only on the emulator. Send another
+   Android text: it remained in local history with synchronization pending.
+   Send another Mac text while Android is offline.
+4. Stop and reopen the Android process while it is still offline. Its profile,
+   earlier history and pending outgoing text survived; the new Mac text had
+   not arrived. Restore connectivity and synchronize. Both apps then showed
+   exactly four messages. Two further completed Android syncs created no
+   duplicates and left no pending banner.
+5. Quit and reopen the Mac app. The profile and all four messages remained
+   accessible. Native Mac keyboard entry/paste worked. Tapping the Android
+   on-screen keyboard entered and deleted a draft without sending it.
+
+This verifies separate-app Mac ↔ Android-emulator messaging, profile retention
+across upgrade, offline persistence and reconnect delivery. It does not verify
+a physical phone, cross-device pairing, OS reboot/Doze, broad keyboard/IME
+coverage, native kit save/open/cancel dialogs, or Gatekeeper on a fresh
+download on another Mac. Those checks remain open; this is not beta acceptance
+or an external security review.

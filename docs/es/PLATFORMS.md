@@ -77,7 +77,7 @@ una cuenta cuya protección este proyecto no controla.
 | Otra clave sobre un perfil existente | la misma prueba | verificado: se rechaza al abrir |
 | Reinstalación | manual: desinstalar, instalar, arrancar | **sin hacer.** Desinstalar no se lleva necesariamente las entradas del almacén seguro, y las dos plataformas difieren; hay que observarlo, no suponerlo |
 | Restauración desde copia o transferencia | manual, en hardware | **sin hacer** |
-| Llavero clásico de macOS | `profile_key_test.dart` con `ARVEIL_REQUIRE_SECURE_STORAGE=true`, firma ad hoc | verificado en el Mac Apple silicon local: guardar/leer, reabrir el perfil cifrado y rechazar claves ausentes/incorrectas; descarga nueva y actualización son pruebas separadas |
+| Llavero clásico de macOS | `profile_key_test.dart` con `ARVEIL_REQUIRE_SECURE_STORAGE=true`, firma ad hoc | verificado en el Mac Apple silicon local: guardar/leer, reabrir el perfil cifrado y rechazar claves ausentes/incorrectas; actualización de paquetes verificada más abajo, descarga nueva pendiente |
 
 ## Cómo reproducirlo
 
@@ -204,3 +204,63 @@ inyecta el texto mediante su canal de pruebas. No es aceptación cruzada
 Mac–Android, teléfono físico, teclado/IME nativo ni instalación recién descargada.
 Los paquetes experimentales anteriores `0.1.0+2` siguen iguales. Reproducción en
 el [README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+
+## Aceptación cruzada de paquetes (24 de septiembre de 2026)
+
+Los paquetes normales de release `0.1.0+5`, compilados desde el commit limpio
+`4d4362b5f27d3782d992254fc494cd9967f37417`, pasaron una prueba de conversación
+entre dos apps independientes: macOS 26.6.2 en Apple silicon (Xcode 27.0,
+build 27A266a) y un emulador Android 15/API 35 ARM64 (definición Pixel 7).
+Ambas utilizaron un relay de staging ARM64 con Podman a través de una red
+privada. Se ejecutaron las apps empaquetadas con `lib/main.dart`, sin puntos
+de entrada de pruebas de integración.
+
+| Paquete | SHA-256 |
+|---|---|
+| `arveil-0.1.0-5-macos-arm64.zip` | `5ac26a37b64c82c7d2a58427739de4e4a5056bf29b9215babd984a5a36997ae9` |
+| `arveil-0.1.0-5-android-arm64.apk` | `c275634f32f91d7fa25c35603ca52493d232149c1de0aaafb43ec2f3f9bc17e3` |
+
+Los paquetes mantienen la firma ad hoc de macOS (sin Developer ID ni
+notarización) y el certificado de release persistente de Android usado en
+el build 2. Ambos metadatos indican `dirty_source: false`. Pasaron las
+comprobaciones de firma, arquitectura, checksums y privacidad del contenido
+descomprimido. Son candidatos sin publicación; los paquetes anteriores
+`0.1.0+2` siguen iguales.
+
+### Procedimiento y resultados observados
+
+Utilizar identidades de prueba desechables y un relay accesible. Mantener
+privados invitaciones, datos de conexión, rutas de contacto y diagnósticos
+sin filtrar de la interfaz.
+
+1. Dar de alta una identidad distinta desde el formulario de cada app con
+   build 2. Sustituir la app de Mac en la misma ubicación e instalar APK 5
+   sobre APK 2, sin desinstalar ni borrar datos. Ambas reabrieron sus perfiles
+   inscritos tras actualizar. macOS pidió acceso al llavero de inicio de
+   sesión para la app actualizada; el usuario lo autorizó localmente. Un
+   reinicio posterior de la app no volvió a pedir autorización.
+2. Intercambiar rutas de contacto desde la GUI. Comparar los números de
+   seguridad de ambas pantallas antes de confirmar y crear una conversación
+   desde el Mac. Los números coincidieron y ambas apps abrieron la misma
+   conversación.
+3. Enviar un texto desde cada app y comprobar su recepción. Activar modo
+   avión y desactivar Wi-Fi/datos móviles solo en el emulador. Enviar otro
+   texto desde Android: aparece en el historial local con sincronización
+   pendiente. Enviar otro texto desde el Mac mientras Android está sin red.
+4. Detener y reabrir el proceso Android todavía sin conexión. Se conservaron
+   perfil, historial previo y texto pendiente; el nuevo texto del Mac aún no
+   había llegado. Recuperar conexión y sincronizar: ambas apps mostraron
+   exactamente cuatro mensajes. Dos sincronizaciones Android adicionales
+   completadas no crearon duplicados ni dejaron el aviso de envío pendiente.
+5. Salir de la app Mac y abrirla de nuevo. El perfil y los cuatro mensajes
+   siguieron accesibles. Funcionaron el teclado nativo y el pegado en Mac.
+   Pulsar el teclado en pantalla de Android permitió escribir y borrar un
+   borrador sin enviarlo.
+
+Quedan verificadas la conversación entre apps Mac ↔ emulador Android,
+conservación del perfil al actualizar, persistencia sin red y entrega al
+reconectar. No cubre teléfono físico, pairing entre dispositivos, reinicio
+del sistema/Doze, cobertura amplia de teclados/IME, diálogos nativos de
+guardar/abrir/cancelar kits ni Gatekeeper en una descarga nueva en otro Mac.
+Esas pruebas siguen abiertas; no supone aceptación de beta ni revisión
+externa de seguridad.
