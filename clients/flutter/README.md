@@ -20,6 +20,9 @@ and encrypted identity-kit export/restore are implemented. The profile shows
 dated KeyPackage availability and can replenish or resume a failed publication.
 The conversation screen lists local groups, compares contact-route safety
 numbers, creates groups, pages history, queues text offline and synchronizes.
+Source `0.1.0+6` adds saved contacts and local aliases, explicit verification,
+recipient selection and participant names. Aliases and routes stay in the
+encrypted local profile; they are not synchronized to other devices.
 The [phase 3b plan](../../docs/PHASE3B.md) keeps physical-device acceptance open. The classic macOS login
 Keychain works with ad-hoc signing; physical Android and fresh downloaded
 macOS acceptance remain open.
@@ -154,7 +157,9 @@ python3 scripts/test_client_conversations.py --device emulator-5554
 
 The helper starts its own loopback relay and an authenticated loopback test
 control service, creates two invitations, and drives the GUI with two temporary
-encrypted profiles and platform key storage. It compares routes, creates a group,
+encrypted profiles and platform key storage. It saves a contact, explicitly
+verifies its safety number, reopens the encrypted profile, selects the saved
+recipient without repasting a route, renames it and creates a group,
 exchanges text, stops only its own relay, queues text offline, reopens the profile,
 loads older messages and reconnects without duplicates. The peer uses the native
 bridge within the test app; this is not a Mac–Android cross-device test.

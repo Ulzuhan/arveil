@@ -21,7 +21,7 @@ Future<void> main() async {
   const token = String.fromEnvironment('ARVEIL_TEST_CONTROL_TOKEN');
   setUpAll(() async => ArveilRust.init());
   testWidgets(
-    'verified creation, duplex text, offline queue, reopen, pagination and reconnect without duplicates',
+    'saved contacts, explicit verification, rename, encrypted reopen, duplex text and offline reconnect',
     (tester) async {
       expect(
         bootstrap.isNotEmpty && inviteA.isNotEmpty && inviteB.isNotEmpty,
@@ -103,12 +103,54 @@ Future<void> main() async {
         MaterialApp(home: ConversationsPage(controller: chat)),
       );
       await settle();
-      await tap(find.byTooltip('Nueva conversación'));
-      await tester.enterText(find.byKey(const Key('peer-routes')), bobRoute);
-      await tap(find.text('Preparar comparación'));
+      await tap(find.byTooltip('Contactos'));
+      await tap(find.byTooltip('Añadir contacto'));
+      await tester.enterText(
+        find.byKey(const Key('contact-name')),
+        'Contacto de prueba',
+      );
+      await tester.enterText(find.byKey(const Key('contact-route')), bobRoute);
+      await tap(find.text('Preparar contacto'));
       expect(find.text(aPreview.single.safetyNumber), findsOneWidget);
-      await tap(find.byKey(const Key('compared-routes')));
-      await tap(find.byKey(const Key('create-conversation')));
+      await tap(find.byKey(const Key('save-contact')));
+      expect((await alice.contacts()).single.verified, isFalse);
+      await tap(find.byKey(const Key('contact-compared')));
+      await tap(find.byKey(const Key('verify-contact')));
+      await tap(find.byType(BackButton));
+      await tap(find.byType(BackButton));
+      // Reopen before choosing the saved contact: no route is pasted again.
+      await tester.pumpWidget(const SizedBox());
+      await alice.close();
+      alice = await open(0);
+      final saved = (await alice.contacts()).single;
+      expect(saved.label, 'Contacto de prueba');
+      expect(saved.verified, isTrue);
+      chat = ConversationController(alice, bootstrap);
+      await tester.pumpWidget(
+        MaterialApp(home: ConversationsPage(controller: chat)),
+      );
+      await settle();
+      await tap(find.byTooltip('Nueva conversación'));
+      await tap(find.byKey(const Key('choose-contacts')));
+      await tap(find.byKey(Key('select-contact-${saved.identityId}')));
+      await tap(find.byKey(const Key('use-contacts')));
+      expect(
+        chat.conversations.single.peers.single.label,
+        'Contacto de prueba',
+      );
+      await tap(find.byTooltip('Contactos'));
+      await tap(find.byKey(Key('contact-${saved.identityId}')));
+      await tester.enterText(
+        find.byKey(const Key('contact-name')),
+        'Contacto renombrado',
+      );
+      await tap(find.byKey(const Key('save-contact')));
+      await tap(find.byType(BackButton));
+      await tap(find.byType(BackButton));
+      expect(
+        chat.conversations.single.peers.single.label,
+        'Contacto renombrado',
+      );
       final group = chat.selected!;
       await bob.sync_(bootstrap: bootstrap);
       expect((await bob.conversations()).single.groupId, group);
@@ -164,6 +206,10 @@ Future<void> main() async {
       await settle();
       chat.setActive(false);
       await tap(find.byKey(Key('conversation-$group')));
+      expect(
+        chat.conversations.single.peers.single.label,
+        'Contacto renombrado',
+      );
       expect(chat.events.length, 50);
       await chat.older();
       await settle();

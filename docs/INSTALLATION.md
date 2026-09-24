@@ -111,16 +111,23 @@ summary. On a connection failure, close/reopen and retry with the **same relay
 and invitation**; successful enrollment does not need another invitation on
 reopen. Current source also supports pairing, recovery kits and conversations.
 
-To try conversations with disposable profiles on the same relay:
+To try conversations with disposable profiles on the same relay (contacts require
+source client `0.1.0+6`; the `0.1.0+5` packages retain the route-paste flow):
 
 1. Select **Abrir conversaciones**, then **Mi ruta** to share this device's route
    privately with your contact. Each person can obtain their route here.
-2. Select **Nueva conversación**, paste one peer route per line and choose
-   **Preparar comparación**. Compare the full safety number with each person
-   through an independent channel; both sides can preview the other's route.
-3. Confirm the comparison and choose **Crear conversación**. Your contact uses
-   **Sincronizar** to receive the group invitation.
-4. Open the conversation and send text. Offline messages remain saved locally;
+2. Open **Contactos → Añadir contacto**, paste a route, give it an optional local
+   name and choose **Preparar contacto**. Compare the full safety number through
+   an independent channel; both people can preview the other's route.
+3. Confirm the comparison and **Guardar contacto**, or save it unverified and
+   use **Verificar contacto** later. A name never verifies an identity. **Guardar
+   nombre** edits the alias locally; an empty name removes it. Import another
+   route through **Añadir contacto**; an empty name preserves an existing alias.
+4. Open **Nueva conversación → Elegir contactos guardados**. Select verified
+   contacts and choose **Usar contactos** to create the group with their saved,
+   non-revoked devices (up to 16). Your contact uses **Sincronizar** to receive it.
+   The original route-paste and comparison flow remains available.
+5. Open the conversation and send text. Offline messages remain saved locally;
    **Sincronizar** retries publication. Relay acceptance does not confirm reading.
 
 Automatic sync runs while the conversation screen is in the foreground. Push,

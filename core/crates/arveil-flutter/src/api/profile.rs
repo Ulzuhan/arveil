@@ -86,6 +86,38 @@ pub struct RoutePreviewView {
     pub safety_number: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContactDeviceView {
+    pub device_id: String,
+    pub revoked: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContactView {
+    pub identity_id: String,
+    pub name: Option<String>,
+    pub label: String,
+    pub verified: bool,
+    pub safety_number: String,
+    pub devices: Vec<ContactDeviceView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SavedRecipientView {
+    pub identity_id: String,
+    pub device_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PeerView {
+    pub identity_id: String,
+    pub device_id: String,
+    pub label: String,
+    pub own: bool,
+    pub verified: bool,
+    pub revoked: bool,
+}
+
 /// A committed mutation may carry a later failure. Retry publication with sync,
 /// never by creating a second message or conversation.
 pub struct ChatMutationView {
@@ -252,6 +284,7 @@ pub struct ConversationView {
     pub group_id: String,
     pub creator: bool,
     pub peer_devices: u32,
+    pub peers: Vec<PeerView>,
     pub event_count: u32,
 }
 
@@ -452,6 +485,70 @@ impl Profile {
     pub fn resume_recovery(&self) -> Result<(), CommandError> {
         self.inner.resume_recovery().map_err(command_error)?;
         Ok(())
+    }
+
+    pub fn contacts(&self) -> Result<Vec<ContactView>, CommandError> {
+        Ok(self
+            .inner
+            .contacts()
+            .map_err(command_error)?
+            .into_iter()
+            .map(contact_view)
+            .collect())
+    }
+
+    pub fn save_contact(
+        &self,
+        route: String,
+        name: String,
+        safety_number: Option<String>,
+    ) -> Result<ContactView, CommandError> {
+        self.inner
+            .save_contact(route, name, safety_number)
+            .map(contact_view)
+            .map_err(command_error)
+    }
+
+    pub fn rename_contact(
+        &self,
+        identity_id: String,
+        name: String,
+    ) -> Result<ContactView, CommandError> {
+        self.inner
+            .rename_contact(decode_hex(&identity_id)?, name)
+            .map(contact_view)
+            .map_err(command_error)
+    }
+
+    pub fn verify_contact(
+        &self,
+        identity_id: String,
+        safety_number: String,
+    ) -> Result<ContactView, CommandError> {
+        self.inner
+            .verify_contact(decode_hex(&identity_id)?, safety_number)
+            .map(contact_view)
+            .map_err(command_error)
+    }
+
+    pub fn create_contact_conversation(
+        &self,
+        bootstrap: String,
+        recipients: Vec<SavedRecipientView>,
+    ) -> Result<ChatMutationView, CommandError> {
+        let recipients = recipients
+            .into_iter()
+            .map(|r| {
+                Ok(arveil_app::SavedRecipient {
+                    identity_id: decode_hex(&r.identity_id)?,
+                    device_id: decode_hex(&r.device_id)?,
+                })
+            })
+            .collect::<Result<_, CommandError>>()?;
+        chat_mutation(
+            self.inner
+                .create_contact_conversation(&bootstrap, recipients),
+        )
     }
 
     pub fn own_route(&self) -> Result<String, CommandError> {
@@ -750,11 +847,41 @@ fn key_package_view(value: arveil_app::KeyPackageSupply) -> KeyPackageSupplyView
     }
 }
 
+fn contact_view(contact: arveil_app::ContactSummary) -> ContactView {
+    ContactView {
+        identity_id: hex(&contact.identity_id),
+        name: contact.name,
+        label: contact.label,
+        verified: contact.verified,
+        safety_number: contact.safety_number,
+        devices: contact
+            .devices
+            .into_iter()
+            .map(|d| ContactDeviceView {
+                device_id: hex(&d.device_id),
+                revoked: d.revoked,
+            })
+            .collect(),
+    }
+}
+
 fn view(summary: ConversationSummary) -> ConversationView {
     ConversationView {
         group_id: hex(&summary.group_id),
         creator: summary.creator,
         peer_devices: summary.peer_devices as u32,
+        peers: summary
+            .peers
+            .into_iter()
+            .map(|p| PeerView {
+                identity_id: hex(&p.identity_id),
+                device_id: hex(&p.device_id),
+                label: p.label,
+                own: p.own,
+                verified: p.verified,
+                revoked: p.revoked,
+            })
+            .collect(),
         event_count: summary.event_count as u32,
     }
 }
@@ -840,6 +967,11 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::ExportKit => "export-kit",
         Operation::RestoreKit => "restore-kit",
         Operation::ResumeRecovery => "resume-recovery",
+        Operation::QueryContacts => "query-contacts",
+        Operation::SaveContact => "save-contact",
+        Operation::RenameContact => "rename-contact",
+        Operation::VerifyContact => "verify-contact",
+        Operation::CreateContactConversation => "create-contact-conversation",
         Operation::QueryOwnRoute => "query-own-route",
         Operation::PreviewRoutes => "preview-routes",
         Operation::CreateVerifiedConversation => "create-verified-conversation",

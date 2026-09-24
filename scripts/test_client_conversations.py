@@ -125,7 +125,7 @@ def main():
                     shutil.copyfile(directory / "flutter.log", destination)
                     destination.chmod(0o600)
                     raise RuntimeError("Native conversation acceptance failed. Private diagnostics retained in .local/client-acceptance/.")
-                print("PASS: verified group, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates.")
+                print("PASS: saved contacts, explicit verification, rename, verified group, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates.")
             finally:
                 if control:
                     control.shutdown()

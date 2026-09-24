@@ -48,7 +48,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 - Actual MLS rejoin/recovery remains pending; the fictitious `recover_conversation` was removed. Sync does not solve desynchronization.
 - Coordinator succession relies on verified revocations, not automatic election on disconnection.
 - The relay applied its pragmas once, so only the connection that ran them had a busy timeout or enforced foreign keys; they now travel in the connection string, and a test holds several connections and checks each. Write transactions also reserve the writer before reading (`BEGIN IMMEDIATE`), preventing read-to-write upgrade failures under cleanup or concurrent requests; WAL readers remain concurrent. See the [contention regression](PHASE1.md#storage-contention-regression). Pool sizing itself is still unbounded and remains open.
-- Identity-kit CLI commands use the application service. Archive/contact legacy commands still need application APIs where required by GUI.
+- Identity-kit CLI commands use the application service. Archive legacy commands still need application APIs where required by GUI; the GUI contact API is described below.
 
 Next: [Flutter plan](PHASE3B.md), [ADR-009](adr/ADR-009-flutter-first.md).
 
@@ -143,8 +143,8 @@ seconds and on resume, with manual retry. This is foreground polling, not push
 or background delivery. A refresh reconciles the displayed history in pages of 50, retaining the older
 pages the user opened and stopping if the screen or selection changes. Presentation distinguishes local storage,
 relay acceptance, unavailable delivery and receipt on this device. It does not
-claim human reading, authenticated author labels or message timestamps. Contact
-names, attachment actions and group membership controls are later work.
+claim human reading, authenticated author labels or message timestamps. Contact names are implemented in M3b.4 below; attachment actions and group
+membership controls remain later work.
 
 Regression coverage includes symmetric route comparison and all-or-nothing
 contact confirmation, queue/reopen without a relay, post-commit bridge results,
@@ -155,3 +155,32 @@ conversation controller and draft when Flutter rebuilds its route.
 The [platform record](PLATFORMS.md) gives the native acceptance scope; the
 [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
 provides the isolated reproduction command.
+
+## Local contacts and recipient selection (first M3b.4 delivery)
+
+Source client `0.1.0+6` adds an address book, local aliases, explicit safety-number
+verification and creation from saved contacts. Conversations use participant
+names and expose a participant list with identity/device identifiers and
+verification/revocation status. These labels do not authenticate individual
+message authors and do not synchronize to other profiles.
+
+Routes (including mailbox capabilities) are stored in an additive `contact_routes`
+table inside the GUI's encrypted profile. List projections expose identifiers
+and revocation flags, not route capabilities. Saving, renaming and verifying
+run through the profile executor; contact, alias, route and optional verification
+commit atomically. Editing a route clears the UI comparison. Reimporting the
+same device updates its route without duplicating it; an empty import name
+preserves the existing alias, while explicit rename can clear it.
+
+Creation accepts saved identity/device identifiers. Rust reloads their routes
+and requires verified contacts, matching identity/root/device bindings, distinct
+devices and no locally known revocation before network creation. The existing
+post-commit receipt/warning behavior still prevents a retry from inviting the
+user to recreate a saved group. Up to 16 saved devices can be selected; unknown
+revocations and stale routes still depend on sync and relay validation.
+
+Existing contacts learned from conversations can be named and verified; if no
+route was saved, import one before selecting that contact. Alias and verification
+survive profile reopen. The conversation acceptance helper now exercises this
+flow before its duplex-text, offline/reconnect and pagination checks. M3b.4
+still owes attachments, device controls and history archive UI.
