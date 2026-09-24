@@ -2,13 +2,15 @@
 
 [Español](es/INSTALLATION.md).
 
-**Current availability (September 23, 2026):** there are no published GitHub
+**Current availability (September 24, 2026):** there are no published GitHub
 releases yet. A [packaging command](CLIENT_RELEASES.md) prepares experimental
 macOS ZIP and Android APK candidates. The current source supports invitation enrollment,
-pairing and encrypted identity-kit export/restore. Verified groups, paginated history, offline text and sync are implemented in source.
+pairing and encrypted identity-kit export/restore, verified groups, paginated
+history, offline text and sync. Experimental packages `0.1.0+5` passed
+Mac ↔ Android-emulator messaging and an upgrade from `0.1.0+2` preserving
+the enrolled profiles; see the [acceptance record](PLATFORMS.md#cross-platform-package-acceptance-september-24-2026).
 Earlier experimental packages may contain only invitation enrollment; check
-the package revision and release notes. Use disposable
-test profiles at this stage.
+the package revision and release notes. Use disposable test profiles at this stage.
 
 ## Choose your starting point
 
