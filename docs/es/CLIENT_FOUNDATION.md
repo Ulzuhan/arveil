@@ -172,6 +172,8 @@ Las regresiones cubren comparación simétrica y confirmación atómica de conta
 encolado/reapertura sin relay, resultados del bridge tras commit, historial durante
 red bloqueada, esperas compartidas de sincronización, cancelación del observador antes de su arranque, selecciones tardías, paginación con nuevos mensajes, invalidación de
 rutas editadas, texto recibido, conservación de borradores y doble envío.
+Las pruebas de ciclo de vida cubren el paso a segundo plano durante el arranque y
+la conservación del controlador y borrador cuando Flutter reconstruye la ruta.
 La [matriz de plataformas](PLATFORMS.md) detalla el alcance nativo y el
 [README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
 aporta el comando reproducible con un relay aislado.

@@ -23,7 +23,8 @@ class ConversationController extends ChangeNotifier {
   String? networkError;
   String? notice;
   bool _disposed = false;
-  bool _active = false;
+  // Null means no lifecycle state has arrived during the initial local read.
+  bool? _active;
   bool _syncAgain = false;
   Future<void>? _refreshWork;
   Future<void>? _syncWork;
@@ -46,7 +47,7 @@ class ConversationController extends ChangeNotifier {
         .watch(generation: generation)
         .listen(
           (_) {
-            if (_disposed || !_active) return;
+            if (_disposed || _active != true) return;
             _debounce ??= Timer(const Duration(milliseconds: 150), () {
               _debounce = null;
               unawaited(refresh());
@@ -57,7 +58,7 @@ class ConversationController extends ChangeNotifier {
           },
         );
     await refresh();
-    if (!_disposed && automatic) setActive(true);
+    if (!_disposed && automatic && _active == null) setActive(true);
   }
 
   void setActive(bool active) {

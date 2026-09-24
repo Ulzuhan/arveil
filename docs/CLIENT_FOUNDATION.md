@@ -150,6 +150,8 @@ Regression coverage includes symmetric route comparison and all-or-nothing
 contact confirmation, queue/reopen without a relay, post-commit bridge results,
 blocked sync with responsive history, joined sync callers, cancelled watcher dispatch, stale selections, pagination with arrivals,
 route-edit invalidation, received text, draft retention and duplicate submission.
+Lifecycle regressions cover backgrounding during startup and retaining the
+conversation controller and draft when Flutter rebuilds its route.
 The [platform record](PLATFORMS.md) gives the native acceptance scope; the
 [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
 provides the isolated reproduction command.

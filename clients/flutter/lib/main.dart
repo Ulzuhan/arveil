@@ -337,16 +337,17 @@ class _ProfilePageState extends State<ProfilePage> {
     FilledButton.icon(
       onPressed: _session.busy
           ? null
-          : () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ConversationsPage(
-                  controller: ConversationController(
-                    _session.profile!,
-                    _session.setup!.bootstrap!,
-                  ),
+          : () {
+              final controller = ConversationController(
+                _session.profile!,
+                _session.setup!.bootstrap!,
+              );
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ConversationsPage(controller: controller),
                 ),
-              ),
-            ),
+              );
+            },
       icon: const Icon(Icons.forum_outlined),
       label: const Text('Abrir conversaciones'),
     ),

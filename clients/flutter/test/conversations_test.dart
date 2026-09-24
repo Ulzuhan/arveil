@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:arveil/main.dart';
 import 'package:arveil/src/conversation_controller.dart';
 import 'package:arveil/src/conversations_page.dart';
+import 'package:arveil/src/profile_session.dart';
 import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +28,7 @@ class ChatProfile extends FakeProfile {
   Completer<SyncView>? network;
   Completer<ChatMutationView>? save;
   Completer<HistoryPageView>? history;
+  Completer<List<ConversationView>>? initialRows;
   bool offline = false, failSave = false, partialCreate = false;
   int sends = 0, syncs = 0, creates = 0;
   @override
@@ -36,7 +39,8 @@ class ChatProfile extends FakeProfile {
   @override
   void stopWatching({required BigInt generation}) {}
   @override
-  Future<List<ConversationView>> conversations() async => [row];
+  Future<List<ConversationView>> conversations() async =>
+      initialRows == null ? [row] : await initialRows!.future;
   @override
   Future<HistoryPageView> historyPage({
     required String groupId,
@@ -115,6 +119,62 @@ class ChatProfile extends FakeProfile {
 }
 
 void main() {
+  testWidgets('route rebuild retains the conversation controller and draft', (
+    tester,
+  ) async {
+    final profile = ChatProfile()
+      ..state = const SetupView(
+        administrator: false,
+        recoveryWarning: false,
+        stage: SetupStage.ready,
+        bootstrap: relay,
+      );
+    final session = ProfileSession(opener: () async => profile);
+    addTearDown(session.dispose);
+    await tester.pumpWidget(ArveilApp(session: session));
+    await tester.tap(find.text('Abrir perfil'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Abrir conversaciones'));
+    await tester.tap(find.text('Abrir conversaciones'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('conversation-group-a')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('message-draft')),
+      'unsent draft',
+    );
+    final page = find.byType(ConversationsPage);
+    final controller = tester.widget<ConversationsPage>(page).controller;
+    ModalRoute.of(tester.element(page))!.changedExternalState();
+    await tester.pumpAndSettle();
+    expect(tester.widget<ConversationsPage>(page).controller, same(controller));
+    expect(controller.selected, 'group-a');
+    expect(find.text('unsent draft'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('backgrounding during startup keeps automatic sync paused', (
+    tester,
+  ) async {
+    final profile = ChatProfile()
+      ..initialRows = Completer<List<ConversationView>>();
+    final chat = ConversationController(profile, relay);
+    await tester.pumpWidget(
+      MaterialApp(home: ConversationsPage(controller: chat)),
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    profile.initialRows!.complete([row]);
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 30));
+    expect(profile.syncs, 0);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(profile.syncs, 1);
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pumpAndSettle();
+    expect(profile.syncs, 2);
+    await tester.pumpWidget(const SizedBox());
+  });
   test(
     'history answers during blocked sync and a second sync drains queued work',
     () async {
