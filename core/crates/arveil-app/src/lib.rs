@@ -15,6 +15,8 @@
 //! the send unit committed and before anything is published (I-04).
 
 pub mod carrier;
+mod conversation_ui;
+pub use conversation_ui::{ConfirmedRoute, RoutePreview};
 mod key_packages;
 mod onboarding;
 mod recovery;
@@ -90,6 +92,10 @@ pub enum Operation {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    QueryOwnRoute,
+    PreviewRoutes,
+    CreateVerifiedConversation,
+    QueueMessage,
     CreateConversation,
     AddDevice,
     RemoveDevice,
@@ -149,6 +155,18 @@ pub enum ClientCommand {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    QueryOwnRoute,
+    PreviewRoutes {
+        routes: Vec<String>,
+    },
+    CreateVerifiedConversation {
+        bootstrap: String,
+        routes: Vec<ConfirmedRoute>,
+    },
+    QueueMessage {
+        text: String,
+        group: String,
+    },
     CreateConversation {
         bootstrap: String,
         peer_routes: Vec<String>,
@@ -219,6 +237,10 @@ impl ClientCommand {
             Self::ExportKit => Operation::ExportKit,
             Self::RestoreKit { .. } => Operation::RestoreKit,
             Self::ResumeRecovery => Operation::ResumeRecovery,
+            Self::QueryOwnRoute => Operation::QueryOwnRoute,
+            Self::PreviewRoutes { .. } => Operation::PreviewRoutes,
+            Self::CreateVerifiedConversation { .. } => Operation::CreateVerifiedConversation,
+            Self::QueueMessage { .. } => Operation::QueueMessage,
             Self::CreateConversation { .. } => Operation::CreateConversation,
             Self::AddDevice { .. } => Operation::AddDevice,
             Self::RemoveDevice { .. } => Operation::RemoveDevice,
@@ -1051,6 +1073,8 @@ pub enum CommandOutput {
     KeyPackageSupply(KeyPackageSupply),
     Recovery(RecoveryResult),
     OnboardingStatus(OnboardingStatus),
+    OwnRoute(String),
+    RoutePreviews(Vec<RoutePreview>),
     Conversations(Vec<ConversationSummary>),
     Peers(Vec<PeerSummary>),
     HistoryPage(HistoryPage),
@@ -1214,6 +1238,8 @@ impl ClientCommand {
             | Self::QueryHistoryPage { .. }
             | Self::QueryArchived { .. }
             | Self::QueryOnboarding
+            | Self::QueryOwnRoute
+            | Self::PreviewRoutes { .. }
             | Self::QueryKeyPackageSupply
             | Self::QueryPendingPairing => Admission::Query,
             _ => Admission::Mutation,
@@ -1937,6 +1963,46 @@ impl Application {
         }
     }
 
+    pub fn own_route(&self) -> Result<String, ApplicationError> {
+        match self.execute(ClientCommand::QueryOwnRoute)? {
+            CommandOutput::OwnRoute(route) => Ok(route),
+            _ => unreachable!("own route output"),
+        }
+    }
+
+    pub fn preview_routes(
+        &self,
+        routes: Vec<String>,
+    ) -> Result<Vec<RoutePreview>, ApplicationError> {
+        match self.execute(ClientCommand::PreviewRoutes { routes })? {
+            CommandOutput::RoutePreviews(previews) => Ok(previews),
+            _ => unreachable!("route preview output"),
+        }
+    }
+
+    pub fn create_verified_conversation(
+        &self,
+        bootstrap: &str,
+        routes: Vec<ConfirmedRoute>,
+    ) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::CreateVerifiedConversation {
+            bootstrap: bootstrap.into(),
+            routes,
+        })
+    }
+
+    /// Accept locally without waiting for a relay. Sync publishes the same outbox rows.
+    pub fn queue_message(
+        &self,
+        text: &str,
+        group: &str,
+    ) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::QueueMessage {
+            text: text.into(),
+            group: group.into(),
+        })
+    }
+
     pub fn create_conversation(
         &self,
         bootstrap: &str,
@@ -2134,6 +2200,34 @@ async fn run_command(
     command: ClientCommand,
 ) -> Result<CommandOutput, ApplicationError> {
     match command {
+        ClientCommand::QueryOwnRoute => conversation_ui::own(config)
+            .map(CommandOutput::OwnRoute)
+            .map_err(|e| application_error(Operation::QueryOwnRoute, e)),
+        ClientCommand::PreviewRoutes { routes } => conversation_ui::preview(config, &routes)
+            .map(CommandOutput::RoutePreviews)
+            .map_err(|e| application_error(Operation::PreviewRoutes, e)),
+        ClientCommand::CreateVerifiedConversation { bootstrap, routes } => Box::pin(run_operation(
+            Operation::CreateVerifiedConversation,
+            async {
+                let confirmed = conversation_ui::confirm(config, &routes)?;
+                let routes: Vec<&str> = confirmed.iter().map(String::as_str).collect();
+                start(config, &bootstrap, &routes).await
+            },
+        ))
+        .await
+        .map(CommandOutput::Operation),
+        ClientCommand::QueueMessage { text, group } => {
+            run_operation(Operation::QueueMessage, async {
+                if text.trim().is_empty() || text.len() > 32 * 1024 {
+                    return Err(CliError::Domain(
+                        "message must contain text and fit in 32 KiB".into(),
+                    ));
+                }
+                queue_text(config, &text, Some(&group))
+            })
+            .await
+            .map(CommandOutput::Operation)
+        }
         ClientCommand::QueryKeyPackageSupply => key_packages::snapshot(config)
             .map(CommandOutput::KeyPackageSupply)
             .map_err(|e| application_error(Operation::QueryKeyPackageSupply, e)),
@@ -3456,14 +3550,8 @@ async fn remove(
     Ok(())
 }
 
-/// `arveil chat send --data-dir D <bootstrap> <text>`
-async fn send(
-    config: &ProfileConfig,
-    bootstrap: &str,
-    text: &str,
-    group: Option<&str>,
-) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
+/// Persist text, MLS state and outgoing envelopes in one local transaction.
+fn queue_text(config: &ProfileConfig, text: &str, group: Option<&str>) -> Result<(), CliError> {
     let (s, engine) = session(config)?;
     let conv = select_conversation(&s, group)?;
     let mut group = engine
@@ -3502,6 +3590,19 @@ async fn send(
         group.current_epoch(),
     );
     fan.record_queued_deliveries(&event_id);
+
+    Ok(())
+}
+
+async fn send(
+    config: &ProfileConfig,
+    bootstrap: &str,
+    text: &str,
+    group: Option<&str>,
+) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    queue_text(config, text, group)?;
+    let (s, _) = session(config)?;
 
     if std::env::var_os("ARVEIL_CRASH_AFTER_COMMIT").is_some() {
         return Err(CliError::Interrupted {
@@ -4435,6 +4536,103 @@ mod tests {
         );
         let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
         (profile, bootstrap, app)
+    }
+
+    #[test]
+    fn route_comparison_is_symmetric_and_rejects_invalid_confirmation_atomically() {
+        let (a_dir, _, a) = enrolled_test_application("route-a", "ws://127.0.0.1:1");
+        let (b_dir, _, b) = enrolled_test_application("route-b", "ws://127.0.0.1:1");
+        let (c_dir, _, c) = enrolled_test_application("route-c", "ws://127.0.0.1:1");
+        let a_route = a.own_route().unwrap();
+        let b_route = b.own_route().unwrap();
+        let c_route = c.own_route().unwrap();
+        let previews = a
+            .preview_routes(vec![b_route.clone(), c_route.clone()])
+            .unwrap();
+        assert_eq!(
+            previews[0].safety_number,
+            b.preview_routes(vec![a_route.clone()]).unwrap()[0].safety_number
+        );
+        assert!(a.preview_routes(vec![a_route]).is_err());
+        assert!(
+            a.preview_routes(vec![b_route.clone(), b_route.clone()])
+                .is_err()
+        );
+        assert!(a.preview_routes(vec!["invalid".into()]).is_err());
+        assert!(a.preview_routes(vec!["x".repeat(4097)]).is_err());
+        let config = ProfileConfig::unencrypted(&a_dir);
+        let mut confirmations = vec![
+            ConfirmedRoute {
+                route: b_route,
+                safety_number: previews[0].safety_number.clone(),
+            },
+            ConfirmedRoute {
+                route: c_route,
+                safety_number: "wrong".into(),
+            },
+        ];
+        assert!(conversation_ui::confirm(&config, &confirmations).is_err());
+        let client = open_client(&config).unwrap();
+        assert!(client.contacts().unwrap().is_empty());
+        confirmations[1].safety_number = previews[1].safety_number.clone();
+        conversation_ui::confirm(&config, &confirmations).unwrap();
+        assert_eq!(client.contacts().unwrap().len(), 2);
+        assert!(client.contacts().unwrap().iter().all(|c| c.verified));
+        drop(client);
+        a.close();
+        b.close();
+        c.close();
+        for dir in [a_dir, b_dir, c_dir] {
+            std::fs::remove_dir_all(dir).unwrap();
+        }
+    }
+
+    #[test]
+    fn local_queue_commits_without_a_relay_and_survives_reopen() {
+        let (dir, _, app) = enrolled_test_application("queue-local", "ws://127.0.0.1:1");
+        let (peer_dir, _, peer) = enrolled_test_application("queue-peer", "ws://127.0.0.1:1");
+        let config = ProfileConfig::unencrypted(&dir);
+        let (s, engine) = session(&config).unwrap();
+        let mut group = engine.create_group().unwrap();
+        group.write_to_storage().unwrap();
+        let id = group.group_id().to_vec();
+        let route = parse_route(&peer.own_route().unwrap()).unwrap();
+        s.client
+            .conversation_save(&Conversation {
+                group_id: id.clone(),
+                creator: true,
+                peers: vec![peer_from_route(&route)],
+            })
+            .unwrap();
+        drop(group);
+        drop(engine);
+        drop(s);
+        assert!(app.queue_message("  ", &hex::encode(&id)).is_err());
+        assert!(
+            app.queue_message(&"é".repeat(16385), &hex::encode(&id))
+                .is_err()
+        );
+        assert_eq!(app.history_page(&id, None, 50).unwrap().events.len(), 0);
+        let result = app
+            .queue_message("offline message", &hex::encode(&id))
+            .unwrap();
+        assert_eq!(result.messages.len(), 1);
+        let receipt = &result.messages[0];
+        assert!(matches!(
+            receipt.local_acceptance,
+            LocalAcceptance::PersistedToOutbox { envelopes: 1, .. }
+        ));
+        app.close();
+        let reopened = Application::open(config).unwrap();
+        let history = reopened.history_page(&id, None, 50).unwrap();
+        assert_eq!(history.events.len(), 1);
+        assert_eq!(history.events[0].event_id, receipt.event_id);
+        assert_eq!(history.events[0].body, b"offline message");
+        assert_eq!(history.events[0].delivery_states[0].state, "queued");
+        reopened.close();
+        peer.close();
+        std::fs::remove_dir_all(dir).unwrap();
+        std::fs::remove_dir_all(peer_dir).unwrap();
     }
 
     #[test]

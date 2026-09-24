@@ -5,7 +5,7 @@
 **Current availability (September 23, 2026):** there are no published GitHub
 releases yet. A [packaging command](CLIENT_RELEASES.md) prepares experimental
 macOS ZIP and Android APK candidates. The current source supports invitation enrollment,
-pairing and encrypted identity-kit export/restore. Messaging remains pending.
+pairing and encrypted identity-kit export/restore. Verified groups, paginated history, offline text and sync are implemented in source.
 Earlier experimental packages may contain only invitation enrollment; check
 the package revision and release notes. Use disposable
 test profiles at this stage.
@@ -107,7 +107,24 @@ Android reports a conflict. Check `BUILD.json` for version and certificate detai
 The current interface is in Spanish. A completed enrollment shows the profile
 summary. On a connection failure, close/reopen and retry with the **same relay
 and invitation**; successful enrollment does not need another invitation on
-reopen. Pairing, recovery-kit and conversation screens are still pending.
+reopen. Current source also supports pairing, recovery kits and conversations.
+
+To try conversations with disposable profiles on the same relay:
+
+1. Select **Abrir conversaciones**, then **Mi ruta** to share this device's route
+   privately with your contact. Each person can obtain their route here.
+2. Select **Nueva conversación**, paste one peer route per line and choose
+   **Preparar comparación**. Compare the full safety number with each person
+   through an independent channel; both sides can preview the other's route.
+3. Confirm the comparison and choose **Crear conversación**. Your contact uses
+   **Sincronizar** to receive the group invitation.
+4. Open the conversation and send text. Offline messages remain saved locally;
+   **Sincronizar** retries publication. Relay acceptance does not confirm reading.
+
+Automatic sync runs while the conversation screen is in the foreground. Push,
+background receipt, attachment actions and membership controls are still pending.
+The existing experimental packages may precede these source changes; check their
+recorded revision before expecting these screens.
 
 ## Build from source
 

@@ -4,7 +4,7 @@ Status: implementation record updated September 23, 2026; earlier acceptance res
 
 ## Architecture and evidence
 
-CLI → `arveil-app` → `arveil-core`; Flutter calls the same application layer through its Rust bridge. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. The Flutter client opens encrypted profiles, enrolls by invitation, pairs devices and exports/restores encrypted identity kits through the Rust bridge. Durable progress survives reopening; no messaging interface exists yet.
+CLI → `arveil-app` → `arveil-core`; Flutter calls the same application layer through its Rust bridge. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. The Flutter client opens encrypted profiles, enrolls by invitation, pairs devices and exports/restores encrypted identity kits through the Rust bridge. Durable progress survives reopening; verified group creation, paginated history, offline text and sync are implemented.
 
 | Change | Implementation and verification |
 |---|---|
@@ -41,7 +41,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 
 ## Remaining limits
 
-- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing and identity-kit interfaces are implemented. Conversation, attachment and device-management interfaces remain pending. Experimental ZIP/APK packaging exists; physical-mobile acceptance remains pending.
+- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing and identity-kit interfaces are implemented. Conversation creation, paginated history, text sending and sync are implemented. Attachment and device-management interfaces remain pending. Experimental ZIP/APK packaging exists; physical-mobile acceptance remains pending.
 - Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key storage is tested on an Android emulator and the ad-hoc macOS build with its login Keychain. Physical-phone and fresh-download acceptance remain pending.
 - The Rust bridge runs blocking calls off the UI thread and exposes incremental progress streams. General operation cancellation and full platform lifecycle acceptance remain pending.
 - File/membership events need further correlation identifiers. Progress is a projection: changes it does not model reach a caller only in the durable result.
@@ -121,3 +121,37 @@ was skipped because Docker was unavailable. Native GUI fixture consumption and
 platform evidence are described in the [platform matrix](PLATFORMS.md).
 Physical-phone and native file-dialog acceptance remain open. Source version
 is `0.1.0+4`; the existing alpha candidate is unchanged.
+
+## Conversation interface (M3b.3)
+
+Source client `0.1.0+5` adds an adaptive list/detail screen, explicit sharing of
+this device's route, comparison of each peer's safety number, verified group
+creation, history pages and text composition. Editing routes invalidates the
+comparison. Rust validates route sizes, duplicate devices and the exact compared
+numbers before pinning contacts. This uses the existing identity/MLS protocol;
+it is not an independent security assessment.
+
+`QueueMessage` commits the MLS state, event and encrypted outbox before returning
+its receipt, without network access. Flutter clears only the accepted draft;
+sync publishes the saved envelopes. Creation failures after commit return the
+saved group plus a warning so the UI does not create it again. The CLI shares
+the same local send transaction. Text is limited to 32 KiB of UTF-8.
+
+History stays queryable during sync. The screen refreshes local projections from
+progress and completed operations; while foregrounded it also syncs every ten
+seconds and on resume, with manual retry. This is foreground polling, not push
+or background delivery. A refresh reconciles the displayed history in pages of 50, retaining the older
+pages the user opened and stopping if the screen or selection changes. Presentation distinguishes local storage,
+relay acceptance, unavailable delivery and receipt on this device. It does not
+claim human reading, authenticated author labels or message timestamps. Contact
+names, attachment actions and group membership controls are later work.
+
+Regression coverage includes symmetric route comparison and all-or-nothing
+contact confirmation, queue/reopen without a relay, post-commit bridge results,
+blocked sync with responsive history, joined sync callers, cancelled watcher dispatch, stale selections, pagination with arrivals,
+route-edit invalidation, received text, draft retention and duplicate submission.
+Lifecycle regressions cover backgrounding during startup and retaining the
+conversation controller and draft when Flutter rebuilds its route.
+The [platform record](PLATFORMS.md) gives the native acceptance scope; the
+[Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
+provides the isolated reproduction command.

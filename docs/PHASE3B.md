@@ -1,12 +1,12 @@
 # Phase 3b: Flutter client
 
-Status: implementation direction accepted; milestone acceptance remains pending, with parts of M3b.0–M3b.2 already implemented. See [ADR-009](adr/ADR-009-flutter-first.md) and the [implemented foundation](CLIENT_FOUNDATION.md). [Versión española](es/PHASE3B.md).
+Status: implementation direction accepted; milestone acceptance remains pending, with parts of M3b.0–M3b.3 already implemented. See [ADR-009](adr/ADR-009-flutter-first.md) and the [implemented foundation](CLIENT_FOUNDATION.md). [Versión española](es/PHASE3B.md).
 
 The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria. This condensed English translation must be updated in the same review; the Spanish text prevails if they diverge.
 
 ## Scope and structure
 
-Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. The client opens encrypted profiles and enrolls an identity through invitation/bootstrap fields, resumes a failed enrollment and recognizes completion after reopening. Pairing with manual code comparison and encrypted identity-kit export/restore are implemented. Dated KeyPackage availability, exhaustion and resumable replenishment are implemented. Messaging and physical-device acceptance remain pending. SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.
+Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. The client opens encrypted profiles and enrolls an identity through invitation/bootstrap fields, resumes a failed enrollment and recognizes completion after reopening. Pairing with manual code comparison and encrypted identity-kit export/restore are implemented. Dated KeyPackage availability, exhaustion and resumable replenishment are implemented. Conversation creation, paginated history, offline text and sync are implemented; cross-device and physical-device acceptance remain pending. SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.
 
 ```text
 clients/flutter/             Adaptive UI and platform adapters
@@ -24,7 +24,7 @@ Rust owns durable state and domain decisions. Dart holds presentation projection
 | M3b.0 — Native build and bridge | Compile Flutter, bridge and Rust/SQLCipher/OpenSSL on macOS and a physical Android device. Implement the minimum configuration/lifecycle contract below. Open, query, receive a typed error and close without blocking UI; another process can immediately open the closed profile. Pin reproducible toolchains before acceptance. |
 | M3b.1 — Application contract and platform integration | Secure key storage, explicit TLS/policies, asynchronous calls, incremental events, pagination, bounded admission and failure handling. Restart preserves access; absent/wrong keys never recreate or silently decrypt the profile. Show `ProfileInUse`. A post-commit failure preserves the same pending message and cannot duplicate it on retry. Implement and test the contracts below. |
 | M3b.2 — Enrollment and pairing | Identity, invitation/bootstrap, session approval, code comparison, confirmation, cancellation and resumed completion without a terminal. Test wrong code, expiry, lost responses and duplicate confirmations, including invitation enrollment under the concurrency contract below. Offer kit export during onboarding with explicit deferral and visible recovery risk; demonstrate restore. Test KeyPackage exhaustion/replenishment when joining multiple groups. |
-| M3b.3 — Conversation | Conversation list, verified contact/route, group creation, paginated history, sending and sync. Mac ↔ Android conversation; offline reading and local acceptance; reconnect without duplicates. Distinguish local/relay acceptance from human reading. Local history remains responsive during slow network. |
+| M3b.3 — Conversation (implemented; cross-device acceptance pending) | Conversation list, verified contact/route, group creation, paginated history, sending and sync. Mac ↔ Android conversation; offline reading and local acceptance; reconnect without duplicates. Distinguish local/relay acceptance from human reading. Local history remains responsive during slow network. |
 | M3b.4 — Daily use | Attachments identified by `event_id`, explicit download/private-storage/export policy using platform permissions; resume interrupted transfers and expose cancellation/expiry. Contacts, naming, verification, device revocation and kit/archive API. Demonstrate device loss and recovery; do not claim MLS rejoin is solved by sync. |
 | M3b.5 — macOS/Android beta | Accessibility, desktop navigation/shortcuts, mobile layouts, permissions, packaging, suspension and secret-free diagnostics. Reproducible external installation with signing/distribution limits documented. Three external users complete principal flows; before using an identity they intend to retain, each verifies kit export/restore in a test profile (without promising recovery of all history or MLS groups); record and fix blockers. Initial beta guarantees foreground/on-reopen sync only, not immediate suspended/closed delivery. Test Android Doze, suspension and reconnect on hardware. Any background promise needs a prior push/service decision and verification. |
 | M3b.6 — Windows/Linux | Native builds, packaging, keys, files, notifications, lock/restart tests. Verify M3b.2–M3b.4 on identified systems; distinguish built, tested and distributed. |
@@ -36,7 +36,7 @@ Complete M3b.0 before designing every screen. Windows/Linux and iOS may change o
 ## Installation and distribution contract
 
 Simple installation is a product requirement. Keep the README's
-[installation entry point](INSTALLATION.md) current as M3b.0–M3b.2 evolve;
+[installation entry point](INSTALLATION.md) current as M3b.0–M3b.3 evolve;
 package trial builds alongside usable client flows instead of leaving all
 installation work until the end. This does not waive missing milestone or
 platform acceptance.

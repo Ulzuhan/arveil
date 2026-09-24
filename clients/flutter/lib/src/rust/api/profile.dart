@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `command_error`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `chat_mutation`, `command_error`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -67,6 +67,12 @@ abstract class Profile implements RustOpaqueInterface {
   /// The conversation list, as a query that answers from local state.
   Future<List<ConversationView>> conversations();
 
+  Future<ChatMutationView> createConversation({
+    required String bootstrap,
+    required List<String> routes,
+    required List<String> safetyNumbers,
+  });
+
   /// Create this profile's identity. The first step of enrollment, and
   /// the one that makes a profile more than a directory.
   Future<void> createIdentity();
@@ -89,6 +95,15 @@ abstract class Profile implements RustOpaqueInterface {
   /// Local snapshot only: its timestamp identifies an earlier relay report.
   Future<KeyPackageSupplyView> keyPackageSupply();
 
+  Future<String> ownRoute();
+
+  Future<List<RoutePreviewView>> previewRoutes({required List<String> routes});
+
+  Future<ChatMutationView> queueMessage({
+    required String groupId,
+    required String text,
+  });
+
   Future<KeyPackageSupplyView> replenishKeyPackages();
 
   Future<void> restoreKit({
@@ -103,15 +118,43 @@ abstract class Profile implements RustOpaqueInterface {
   /// enrollment. Progress events are hints; this is the source of truth.
   Future<SetupView> setup();
 
+  /// Reserve a watcher synchronously before its asynchronous worker starts.
+  /// Stopping during dispatch therefore cannot accidentally revive a stream.
+  BigInt startWatching();
+
   /// Stop the stream this profile is feeding, without closing anything
   /// else. Dropping the subscription on the Rust side is what actually
   /// unsubscribes.
-  void stopWatching();
+  void stopWatching({required BigInt generation});
+
+  Future<SyncView> sync_({required String bootstrap});
 
   /// Watch progress while operations run. The stream ends when the
   /// profile closes or when `stop_watching` is called; a listener should
   /// stop before cancelling, since the stream is closed from this side.
-  Stream<ProgressView> watch();
+  Stream<ProgressView> watch({required BigInt generation});
+}
+
+/// A committed mutation may carry a later failure. Retry publication with sync,
+/// never by creating a second message or conversation.
+class ChatMutationView {
+  final String groupId;
+  final String? eventId;
+  final CommandError? warning;
+
+  const ChatMutationView({required this.groupId, this.eventId, this.warning});
+
+  @override
+  int get hashCode => groupId.hashCode ^ eventId.hashCode ^ warning.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatMutationView &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          eventId == other.eventId &&
+          warning == other.warning;
 }
 
 @freezed
@@ -458,6 +501,31 @@ class ProgressView {
           kind == other.kind;
 }
 
+class RoutePreviewView {
+  final String identityId;
+  final String deviceId;
+  final String safetyNumber;
+
+  const RoutePreviewView({
+    required this.identityId,
+    required this.deviceId,
+    required this.safetyNumber,
+  });
+
+  @override
+  int get hashCode =>
+      identityId.hashCode ^ deviceId.hashCode ^ safetyNumber.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RoutePreviewView &&
+          runtimeType == other.runtimeType &&
+          identityId == other.identityId &&
+          deviceId == other.deviceId &&
+          safetyNumber == other.safetyNumber;
+}
+
 enum SetupStage {
   new_,
   identityReady,
@@ -506,4 +574,20 @@ class SetupView {
           administrator == other.administrator &&
           recoveryWarning == other.recoveryWarning &&
           pairing == other.pairing;
+}
+
+class SyncView {
+  final int processedEnvelopes;
+
+  const SyncView({required this.processedEnvelopes});
+
+  @override
+  int get hashCode => processedEnvelopes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncView &&
+          runtimeType == other.runtimeType &&
+          processedEnvelopes == other.processedEnvelopes;
 }

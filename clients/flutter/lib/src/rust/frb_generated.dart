@@ -65,7 +65,7 @@ class ArveilRust
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1860918915;
+  int get rustContentHash => -852651259;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -116,6 +116,13 @@ abstract class ArveilRustApi extends BaseApi {
     required Profile that,
   });
 
+  Future<ChatMutationView> crateApiProfileProfileCreateConversation({
+    required Profile that,
+    required String bootstrap,
+    required List<String> routes,
+    required List<String> safetyNumbers,
+  });
+
   Future<void> crateApiProfileProfileCreateIdentity({required Profile that});
 
   Future<void> crateApiProfileProfileEnroll({
@@ -137,6 +144,19 @@ abstract class ArveilRustApi extends BaseApi {
     required Profile that,
   });
 
+  Future<String> crateApiProfileProfileOwnRoute({required Profile that});
+
+  Future<List<RoutePreviewView>> crateApiProfileProfilePreviewRoutes({
+    required Profile that,
+    required List<String> routes,
+  });
+
+  Future<ChatMutationView> crateApiProfileProfileQueueMessage({
+    required Profile that,
+    required String groupId,
+    required String text,
+  });
+
   Future<KeyPackageSupplyView> crateApiProfileProfileReplenishKeyPackages({
     required Profile that,
   });
@@ -152,9 +172,22 @@ abstract class ArveilRustApi extends BaseApi {
 
   Future<SetupView> crateApiProfileProfileSetup({required Profile that});
 
-  void crateApiProfileProfileStopWatching({required Profile that});
+  BigInt crateApiProfileProfileStartWatching({required Profile that});
 
-  Stream<ProgressView> crateApiProfileProfileWatch({required Profile that});
+  void crateApiProfileProfileStopWatching({
+    required Profile that,
+    required BigInt generation,
+  });
+
+  Future<SyncView> crateApiProfileProfileSync({
+    required Profile that,
+    required String bootstrap,
+  });
+
+  Stream<ProgressView> crateApiProfileProfileWatch({
+    required Profile that,
+    required BigInt generation,
+  });
 
   Future<String> crateApiProfileGenerateProfileKey();
 
@@ -485,6 +518,48 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Future<ChatMutationView> crateApiProfileProfileCreateConversation({
+    required Profile that,
+    required String bootstrap,
+    required List<String> routes,
+    required List<String> safetyNumbers,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_String(bootstrap, serializer);
+          sse_encode_list_String(routes, serializer);
+          sse_encode_list_String(safetyNumbers, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_chat_mutation_view,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileCreateConversationConstMeta,
+        argValues: [that, bootstrap, routes, safetyNumbers],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileCreateConversationConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_create_conversation",
+        argNames: ["that", "bootstrap", "routes", "safetyNumbers"],
+      );
+
+  @override
   Future<void> crateApiProfileProfileCreateIdentity({required Profile that}) {
     return handler.executeNormal(
       NormalTask(
@@ -497,7 +572,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -537,7 +612,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -571,7 +646,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -610,7 +685,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -646,7 +721,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -668,6 +743,115 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Future<String> crateApiProfileProfileOwnRoute({required Profile that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileOwnRouteConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileOwnRouteConstMeta =>
+      const TaskConstMeta(debugName: "Profile_own_route", argNames: ["that"]);
+
+  @override
+  Future<List<RoutePreviewView>> crateApiProfileProfilePreviewRoutes({
+    required Profile that,
+    required List<String> routes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_list_String(routes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_route_preview_view,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfilePreviewRoutesConstMeta,
+        argValues: [that, routes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfilePreviewRoutesConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_preview_routes",
+        argNames: ["that", "routes"],
+      );
+
+  @override
+  Future<ChatMutationView> crateApiProfileProfileQueueMessage({
+    required Profile that,
+    required String groupId,
+    required String text,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_String(groupId, serializer);
+          sse_encode_String(text, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_chat_mutation_view,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileQueueMessageConstMeta,
+        argValues: [that, groupId, text],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileQueueMessageConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_queue_message",
+        argNames: ["that", "groupId", "text"],
+      );
+
+  @override
   Future<KeyPackageSupplyView> crateApiProfileProfileReplenishKeyPackages({
     required Profile that,
   }) {
@@ -682,7 +866,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 18,
             port: port_,
           );
         },
@@ -724,7 +908,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 19,
             port: port_,
           );
         },
@@ -758,7 +942,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 20,
             port: port_,
           );
         },
@@ -792,7 +976,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 21,
             port: port_,
           );
         },
@@ -811,7 +995,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       const TaskConstMeta(debugName: "Profile_setup", argNames: ["that"]);
 
   @override
-  void crateApiProfileProfileStopWatching({required Profile that}) {
+  BigInt crateApiProfileProfileStartWatching({required Profile that}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -820,14 +1004,47 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_64,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiProfileProfileStartWatchingConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileStartWatchingConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_start_watching",
+        argNames: ["that"],
+      );
+
+  @override
+  void crateApiProfileProfileStopWatching({
+    required Profile that,
+    required BigInt generation,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_u_64(generation, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
         constMeta: kCrateApiProfileProfileStopWatchingConstMeta,
-        argValues: [that],
+        argValues: [that, generation],
         apiImpl: this,
       ),
     );
@@ -836,11 +1053,51 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   TaskConstMeta get kCrateApiProfileProfileStopWatchingConstMeta =>
       const TaskConstMeta(
         debugName: "Profile_stop_watching",
-        argNames: ["that"],
+        argNames: ["that", "generation"],
       );
 
   @override
-  Stream<ProgressView> crateApiProfileProfileWatch({required Profile that}) {
+  Future<SyncView> crateApiProfileProfileSync({
+    required Profile that,
+    required String bootstrap,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_String(bootstrap, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_sync_view,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileSyncConstMeta,
+        argValues: [that, bootstrap],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileSyncConstMeta => const TaskConstMeta(
+    debugName: "Profile_sync",
+    argNames: ["that", "bootstrap"],
+  );
+
+  @override
+  Stream<ProgressView> crateApiProfileProfileWatch({
+    required Profile that,
+    required BigInt generation,
+  }) {
     final sink = RustStreamSink<ProgressView>();
     unawaited(
       handler.executeNormal(
@@ -851,11 +1108,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
               that,
               serializer,
             );
+            sse_encode_u_64(generation, serializer);
             sse_encode_StreamSink_progress_view_Sse(sink, serializer);
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 19,
+              funcId: 25,
               port: port_,
             );
           },
@@ -864,7 +1122,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             decodeErrorData: null,
           ),
           constMeta: kCrateApiProfileProfileWatchConstMeta,
-          argValues: [that, sink],
+          argValues: [that, generation, sink],
           apiImpl: this,
         ),
       ),
@@ -875,7 +1133,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   TaskConstMeta get kCrateApiProfileProfileWatchConstMeta =>
       const TaskConstMeta(
         debugName: "Profile_watch",
-        argNames: ["that", "sink"],
+        argNames: ["that", "generation", "sink"],
       );
 
   @override
@@ -887,7 +1145,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 26,
             port: port_,
           );
         },
@@ -915,7 +1173,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 27,
             port: port_,
           );
         },
@@ -947,7 +1205,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 28,
             port: port_,
           );
         },
@@ -976,7 +1234,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1060,6 +1318,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  CommandError dco_decode_box_autoadd_command_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_command_error(raw);
+  }
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
@@ -1081,6 +1345,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_u_64(raw);
+  }
+
+  @protected
+  ChatMutationView dco_decode_chat_mutation_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ChatMutationView(
+      groupId: dco_decode_String(arr[0]),
+      eventId: dco_decode_opt_String(arr[1]),
+      warning: dco_decode_opt_box_autoadd_command_error(arr[2]),
+    );
   }
 
   @protected
@@ -1248,9 +1525,21 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  List<RoutePreviewView> dco_decode_list_route_preview_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_route_preview_view).toList();
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  CommandError? dco_decode_opt_box_autoadd_command_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_command_error(raw);
   }
 
   @protected
@@ -1399,6 +1688,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  RoutePreviewView dco_decode_route_preview_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return RoutePreviewView(
+      identityId: dco_decode_String(arr[0]),
+      deviceId: dco_decode_String(arr[1]),
+      safetyNumber: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
   SetupStage dco_decode_setup_stage(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return SetupStage.values[raw as int];
@@ -1418,6 +1720,15 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       recoveryWarning: dco_decode_bool(arr[4]),
       pairing: dco_decode_opt_box_autoadd_pairing_view(arr[5]),
     );
+  }
+
+  @protected
+  SyncView dco_decode_sync_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SyncView(processedEnvelopes: dco_decode_u_32(arr[0]));
   }
 
   @protected
@@ -1515,6 +1826,14 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  CommandError sse_decode_box_autoadd_command_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_command_error(deserializer));
+  }
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
@@ -1538,6 +1857,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
+  ChatMutationView sse_decode_chat_mutation_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_groupId = sse_decode_String(deserializer);
+    var var_eventId = sse_decode_opt_String(deserializer);
+    var var_warning = sse_decode_opt_box_autoadd_command_error(deserializer);
+    return ChatMutationView(
+      groupId: var_groupId,
+      eventId: var_eventId,
+      warning: var_warning,
+    );
   }
 
   @protected
@@ -1746,11 +2078,38 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  List<RoutePreviewView> sse_decode_list_route_preview_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RoutePreviewView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_route_preview_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  CommandError? sse_decode_opt_box_autoadd_command_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_command_error(deserializer));
     } else {
       return null;
     }
@@ -1954,6 +2313,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  RoutePreviewView sse_decode_route_preview_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_identityId = sse_decode_String(deserializer);
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_safetyNumber = sse_decode_String(deserializer);
+    return RoutePreviewView(
+      identityId: var_identityId,
+      deviceId: var_deviceId,
+      safetyNumber: var_safetyNumber,
+    );
+  }
+
+  @protected
   SetupStage sse_decode_setup_stage(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
@@ -1977,6 +2349,13 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       recoveryWarning: var_recoveryWarning,
       pairing: var_pairing,
     );
+  }
+
+  @protected
+  SyncView sse_decode_sync_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_processedEnvelopes = sse_decode_u_32(deserializer);
+    return SyncView(processedEnvelopes: var_processedEnvelopes);
   }
 
   @protected
@@ -2086,6 +2465,15 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_command_error(
+    CommandError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_command_error(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -2113,6 +2501,17 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_mutation_view(
+    ChatMutationView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.groupId, serializer);
+    sse_encode_opt_String(self.eventId, serializer);
+    sse_encode_opt_box_autoadd_command_error(self.warning, serializer);
   }
 
   @protected
@@ -2306,12 +2705,37 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_list_route_preview_view(
+    List<RoutePreviewView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_route_preview_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_command_error(
+    CommandError? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_command_error(self, serializer);
     }
   }
 
@@ -2495,6 +2919,17 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_route_preview_view(
+    RoutePreviewView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.identityId, serializer);
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.safetyNumber, serializer);
+  }
+
+  @protected
   void sse_encode_setup_stage(SetupStage self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
@@ -2509,6 +2944,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_bool(self.administrator, serializer);
     sse_encode_bool(self.recoveryWarning, serializer);
     sse_encode_opt_box_autoadd_pairing_view(self.pairing, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_view(SyncView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.processedEnvelopes, serializer);
   }
 
   @protected
@@ -2613,6 +3054,17 @@ class ProfileImpl extends RustOpaque implements Profile {
   Future<List<ConversationView>> conversations() =>
       ArveilRust.instance.api.crateApiProfileProfileConversations(that: this);
 
+  Future<ChatMutationView> createConversation({
+    required String bootstrap,
+    required List<String> routes,
+    required List<String> safetyNumbers,
+  }) => ArveilRust.instance.api.crateApiProfileProfileCreateConversation(
+    that: this,
+    bootstrap: bootstrap,
+    routes: routes,
+    safetyNumbers: safetyNumbers,
+  );
+
   /// Create this profile's identity. The first step of enrollment, and
   /// the one that makes a profile more than a directory.
   Future<void> createIdentity() =>
@@ -2648,6 +3100,25 @@ class ProfileImpl extends RustOpaque implements Profile {
   Future<KeyPackageSupplyView> keyPackageSupply() => ArveilRust.instance.api
       .crateApiProfileProfileKeyPackageSupply(that: this);
 
+  Future<String> ownRoute() =>
+      ArveilRust.instance.api.crateApiProfileProfileOwnRoute(that: this);
+
+  Future<List<RoutePreviewView>> previewRoutes({
+    required List<String> routes,
+  }) => ArveilRust.instance.api.crateApiProfileProfilePreviewRoutes(
+    that: this,
+    routes: routes,
+  );
+
+  Future<ChatMutationView> queueMessage({
+    required String groupId,
+    required String text,
+  }) => ArveilRust.instance.api.crateApiProfileProfileQueueMessage(
+    that: this,
+    groupId: groupId,
+    text: text,
+  );
+
   Future<KeyPackageSupplyView> replenishKeyPackages() => ArveilRust.instance.api
       .crateApiProfileProfileReplenishKeyPackages(that: this);
 
@@ -2670,15 +3141,25 @@ class ProfileImpl extends RustOpaque implements Profile {
   Future<SetupView> setup() =>
       ArveilRust.instance.api.crateApiProfileProfileSetup(that: this);
 
+  /// Reserve a watcher synchronously before its asynchronous worker starts.
+  /// Stopping during dispatch therefore cannot accidentally revive a stream.
+  BigInt startWatching() =>
+      ArveilRust.instance.api.crateApiProfileProfileStartWatching(that: this);
+
   /// Stop the stream this profile is feeding, without closing anything
   /// else. Dropping the subscription on the Rust side is what actually
   /// unsubscribes.
-  void stopWatching() =>
-      ArveilRust.instance.api.crateApiProfileProfileStopWatching(that: this);
+  void stopWatching({required BigInt generation}) => ArveilRust.instance.api
+      .crateApiProfileProfileStopWatching(that: this, generation: generation);
+
+  Future<SyncView> sync_({required String bootstrap}) => ArveilRust.instance.api
+      .crateApiProfileProfileSync(that: this, bootstrap: bootstrap);
 
   /// Watch progress while operations run. The stream ends when the
   /// profile closes or when `stop_watching` is called; a listener should
   /// stop before cancelling, since the stream is closed from this side.
-  Stream<ProgressView> watch() =>
-      ArveilRust.instance.api.crateApiProfileProfileWatch(that: this);
+  Stream<ProgressView> watch({required BigInt generation}) => ArveilRust
+      .instance
+      .api
+      .crateApiProfileProfileWatch(that: this, generation: generation);
 }

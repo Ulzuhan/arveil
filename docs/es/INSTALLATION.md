@@ -6,7 +6,7 @@
 publicadas en GitHub. El [comando de empaquetado](CLIENT_RELEASES.md) prepara
 candidatos experimentales: ZIP para macOS y APK para Android. El código actual permite
 alta por invitación, emparejamiento y exportación/restauración del kit cifrado
-de identidad. La mensajería sigue pendiente. Los paquetes experimentales
+de identidad. El código incluye creación verificada de conversaciones, historial paginado, texto sin conexión y sincronización. Los paquetes experimentales
 anteriores pueden incluir solo el alta: comprueba la revisión y sus notas. En esta fase, utiliza perfiles de prueba desechables.
 
 ## Elige por dónde empezar
@@ -110,7 +110,24 @@ instalación. Conserva la app actual si Android informa de un conflicto.
 La interfaz actual está en español. El alta completada muestra el resumen del
 perfil. Si falla la conexión, cierra/reabre y reintenta con el **mismo relay y
 la misma invitación**. Al reabrir un alta completada no necesitas otra
-invitación. Las pantallas de emparejamiento, kit y conversaciones siguen pendientes.
+invitación. El código actual también permite emparejamiento, kits y conversaciones.
+
+Para probar conversaciones con perfiles desechables del mismo relay:
+
+1. Pulsa **Abrir conversaciones** y **Mi ruta** para compartir en privado la ruta
+   de este dispositivo con tu contacto. Cada persona obtiene aquí su ruta.
+2. Pulsa **Nueva conversación**, pega una ruta por línea y elige **Preparar
+   comparación**. Comparad el número completo por otro canal; ambos podéis
+   previsualizar la ruta de la otra persona para ver el mismo número.
+3. Confirma la comparación y pulsa **Crear conversación**. Tu contacto pulsa
+   **Sincronizar** para recibir la invitación al grupo.
+4. Abre la conversación y envía texto. Sin conexión queda guardado localmente;
+   **Sincronizar** reintenta su publicación. Aceptación del relay no confirma lectura.
+
+La sincronización automática funciona con la pantalla de conversaciones en primer
+plano. Faltan push, recepción en segundo plano, acciones de adjuntos y gestión de
+miembros. Los paquetes experimentales anteriores pueden preceder estos cambios:
+comprueba su revisión antes de esperar estas pantallas.
 
 ## Compilar desde el código
 

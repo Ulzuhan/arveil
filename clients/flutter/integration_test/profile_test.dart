@@ -59,7 +59,17 @@ Future<void> main() async {
 
       // Progress arrives while the work runs, not only when it answers.
       final progress = <ProgressView>[];
-      final watching = profile.watch().listen(progress.add);
+      final cancelledGeneration = profile.startWatching();
+      profile.stopWatching(generation: cancelledGeneration);
+      await profile
+          .watch(generation: cancelledGeneration)
+          .drain<void>()
+          .timeout(const Duration(seconds: 2));
+      final generation = profile.startWatching();
+      profile.stopWatching(generation: cancelledGeneration);
+      final watching = profile
+          .watch(generation: generation)
+          .listen(progress.add);
       await profile.createIdentity();
       expect((await profile.setup()).stage, SetupStage.identityReady);
       // Give the stream a moment to drain; the events were emitted before
@@ -76,7 +86,7 @@ Future<void> main() async {
       // The stream is closed from the Rust side, so stop it before
       // cancelling; a cancel alone would wait for a producer that is still
       // waiting for events.
-      profile.stopWatching();
+      profile.stopWatching(generation: generation);
       await watching.cancel();
 
       await profile.close();

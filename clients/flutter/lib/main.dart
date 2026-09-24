@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'src/profile_session.dart';
+import 'src/conversation_controller.dart';
+import 'src/conversations_page.dart';
 import 'src/kit_files.dart';
 import 'src/key_packages_panel.dart';
 import 'src/pairing_panel.dart';
@@ -332,6 +334,25 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       const SizedBox(height: 24),
     ],
+    FilledButton.icon(
+      onPressed: _session.busy
+          ? null
+          : () {
+              final controller = ConversationController(
+                _session.profile!,
+                _session.setup!.bootstrap!,
+              );
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ConversationsPage(controller: controller),
+                ),
+              );
+            },
+      icon: const Icon(Icons.forum_outlined),
+      label: const Text('Abrir conversaciones'),
+    ),
+
+    const SizedBox(height: 24),
     KeyPackagesPanel(session: _session),
     const Divider(height: 48),
     if (_session.setup!.administrator) ...[
@@ -354,22 +375,5 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       const SizedBox(height: 24),
     ],
-    const Text(
-      'Conversaciones',
-      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-    ),
-    const SizedBox(height: 12),
-    const Text(
-      'La creación y lectura de conversaciones desde la interfaz es el siguiente paso.',
-    ),
-    const SizedBox(height: 12),
-    if (_session.conversations case final conversations?)
-      Text('${conversations.length} conversaciones en este perfil.'),
-    const SizedBox(height: 16),
-    OutlinedButton.icon(
-      onPressed: _session.busy ? null : _session.refresh,
-      icon: const Icon(Icons.refresh),
-      label: const Text('Consultar conversaciones'),
-    ),
   ];
 }
