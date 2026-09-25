@@ -138,7 +138,8 @@ jobs:
         run: |
           flutter build apk --debug --config-only
           cd android
-          ./gradlew app:testDebugUnitTest -Ptarget-platform=android-arm64
+          # A packaging daemon may retain the now-deleted temporary SDK alias.
+          ./gradlew --no-daemon app:testDebugUnitTest -Ptarget-platform=android-arm64 -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.incremental=false
 
   mls-spike:
     name: MLS spike (M0.5)

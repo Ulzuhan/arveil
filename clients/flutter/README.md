@@ -250,5 +250,9 @@ local Gradle wrapper and SDK properties first, without building an APK:
 ```sh
 flutter build apk --debug --config-only
 cd android
-./gradlew app:testDebugUnitTest -Ptarget-platform=android-arm64
+./gradlew --no-daemon app:testDebugUnitTest -Ptarget-platform=android-arm64 \
+  -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.incremental=false
 ```
+
+The fresh process avoids reusing a Gradle/Kotlin daemon that retains the
+packager's temporary SDK alias after that directory has been removed.
