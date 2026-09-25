@@ -660,3 +660,33 @@ Evidence:
   draft, the shortcuts on macOS and Linux, Enter on macOS, Windows and Android,
   and Tab order.
 - The kit, recovery, pairing and key tests follow the new path to Settings.
+
+## Chat list (September 25, 2026)
+
+The chat list now uses the design system's components.
+
+- **Rows.** Each row has an avatar, the name, a preview of the newest event,
+  the time, unread messages and, when this device sent the newest message,
+  its delivery state (never "read"). The avatar takes the other person's tone
+  or, in a group, the group's. The verified mark shows when everyone else was
+  verified, and "Unverified" when anyone was not. The time is today's hour,
+  "Yesterday" or the date.
+- **Search.** It filters by the conversation's name or anyone's in it,
+  ignoring case and accents, and says when nothing matches. ⌘K (Ctrl+K
+  outside macOS) puts the cursor in it, closing a conversation that covers
+  the list on a phone; Esc clears it.
+- **Header.** The sync line marks with a dot whether the server was reached.
+  Below come the notices: an identity kit that is missing or out of date,
+  with "Save kit" and "Later"; the warning after a recovery; and being
+  offline or refused by the server.
+- **Empty.** Without conversations the list explains how to start and offers
+  "New conversation"; on desktop, the pane with no open conversation uses
+  the empty state as well.
+- `ArveilColors.of` falls back to the default tokens for the current
+  brightness when a widget is shown outside Arveil's theme, as in an isolated
+  test.
+
+Evidence: `test/chat_list_test.dart` covers rows (avatar, verification,
+delivery and unread), times, accent-insensitive search and clearing it, ⌘K
+and Esc on macOS and Windows, the empty state and its action, the kit
+reminder, and the list at 200 % text on a phone.

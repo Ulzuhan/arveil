@@ -32,7 +32,7 @@
   "enrollSubmit": "Create identity and join",
   "enrollPair": "Link with my other device",
   "enrollRestore": "Restore from a kit",
-  "kitReminderNever": "Save your identity kit. Without a kit or another linked device, losing this device means losing your identity.",
+  "kitReminderNever": "Without a kit or another linked device, losing this device means losing your identity.",
   "kitReminderStale": "Your devices changed after you saved the kit. Save a new one so that a recovery knows about them.",
   "kitSave": "Save kit",
   "later": "Later",
@@ -327,5 +327,15 @@
   "deliveryNone": "Saved only on this device: no recipients available",
   "deliveryWaiting": "Waiting to send",
   "deliveryAcceptedShort": "Accepted by the server",
-  "safetyNumberLabel": "Safety number: {groups}"
+  "safetyNumberLabel": "Safety number: {groups}",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "chatSearchHint": "Search chats",
+  "chatSearchClear": "Clear the search",
+  "chatSearchNone": "No chat matches “{query}”",
+  "kitReminderTitle": "Save your identity kit",
+  "kitReminderStaleTitle": "Update your identity kit",
+  "recoveryWarningTitle": "Check the revocations",
+  "offlineTitle": "Offline",
+  "syncRefusedTitle": "Sync refused"
 }

@@ -9,53 +9,13 @@ import '../l10n/l10n.dart';
 import 'conversation_controller.dart';
 import 'attachment_card.dart';
 import 'attachment_files.dart';
+import 'chat_list.dart';
 import 'contacts_page.dart';
-import 'design/layout.dart';
+import 'conversation_text.dart';
+import 'design/design.dart';
 import 'rust/api/profile.dart';
 
-String shortId(String id) => id.length <= 12 ? id : id.substring(0, 12);
-
-/// Whether more than one other identity writes in a conversation, so
-/// messages need their author named.
-bool isGroup(ConversationView row) =>
-    row.peers.where((p) => !p.own).map((p) => p.identityId).toSet().length > 1;
-
-/// What a device-change notice says: who changed which devices. Counts
-/// only; Rust never names the devices.
-String noticeText(String? who, NoticeView notice) {
-  final s = currentStrings;
-  final added = notice.added > 0 ? s.noticeAdded(notice.added) : null;
-  final removed = notice.removed > 0 ? s.noticeRemoved(notice.removed) : null;
-  final change = added != null && removed != null
-      ? s.noticeBoth(added, removed)
-      : added ?? removed ?? '';
-  return s.noticeSentence(who ?? s.noticeSomeone, change);
-}
-
-/// One line about a conversation's newest event, for its row in the list.
-String rowPreview(ConversationView row, LastEventView last) {
-  if (last.notice case final notice?) {
-    return noticeText(last.senderLabel, notice);
-  }
-  final text = last.preview.isNotEmpty
-      ? last.preview
-      : last.attachmentName != null
-      ? currentStrings.previewAttachment(last.attachmentName!)
-      : currentStrings.conversationEvent;
-  if (last.own) return currentStrings.previewOwn(text);
-  final label = last.senderLabel;
-  return isGroup(row) && label != null ? '$label: $text' : text;
-}
-
-String conversationTitle(ConversationView row) {
-  final people = <String, String>{
-    for (final p in row.peers)
-      if (!p.own) p.identityId: p.label,
-  };
-  return people.isEmpty
-      ? currentStrings.conversationFallback(shortId(row.groupId))
-      : people.values.join(', ');
-}
+export 'conversation_text.dart';
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({
@@ -88,6 +48,8 @@ class ConversationsPage extends StatefulWidget {
 class ConversationsPageState extends State<ConversationsPage>
     with WidgetsBindingObserver {
   final _draft = TextEditingController();
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'chat search');
   final Map<String, String> _drafts = {};
   bool _fileDialog = false;
   ConversationController get chat => widget.controller;
@@ -108,6 +70,8 @@ class ConversationsPageState extends State<ConversationsPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _draft.dispose();
+    _search.dispose();
+    _searchFocus.dispose();
     chat.dispose();
     super.dispose();
   }
@@ -245,6 +209,19 @@ class ConversationsPageState extends State<ConversationsPage>
         ? (step > 0 ? 0 : rows.length - 1)
         : (at + step).clamp(0, rows.length - 1);
     if (next != at) await _select(rows[next].groupId);
+  }
+
+  /// Puts the cursor in the chat search, closing a conversation that
+  /// covers the list on a phone.
+  void focusSearch() {
+    final covered =
+        !(widget.twoPane ?? WindowSize.of(context).twoPane) &&
+        chat.selected != null;
+    if (!covered) return _searchFocus.requestFocus();
+    unawaited(_select(null));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _searchFocus.requestFocus(),
+    );
   }
 
   /// Closes the open conversation, keeping its draft.
@@ -398,29 +375,28 @@ class ConversationsPageState extends State<ConversationsPage>
               children: [
                 if (chat.syncing)
                   LinearProgressIndicator(semanticsLabel: context.l10n.syncing),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
-                  child: Text(
-                    syncStatusText(
-                      chat.syncState,
-                      chat.lastSynced,
-                      DateTime.now(),
-                    ),
-                    key: const Key('sync-status'),
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
-                if (chat.networkError case final message?) _banner(message),
                 if (chat.error case final message?)
-                  _banner(message, error: true),
-                if (chat.notice case final message?) _banner(message),
-                if (wide || !selected) ...widget.notices,
+                  _banner(
+                    StatusBanner(
+                      title: message,
+                      icon: Icons.error_outline,
+                      tone: BannerTone.error,
+                    ),
+                  ),
+                if (chat.notice case final message?)
+                  _banner(
+                    StatusBanner(
+                      title: message,
+                      icon: Icons.info_outline,
+                      tone: BannerTone.info,
+                    ),
+                  ),
                 Expanded(
                   child: wide
                       ? Row(
                           children: [
                             SizedBox(
-                              width: 320,
+                              width: 340,
                               child: FocusTraversalGroup(child: _list()),
                             ),
                             const VerticalDivider(width: 1),
@@ -428,10 +404,9 @@ class ConversationsPageState extends State<ConversationsPage>
                               child: FocusTraversalGroup(
                                 child: selected
                                     ? _history()
-                                    : Center(
-                                        child: Text(
-                                          context.l10n.chooseConversation,
-                                        ),
+                                    : EmptyState(
+                                        icon: Icons.forum_outlined,
+                                        title: context.l10n.chooseConversation,
                                       ),
                               ),
                             ),
@@ -449,89 +424,29 @@ class ConversationsPageState extends State<ConversationsPage>
     },
   );
 
-  Widget _banner(String message, {bool error = false}) => Semantics(
-    liveRegion: true,
-    child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: error
-          ? Theme.of(context).colorScheme.errorContainer
-          : Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Text(message, style: Theme.of(context).textTheme.bodySmall),
-    ),
-  );
+  Widget _banner(Widget banner) =>
+      Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 0), child: banner);
 
-  Widget _list() => chat.conversations.isEmpty
-      ? ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            const Icon(Icons.forum_outlined, size: 40),
-            const SizedBox(height: 16),
-            Text(context.l10n.conversationsEmpty),
-            const SizedBox(height: 12),
-            Text(context.l10n.conversationsEmptyHelp),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: chat.creating ? null : _create,
-              child: Text(context.l10n.newConversation),
-            ),
-          ],
-        )
-      : ListView.builder(
-          // Rows carry their own 16 dp; medium windows get more room.
-          padding: EdgeInsets.symmetric(
-            horizontal: WindowSize.of(context).margin - 16,
-          ),
-          itemCount: chat.conversations.length,
-          itemBuilder: (context, index) {
-            final row = chat.conversations[index];
-            return ListTile(
-              key: Key('conversation-${row.groupId}'),
-              selected: chat.selected == row.groupId,
-              leading: const Icon(Icons.forum_outlined),
-              title: Text(
-                conversationTitle(row),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                switch (row.lastEvent) {
-                  final last? => rowPreview(row, last),
-                  null => context.l10n.conversationCounts(
-                    row.peerDevices,
-                    row.eventCount,
-                  ),
-                },
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (row.lastActivity > 0)
-                    Text(
-                      recordedTime(row.lastActivity),
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                  if (row.unread > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Semantics(
-                        label: context.l10n.unreadMessages(row.unread),
-                        excludeSemantics: true,
-                        child: Badge.count(
-                          key: Key('unread-${row.groupId}'),
-                          count: row.unread,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              onTap: () => _select(row.groupId),
-            );
-          },
-        );
+  Widget _list() => ChatList(
+    chat: chat,
+    search: _search,
+    searchFocus: _searchFocus,
+    onOpen: _select,
+    onNew: chat.creating ? null : _create,
+    notices: [
+      ...widget.notices,
+      if (chat.networkError case final message?)
+        StatusBanner(
+          title: chat.syncState == SyncState.refused
+              ? context.l10n.syncRefusedTitle
+              : context.l10n.offlineTitle,
+          body: message,
+          icon: chat.syncState == SyncState.refused
+              ? Icons.sync_problem
+              : Icons.cloud_off_outlined,
+        ),
+    ],
+  );
 
   /// Whether more than one other person writes here, so received messages
   /// need their author named.
@@ -810,18 +725,6 @@ class MessageBubble extends StatelessWidget {
       ),
     );
   }
-}
-
-/// When this device recorded an event, in local time: the hour for today,
-/// the date and hour otherwise. It is when the event arrived or was written
-/// here, never a claim about when its sender wrote it.
-String recordedTime(int seconds, {DateTime? now}) {
-  final at = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
-  final today = now ?? DateTime.now();
-  final hour = clockTime(at);
-  final sameDay =
-      at.year == today.year && at.month == today.month && at.day == today.day;
-  return sameDay ? hour : '${numericDate(currentStrings, at)} $hour';
 }
 
 class NewConversationPage extends StatefulWidget {

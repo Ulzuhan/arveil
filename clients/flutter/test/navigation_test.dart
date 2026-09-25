@@ -1,5 +1,6 @@
 import 'package:arveil/main.dart';
 import 'package:arveil/src/conversations_page.dart';
+import 'package:arveil/src/design/design.dart';
 import 'package:arveil/src/profile_session.dart';
 import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/foundation.dart';
@@ -39,13 +40,18 @@ class HomeProfile extends ChatProfile {
 }
 
 /// Opens a ready profile in a window of [size] logical pixels.
-Future<HomeProfile> openHome(WidgetTester tester, Size size) async {
+Future<HomeProfile> openHome(
+  WidgetTester tester,
+  Size size, {
+  HomeProfile? profile,
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  final profile = HomeProfile();
-  final session = ProfileSession(opener: () async => profile);
+  profile ??= HomeProfile();
+  final opened = profile;
+  final session = ProfileSession(opener: () async => opened);
   addTearDown(session.dispose);
   await tester.pumpWidget(ArveilApp(session: session));
   await tester.tap(find.text('Abrir perfil'));
@@ -237,7 +243,7 @@ void main() {
       if (context.findAncestorWidgetOfExactType<NavigationRail>() != null) {
         return 'rail';
       }
-      final tile = context.findAncestorWidgetOfExactType<ListTile>();
+      final tile = context.findAncestorWidgetOfExactType<ConversationTile>();
       if (tile?.key case ValueKey<String>(
         :final value,
       ) when value.startsWith('conversation-')) {

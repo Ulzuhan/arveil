@@ -293,7 +293,7 @@ abstract class AppLocalizations {
   /// No description provided for @kitReminderNever.
   ///
   /// In es, this message translates to:
-  /// **'Guarda tu kit de identidad. Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.'**
+  /// **'Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.'**
   String get kitReminderNever;
 
   /// No description provided for @kitReminderStale.
@@ -2065,6 +2065,66 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Número de seguridad: {groups}'**
   String safetyNumberLabel(String groups);
+
+  /// No description provided for @today.
+  ///
+  /// In es, this message translates to:
+  /// **'Hoy'**
+  String get today;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In es, this message translates to:
+  /// **'Ayer'**
+  String get yesterday;
+
+  /// No description provided for @chatSearchHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar chats'**
+  String get chatSearchHint;
+
+  /// No description provided for @chatSearchClear.
+  ///
+  /// In es, this message translates to:
+  /// **'Borrar la búsqueda'**
+  String get chatSearchClear;
+
+  /// No description provided for @chatSearchNone.
+  ///
+  /// In es, this message translates to:
+  /// **'Ningún chat coincide con «{query}»'**
+  String chatSearchNone(String query);
+
+  /// No description provided for @kitReminderTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Guarda tu kit de identidad'**
+  String get kitReminderTitle;
+
+  /// No description provided for @kitReminderStaleTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualiza tu kit de identidad'**
+  String get kitReminderStaleTitle;
+
+  /// No description provided for @recoveryWarningTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Comprueba las revocaciones'**
+  String get recoveryWarningTitle;
+
+  /// No description provided for @offlineTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin conexión'**
+  String get offlineTitle;
+
+  /// No description provided for @syncRefusedTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Sincronización rechazada'**
+  String get syncRefusedTitle;
 }
 
 class _AppLocalizationsDelegate

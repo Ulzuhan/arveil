@@ -9,7 +9,7 @@ import 'attachment_files.dart';
 import 'contacts_page.dart';
 import 'conversation_controller.dart';
 import 'conversations_page.dart';
-import 'design/layout.dart';
+import 'design/design.dart';
 import 'kit_files.dart';
 import 'profile_session.dart';
 import 'settings_page.dart';
@@ -22,6 +22,10 @@ class NewConversationIntent extends Intent {
 
 class OpenSettingsIntent extends Intent {
   const OpenSettingsIntent();
+}
+
+class SearchChatsIntent extends Intent {
+  const SearchChatsIntent();
 }
 
 /// The previous (-1) or next (1) conversation in the list.
@@ -39,6 +43,7 @@ Map<ShortcutActivator, Intent> homeShortcuts(TargetPlatform platform) {
       SingleActivator(key, meta: apple, control: !apple);
   return {
     primary(LogicalKeyboardKey.keyN): const NewConversationIntent(),
+    primary(LogicalKeyboardKey.keyK): const SearchChatsIntent(),
     primary(LogicalKeyboardKey.comma): const OpenSettingsIntent(),
     const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):
         const AdjacentConversationIntent(-1),
@@ -116,60 +121,46 @@ class _HomeShellState extends State<HomeShell> {
     });
   }
 
-  /// Why the administration device should save a kit now, or nothing.
-  String? _kitReminder(AppLocalizations l10n) {
+  /// Why the administration device should save a kit now, or nothing:
+  /// a title and what it means.
+  (String, String)? _kitReminder(AppLocalizations l10n) {
     final setup = widget.session.setup;
     if (setup == null ||
         !setup.administrator ||
         widget.session.kitReminderDismissed) {
       return null;
     }
-    if (setup.kitSavedAt == null) return l10n.kitReminderNever;
-    if (setup.kitStale) return l10n.kitReminderStale;
+    if (setup.kitSavedAt == null) {
+      return (l10n.kitReminderTitle, l10n.kitReminderNever);
+    }
+    if (setup.kitStale) {
+      return (l10n.kitReminderStaleTitle, l10n.kitReminderStale);
+    }
     return null;
   }
 
   List<Widget> _notices(BuildContext context) => [
-    if (_kitReminder(context.l10n) case final message?)
-      Card(
+    if (_kitReminder(context.l10n) case (final title, final body))
+      StatusBanner(
         key: const Key('kit-reminder'),
-        margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-        color: Theme.of(context).colorScheme.tertiaryContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(message),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilledButton(
-                    onPressed: _saveKit,
-                    child: Text(context.l10n.kitSave),
-                  ),
-                  TextButton(
-                    onPressed: () => setState(
-                      () => widget.session.kitReminderDismissed = true,
-                    ),
-                    child: Text(context.l10n.later),
-                  ),
-                ],
-              ),
-            ],
+        title: title,
+        body: body,
+        icon: Icons.key_outlined,
+        actions: [
+          FilledButton(onPressed: _saveKit, child: Text(context.l10n.kitSave)),
+          TextButton(
+            onPressed: () =>
+                setState(() => widget.session.kitReminderDismissed = true),
+            child: Text(context.l10n.later),
           ),
-        ),
+        ],
       ),
     if (widget.session.setup?.recoveryWarning ?? false)
-      Card(
-        margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-        color: Theme.of(context).colorScheme.errorContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(context.l10n.recoveryRollbackWarning),
-        ),
+      StatusBanner(
+        title: context.l10n.recoveryWarningTitle,
+        body: context.l10n.recoveryRollbackWarning,
+        icon: Icons.gpp_maybe_outlined,
+        tone: BannerTone.error,
       ),
   ];
 
@@ -230,6 +221,9 @@ class _HomeShellState extends State<HomeShell> {
         actions: {
           NewConversationIntent: CallbackAction<NewConversationIntent>(
             onInvoke: (_) => _inChats((page) => page.newConversation()),
+          ),
+          SearchChatsIntent: CallbackAction<SearchChatsIntent>(
+            onInvoke: (_) => _inChats((page) => page.focusSearch()),
           ),
           OpenSettingsIntent: CallbackAction<OpenSettingsIntent>(
             onInvoke: (_) => _go(HomeDestination.settings),

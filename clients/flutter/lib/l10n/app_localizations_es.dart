@@ -115,7 +115,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kitReminderNever =>
-      'Guarda tu kit de identidad. Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.';
+      'Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.';
 
   @override
   String get kitReminderStale =>
@@ -1248,4 +1248,36 @@ class AppLocalizationsEs extends AppLocalizations {
   String safetyNumberLabel(String groups) {
     return 'Número de seguridad: $groups';
   }
+
+  @override
+  String get today => 'Hoy';
+
+  @override
+  String get yesterday => 'Ayer';
+
+  @override
+  String get chatSearchHint => 'Buscar chats';
+
+  @override
+  String get chatSearchClear => 'Borrar la búsqueda';
+
+  @override
+  String chatSearchNone(String query) {
+    return 'Ningún chat coincide con «$query»';
+  }
+
+  @override
+  String get kitReminderTitle => 'Guarda tu kit de identidad';
+
+  @override
+  String get kitReminderStaleTitle => 'Actualiza tu kit de identidad';
+
+  @override
+  String get recoveryWarningTitle => 'Comprueba las revocaciones';
+
+  @override
+  String get offlineTitle => 'Sin conexión';
+
+  @override
+  String get syncRefusedTitle => 'Sincronización rechazada';
 }
