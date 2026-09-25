@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import 'attachment_files.dart';
 import 'rust/api/profile.dart';
 
 /// Ephemeral projections only; Rust owns messages, outbox and MLS state.
@@ -33,6 +34,8 @@ class ConversationController extends ChangeNotifier {
   int _historyRead = 0;
   Timer? _timer;
   Timer? _debounce;
+  Timer? _transferPoll;
+  final Set<String> activeTransfers = {};
   StreamSubscription<ProgressView>? _watch;
   BigInt? _watchGeneration;
 
@@ -254,6 +257,64 @@ class ConversationController extends ChangeNotifier {
     }
   }
 
+  Future<bool> queueAttachment(String group, PickedAttachment file) async {
+    if (_disposed || file.bytes.length > maximumAttachmentBytes) return false;
+    try {
+      final id = await profile.queueAttachment(
+        groupId: group,
+        name: file.name,
+        bytes: file.bytes,
+      );
+      unawaited(refresh());
+      unawaited(resumeAttachment(group, id));
+      return true;
+    } catch (_) {
+      error =
+          'No se confirmó el guardado del archivo. Consulta el historial antes de volver a adjuntarlo.';
+      _changed();
+      return false;
+    }
+  }
+
+  Future<void> resumeAttachment(String group, String id) async {
+    if (_disposed || !activeTransfers.add(id)) return;
+    error = null;
+    _transferPoll ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_active == true) unawaited(refresh());
+    });
+    _changed();
+    try {
+      await profile.resumeAttachment(
+        bootstrap: bootstrap,
+        groupId: group,
+        eventId: id,
+      );
+    } catch (_) {
+      error =
+          'La operación no se completó. Consulta el estado del archivo: reanuda su transferencia o sincroniza si ya está preparado.';
+    } finally {
+      activeTransfers.remove(id);
+      if (activeTransfers.isEmpty) {
+        _transferPoll?.cancel();
+        _transferPoll = null;
+      }
+      await refresh();
+      _changed();
+    }
+  }
+
+  Future<void> cancelAttachment(String group, String id) async {
+    try {
+      await profile.cancelAttachment(groupId: group, eventId: id);
+      error = null;
+    } catch (_) {
+      error =
+          'No se pudo cancelar. La transferencia puede haber terminado; consulta su estado.';
+    }
+    await refresh();
+    _changed();
+  }
+
   Future<String?> create(List<String> routes, List<String> numbers) => _create(
     () => profile.createConversation(
       bootstrap: bootstrap,
@@ -298,6 +359,7 @@ class ConversationController extends ChangeNotifier {
     _disposed = true;
     _timer?.cancel();
     _debounce?.cancel();
+    _transferPoll?.cancel();
     if (_watchGeneration case final generation?) {
       profile.stopWatching(generation: generation);
     }

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'conversation_controller.dart';
+import 'attachment_card.dart';
+import 'attachment_files.dart';
 import 'contacts_page.dart';
 import 'rust/api/profile.dart';
 
@@ -21,8 +23,13 @@ String conversationTitle(ConversationView row) {
 }
 
 class ConversationsPage extends StatefulWidget {
-  const ConversationsPage({super.key, required this.controller});
+  const ConversationsPage({
+    super.key,
+    required this.controller,
+    this.attachmentFiles = const AttachmentFiles(),
+  });
   final ConversationController controller;
+  final AttachmentFiles attachmentFiles;
 
   @override
   State<ConversationsPage> createState() => _ConversationsPageState();
@@ -32,6 +39,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     with WidgetsBindingObserver {
   final _draft = TextEditingController();
   final Map<String, String> _drafts = {};
+  bool _fileDialog = false;
   ConversationController get chat => widget.controller;
 
   @override
@@ -66,6 +74,109 @@ class _ConversationsPageState extends State<ConversationsPage>
     if (await chat.send(text) && mounted) {
       if (chat.selected == group && _draft.text == text) _draft.clear();
       if (_drafts[group] == text) _drafts.remove(group);
+    }
+  }
+
+  Future<void> _attach() async {
+    final group = chat.selected;
+    if (_fileDialog || group == null) return;
+    setState(() => _fileDialog = true);
+    try {
+      final file = await widget.attachmentFiles.open();
+      if (!mounted || file == null || chat.selected != group) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Enviar archivo'),
+          content: SingleChildScrollView(
+            child: Text(
+              '${file.name}\n${attachmentSize(BigInt.from(file.bytes.length))}\n\nConversación: $_selectedTitle\n\nSe guardará una copia privada cifrada para completar o reanudar el envío.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              key: const Key('confirm-attachment'),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Enviar archivo'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && mounted && chat.selected == group) {
+        await chat.queueAttachment(group, file);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo leer el archivo. Elige uno accesible que ocupe menos de 25 MiB.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _fileDialog = false);
+    }
+  }
+
+  Future<void> _export(String group, HistoryEventView event) async {
+    if (_fileDialog) return;
+    setState(() => _fileDialog = true);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Guardar copia fuera de Arveil'),
+          content: const Text(
+            'La copia quedará fuera del perfil cifrado de Arveil y puede entrar en las copias de seguridad del destino. Elige dónde guardarla.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              key: const Key('confirm-export'),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Elegir destino'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final bytes = await chat.profile.exportAttachment(
+        groupId: group,
+        eventId: event.eventId,
+      );
+      if (!mounted) return;
+      final saved = await widget.attachmentFiles.save(
+        event.attachment!.name,
+        bytes,
+      );
+      if (saved && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Copia guardada en el destino elegido.'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo guardar la copia. El archivo privado se conserva; vuelve a intentarlo.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _fileDialog = false);
     }
   }
 
@@ -355,9 +466,18 @@ class _ConversationsPageState extends State<ConversationsPage>
                       ),
                     );
                   }
-                  return MessageBubble(
-                    event: chat.events[chat.events.length - 1 - index],
-                  );
+                  final event = chat.events[chat.events.length - 1 - index];
+                  final group = chat.selected!;
+                  if (event.attachment != null) {
+                    return AttachmentCard(
+                      event: event,
+                      active: chat.activeTransfers.contains(event.eventId),
+                      resume: () => chat.resumeAttachment(group, event.eventId),
+                      cancel: () => chat.cancelAttachment(group, event.eventId),
+                      export: () => _export(group, event),
+                    );
+                  }
+                  return MessageBubble(event: event);
                 },
               ),
       ),
@@ -366,6 +486,12 @@ class _ConversationsPageState extends State<ConversationsPage>
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            IconButton(
+              key: const Key('attach-file'),
+              tooltip: 'Adjuntar archivo',
+              onPressed: _fileDialog ? null : _attach,
+              icon: const Icon(Icons.attach_file),
+            ),
             Expanded(
               child: TextField(
                 key: const Key('message-draft'),

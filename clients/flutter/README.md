@@ -27,6 +27,10 @@ The [phase 3b plan](../../docs/PHASE3B.md) keeps physical-device acceptance open
 Keychain works with ad-hoc signing; physical Android and fresh downloaded
 macOS acceptance remain open.
 
+Source `0.1.0+7` adds explicit attachments: native file selectors, encrypted
+private storage, per-message upload/download progress, resume/cancel and
+explicit export. See the [installation guide](../../docs/INSTALLATION.md).
+
 ## Installing versus developing
 
 See the [installation entry point](../../docs/INSTALLATION.md)
@@ -198,3 +202,57 @@ Use your disposable emulator's serial. The debug CargoKit build also compiles
 x86/x86-64 bridge libraries, so a clean run can take several minutes even on
 an ARM64 emulator. These test-tool settings do not alter release signing or
 add configuration to the app.
+
+
+## Attachment acceptance
+
+Use the same isolated helper with the attachment scenario:
+
+```sh
+python3 scripts/test_client_conversations.py --device macos --scenario attachments
+# Or the disposable Android emulator:
+python3 scripts/test_client_conversations.py --device emulator-5554 --scenario attachments
+```
+
+This exercises GUI confirmation, offline queue/reopen, send, explicit download,
+export confirmation, identical filenames, cancellation and repeated sync with
+the native bridge and encrypted storage. The two peers run inside the same
+test app. File selectors are replaced by in-memory fixture adapters: this does
+not verify the native open/save/cancel dialogs or write exported test files.
+The Rust suite separately injects lost upload acknowledgements, interrupted
+downloads and cancellation during a network request. Private fixture cleanup
+and the Android tool settings above apply to both scenarios.
+
+### Android native attachment dialogs (interactive)
+
+On a disposable emulator, put `arveil-picker-fixture.txt` in Downloads with
+exactly `Arveil attachment picker acceptance.` followed by a newline. Set
+`ANDROID_DEVICE` to that emulator's serial. From this directory, run:
+
+```sh
+flutter drive --no-dds -d "$ANDROID_DEVICE" \
+  --driver test_driver/integration_test.dart \
+  --target integration_test/attachment_picker_test.dart \
+  --dart-define=ARVEIL_TEST_NATIVE_PICKER=true
+```
+
+Select that fixture, cancel the second open dialog, cancel the first save
+dialog, then save `arveil-picker-export.txt` in Downloads. The test checks the
+selected bytes, cancellation results and absence of a `file_picker` plaintext
+cache. Compare the exported bytes with the fixture separately, then delete
+those two disposable files. No identity profile, relay or kit is used.
+The test is skipped unless explicitly enabled. Keep raw diagnostics private
+and run `flutter clean` afterwards; never distribute this integration build.
+
+The bounded Android reader also has JVM regressions, run in CI. Generate the
+local Gradle wrapper and SDK properties first, without building an APK:
+
+```sh
+flutter build apk --debug --config-only
+cd android
+./gradlew --no-daemon app:testDebugUnitTest -Ptarget-platform=android-arm64 \
+  -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.incremental=false
+```
+
+The fresh process avoids reusing a Gradle/Kotlin daemon that retains the
+packager's temporary SDK alias after that directory has been removed.

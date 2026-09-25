@@ -132,6 +132,14 @@ jobs:
         run: |
           python3 scripts/package_clients.py init-android-key
           python3 scripts/package_clients.py build android --signing-config .local/signing/android-signing.json
+      # Packaging builds in an isolated source tree; prepare this checkout too.
+      - name: Android attachment input tests
+        working-directory: clients/flutter
+        run: |
+          flutter build apk --debug --config-only
+          cd android
+          # A packaging daemon may retain the now-deleted temporary SDK alias.
+          ./gradlew --no-daemon app:testDebugUnitTest -Ptarget-platform=android-arm64 -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.incremental=false
 
   mls-spike:
     name: MLS spike (M0.5)

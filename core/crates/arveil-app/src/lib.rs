@@ -14,7 +14,9 @@
 //! Set `ARVEIL_CRASH_AFTER_COMMIT=1` to make `chat send` exit right after
 //! the send unit committed and before anything is published (I-04).
 
+mod attachment_ui;
 pub mod carrier;
+pub use attachment_ui::{AttachmentState, AttachmentSummary, MAX_ATTACHMENT_BYTES};
 mod contacts;
 mod conversation_ui;
 pub use contacts::{ContactDevice, ContactSummary, SavedRecipient};
@@ -114,11 +116,33 @@ pub enum Operation {
     QueryPeers,
     QueryHistoryPage,
     QueryArchived,
+    QueueAttachment,
+    ResumeAttachment,
+    CancelAttachment,
+    ExportAttachment,
 }
 
 /// A command accepted by the serial executor for one client profile.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClientCommand {
+    QueueAttachment {
+        group: Vec<u8>,
+        name: String,
+        bytes: Vec<u8>,
+    },
+    ResumeAttachment {
+        bootstrap: String,
+        group: Vec<u8>,
+        event_id: Vec<u8>,
+    },
+    CancelAttachment {
+        group: Vec<u8>,
+        event_id: Vec<u8>,
+    },
+    ExportAttachment {
+        group: Vec<u8>,
+        event_id: Vec<u8>,
+    },
     CreateIdentity,
     Enroll {
         bootstrap: String,
@@ -259,6 +283,10 @@ impl ClientCommand {
             Self::QueryKeyPackageSupply => Operation::QueryKeyPackageSupply,
             Self::CheckKeyPackages => Operation::CheckKeyPackages,
             Self::ReplenishKeyPackages => Operation::ReplenishKeyPackages,
+            Self::QueueAttachment { .. } => Operation::QueueAttachment,
+            Self::ResumeAttachment { .. } => Operation::ResumeAttachment,
+            Self::CancelAttachment { .. } => Operation::CancelAttachment,
+            Self::ExportAttachment { .. } => Operation::ExportAttachment,
             Self::ExportKit => Operation::ExportKit,
             Self::RestoreKit { .. } => Operation::RestoreKit,
             Self::ResumeRecovery => Operation::ResumeRecovery,
@@ -1043,6 +1071,7 @@ pub struct HistoryEvent {
     pub kind: String,
     pub body: Vec<u8>,
     pub delivery_states: Vec<DeliveryState>,
+    pub attachment: Option<AttachmentSummary>,
 }
 
 /// One page of a conversation, newest first. `next` is the cursor for the
@@ -1094,6 +1123,8 @@ pub enum OnboardingOutput {
 /// The typed output produced by a client command.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandOutput {
+    AttachmentQueued(Vec<u8>),
+    AttachmentBytes(Vec<u8>),
     Operation(OperationResult),
     Onboarding {
         value: OnboardingOutput,
@@ -1127,6 +1158,7 @@ pub struct ProfileConfig {
     envelope_ttl: Option<u64>,
     blob_ttl: Option<u64>,
     pairing_timeout: Option<u64>,
+    manual_attachments: bool,
 }
 
 /// The key never reaches a log, an event or a panic message.
@@ -1177,6 +1209,7 @@ impl ProfileConfig {
             envelope_ttl: None,
             blob_ttl: None,
             pairing_timeout: None,
+            manual_attachments: false,
         }
     }
 
@@ -1203,6 +1236,12 @@ impl ProfileConfig {
     /// How long a pairing wait may block before it gives up.
     pub fn with_pairing_timeout(mut self, seconds: u64) -> Self {
         self.pairing_timeout = Some(seconds);
+        self
+    }
+
+    /// GUI files are downloaded only on request and kept in encrypted storage.
+    pub fn with_manual_attachments(mut self) -> Self {
+        self.manual_attachments = true;
         self
     }
 
@@ -1272,6 +1311,7 @@ impl ClientCommand {
             | Self::QueryArchived { .. }
             | Self::QueryOnboarding
             | Self::QueryOwnRoute
+            | Self::ExportAttachment { .. }
             | Self::QueryContacts
             | Self::PreviewRoutes { .. }
             | Self::QueryKeyPackageSupply
@@ -1541,6 +1581,7 @@ struct Exclusions {
     enrollment: Rc<tokio::sync::Mutex<()>>,
     link_completion: Rc<tokio::sync::Mutex<()>>,
     pairing_wait: Rc<tokio::sync::Mutex<()>>,
+    attachment: Rc<tokio::sync::Mutex<()>>,
 }
 
 fn command_future(
@@ -1571,6 +1612,10 @@ fn command_future(
                 // A second sync waits cooperatively here: network waits from the
                 // active sync still yield to queries and non-sync commands.
                 let _single_flight = exclusions.sync.lock().await;
+                Box::pin(run_command(&config, command)).await
+            } else if matches!(&command, ClientCommand::ResumeAttachment { .. }) {
+                // Only one transfer runs; queries and cancellation still interleave.
+                let _single_transfer = exclusions.attachment.lock().await;
                 Box::pin(run_command(&config, command)).await
             } else if matches!(
                 &command,
@@ -2146,6 +2191,46 @@ impl Application {
         })
     }
 
+    pub fn queue_attachment(
+        &self,
+        group: Vec<u8>,
+        name: String,
+        bytes: Vec<u8>,
+    ) -> Result<Vec<u8>, ApplicationError> {
+        match self.execute(ClientCommand::QueueAttachment { group, name, bytes })? {
+            CommandOutput::AttachmentQueued(id) => Ok(id),
+            _ => unreachable!("attachment output"),
+        }
+    }
+    pub fn resume_attachment(
+        &self,
+        bootstrap: String,
+        group: Vec<u8>,
+        event_id: Vec<u8>,
+    ) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::ResumeAttachment {
+            bootstrap,
+            group,
+            event_id,
+        })
+    }
+    pub fn cancel_attachment(
+        &self,
+        group: Vec<u8>,
+        event_id: Vec<u8>,
+    ) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::CancelAttachment { group, event_id })
+    }
+    pub fn export_attachment(
+        &self,
+        group: Vec<u8>,
+        event_id: Vec<u8>,
+    ) -> Result<Vec<u8>, ApplicationError> {
+        match self.execute(ClientCommand::ExportAttachment { group, event_id })? {
+            CommandOutput::AttachmentBytes(bytes) => Ok(bytes),
+            _ => unreachable!("attachment output"),
+        }
+    }
     pub fn send_file(
         &self,
         bootstrap: &str,
@@ -2293,6 +2378,33 @@ async fn run_command(
     command: ClientCommand,
 ) -> Result<CommandOutput, ApplicationError> {
     match command {
+        ClientCommand::QueueAttachment { group, name, bytes } => {
+            attachment_ui::queue(config, &group, &name, &bytes)
+                .map(CommandOutput::AttachmentQueued)
+                .map_err(|e| application_error(Operation::QueueAttachment, e))
+        }
+        ClientCommand::ResumeAttachment {
+            bootstrap,
+            group,
+            event_id,
+        } => Box::pin(run_operation(
+            Operation::ResumeAttachment,
+            attachment_ui::resume(config, &bootstrap, &group, &event_id),
+        ))
+        .await
+        .map(CommandOutput::Operation),
+        ClientCommand::CancelAttachment { group, event_id } => {
+            run_operation(Operation::CancelAttachment, async {
+                attachment_ui::cancel(config, &group, &event_id)
+            })
+            .await
+            .map(CommandOutput::Operation)
+        }
+        ClientCommand::ExportAttachment { group, event_id } => {
+            attachment_ui::export(config, &group, &event_id)
+                .map(CommandOutput::AttachmentBytes)
+                .map_err(|e| application_error(Operation::ExportAttachment, e))
+        }
         ClientCommand::QueryContacts => contacts::list(config)
             .map(CommandOutput::Contacts)
             .map_err(|e| application_error(Operation::QueryContacts, e)),
@@ -2693,6 +2805,7 @@ fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSumm
                 .into_iter()
                 .next()
                 .map(|(cursor, event_id, kind, body)| HistoryEvent {
+                    attachment: None,
                     cursor,
                     event_id,
                     kind,
@@ -2799,7 +2912,7 @@ fn history_page(
 
     let mut events = Vec::with_capacity(rows.len());
     for (cursor, event_id, kind, body) in rows.into_iter().rev() {
-        let delivery_states = if kind == "sent" {
+        let delivery_states = if kind == "sent" || kind == "sent-file" {
             session
                 .delivery
                 .states_for_event(&event_id, now)
@@ -2811,6 +2924,7 @@ fn history_page(
             Vec::new()
         };
         events.push(HistoryEvent {
+            attachment: attachment_ui::summary(&session.delivery, &event_id, &kind, &body)?,
             cursor,
             event_id,
             kind,
@@ -2850,6 +2964,7 @@ fn archived_conversations(
                 .map_err(storage_error("archived"))?
                 .into_iter()
                 .map(|(kind, body)| HistoryEvent {
+                    attachment: None,
                     cursor: 0,
                     event_id: Vec::new(),
                     kind: format!("archived-{kind}"),
@@ -3994,7 +4109,9 @@ async fn sync(config: &ProfileConfig, bootstrap: &str) -> Result<(), CliError> {
         advanced_to = item.seq;
     }
     let next = advanced_to;
-    download_pending(&s, &mut conn, config).await?;
+    if !config.manual_attachments {
+        download_pending(&s, &mut conn, config).await?;
+    }
     let unacked = s
         .delivery
         .unacked(&m.mailbox_id)
@@ -4502,6 +4619,10 @@ async fn download_pending(
     let dir = config.dir().join("downloads");
     std::fs::create_dir_all(&dir).map_err(filesystem_error("downloads dir"))?;
     for (event_id, _, body) in pending {
+        // Managed GUI transfers keep their data and state in encrypted storage.
+        if s.delivery.attachment(&event_id)?.is_some() {
+            continue;
+        }
         let d = match FileDescriptor::decode(&body) {
             Ok(d) => d,
             Err(e) => {
@@ -5488,6 +5609,16 @@ mod tests {
             assert!(sync.join().unwrap().is_err());
         }
         // Slots come back when the work finishes, not when a caller leaves.
+        // The reply wakes the caller just before the executor releases its
+        // admission. Joining callers does not join that executor future.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while app.executor.active.syncs.load(Ordering::Acquire) != 0 {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "sync slots never freed"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
         assert_eq!(app.executor.active.syncs.load(Ordering::Acquire), 0);
         app.close();
         std::fs::remove_dir_all(profile).ok();

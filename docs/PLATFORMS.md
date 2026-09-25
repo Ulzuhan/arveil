@@ -278,3 +278,37 @@ physical-phone or fresh-download acceptance for build 6. The existing
 file-dialog acceptance remains open. Reproduction commands and local
 Android test-tool workarounds are in the
 [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+
+
+## Attachment GUI acceptance (September 25, 2026)
+
+Source client `0.1.0+7` passed these native checks:
+
+| Platform and scenario | Client implementation revision |
+|---|---|
+| macOS 26.6.2 Apple silicon, Xcode 27.0, login Keychain: attachment transfers | `234406740fac64852d7583f77530305638987100` |
+| Android 15/API 35 ARM64 emulator, Keystore: attachment transfers | `b943594b222c09a5c495b5c6c8fac3ab0f5303f7` |
+| Same Android emulator: real attachment open/save dialogs | `6771842c387854f06abbebf5fe443e81c2403911` |
+
+The transfer scenario uses two encrypted profiles, native Rust/SQLCipher and
+an isolated local relay. It verifies confirmation, offline queueing, encrypted
+reopen, upload resume without another event, opt-in download, verified export,
+two files with the same name, cancellation and repeated sync without duplicates.
+Selectors in that scenario are in-memory substitutes; it writes no plaintext
+attachment download. The Android harness waits for transfer completion instead
+of assuming that a settled frame means native I/O has finished.
+
+The separate interactive Android test uses the real OS dialogs and a synthetic
+37-byte document, without any profile, relay or identity kit. Selection,
+cancel-open, cancel-save and explicit save passed. The exported file matched
+the source bytes exactly, and no `file_picker` plaintext cache was created.
+The two disposable documents were removed afterwards. Android reads the source
+URI directly with a bounded stream; three JVM regressions cover empty/exact-limit
+input, oversized unknown-length input and cancellation before reading.
+
+All 43 Flutter tests and 99 Rust tests passed (one Rust test remains ignored),
+as did static analysis and privacy checks. Reproduction commands are in the
+[Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+This is source acceptance: macOS native attachment dialogs, physical Android,
+fresh-download acceptance and attachments between separate release apps remain
+unverified. The `0.1.0+5` candidate packages and release draft are unchanged.

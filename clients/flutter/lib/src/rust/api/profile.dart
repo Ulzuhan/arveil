@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -47,6 +47,11 @@ abstract class Profile implements RustOpaqueInterface {
   });
 
   Future<void> beginPairing({required String bootstrap});
+
+  Future<void> cancelAttachment({
+    required String groupId,
+    required String eventId,
+  });
 
   /// False means finalization already committed: resume it, never claim it was undone.
   Future<bool> cancelPairing({required List<int> sessionId});
@@ -88,6 +93,11 @@ abstract class Profile implements RustOpaqueInterface {
   /// The invitation is hashed by Rust and is never persisted by Flutter.
   Future<void> enroll({required String bootstrap, required String invite});
 
+  Future<Uint8List> exportAttachment({
+    required String groupId,
+    required String eventId,
+  });
+
   Future<KitView> exportKit();
 
   /// One page of a conversation, newest page first: pass the previous
@@ -106,6 +116,12 @@ abstract class Profile implements RustOpaqueInterface {
 
   Future<List<RoutePreviewView>> previewRoutes({required List<String> routes});
 
+  Future<String> queueAttachment({
+    required String groupId,
+    required String name,
+    required List<int> bytes,
+  });
+
   Future<ChatMutationView> queueMessage({
     required String groupId,
     required String text,
@@ -122,6 +138,12 @@ abstract class Profile implements RustOpaqueInterface {
     required String bootstrap,
     required List<int> encrypted,
     required String secret,
+  });
+
+  Future<void> resumeAttachment({
+    required String bootstrap,
+    required String groupId,
+    required String eventId,
   });
 
   Future<void> resumeRecovery();
@@ -156,6 +178,58 @@ abstract class Profile implements RustOpaqueInterface {
   /// profile closes or when `stop_watching` is called; a listener should
   /// stop before cancelling, since the stream is closed from this side.
   Stream<ProgressView> watch({required BigInt generation});
+}
+
+/// One event of a conversation, as a screen shows it.
+enum AttachmentStateView {
+  pending,
+  transferring,
+  ready,
+  sent,
+  cancelled,
+  unavailable,
+  expired,
+  invalid,
+  legacy,
+}
+
+class AttachmentView {
+  final String name;
+  final BigInt size;
+  final bool outgoing;
+  final AttachmentStateView state;
+  final BigInt transferred;
+  final BigInt total;
+
+  const AttachmentView({
+    required this.name,
+    required this.size,
+    required this.outgoing,
+    required this.state,
+    required this.transferred,
+    required this.total,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      size.hashCode ^
+      outgoing.hashCode ^
+      state.hashCode ^
+      transferred.hashCode ^
+      total.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AttachmentView &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          size == other.size &&
+          outgoing == other.outgoing &&
+          state == other.state &&
+          transferred == other.transferred &&
+          total == other.total;
 }
 
 /// A committed mutation may carry a later failure. Retry publication with sync,
@@ -316,7 +390,6 @@ class ConversationView {
           eventCount == other.eventCount;
 }
 
-/// One event of a conversation, as a screen shows it.
 class HistoryEventView {
   /// Position in the conversation. Pass the oldest one back as `before`
   /// to read the page before this one.
@@ -324,6 +397,7 @@ class HistoryEventView {
   final String eventId;
   final String kind;
   final Uint8List body;
+  final AttachmentView? attachment;
 
   /// Delivery state per mailbox, for events this device sent.
   final List<String> delivery;
@@ -333,6 +407,7 @@ class HistoryEventView {
     required this.eventId,
     required this.kind,
     required this.body,
+    this.attachment,
     required this.delivery,
   });
 
@@ -342,6 +417,7 @@ class HistoryEventView {
       eventId.hashCode ^
       kind.hashCode ^
       body.hashCode ^
+      attachment.hashCode ^
       delivery.hashCode;
 
   @override
@@ -353,6 +429,7 @@ class HistoryEventView {
           eventId == other.eventId &&
           kind == other.kind &&
           body == other.body &&
+          attachment == other.attachment &&
           delivery == other.delivery;
 }
 

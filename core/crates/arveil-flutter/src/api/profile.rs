@@ -258,6 +258,29 @@ pub enum ProgressKindView {
 
 /// One event of a conversation, as a screen shows it.
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AttachmentStateView {
+    Pending,
+    Transferring,
+    Ready,
+    Sent,
+    Cancelled,
+    Unavailable,
+    Expired,
+    Invalid,
+    Legacy,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttachmentView {
+    pub name: String,
+    pub size: u64,
+    pub outgoing: bool,
+    pub state: AttachmentStateView,
+    pub transferred: u64,
+    pub total: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HistoryEventView {
     /// Position in the conversation. Pass the oldest one back as `before`
     /// to read the page before this one.
@@ -265,6 +288,7 @@ pub struct HistoryEventView {
     pub event_id: String,
     pub kind: String,
     pub body: Vec<u8>,
+    pub attachment: Option<AttachmentView>,
     /// Delivery state per mailbox, for events this device sent.
     pub delivery: Vec<String>,
 }
@@ -308,7 +332,9 @@ pub fn generate_profile_key() -> Result<String, ProfileError> {
 /// Open a profile encrypted at rest. The key comes from the platform store,
 /// never from this crate and never from the environment.
 pub fn open_profile(dir: String, key: String) -> Result<Profile, ProfileError> {
-    let config = ProfileConfig::encrypted(dir, key).map_err(profile_error)?;
+    let config = ProfileConfig::encrypted(dir, key)
+        .map_err(profile_error)?
+        .with_manual_attachments();
     Ok(Profile {
         inner: Application::open(config).map_err(profile_error)?,
         watching: Arc::new(AtomicU64::new(0)),
@@ -319,7 +345,8 @@ pub fn open_profile(dir: String, key: String) -> Result<Profile, ProfileError> {
 /// any business calling this, and it has to say so.
 pub fn open_unencrypted_profile(dir: String) -> Result<Profile, ProfileError> {
     Ok(Profile {
-        inner: Application::open(ProfileConfig::unencrypted(dir)).map_err(profile_error)?,
+        inner: Application::open(ProfileConfig::unencrypted(dir).with_manual_attachments())
+            .map_err(profile_error)?,
         watching: Arc::new(AtomicU64::new(0)),
     })
 }
@@ -599,6 +626,51 @@ impl Profile {
         )
     }
 
+    pub fn queue_attachment(
+        &self,
+        group_id: String,
+        name: String,
+        bytes: Vec<u8>,
+    ) -> Result<String, CommandError> {
+        self.inner
+            .queue_attachment(decode_hex(&group_id)?, name, bytes)
+            .map(|id| hex(&id))
+            .map_err(command_error)
+    }
+
+    pub fn resume_attachment(
+        &self,
+        bootstrap: String,
+        group_id: String,
+        event_id: String,
+    ) -> Result<(), CommandError> {
+        self.inner
+            .resume_attachment(bootstrap, decode_hex(&group_id)?, decode_hex(&event_id)?)
+            .map(|_| ())
+            .map_err(command_error)
+    }
+
+    pub fn cancel_attachment(
+        &self,
+        group_id: String,
+        event_id: String,
+    ) -> Result<(), CommandError> {
+        self.inner
+            .cancel_attachment(decode_hex(&group_id)?, decode_hex(&event_id)?)
+            .map(|_| ())
+            .map_err(command_error)
+    }
+
+    pub fn export_attachment(
+        &self,
+        group_id: String,
+        event_id: String,
+    ) -> Result<Vec<u8>, CommandError> {
+        self.inner
+            .export_attachment(decode_hex(&group_id)?, decode_hex(&event_id)?)
+            .map_err(command_error)
+    }
+
     pub fn queue_message(
         &self,
         group_id: String,
@@ -800,11 +872,36 @@ fn progress_view(event: ProgressEvent) -> ProgressView {
 }
 
 fn event_view(event: HistoryEvent) -> HistoryEventView {
+    // File descriptors contain capabilities and keys; legacy file events may
+    // contain host paths. Only text-message bodies cross this UI boundary.
+    let body = if matches!(event.kind.as_str(), "sent" | "received") {
+        event.body
+    } else {
+        Vec::new()
+    };
     HistoryEventView {
         cursor: event.cursor,
         event_id: hex(&event.event_id),
         kind: event.kind,
-        body: event.body,
+        body,
+        attachment: event.attachment.map(|a| AttachmentView {
+            name: a.name,
+            size: a.size,
+            outgoing: a.outgoing,
+            transferred: a.transferred,
+            total: a.total,
+            state: match a.state {
+                arveil_app::AttachmentState::Pending => AttachmentStateView::Pending,
+                arveil_app::AttachmentState::Transferring => AttachmentStateView::Transferring,
+                arveil_app::AttachmentState::Ready => AttachmentStateView::Ready,
+                arveil_app::AttachmentState::Sent => AttachmentStateView::Sent,
+                arveil_app::AttachmentState::Cancelled => AttachmentStateView::Cancelled,
+                arveil_app::AttachmentState::Unavailable => AttachmentStateView::Unavailable,
+                arveil_app::AttachmentState::Expired => AttachmentStateView::Expired,
+                arveil_app::AttachmentState::Invalid => AttachmentStateView::Invalid,
+                arveil_app::AttachmentState::Legacy => AttachmentStateView::Legacy,
+            },
+        }),
         delivery: event
             .delivery_states
             .into_iter()
@@ -981,6 +1078,10 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::RemoveDevice => "remove-device",
         Operation::SendMessage => "send-message",
         Operation::SendFile => "send-file",
+        Operation::QueueAttachment => "queue-attachment",
+        Operation::ResumeAttachment => "resume-attachment",
+        Operation::CancelAttachment => "cancel-attachment",
+        Operation::ExportAttachment => "export-attachment",
         Operation::Sync => "sync",
         Operation::RevokeDevice => "revoke-device",
         Operation::QueryConversations => "query-conversations",
@@ -994,6 +1095,35 @@ fn operation_name(operation: Operation) -> &'static str {
 mod tests {
     use super::*;
     use arveil_app::{OperationResult, StateChange};
+
+    #[test]
+    fn file_event_bodies_never_expose_descriptors_or_host_paths_to_dart() {
+        for kind in [
+            "file-pending",
+            "sent-file",
+            "received-file",
+            "file-unavailable",
+        ] {
+            let view = event_view(HistoryEvent {
+                cursor: 1,
+                event_id: vec![1; 16],
+                kind: kind.into(),
+                body: b"private descriptor or local path".to_vec(),
+                delivery_states: vec![],
+                attachment: None,
+            });
+            assert!(view.body.is_empty());
+        }
+        let view = event_view(HistoryEvent {
+            cursor: 1,
+            event_id: vec![1; 16],
+            kind: "received".into(),
+            body: b"message".to_vec(),
+            delivery_states: vec![],
+            attachment: None,
+        });
+        assert_eq!(view.body, b"message");
+    }
 
     #[test]
     fn a_post_commit_failure_returns_the_saved_group_instead_of_inviting_a_duplicate() {

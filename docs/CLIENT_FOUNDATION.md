@@ -41,7 +41,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 
 ## Remaining limits
 
-- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing and identity-kit interfaces are implemented. Conversation creation, paginated history, text sending and sync are implemented. Attachment and device-management interfaces remain pending. Experimental ZIP/APK packaging exists; physical-mobile acceptance remains pending.
+- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing and identity-kit interfaces are implemented. Conversation creation, paginated history, text sending and sync are implemented. Contacts and explicit attachments are implemented; device-management interfaces remain pending. Experimental ZIP/APK packaging exists; physical-mobile acceptance remains pending.
 - Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key storage is tested on an Android emulator and the ad-hoc macOS build with its login Keychain. Physical-phone and fresh-download acceptance remain pending.
 - The Rust bridge runs blocking calls off the UI thread and exposes incremental progress streams. General operation cancellation and full platform lifecycle acceptance remain pending.
 - File/membership events need further correlation identifiers. Progress is a projection: changes it does not model reach a caller only in the durable result.
@@ -143,7 +143,7 @@ seconds and on resume, with manual retry. This is foreground polling, not push
 or background delivery. A refresh reconciles the displayed history in pages of 50, retaining the older
 pages the user opened and stopping if the screen or selection changes. Presentation distinguishes local storage,
 relay acceptance, unavailable delivery and receipt on this device. It does not
-claim human reading, authenticated author labels or message timestamps. Contact names are implemented in M3b.4 below; attachment actions and group
+claim human reading, authenticated author labels or message timestamps. Contact names and attachment actions are implemented in M3b.4 below; group
 membership controls remain later work.
 
 Regression coverage includes symmetric route comparison and all-or-nothing
@@ -183,4 +183,56 @@ Existing contacts learned from conversations can be named and verified; if no
 route was saved, import one before selecting that contact. Alias and verification
 survive profile reopen. The conversation acceptance helper now exercises this
 flow before its duplex-text, offline/reconnect and pagination checks. M3b.4
-still owes attachments, device controls and history archive UI.
+still owes device controls and history archive UI.
+
+
+## Explicit attachments (second M3b.4 slice)
+
+Source client `0.1.0+7` adds file selection, confirmation, durable local queueing,
+explicit download, progress, cancellation and explicit export. The limit is
+25 MiB including the 16-byte encryption tag (26,214,384 source bytes). Files
+are identified by conversation and `event_id`, so equal names never select or
+overwrite another private copy. Native selectors grant access to the chosen
+source/destination; their paths and URIs are not persisted with the message.
+Android reads the selected document directly through the
+[Storage Access Framework](https://developer.android.com/training/data-storage/shared/documents-files)
+into bounded memory on a worker thread, without the general picker's plaintext
+cache or persistent URI grants. The stream limit applies even when a provider
+omits or misreports the size. macOS streams the selected file. A provider may
+keep its own source copy; Arveil does not control that provider's storage.
+
+The GUI opts into manual attachment handling. Sync receives descriptors but
+never downloads their blobs automatically. Descriptors, transfer state and
+ciphertext chunks live in additive tables on the same SQLCipher connection
+as events and MLS. No decrypted download is written by the GUI. Export checks
+size, hash and AEAD authentication before returning bytes to the platform
+save dialog. File-event bodies are stripped at the Flutter bridge: neither
+capabilities, file keys nor legacy filesystem paths reach history widgets.
+
+Queueing allocates one durable event before network work. Upload resumes
+from the relay's offset; a lost acknowledgement or application reopen does
+not allocate another message. The final MLS send unit commits the existing
+event, outbox and transfer completion together. Retry after that point only
+synchronizes the stored message. Downloads persist contiguous ciphertext
+chunks and verify the complete file before exposing export. One transfer
+runs at a time per profile; history and cancellation remain responsive
+while it waits for the network. Interrupted files require an explicit resume.
+
+Cancellation is checked after each network wait and prevents later local
+writes or message commitment. It discards unfinished local data. It cannot
+recall a committed message or immediately erase bytes already uploaded to
+the relay; remote cleanup follows its existing expiry policy. A cancelled
+incoming download can be requested again. A 410 is shown as expired; a 403
+is unavailable/access denied, not proof of expiry. Neither action renews
+capabilities. Legacy CLI-downloaded files remain outside this managed flow.
+
+Rust regressions cover lost upload acknowledgements, interrupted download
+and encrypted reopen, cancellation during an outstanding request, duplicate
+names, conversation scoping, invalid sizes/authentication, expiry and denial.
+Widget tests cover confirmations, retrying the existing event, save-dialog
+cancellation, changing conversation during file selection and phone layouts.
+The native attachment scenario uses two profiles and a disposable relay,
+with in-memory selector substitutes. Actual OS picker dialogs, a physical
+phone and cross-app release-package acceptance remain separate checks.
+Android JVM tests additionally cover exact-limit and empty input, oversized
+unknown-length streams and cancellation before reading.
