@@ -33,6 +33,8 @@ Rust owns durable state and domain decisions. Dart holds presentation projection
 
 Complete M3b.0 before designing every screen. Windows/Linux and iOS may change order according to usage. macOS/Android priority does not establish compatibility elsewhere.
 
+The visual system, personalization and the redesign plan that precedes M3b.5's external-user test are in [Client design](CLIENT_DESIGN.md). That plan covers M3b.5's accessibility, desktop navigation, mobile layouts and secret-free diagnostics, and adds the data the UI needs from the Rust contract. It does not replace this document's acceptance criteria.
+
 ## Installation and distribution contract
 
 Simple installation is a product requirement. Keep the README's
