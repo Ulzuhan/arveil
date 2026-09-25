@@ -833,3 +833,27 @@ light and dark.
 
 Evidence: `test/accessibility_test.dart`. The manual TalkBack and VoiceOver
 review is still pending in the [platform matrix](PLATFORMS.md).
+
+## Secret-free diagnostics (September 25, 2026)
+
+Settings → App → Diagnostics shows a report before it leaves the device and
+saves it through the native dialog (`arveil-diagnostic.txt`).
+
+- **What it holds:** the build's version and commit (injected by
+  `scripts/package_clients.py`; "local build" otherwise), system, language,
+  whether the profile is open, the enrollment stage, whether the device
+  manages or is linked, the number of conversations and active devices, the
+  kit's state, the level of keys for new groups, and the codes of the latest
+  failures.
+- **Failure codes:** kind and operation ("transport:sync"), never the message
+  or reason, which may carry paths, addresses or remote text. An operation
+  that is not a plain name is recorded as "unknown". The last twenty are kept,
+  in memory only.
+- **What it never holds:** keys, identifiers, routes, addresses, invitations,
+  names or content. The report uses English keys, like the rest of the
+  technical diagnostics.
+
+Evidence: `test/diagnostics_test.dart` builds a profile whose identifiers,
+names, messages, route, safety number, server, system paths and error
+reasons are marked as secrets, and checks that none appears in the report
+while the counts do; and that the screen saves exactly what it shows.

@@ -189,9 +189,12 @@ def package(args):
         staged.mkdir()
         # Debug symbols stay private; the signed packages contain only runtime files.
         symbols = scratch / "symbols"
+        # The app's diagnostic report names the version and commit it was built from.
         command = [args.flutter, "build", "macos" if args.platform == "macos" else "apk",
                    "--release", "--target=lib/main.dart", f"--build-name={name}",
-                   f"--build-number={number}", f"--split-debug-info={symbols}"]
+                   f"--build-number={number}", f"--split-debug-info={symbols}",
+                   f"--dart-define=ARVEIL_VERSION={name}+{number}",
+                   f"--dart-define=ARVEIL_REVISION={revision}"]
         if args.platform == "android":
             command += ["--target-platform=android-arm64"]
         log = private / f"{args.platform}-{number}.log"

@@ -50,7 +50,9 @@ The version and default build number come from `clients/flutter/pubspec.yaml`.
 For the next update, increment its build number, or pass `--build-number 3`.
 Keep Android build numbers increasing. `--flutter` accepts an explicit Flutter
 executable. `--allow-dirty` is only for unpublished local candidates and is
-recorded in their metadata.
+recorded in their metadata. The version and commit also reach the app
+(`--dart-define`), which shows them in its diagnostic report; a local build
+without the script says "local build".
 
 Android release builds refuse missing signing configuration. CI can supply
 `ARVEIL_ANDROID_KEYSTORE`, `ARVEIL_ANDROID_STORE_PASSWORD`,

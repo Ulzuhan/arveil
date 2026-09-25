@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización), B1 (tokens, tema y componentes), B2 (español e inglés), C1 (navegación adaptativa y atajos), C2 (lista de chats), C3 (conversación), C4 (bienvenida y alta), C5 (contactos, verificación y ajustes), D1 (apariencia) y la parte automatizada de E1 (accesibilidad); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización), B1 (tokens, tema y componentes), B2 (español e inglés), C1 (navegación adaptativa y atajos), C2 (lista de chats), C3 (conversación), C4 (bienvenida y alta), C5 (contactos, verificación y ajustes), D1 (apariencia), la parte automatizada de E1 (accesibilidad) y E2 (diagnóstico); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -250,6 +250,8 @@ La parte automatizada está implementada (véase la [base del cliente](CLIENT_FO
 - Ajustes → Diagnóstico exporta un informe mediante el diálogo nativo con versión, compilación, commit, sistema, idioma, estado del perfil (identidad presente, número de conversaciones y de dispositivos) y códigos de los últimos errores tipados.
 - No incluye claves, identificadores, rutas, direcciones, invitaciones, nombres ni contenido.
 - Una prueba busca en el informe los secretos de un perfil de prueba.
+
+Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
 **E3 — Documentación y capturas (S).** Al final. Actualizar [instalación](INSTALLATION.md), [base del cliente](CLIENT_FOUNDATION.md) y [plataformas](PLATFORMS.md) en ambos idiomas, con capturas generadas desde datos de prueba y sin secretos.
 

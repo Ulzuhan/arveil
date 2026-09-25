@@ -1492,4 +1492,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String bubbleSaidAt(String who, String time, String text) {
     return '$who, $time: $text';
   }
+
+  @override
+  String get diagnosticsTitle => 'Diagnostics';
+
+  @override
+  String get diagnosticsSummary => 'A report without secrets to ask for help';
+
+  @override
+  String get diagnosticsExplanation =>
+      'If something fails, this report helps to understand why. Review it before sharing it: it is exactly what will be saved.';
+
+  @override
+  String get diagnosticsPrivacyTitle => 'Nothing that identifies you';
+
+  @override
+  String get diagnosticsPrivacyBody =>
+      'It includes no keys, identifiers, routes, addresses, invitations, names or the content of your conversations.';
+
+  @override
+  String get diagnosticsSave => 'Save report';
+
+  @override
+  String get diagnosticsSaveDialog => 'Save diagnostic report';
+
+  @override
+  String get diagnosticsSaved => 'Report saved';
+
+  @override
+  String get diagnosticsSaveFailed => 'The report could not be saved';
 }

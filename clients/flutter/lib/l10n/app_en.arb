@@ -400,5 +400,14 @@
   "sampleOwn": "Perfect! I will bring dessert.",
   "you": "You",
   "bubbleSaid": "{who}: {text}",
-  "bubbleSaidAt": "{who}, {time}: {text}"
+  "bubbleSaidAt": "{who}, {time}: {text}",
+  "diagnosticsTitle": "Diagnostics",
+  "diagnosticsSummary": "A report without secrets to ask for help",
+  "diagnosticsExplanation": "If something fails, this report helps to understand why. Review it before sharing it: it is exactly what will be saved.",
+  "diagnosticsPrivacyTitle": "Nothing that identifies you",
+  "diagnosticsPrivacyBody": "It includes no keys, identifiers, routes, addresses, invitations, names or the content of your conversations.",
+  "diagnosticsSave": "Save report",
+  "diagnosticsSaveDialog": "Save diagnostic report",
+  "diagnosticsSaved": "Report saved",
+  "diagnosticsSaveFailed": "The report could not be saved"
 }

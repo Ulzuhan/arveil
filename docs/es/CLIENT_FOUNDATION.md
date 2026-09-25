@@ -897,3 +897,28 @@ oscuro.
 
 Evidencia: `test/accessibility_test.dart`. La revisión manual con TalkBack y
 VoiceOver sigue pendiente en la [matriz de plataformas](PLATFORMS.md).
+
+## Diagnóstico sin secretos (25 de septiembre de 2026)
+
+Ajustes → Aplicación → Diagnóstico muestra un informe antes de que salga del
+dispositivo y lo guarda con el diálogo nativo (`arveil-diagnostic.txt`).
+
+- **Qué contiene:** versión y commit de la compilación (inyectados por
+  `scripts/package_clients.py`; «local build» si no), sistema, idioma, si el
+  perfil está abierto, la fase del alta, si el dispositivo administra o está
+  vinculado, el número de conversaciones y de dispositivos activos, el estado
+  del kit, el nivel de claves para grupos nuevos y los códigos de los últimos
+  fallos.
+- **Códigos de fallo:** tipo y operación («transport:sync»), nunca el mensaje
+  ni el motivo, que pueden llevar rutas, direcciones o texto remoto. Una
+  operación que no sea un nombre simple se registra como «unknown». Se guardan
+  los veinte últimos, solo en memoria.
+- **Qué no contiene:** claves, identificadores, rutas, direcciones,
+  invitaciones, nombres ni contenido. El informe se escribe con claves en
+  inglés, como el resto del diagnóstico técnico.
+
+Evidencia: `test/diagnostics_test.dart` crea un perfil con identificadores,
+nombres, mensajes, ruta, número de seguridad, servidor, rutas del sistema y
+motivos de error marcados como secretos, y comprueba que ninguno aparece en el
+informe y que los recuentos sí; también que la pantalla guarda exactamente lo
+que muestra.
