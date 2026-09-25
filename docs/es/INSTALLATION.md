@@ -91,6 +91,10 @@ Para instalar estos paquetes no necesitas Flutter, Rust, Xcode ni Android Studio
 versión y vuelve a abrirla. Conserva el perfil y la entrada del llavero. No uses
 un limpiador de aplicaciones para borrar sus datos. Si no puede acceder a la
 clave, conserva el perfil y resuelve el permiso del llavero antes de continuar.
+No sustituyas la app por una versión más antigua: las builds nuevas pueden
+cambiar el perfil de formas que una anterior no sabe leer. Las builds
+posteriores a `0.1.0+11` detectan un perfil de una versión más reciente y se
+niegan a abrirlo sin modificarlo; las anteriores no lo comprueban.
 
 El llavero clásico no ofrece la misma vinculación al dispositivo que Data
 Protection en iOS. Arveil no lo sincroniza, pero las copias o migraciones

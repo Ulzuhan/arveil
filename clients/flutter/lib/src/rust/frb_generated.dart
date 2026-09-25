@@ -2491,11 +2491,17 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       case 4:
         return ProfileError_InUse(path: dco_decode_String(raw[1]));
       case 5:
+        return ProfileError_TooNew(
+          path: dco_decode_String(raw[1]),
+          found: dco_decode_u_32(raw[2]),
+          supported: dco_decode_u_32(raw[3]),
+        );
+      case 6:
         return ProfileError_Unusable(
           path: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 6:
+      case 7:
         return ProfileError_Io(
           path: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
@@ -3423,9 +3429,18 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
         return ProfileError_InUse(path: var_path);
       case 5:
         var var_path = sse_decode_String(deserializer);
+        var var_found = sse_decode_u_32(deserializer);
+        var var_supported = sse_decode_u_32(deserializer);
+        return ProfileError_TooNew(
+          path: var_path,
+          found: var_found,
+          supported: var_supported,
+        );
+      case 6:
+        var var_path = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
         return ProfileError_Unusable(path: var_path, reason: var_reason);
-      case 6:
+      case 7:
         var var_path = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
         return ProfileError_Io(path: var_path, reason: var_reason);
@@ -4313,12 +4328,21 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       case ProfileError_InUse(path: final path):
         sse_encode_i_32(4, serializer);
         sse_encode_String(path, serializer);
-      case ProfileError_Unusable(path: final path, reason: final reason):
+      case ProfileError_TooNew(
+        path: final path,
+        found: final found,
+        supported: final supported,
+      ):
         sse_encode_i_32(5, serializer);
+        sse_encode_String(path, serializer);
+        sse_encode_u_32(found, serializer);
+        sse_encode_u_32(supported, serializer);
+      case ProfileError_Unusable(path: final path, reason: final reason):
+        sse_encode_i_32(6, serializer);
         sse_encode_String(path, serializer);
         sse_encode_String(reason, serializer);
       case ProfileError_Io(path: final path, reason: final reason):
-        sse_encode_i_32(6, serializer);
+        sse_encode_i_32(7, serializer);
         sse_encode_String(path, serializer);
         sse_encode_String(reason, serializer);
     }

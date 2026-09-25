@@ -180,4 +180,18 @@ void main() {
       expect(describeFailure(failure), isNot(contains('/private-fixture')));
     }
   });
+
+  test('a profile from a newer app asks for an update, not for its key', () {
+    final message = describeFailure(
+      const ProfileError.tooNew(
+        path: '/private-fixture',
+        found: 2,
+        supported: 1,
+      ),
+    );
+    expect(message, contains('Actualiza la app'));
+    expect(message, contains('no se ha modificado'));
+    expect(message, isNot(contains('clave')));
+    expect(message, isNot(contains('/private-fixture')));
+  });
 }

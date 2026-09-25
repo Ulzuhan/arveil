@@ -865,7 +865,7 @@ extension ProfileErrorPatterns on ProfileError {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ProfileError_BadKey value)?  badKey,TResult Function( ProfileError_NoRandomness value)?  noRandomness,TResult Function( ProfileError_AlreadyOpen value)?  alreadyOpen,TResult Function( ProfileError_Closing value)?  closing,TResult Function( ProfileError_InUse value)?  inUse,TResult Function( ProfileError_Unusable value)?  unusable,TResult Function( ProfileError_Io value)?  io,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ProfileError_BadKey value)?  badKey,TResult Function( ProfileError_NoRandomness value)?  noRandomness,TResult Function( ProfileError_AlreadyOpen value)?  alreadyOpen,TResult Function( ProfileError_Closing value)?  closing,TResult Function( ProfileError_InUse value)?  inUse,TResult Function( ProfileError_TooNew value)?  tooNew,TResult Function( ProfileError_Unusable value)?  unusable,TResult Function( ProfileError_Io value)?  io,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case ProfileError_BadKey() when badKey != null:
@@ -873,7 +873,8 @@ return badKey(_that);case ProfileError_NoRandomness() when noRandomness != null:
 return noRandomness(_that);case ProfileError_AlreadyOpen() when alreadyOpen != null:
 return alreadyOpen(_that);case ProfileError_Closing() when closing != null:
 return closing(_that);case ProfileError_InUse() when inUse != null:
-return inUse(_that);case ProfileError_Unusable() when unusable != null:
+return inUse(_that);case ProfileError_TooNew() when tooNew != null:
+return tooNew(_that);case ProfileError_Unusable() when unusable != null:
 return unusable(_that);case ProfileError_Io() when io != null:
 return io(_that);case _:
   return orElse();
@@ -893,7 +894,7 @@ return io(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ProfileError_BadKey value)  badKey,required TResult Function( ProfileError_NoRandomness value)  noRandomness,required TResult Function( ProfileError_AlreadyOpen value)  alreadyOpen,required TResult Function( ProfileError_Closing value)  closing,required TResult Function( ProfileError_InUse value)  inUse,required TResult Function( ProfileError_Unusable value)  unusable,required TResult Function( ProfileError_Io value)  io,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ProfileError_BadKey value)  badKey,required TResult Function( ProfileError_NoRandomness value)  noRandomness,required TResult Function( ProfileError_AlreadyOpen value)  alreadyOpen,required TResult Function( ProfileError_Closing value)  closing,required TResult Function( ProfileError_InUse value)  inUse,required TResult Function( ProfileError_TooNew value)  tooNew,required TResult Function( ProfileError_Unusable value)  unusable,required TResult Function( ProfileError_Io value)  io,}){
 final _that = this;
 switch (_that) {
 case ProfileError_BadKey():
@@ -901,7 +902,8 @@ return badKey(_that);case ProfileError_NoRandomness():
 return noRandomness(_that);case ProfileError_AlreadyOpen():
 return alreadyOpen(_that);case ProfileError_Closing():
 return closing(_that);case ProfileError_InUse():
-return inUse(_that);case ProfileError_Unusable():
+return inUse(_that);case ProfileError_TooNew():
+return tooNew(_that);case ProfileError_Unusable():
 return unusable(_that);case ProfileError_Io():
 return io(_that);}
 }
@@ -917,7 +919,7 @@ return io(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ProfileError_BadKey value)?  badKey,TResult? Function( ProfileError_NoRandomness value)?  noRandomness,TResult? Function( ProfileError_AlreadyOpen value)?  alreadyOpen,TResult? Function( ProfileError_Closing value)?  closing,TResult? Function( ProfileError_InUse value)?  inUse,TResult? Function( ProfileError_Unusable value)?  unusable,TResult? Function( ProfileError_Io value)?  io,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ProfileError_BadKey value)?  badKey,TResult? Function( ProfileError_NoRandomness value)?  noRandomness,TResult? Function( ProfileError_AlreadyOpen value)?  alreadyOpen,TResult? Function( ProfileError_Closing value)?  closing,TResult? Function( ProfileError_InUse value)?  inUse,TResult? Function( ProfileError_TooNew value)?  tooNew,TResult? Function( ProfileError_Unusable value)?  unusable,TResult? Function( ProfileError_Io value)?  io,}){
 final _that = this;
 switch (_that) {
 case ProfileError_BadKey() when badKey != null:
@@ -925,7 +927,8 @@ return badKey(_that);case ProfileError_NoRandomness() when noRandomness != null:
 return noRandomness(_that);case ProfileError_AlreadyOpen() when alreadyOpen != null:
 return alreadyOpen(_that);case ProfileError_Closing() when closing != null:
 return closing(_that);case ProfileError_InUse() when inUse != null:
-return inUse(_that);case ProfileError_Unusable() when unusable != null:
+return inUse(_that);case ProfileError_TooNew() when tooNew != null:
+return tooNew(_that);case ProfileError_Unusable() when unusable != null:
 return unusable(_that);case ProfileError_Io() when io != null:
 return io(_that);case _:
   return null;
@@ -944,14 +947,15 @@ return io(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  badKey,TResult Function()?  noRandomness,TResult Function( String path)?  alreadyOpen,TResult Function( String path)?  closing,TResult Function( String path)?  inUse,TResult Function( String path,  String reason)?  unusable,TResult Function( String path,  String reason)?  io,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  badKey,TResult Function()?  noRandomness,TResult Function( String path)?  alreadyOpen,TResult Function( String path)?  closing,TResult Function( String path)?  inUse,TResult Function( String path,  int found,  int supported)?  tooNew,TResult Function( String path,  String reason)?  unusable,TResult Function( String path,  String reason)?  io,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case ProfileError_BadKey() when badKey != null:
 return badKey();case ProfileError_NoRandomness() when noRandomness != null:
 return noRandomness();case ProfileError_AlreadyOpen() when alreadyOpen != null:
 return alreadyOpen(_that.path);case ProfileError_Closing() when closing != null:
 return closing(_that.path);case ProfileError_InUse() when inUse != null:
-return inUse(_that.path);case ProfileError_Unusable() when unusable != null:
+return inUse(_that.path);case ProfileError_TooNew() when tooNew != null:
+return tooNew(_that.path,_that.found,_that.supported);case ProfileError_Unusable() when unusable != null:
 return unusable(_that.path,_that.reason);case ProfileError_Io() when io != null:
 return io(_that.path,_that.reason);case _:
   return orElse();
@@ -971,14 +975,15 @@ return io(_that.path,_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  badKey,required TResult Function()  noRandomness,required TResult Function( String path)  alreadyOpen,required TResult Function( String path)  closing,required TResult Function( String path)  inUse,required TResult Function( String path,  String reason)  unusable,required TResult Function( String path,  String reason)  io,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  badKey,required TResult Function()  noRandomness,required TResult Function( String path)  alreadyOpen,required TResult Function( String path)  closing,required TResult Function( String path)  inUse,required TResult Function( String path,  int found,  int supported)  tooNew,required TResult Function( String path,  String reason)  unusable,required TResult Function( String path,  String reason)  io,}) {final _that = this;
 switch (_that) {
 case ProfileError_BadKey():
 return badKey();case ProfileError_NoRandomness():
 return noRandomness();case ProfileError_AlreadyOpen():
 return alreadyOpen(_that.path);case ProfileError_Closing():
 return closing(_that.path);case ProfileError_InUse():
-return inUse(_that.path);case ProfileError_Unusable():
+return inUse(_that.path);case ProfileError_TooNew():
+return tooNew(_that.path,_that.found,_that.supported);case ProfileError_Unusable():
 return unusable(_that.path,_that.reason);case ProfileError_Io():
 return io(_that.path,_that.reason);}
 }
@@ -994,14 +999,15 @@ return io(_that.path,_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  badKey,TResult? Function()?  noRandomness,TResult? Function( String path)?  alreadyOpen,TResult? Function( String path)?  closing,TResult? Function( String path)?  inUse,TResult? Function( String path,  String reason)?  unusable,TResult? Function( String path,  String reason)?  io,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  badKey,TResult? Function()?  noRandomness,TResult? Function( String path)?  alreadyOpen,TResult? Function( String path)?  closing,TResult? Function( String path)?  inUse,TResult? Function( String path,  int found,  int supported)?  tooNew,TResult? Function( String path,  String reason)?  unusable,TResult? Function( String path,  String reason)?  io,}) {final _that = this;
 switch (_that) {
 case ProfileError_BadKey() when badKey != null:
 return badKey();case ProfileError_NoRandomness() when noRandomness != null:
 return noRandomness();case ProfileError_AlreadyOpen() when alreadyOpen != null:
 return alreadyOpen(_that.path);case ProfileError_Closing() when closing != null:
 return closing(_that.path);case ProfileError_InUse() when inUse != null:
-return inUse(_that.path);case ProfileError_Unusable() when unusable != null:
+return inUse(_that.path);case ProfileError_TooNew() when tooNew != null:
+return tooNew(_that.path,_that.found,_that.supported);case ProfileError_Unusable() when unusable != null:
 return unusable(_that.path,_that.reason);case ProfileError_Io() when io != null:
 return io(_that.path,_that.reason);case _:
   return null;
@@ -1267,6 +1273,76 @@ class _$ProfileError_InUseCopyWithImpl<$Res>
   return _then(ProfileError_InUse(
 path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProfileError_TooNew extends ProfileError {
+  const ProfileError_TooNew({required this.path, required this.found, required this.supported}): super._();
+  
+
+ final  String path;
+ final  int found;
+ final  int supported;
+
+/// Create a copy of ProfileError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProfileError_TooNewCopyWith<ProfileError_TooNew> get copyWith => _$ProfileError_TooNewCopyWithImpl<ProfileError_TooNew>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileError_TooNew&&(identical(other.path, path) || other.path == path)&&(identical(other.found, found) || other.found == found)&&(identical(other.supported, supported) || other.supported == supported));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,path,found,supported);
+
+@override
+String toString() {
+  return 'ProfileError.tooNew(path: $path, found: $found, supported: $supported)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProfileError_TooNewCopyWith<$Res> implements $ProfileErrorCopyWith<$Res> {
+  factory $ProfileError_TooNewCopyWith(ProfileError_TooNew value, $Res Function(ProfileError_TooNew) _then) = _$ProfileError_TooNewCopyWithImpl;
+@useResult
+$Res call({
+ String path, int found, int supported
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProfileError_TooNewCopyWithImpl<$Res>
+    implements $ProfileError_TooNewCopyWith<$Res> {
+  _$ProfileError_TooNewCopyWithImpl(this._self, this._then);
+
+  final ProfileError_TooNew _self;
+  final $Res Function(ProfileError_TooNew) _then;
+
+/// Create a copy of ProfileError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? path = null,Object? found = null,Object? supported = null,}) {
+  return _then(ProfileError_TooNew(
+path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
+as String,found: null == found ? _self.found : found // ignore: cast_nullable_to_non_nullable
+as int,supported: null == supported ? _self.supported : supported // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

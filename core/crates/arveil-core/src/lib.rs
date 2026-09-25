@@ -19,6 +19,7 @@ pub mod mls;
 pub mod pairing;
 #[cfg(feature = "recovery")]
 pub mod recovery;
+pub mod schema;
 pub mod signed;
 pub mod storage;
 

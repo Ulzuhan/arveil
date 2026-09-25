@@ -817,6 +817,14 @@ sealed class ProfileError with _$ProfileError implements FrbException {
   /// Another process holds the profile.
   const factory ProfileError.inUse({required String path}) = ProfileError_InUse;
 
+  /// A newer version of the app wrote this profile. It was left as it
+  /// was; updating the app opens it.
+  const factory ProfileError.tooNew({
+    required String path,
+    required int found,
+    required int supported,
+  }) = ProfileError_TooNew;
+
   /// The profile exists but did not open: a wrong key looks like this.
   const factory ProfileError.unusable({
     required String path,

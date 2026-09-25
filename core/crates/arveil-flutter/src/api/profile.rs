@@ -196,6 +196,13 @@ pub enum ProfileError {
     Closing { path: String },
     /// Another process holds the profile.
     InUse { path: String },
+    /// A newer version of the app wrote this profile. It was left as it
+    /// was; updating the app opens it.
+    TooNew {
+        path: String,
+        found: u32,
+        supported: u32,
+    },
     /// The profile exists but did not open: a wrong key looks like this.
     Unusable { path: String, reason: String },
     /// The directory itself could not be prepared.
@@ -1143,6 +1150,15 @@ fn profile_error(error: ApplicationOpenError) -> ProfileError {
         ApplicationOpenError::ProfileInUse { ref path } => {
             ProfileError::InUse { path: shown(path) }
         }
+        ApplicationOpenError::ProfileTooNew {
+            ref path,
+            found,
+            supported,
+        } => ProfileError::TooNew {
+            path: shown(path),
+            found,
+            supported,
+        },
         ApplicationOpenError::Unusable {
             ref path,
             ref source,

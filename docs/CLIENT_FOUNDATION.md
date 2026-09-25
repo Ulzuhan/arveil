@@ -328,3 +328,43 @@ disposable source profile, restores its identity under a new platform-held key,
 imports from memory, reopens, checks no resend or automatic rejoin, and exchanges
 text through an explicitly created new conversation. It never exports real user
 data. See [platform evidence](PLATFORMS.md) for completed native runs.
+
+## Profile schema versioning (September 25, 2026)
+
+The profile database records its schema version in `PRAGMA user_version`, and
+`arveil_core::schema` applies ordered migrations when a connection opens.
+Before this, every open reapplied `CREATE TABLE IF NOT EXISTS` statements. That
+adds new tables but cannot change an existing one: the Phase 4 `contacts.name`
+column had been added by editing the table text, so a profile from before it
+lacked the column.
+
+- A profile without a version, as written by every build up to `0.1.0+11`, is
+  version 0. Migration 1 adds any missing baseline table, adds `contacts.name`
+  when absent and compares every table's columns with the baseline. Any other
+  difference is refused as an unsupported development profile, and the
+  rollback leaves its tables and rows unchanged.
+- Each migration commits together with the version it sets. A failure keeps
+  the previous version, and the next open resumes from there.
+- A profile with a newer version is refused before the connection writes
+  anything, including the journal-mode pragma. The application reports
+  `ProfileTooNew`; the GUI asks for an app update and states that the profile
+  was not changed. A wrong key is still reported as before.
+- Builds up to `0.1.0+11` do not read the version. Version 1 changes no existing
+  table beyond that repair, so they still open an adopted profile, but a later
+  migration may not stay compatible with them. Do not install an older app over
+  a newer one; Android already refuses a lower build number.
+- The baseline texts (`MLS_SCHEMA`, `CLIENT_SCHEMA`, `DELIVERY_SCHEMA`) are
+  frozen. A schema change is a new migration at the end of the list, with a
+  test that starts from the previous version.
+
+Evidence: the `schema` tests in `arveil-core` cover new, adopted, repaired,
+unsupported, newer (plain and SQLCipher), negative-version, interrupted and
+resumed, and reopened profiles. `arveil-app` checks that `Application::open`
+refuses a newer profile and releases it, and a Flutter test checks the message.
+A local run used real `main` binaries to create an encrypted and a plain CLI
+profile with a live MLS conversation. The new CLI adopted both and the
+conversation continued without loss. The old CLI still read the adopted
+profile, and a copy marked as version 2 was refused without byte changes.
+Workspace tests, Clippy, the MLS spike and the demo and phase scripts passed.
+Upgrading packaged apps with populated profiles on Android and macOS is still
+an acceptance step of the [client redesign](PHASE3B.md).

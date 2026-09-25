@@ -27,7 +27,9 @@ PRAGMA busy_timeout = 5000;
 PRAGMA foreign_keys = ON;
 ";
 
-const SCHEMA: &str = "
+/// MLS provider tables, part of the version 1 baseline in [`crate::schema`].
+/// Frozen: a change to these tables is a new migration, not an edit here.
+pub(crate) const MLS_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS mls_group_state (
     group_id BLOB PRIMARY KEY,
     data     BLOB NOT NULL
@@ -68,6 +70,12 @@ pub enum StorageError {
         found: &'static str,
         required: &'static str,
     },
+    #[error(
+        "this profile has schema version {found}, newer than the {supported} this build supports; it was not changed"
+    )]
+    SchemaTooNew { found: u32, supported: u32 },
+    #[error("profile table {table} has a shape this build does not support: {detail}")]
+    UnsupportedSchema { table: String, detail: String },
 }
 
 /// Minimum SQLite version carrying the WAL-reset fix required by ADR-004.
@@ -152,10 +160,19 @@ impl SharedConn {
                 required: MIN_SQLITE_VERSION,
             });
         }
+        // A profile from a newer build is refused before the pragmas below,
+        // which can write to the file, and before any migration.
+        let found = crate::schema::schema_version(&conn)?;
+        if found > crate::schema::PROFILE_SCHEMA_VERSION {
+            return Err(StorageError::SchemaTooNew {
+                found,
+                supported: crate::schema::PROFILE_SCHEMA_VERSION,
+            });
+        }
         if durable {
             conn.execute_batch(PRAGMAS)?;
         }
-        conn.execute_batch(SCHEMA)?;
+        crate::schema::migrate(&conn)?;
         Ok(Self(Arc::new(ReentrantMutex::new(conn))))
     }
 
