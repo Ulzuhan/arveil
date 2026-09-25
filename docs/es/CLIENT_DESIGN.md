@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización), B1 (tokens, tema y componentes), B2 (español e inglés), C1 (navegación adaptativa y atajos), C2 (lista de chats), C3 (conversación), C4 (bienvenida y alta), C5 (contactos, verificación y ajustes) y D1 (apariencia); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización), B1 (tokens, tema y componentes), B2 (español e inglés), C1 (navegación adaptativa y atajos), C2 (lista de chats), C3 (conversación), C4 (bienvenida y alta), C5 (contactos, verificación y ajustes), D1 (apariencia) y la parte automatizada de E1 (accesibilidad); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -242,6 +242,8 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 - Orden de foco y reducción de movimiento.
 - Texto al 200 % sin desbordamientos, con pruebas que usan `textScaler` 2,0.
 - Revisión manual con TalkBack en un Android físico y VoiceOver en macOS, registrada en [la matriz de plataformas](PLATFORMS.md).
+
+La parte automatizada está implementada (véase la [base del cliente](CLIENT_FOUNDATION.md)); la revisión manual sigue pendiente.
 
 **E2 — Diagnóstico sin secretos (S).** Depende de C5.
 

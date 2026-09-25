@@ -397,5 +397,8 @@
   "languageTitle": "Language",
   "languageSystem": "System language",
   "sampleReceived": "Shall we meet on Saturday?",
-  "sampleOwn": "Perfect! I will bring dessert."
+  "sampleOwn": "Perfect! I will bring dessert.",
+  "you": "You",
+  "bubbleSaid": "{who}: {text}",
+  "bubbleSaidAt": "{who}, {time}: {text}"
 }

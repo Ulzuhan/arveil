@@ -2485,6 +2485,24 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'¡Perfecto! Llevo el postre.'**
   String get sampleOwn;
+
+  /// No description provided for @you.
+  ///
+  /// In es, this message translates to:
+  /// **'Tú'**
+  String get you;
+
+  /// No description provided for @bubbleSaid.
+  ///
+  /// In es, this message translates to:
+  /// **'{who}: {text}'**
+  String bubbleSaid(String who, String text);
+
+  /// No description provided for @bubbleSaidAt.
+  ///
+  /// In es, this message translates to:
+  /// **'{who}, {time}: {text}'**
+  String bubbleSaidAt(String who, String time, String text);
 }
 
 class _AppLocalizationsDelegate

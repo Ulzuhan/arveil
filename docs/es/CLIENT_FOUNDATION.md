@@ -877,3 +877,23 @@ temas, lectura campo a campo, sustitución atómica y archivo roto, cambios
 inmediatos de tema, acento, tamaño e idioma, y el fondo que no se repinta al
 desplazar) y el golden `test/goldens/wallpapers.png` con dos fondos en claro y
 oscuro.
+
+## Accesibilidad automatizada (25 de septiembre de 2026)
+
+- **Mensajes.** Cada burbuja se lee como una frase: quién, cuándo y qué
+  («Lucía, 18:40: ¿Vienes?»), y en lo enviado desde este dispositivo, su
+  estado («… Aceptado por el servidor»). La acción de pulsación larga abre sus
+  detalles también con el lector de pantalla. Los avatares son decorativos.
+- **Movimiento.** Si el sistema pide reducir el movimiento, las pantallas
+  aparecen sin desplazarse ni escalarse (`MotionAwareTransitions`).
+- **Texto grande.** Con el texto al 200 % las pantallas principales no se
+  desbordan: la etiqueta «Sin verificar» cede cuando falta sitio (`NameLine`),
+  la barra del alta muestra un icono con descripción en lugar de «Cerrar
+  perfil», y el nombre de una fila aprovecha todo el ancho disponible en vez
+  de la mitad.
+- **Objetivos táctiles.** Las pantallas principales de un móvil cumplen las
+  pautas de Flutter de 48 dp y de elementos pulsables con etiqueta; para ello
+  las muestras de acento y el campo del compositor pasan a medir 48 dp.
+
+Evidencia: `test/accessibility_test.dart`. La revisión manual con TalkBack y
+VoiceOver sigue pendiente en la [matriz de plataformas](PLATFORMS.md).

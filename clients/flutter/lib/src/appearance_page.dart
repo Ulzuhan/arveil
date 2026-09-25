@@ -72,8 +72,8 @@ class AppearancePage extends StatelessWidget {
                   ),
                   SectionTitle(l10n.accentTitle),
                   Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       for (final accent in Accent.values)
                         _Swatch(
@@ -238,20 +238,24 @@ class _Swatch extends StatelessWidget {
         key: Key('accent-${accent.name}'),
         onTap: onTap,
         customBorder: const CircleBorder(),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: palette.accent,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: selected ? c.ink : Colors.transparent,
-              width: 3,
+        // A 48 dp target around a 44 dp swatch.
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: palette.accent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? c.ink : Colors.transparent,
+                width: 3,
+              ),
             ),
+            child: selected
+                ? Icon(Icons.check, color: palette.onAccent, size: 22)
+                : null,
           ),
-          child: selected
-              ? Icon(Icons.check, color: palette.onAccent, size: 22)
-              : null,
         ),
       ),
     );

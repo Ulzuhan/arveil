@@ -126,26 +126,52 @@ class MessageBubble extends StatelessWidget {
     }
     final own = mine(event);
     final identity = event.senderIdentity;
-    return GestureDetector(
+    final time = event.createdAt > 0
+        ? clockTime(_local(event.createdAt))
+        : null;
+    final status = event.kind == 'sent' ? deliveryStatus(event.delivery) : null;
+    return Semantics(
+      label: bubbleLabel(l10n, event, time: time, status: status),
+      onLongPressHint: l10n.messageDetails,
       onLongPress: () => showMessageDetails(context, event),
-      onSecondaryTap: () => showMessageDetails(context, event),
-      child: ChatBubble(
-        key: Key('message-${event.eventId}'),
-        own: own,
-        position: position,
-        sender: showSender && !own ? event.senderLabel : null,
-        senderColor: identity == null
-            ? null
-            : ArveilColors.of(context).senderFor(identity),
-        meta: BubbleMeta(
-          time: event.createdAt > 0 ? clockTime(_local(event.createdAt)) : '',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onLongPress: () => showMessageDetails(context, event),
+        onSecondaryTap: () => showMessageDetails(context, event),
+        child: ChatBubble(
+          key: Key('message-${event.eventId}'),
           own: own,
-          status: event.kind == 'sent' ? deliveryStatus(event.delivery) : null,
+          position: position,
+          sender: showSender && !own ? event.senderLabel : null,
+          senderColor: identity == null
+              ? null
+              : ArveilColors.of(context).senderFor(identity),
+          meta: BubbleMeta(time: time ?? '', own: own, status: status),
+          child: Text(_text(l10n)),
         ),
-        child: Text(_text(l10n)),
       ),
     );
   }
+}
+
+/// What a screen reader says for a message: who, when, what, and for what
+/// this device sent, where it stands. «Lucía, 18:40: ¿Vienes?»
+String bubbleLabel(
+  AppLocalizations l10n,
+  HistoryEventView event, {
+  String? time,
+  DeliveryStatus? status,
+}) {
+  final who = mine(event) ? l10n.you : event.senderLabel ?? l10n.noticeSomeone;
+  final text = event.kind == 'received' || event.kind == 'sent'
+      ? utf8.decode(event.body, allowMalformed: true)
+      : event.kind.startsWith('file')
+      ? l10n.legacyAttachment
+      : l10n.conversationEvent;
+  final said = time == null
+      ? l10n.bubbleSaid(who, text)
+      : l10n.bubbleSaidAt(who, time, text);
+  return status == null ? said : '$said. ${DeliveryIcon.label(l10n, status)}';
 }
 
 /// What one mailbox's delivery state means, in words that never claim

@@ -92,10 +92,46 @@ class UnverifiedChip extends StatelessWidget {
       ),
       child: Text(
         context.l10n.unverified,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: ArveilType.label.copyWith(fontSize: 11.5, color: c.onAttention),
       ),
     );
   }
+}
+
+/// A name followed by its verification. The name gives way first; the
+/// «unverified» chip only past 40 % of the width, as with large text.
+class NameLine extends StatelessWidget {
+  const NameLine({
+    super.key,
+    required this.name,
+    this.verified = false,
+    this.unverified = false,
+  });
+  final Widget name;
+  final bool verified;
+  final bool unverified;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) => Row(
+      children: [
+        Flexible(child: name),
+        if (verified) ...[
+          const SizedBox(width: 6),
+          const VerifiedMark(size: 15),
+        ],
+        if (unverified) ...[
+          const SizedBox(width: 8),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: box.maxWidth * 0.4),
+            child: const UnverifiedChip(),
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 /// How many messages wait unread; announced in words.

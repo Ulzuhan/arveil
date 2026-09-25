@@ -157,11 +157,51 @@ abstract final class ArveilTheme {
         contentTextStyle: text.bodyMedium?.copyWith(color: c.ground),
         behavior: SnackBarBehavior.floating,
       ),
-      pageTransitionsTheme: const PageTransitionsTheme(),
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {
+          for (final MapEntry(:key, :value)
+              in const PageTransitionsTheme().builders.entries)
+            key: MotionAwareTransitions(value),
+        },
+      ),
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
     );
   }
+}
+
+/// The platform's page transitions, standing still when the system asks
+/// for reduced motion.
+class MotionAwareTransitions extends PageTransitionsBuilder {
+  const MotionAwareTransitions(this.inner);
+  final PageTransitionsBuilder inner;
+
+  @override
+  DelegatedTransitionBuilder? get delegatedTransition =>
+      inner.delegatedTransition;
+
+  @override
+  Duration get transitionDuration => inner.transitionDuration;
+
+  @override
+  Duration get reverseTransitionDuration => inner.reverseTransitionDuration;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => MediaQuery.maybeDisableAnimationsOf(context) ?? false
+      ? child
+      : inner.buildTransitions(
+          route,
+          context,
+          animation,
+          secondaryAnimation,
+          child,
+        );
 }
 
 /// Registers the bundled fonts' licenses with Flutter's license page, as
