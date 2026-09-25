@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales; implementación no iniciada. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema) y A1 (remitente y hora del historial en vivo); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -156,9 +156,9 @@ Estas preferencias son globales y no revelan nada del perfil, y hacen falta ante
 
 Hallazgos del 25 de septiembre de 2026 que condicionan el orden del plan:
 
-- `HistoryEventView` no incluye remitente ni hora. Al procesar un mensaje de aplicación, `arveil-app` registra el evento sin el remitente, aunque `mls-rs` lo identifica mediante `sender_index`.
+- `HistoryEventView` no incluye remitente ni hora. Al procesar un mensaje de aplicación, `arveil-app` registra el evento sin el remitente, aunque `mls-rs` lo identifica mediante `sender_index`. Resuelto en A1 para el historial en vivo.
 - `ConversationView` no incluye último mensaje, última actividad ni no leídos, y no existe una marca de lectura.
-- La base del perfil no tiene versionado de esquema: se crea con `CREATE TABLE IF NOT EXISTS`. Añadir columnas exige migraciones.
+- La base del perfil no tiene versionado de esquema: se crea con `CREATE TABLE IF NOT EXISTS`. Añadir columnas exige migraciones. Resuelto en A0.
 - El estado del kit (exportado o pospuesto) solo vive en memoria del panel de recuperación; un aviso persistente necesita estado durable.
 - La hora de la última sincronización solo existe en el controlador de conversaciones de Dart, que sincroniza cada 10 segundos mientras está abierto. Como proyección de presentación es aceptable.
 
@@ -168,20 +168,26 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 
 ### A. Contrato de datos (Rust y puente)
 
-**A0 — Versionado del esquema del perfil (M).** Prerrequisito de A1–A3 y del resto de la distribución externa.
+**A0 — Versionado del esquema del perfil (M).** Prerrequisito de A1–A3 y del resto de la distribución externa. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
 - Versión con `PRAGMA user_version` y lista ordenada de migraciones en `arveil-core`, cada una en su propia transacción. Una base existente sin versión se trata como versión 0, el esquema de las builds hasta `0.1.0+11`.
 - Leer la versión antes de modificar datos. Una versión futura produce un error tipado (por ejemplo, `ProfileTooNew`) sin tocar la base, y la GUI lo presenta.
 - Pruebas: migrar y reabrir una base poblada con el esquema actual; un fallo a mitad de migración deja intacta la versión anterior; reabrir es idempotente; una versión futura se rechaza.
 - Documentar que no hay vuelta atrás: antes de actualizar, el kit y el historial cifrado son la protección. Esto cubre la parte de migración de perfil que M3b.1 pide definir antes de la distribución externa.
 
-**A1 — Remitente y hora en el historial (M).** Depende de A0.
+**A1 — Remitente y hora en el historial (M).** Depende de A0. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
 - Al registrar eventos recibidos, de texto o de adjunto, guardar el dispositivo y la identidad del emisor obtenidos de la credencial del miembro MLS. Los enviados se marcan como propios.
 - `HistoryEventView` añade la identidad del remitente, su etiqueta resuelta en Rust (alias local o identificador corto), si es propio y `created_at` en segundos Unix. La hora es la de registro local: llegada para los recibidos y creación para los enviados. La interfaz no la presenta como hora de envío.
-- El historial cifrado pasa a una nueva versión de formato que incluye el remitente. La importación acepta la versión 1, sin remitente, y la nueva.
+- El remitente del historial cifrado pasa a A1b.
 - Los eventos antiguos sin remitente se muestran sin nombre, nunca con un remitente supuesto.
 - Pruebas: grupo de tres con dos emisores; emisor revocado después; importación de ambas versiones; paginación intacta; bindings regenerados sin deriva.
+
+**A1b — Remitente en el historial cifrado (S).** Depende de A1.
+
+- Cada registro exportado incluye la identidad del remitente cuando se conoce, como campo opcional dentro de la versión 1 del formato, igual que `file_present`. Así los archivos nuevos siguen importándose en builds anteriores, que ignoran el campo, y los antiguos se importan sin remitente. Esto sustituye a la nueva versión de formato prevista antes.
+- `archived_events` gana la columna del remitente mediante una migración. Los registros importados muestran el nombre local de esa identidad si existe, pero siguen presentándose como historial importado: un archivo aportado por el usuario no prueba la autoría.
+- Pruebas: exportar e importar con y sin remitente, importar un archivo sin el campo y comprobar que la importación repetida no sobrescribe el remitente de un registro existente.
 
 **A2 — Resumen de conversaciones y no leídos (M).** Depende de A1.
 
@@ -259,6 +265,7 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 ```mermaid
 flowchart LR
   A0 --> A1 --> A2
+  A1 --> A1b
   A0 --> A3
   B1 --> C1
   A2 --> C2
