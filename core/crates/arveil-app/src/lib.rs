@@ -37,7 +37,7 @@ mod recovery;
 pub use key_packages::{KeyPackageLevel, KeyPackageSupply};
 pub use recovery::{KitExport, RecoveryRequest, RecoveryResult};
 
-pub use arveil_core::client::{EnrollmentPhase, PairingCompletionPhase};
+pub use arveil_core::client::{EnrollmentPhase, PairingCompletionPhase, SavedKit};
 pub use onboarding::{
     DeviceLinkAuthorization, DeviceLinkRequest, Enrollment, EnrollmentFinish, Identity,
     LinkedDevice, PairingSession, PairingVerification, finish_enrollment,
@@ -104,6 +104,7 @@ pub enum Operation {
     QueryArchivePage,
     ExportArchiveFile,
     ExportKit,
+    ConfirmKitSaved,
     RestoreKit,
     ResumeRecovery,
     QueryOnboarding,
@@ -206,6 +207,7 @@ pub enum ClientCommand {
         event_id: Vec<u8>,
     },
     ExportKit,
+    ConfirmKitSaved,
     RestoreKit {
         request: RecoveryRequest,
     },
@@ -325,6 +327,7 @@ impl ClientCommand {
             Self::QueryArchivePage { .. } => Operation::QueryArchivePage,
             Self::ExportArchiveFile { .. } => Operation::ExportArchiveFile,
             Self::ExportKit => Operation::ExportKit,
+            Self::ConfirmKitSaved => Operation::ConfirmKitSaved,
             Self::RestoreKit { .. } => Operation::RestoreKit,
             Self::ResumeRecovery => Operation::ResumeRecovery,
             Self::QueryDevices => Operation::QueryDevices,
@@ -1087,6 +1090,12 @@ pub struct OnboardingStatus {
     pub administrator: bool,
     pub recovering: bool,
     pub recovery_warning: bool,
+    /// When the user last confirmed saving an identity kit, on the
+    /// administration device; `None` if never.
+    pub kit_saved_at: Option<u64>,
+    /// The saved kit predates the current device manifest: devices changed
+    /// after it was made, so a new one should replace it.
+    pub kit_stale: bool,
     pub pairing: Option<PairingStatus>,
 }
 
@@ -1200,6 +1209,7 @@ pub enum CommandOutput {
     ArchiveReceipt(ArchiveReceipt),
     ArchivePage(ArchivePage),
     Kit(KitExport),
+    KitSaved(SavedKit),
     KeyPackageSupply(KeyPackageSupply),
     Recovery(RecoveryResult),
     OnboardingStatus(OnboardingStatus),
@@ -2009,6 +2019,15 @@ impl Application {
         }
     }
 
+    /// Record that the user saved the last exported kit and its key. Only
+    /// a confirmed kit clears the reminder to save one.
+    pub fn confirm_kit_saved(&self) -> Result<SavedKit, ApplicationError> {
+        match self.execute(ClientCommand::ConfirmKitSaved)? {
+            CommandOutput::KitSaved(kit) => Ok(kit),
+            _ => unreachable!("kit confirmation output"),
+        }
+    }
+
     pub fn restore_kit(
         &self,
         request: RecoveryRequest,
@@ -2657,6 +2676,9 @@ async fn run_command(
         ClientCommand::ExportKit => recovery::export(config)
             .map(CommandOutput::Kit)
             .map_err(|e| application_error(Operation::ExportKit, e)),
+        ClientCommand::ConfirmKitSaved => recovery::confirm_saved(config)
+            .map(CommandOutput::KitSaved)
+            .map_err(|e| application_error(Operation::ConfirmKitSaved, e)),
         ClientCommand::RestoreKit { request } => Box::pin(run_operation_with_value(
             Operation::RestoreKit,
             recovery::restore(config, request),
@@ -5261,6 +5283,8 @@ mod tests {
                 administrator: false,
                 recovering: false,
                 recovery_warning: false,
+                kit_saved_at: None,
+                kit_stale: false,
                 pairing: None,
             }
         );

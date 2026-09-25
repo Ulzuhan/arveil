@@ -32,6 +32,7 @@ class RecoveryProfile extends FakeProfile {
       stage: SetupStage.ready,
       administrator: admin,
       recoveryWarning: false,
+      kitStale: false,
       bootstrap: relay,
     );
   }
@@ -41,6 +42,7 @@ class RecoveryProfile extends FakeProfile {
       stage: SetupStage.linkedDevice,
       administrator: false,
       recoveryWarning: false,
+      kitStale: false,
       bootstrap: relay,
       pairing: pairing(comparison: comparison, expired: expired),
     );
@@ -49,6 +51,20 @@ class RecoveryProfile extends FakeProfile {
   @override
   Future<KitView> exportKit() async =>
       KitView(encrypted: Uint8List.fromList([1, 2, 3]), secret: secret);
+  int kitConfirmations = 0;
+  @override
+  Future<void> confirmKitSaved() async {
+    kitConfirmations++;
+    state = SetupView(
+      stage: SetupStage.ready,
+      administrator: true,
+      recoveryWarning: false,
+      kitSavedAt: 1790000000,
+      kitStale: false,
+      bootstrap: relay,
+    );
+  }
+
   @override
   Future<void> restoreKit({
     required String bootstrap,
@@ -63,6 +79,7 @@ class RecoveryProfile extends FakeProfile {
       stage: SetupStage.recovering,
       administrator: true,
       recoveryWarning: false,
+      kitStale: false,
       bootstrap: relay,
     );
     throw const CommandError.transport(
@@ -108,6 +125,7 @@ class RecoveryProfile extends FakeProfile {
       stage: SetupStage.linkedDevice,
       administrator: false,
       recoveryWarning: false,
+      kitStale: false,
       bootstrap: relay,
     );
     wait?.completeError(
@@ -171,6 +189,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('kit-deferred-warning')), findsOneWidget);
   });
+  testWidgets(
+    'confirming the saved key records the kit and ends the reminder',
+    (tester) async {
+      final profile = RecoveryProfile()..ready();
+      final files = MemoryKitFiles()..saved = true;
+      await open(tester, profile, files: files);
+      expect(find.byKey(const Key('kit-reminder')), findsOneWidget);
+      await tester.ensureVisible(find.text('Guardar kit cifrado'));
+      await tester.tap(find.text('Guardar kit cifrado'));
+      await tester.pumpAndSettle();
+      expect(profile.kitConfirmations, 0, reason: 'a saved file is not enough');
+      await tester.ensureVisible(
+        find.text('He guardado la clave por separado'),
+      );
+      await tester.tap(find.text('He guardado la clave por separado'));
+      await tester.pumpAndSettle();
+      expect(profile.kitConfirmations, 1);
+      expect(find.byKey(const Key('kit-reminder')), findsNothing);
+    },
+  );
+
+  testWidgets('a stale kit is asked for again, and later hides it for now', (
+    tester,
+  ) async {
+    final profile = RecoveryProfile()
+      ..state = SetupView(
+        stage: SetupStage.ready,
+        administrator: true,
+        recoveryWarning: false,
+        kitSavedAt: 1790000000,
+        kitStale: true,
+        bootstrap: relay,
+      );
+    await open(tester, profile);
+    expect(
+      find.textContaining('cambiaron después de guardar el kit'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Más tarde'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('kit-reminder')), findsNothing);
+  });
+
+  testWidgets('a linked device is not asked for a kit it cannot export', (
+    tester,
+  ) async {
+    await open(tester, RecoveryProfile()..ready(admin: false));
+    expect(find.byKey(const Key('kit-reminder')), findsNothing);
+  });
+
   testWidgets('a background save needs an explicit foreground key reveal', (
     tester,
   ) async {

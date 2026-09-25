@@ -141,6 +141,7 @@ void main() {
       ..state = const SetupView(
         administrator: false,
         recoveryWarning: false,
+        kitStale: false,
         stage: SetupStage.ready,
         bootstrap: relay,
       );

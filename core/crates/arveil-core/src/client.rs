@@ -263,6 +263,17 @@ pub enum ClientError {
     ContactRootMismatch { identity: String },
     #[error("client: no contact {0} to verify; you have to meet them in a conversation first")]
     NoSuchContact(String),
+    #[error("client: no identity kit is waiting for confirmation; export one first")]
+    NoKitExport,
+}
+
+/// An identity kit the user confirmed saving together with its key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SavedKit {
+    /// The manifest sequence the kit carries. A later sequence means the
+    /// devices changed after it was saved.
+    pub manifest_sequence: u64,
+    pub saved_at: u64,
 }
 
 fn hex_of(b: &[u8]) -> String {
@@ -2087,6 +2098,55 @@ impl Client {
             creator: creator != 0,
             peers: self.peers_of(group_id)?,
         }))
+    }
+
+    /// A kit covering manifest `sequence` was handed to the user to save.
+    /// It counts only once they confirm; a previously saved kit stays
+    /// recorded until then.
+    pub fn kit_exported(&self, sequence: u64, at: u64) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT INTO kit_exports (id, pending_sequence, pending_at) VALUES (1, ?1, ?2)
+             ON CONFLICT(id) DO UPDATE SET
+               pending_sequence = excluded.pending_sequence,
+               pending_at = excluded.pending_at",
+            params![sequence as i64, at as i64],
+        )?;
+        Ok(())
+    }
+
+    /// The user confirmed that the last exported kit and its key are saved.
+    pub fn kit_confirm_saved(&self, at: u64) -> Result<SavedKit, ClientError> {
+        let changed = self.conn.lock().execute(
+            "UPDATE kit_exports
+                SET saved_sequence = pending_sequence, saved_at = ?1,
+                    pending_sequence = NULL, pending_at = NULL
+              WHERE id = 1 AND pending_sequence IS NOT NULL",
+            params![at as i64],
+        )?;
+        if changed == 0 {
+            return Err(ClientError::NoKitExport);
+        }
+        self.saved_kit()?.ok_or(ClientError::NoKitExport)
+    }
+
+    /// The kit the user last confirmed saving, if any.
+    pub fn saved_kit(&self) -> Result<Option<SavedKit>, ClientError> {
+        let row: Option<(Option<i64>, Option<i64>)> = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT saved_sequence, saved_at FROM kit_exports WHERE id = 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        Ok(match row {
+            Some((Some(sequence), Some(at))) => Some(SavedKit {
+                manifest_sequence: sequence as u64,
+                saved_at: at as u64,
+            }),
+            _ => None,
+        })
     }
 
     /// When this device started keeping `group`, in Unix seconds.

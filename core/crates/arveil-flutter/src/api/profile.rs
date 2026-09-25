@@ -44,6 +44,12 @@ pub struct SetupView {
     pub bootstrap: Option<String>,
     pub administrator: bool,
     pub recovery_warning: bool,
+    /// Unix seconds when the user last confirmed saving an identity kit on
+    /// this administration device; absent if never.
+    pub kit_saved_at: Option<i64>,
+    /// Devices changed after the saved kit was made; a new kit should
+    /// replace it.
+    pub kit_stale: bool,
     pub pairing: Option<PairingView>,
 }
 
@@ -486,6 +492,8 @@ impl Profile {
             bootstrap: status.bootstrap,
             administrator: status.administrator,
             recovery_warning: status.recovery_warning,
+            kit_saved_at: status.kit_saved_at.map(|at| at as i64),
+            kit_stale: status.kit_stale,
             pairing: status.pairing.map(|p| PairingView {
                 session_id: p.session.session_id,
                 code: p.session.code,
@@ -650,6 +658,15 @@ impl Profile {
             encrypted: kit.encrypted,
             secret: kit.secret,
         })
+    }
+
+    /// The user saved the last exported kit and confirmed its key is kept
+    /// apart. Read `setup` again for the new kit state.
+    pub fn confirm_kit_saved(&self) -> Result<(), CommandError> {
+        self.inner
+            .confirm_kit_saved()
+            .map(|_| ())
+            .map_err(command_error)
     }
 
     pub fn restore_kit(
@@ -1337,6 +1354,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::QueryArchivePage => "query-archive-page",
         Operation::ExportArchiveFile => "export-archive-file",
         Operation::ExportKit => "export-kit",
+        Operation::ConfirmKitSaved => "confirm-kit-saved",
         Operation::RestoreKit => "restore-kit",
         Operation::ResumeRecovery => "resume-recovery",
         Operation::QueryContacts => "query-contacts",

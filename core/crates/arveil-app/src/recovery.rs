@@ -1,6 +1,6 @@
 //! Identity recovery through the same profile executor as enrollment.
 use arveil_core::channel::codec::Payload;
-use arveil_core::client::operation_digest;
+use arveil_core::client::{SavedKit, operation_digest};
 use arveil_core::recovery::{self, IdentityKit, KIT_VERSION, Secret};
 
 use crate::carrier::{Bootstrap, CliError, Connection};
@@ -77,10 +77,23 @@ pub fn export(config: &ProfileConfig) -> Result<KitExport, CliError> {
     let secret = Secret::generate();
     let encrypted = recovery::kit_seal(&kit, &secret)
         .map_err(|_| CliError::Domain("cannot encrypt identity kit".into()))?;
+    // Handing out a kit is not saving it: only the user's confirmation,
+    // after the file and its key are stored, makes it count.
+    client
+        .kit_exported(kit.manifest_sequence, kit.exported_at)
+        .map_err(client_error("kit"))?;
     Ok(KitExport {
         encrypted,
         secret: secret.to_string_once(),
     })
+}
+
+/// The user confirmed that the last kit this device handed out, and its
+/// key, are saved somewhere safe.
+pub fn confirm_saved(config: &ProfileConfig) -> Result<SavedKit, CliError> {
+    open_client(config)?
+        .kit_confirm_saved(now())
+        .map_err(client_error("kit"))
 }
 
 pub async fn restore(
@@ -258,6 +271,55 @@ mod tests {
         let mut nonce = [0u8; 12];
         getrandom::fill(&mut nonce).unwrap();
         std::env::temp_dir().join(format!("arveil-recovery-{label}-{}", hex::encode(nonce)))
+    }
+
+    #[test]
+    fn only_a_confirmed_kit_counts_and_device_changes_make_it_stale() {
+        use arveil_core::client::Client;
+        use arveil_core::storage::SharedConn;
+
+        let dir = directory("kit-status");
+        let config = ProfileConfig::encrypted(&dir, "ef".repeat(32)).unwrap();
+        let app = Application::open(config.clone()).unwrap();
+        app.create_identity().unwrap();
+        let client = open_client(&config).unwrap();
+        client.device_new(now()).unwrap();
+
+        assert!(matches!(
+            app.confirm_kit_saved(),
+            Err(ApplicationError::Domain { .. })
+        ));
+        let status = app.onboarding_status().unwrap();
+        assert!(status.administrator);
+        assert_eq!((status.kit_saved_at, status.kit_stale), (None, false));
+
+        // Handing out a kit is not saving it.
+        app.export_kit().unwrap();
+        assert_eq!(app.onboarding_status().unwrap().kit_saved_at, None);
+        let saved = app.confirm_kit_saved().unwrap();
+        let status = app.onboarding_status().unwrap();
+        assert_eq!(status.kit_saved_at, Some(saved.saved_at));
+        assert!(!status.kit_stale);
+        assert!(app.confirm_kit_saved().is_err(), "nothing left to confirm");
+
+        // Authorizing another device advances the manifest, so the saved
+        // kit no longer describes this identity's devices.
+        let linked = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        let pending = linked.device_pending_new().unwrap();
+        client
+            .device_authorize(&pending.keys.public(), now())
+            .unwrap();
+        let status = app.onboarding_status().unwrap();
+        assert!(status.kit_stale);
+        assert_eq!(status.kit_saved_at, Some(saved.saved_at));
+
+        // A new export alone changes nothing; its confirmation does.
+        app.export_kit().unwrap();
+        assert!(app.onboarding_status().unwrap().kit_stale);
+        app.confirm_kit_saved().unwrap();
+        assert!(!app.onboarding_status().unwrap().kit_stale);
+        app.close();
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

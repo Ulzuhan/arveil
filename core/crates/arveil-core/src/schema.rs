@@ -21,7 +21,7 @@ use rusqlite::Connection;
 use crate::storage::StorageError;
 
 /// The newest profile schema this build reads and writes.
-pub const PROFILE_SCHEMA_VERSION: u32 = 3;
+pub const PROFILE_SCHEMA_VERSION: u32 = 4;
 
 /// One step from `version - 1` to `version`.
 pub(crate) struct Migration {
@@ -41,6 +41,10 @@ const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 3,
         apply: read_markers,
+    },
+    Migration {
+        version: 4,
+        apply: kit_exports,
     },
 ];
 
@@ -186,6 +190,23 @@ fn read_markers(conn: &Connection) -> Result<(), StorageError> {
          );
          INSERT INTO read_markers (group_id, cursor)
              SELECT group_id, MAX(id) FROM events GROUP BY group_id;",
+    )?;
+    Ok(())
+}
+
+/// Version 4: the identity kit this device last handed out, and the one the
+/// user confirmed saving with its key. Only a confirmed kit counts; the
+/// manifest sequence it covers tells whether later device changes made it
+/// stale. Profiles from before have no record: nothing claims a kit exists.
+fn kit_exports(conn: &Connection) -> Result<(), StorageError> {
+    conn.execute_batch(
+        "CREATE TABLE kit_exports (
+             id               INTEGER PRIMARY KEY CHECK (id = 1),
+             pending_sequence INTEGER,
+             pending_at       INTEGER,
+             saved_sequence   INTEGER,
+             saved_at         INTEGER
+         );",
     )?;
     Ok(())
 }

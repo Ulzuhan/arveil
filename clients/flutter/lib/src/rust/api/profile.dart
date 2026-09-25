@@ -73,6 +73,10 @@ abstract class Profile implements RustOpaqueInterface {
   /// opening it again.
   Future<void> close();
 
+  /// The user saved the last exported kit and confirmed its key is kept
+  /// apart. Read `setup` again for the new kit state.
+  Future<void> confirmKitSaved();
+
   Future<void> confirmPairing({
     required String bootstrap,
     required List<int> sessionId,
@@ -1135,6 +1139,14 @@ class SetupView {
   final String? bootstrap;
   final bool administrator;
   final bool recoveryWarning;
+
+  /// Unix seconds when the user last confirmed saving an identity kit on
+  /// this administration device; absent if never.
+  final PlatformInt64? kitSavedAt;
+
+  /// Devices changed after the saved kit was made; a new kit should
+  /// replace it.
+  final bool kitStale;
   final PairingView? pairing;
 
   const SetupView({
@@ -1143,6 +1155,8 @@ class SetupView {
     this.bootstrap,
     required this.administrator,
     required this.recoveryWarning,
+    this.kitSavedAt,
+    required this.kitStale,
     this.pairing,
   });
 
@@ -1153,6 +1167,8 @@ class SetupView {
       bootstrap.hashCode ^
       administrator.hashCode ^
       recoveryWarning.hashCode ^
+      kitSavedAt.hashCode ^
+      kitStale.hashCode ^
       pairing.hashCode;
 
   @override
@@ -1165,6 +1181,8 @@ class SetupView {
           bootstrap == other.bootstrap &&
           administrator == other.administrator &&
           recoveryWarning == other.recoveryWarning &&
+          kitSavedAt == other.kitSavedAt &&
+          kitStale == other.kitStale &&
           pairing == other.pairing;
 }
 
