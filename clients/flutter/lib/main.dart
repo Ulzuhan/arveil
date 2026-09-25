@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'src/design/theme.dart';
 import 'src/devices_page.dart';
 import 'src/archives_page.dart';
 import 'src/profile_session.dart';
@@ -14,6 +15,7 @@ import 'src/rust/frb_generated.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerFontLicenses();
   await ArveilRust.init();
   runApp(const ArveilApp());
 }
@@ -27,12 +29,8 @@ class ArveilApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Arveil',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff245b51)),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-      ),
-    ),
+    theme: ArveilTheme.light(),
+    darkTheme: ArveilTheme.dark(),
     home: ProfilePage(session: session, kitFiles: kitFiles),
   );
 }
