@@ -243,6 +243,8 @@ pub enum ClientError {
     UnknownDevice(String),
     #[error("client: refusing to revoke the device in use; do it from another device")]
     RevokeSelf,
+    #[error("client: this device was revoked; link a fresh profile with new device keys")]
+    RevokedDevice,
     #[error("client: manifest for an identity with no known root key")]
     UnknownIdentity,
     #[error(
@@ -836,6 +838,15 @@ impl Client {
         now: u64,
     ) -> Result<(Vec<u8>, Vec<u8>), ClientError> {
         let root = self.root()?.ok_or(ClientError::NoRoot)?;
+        // Replaying an old link request must not replace a revoked device's
+        // credential or reuse the acknowledgement of its earlier revocation.
+        if self
+            .own_devices()?
+            .iter()
+            .any(|d| d.device_id == public.device_id && d.revoked)
+        {
+            return Err(ClientError::RevokedDevice);
+        }
         let credential = identity::issue_credential(
             &root,
             public,

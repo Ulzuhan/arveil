@@ -277,7 +277,9 @@ Solo el administrador puede revocar otro dispositivo propio conocido. La
 confirmación muestra su identificador completo y explica la permanencia del
 cambio, la aplicación diferida en el relay y que las copias/historial existentes
 no se borran. Rust rechaza revocar el dispositivo actual, identificadores
-desconocidos y operaciones sin la autoridad raíz.
+desconocidos y operaciones sin la autoridad raíz. Una solicitud antigua de
+vinculación no puede reautorizar un dispositivo conocido como revocado; hay
+que vincular un perfil nuevo con claves de dispositivo nuevas.
 
 El manifiesto, las marcas de revocación y el registro de progreso se guardan
 en una transacción. Reintentar reutiliza la revocación existente sin firmar otra

@@ -251,6 +251,8 @@ Only the administrator can revoke another known own device. Confirmation
 shows its full identifier and explains permanent revocation, deferred relay
 enforcement and preservation of copies/history already held by that device.
 Rust rejects self-revocation, unknown identifiers and linked-device authority.
+Replaying an old link request cannot reauthorize a known revoked device; a new
+link requires a fresh profile and new device keys.
 
 The manifest, revoked peer flags and revocation journal commit together.
 A retry reuses the existing revocation; it never signs a new version merely

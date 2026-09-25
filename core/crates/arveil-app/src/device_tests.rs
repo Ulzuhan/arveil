@@ -414,3 +414,23 @@ fn group_failure_rolls_back_mls_and_outbox_then_retry_uses_the_latest_manifest()
     assert_eq!(f.app.devices().unwrap().manifest_sequence, 4);
     assert_eq!(*relay.probe.manifests.lock().unwrap(), vec![latest]);
 }
+
+#[test]
+fn a_stale_link_request_cannot_reauthorize_a_known_revoked_device() {
+    let relay = Relay::new();
+    let f = Fixture::new(&relay);
+    f.app
+        .revoke_device(&relay.bootstrap(), &hex::encode(&f.target))
+        .unwrap();
+    let client = open_client(&f.config).unwrap();
+    let before = client.latest_manifest().unwrap();
+    let public = f.linked.device().unwrap().unwrap().keys.public();
+    assert!(matches!(
+        client.device_authorize(&public, onboarding::now() + 1),
+        Err(arveil_core::client::ClientError::RevokedDevice)
+    ));
+    assert_eq!(client.latest_manifest().unwrap(), before);
+    assert!(client.device_revoked(&f.target).unwrap());
+    assert!(f.progress().relay_published);
+    assert_eq!(relay.probe.manifests.lock().unwrap().len(), 1);
+}
