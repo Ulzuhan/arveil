@@ -5609,6 +5609,16 @@ mod tests {
             assert!(sync.join().unwrap().is_err());
         }
         // Slots come back when the work finishes, not when a caller leaves.
+        // The reply wakes the caller just before the executor releases its
+        // admission. Joining callers does not join that executor future.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while app.executor.active.syncs.load(Ordering::Acquire) != 0 {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "sync slots never freed"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
         assert_eq!(app.executor.active.syncs.load(Ordering::Acquire), 0);
         app.close();
         std::fs::remove_dir_all(profile).ok();

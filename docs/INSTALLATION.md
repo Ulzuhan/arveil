@@ -137,11 +137,11 @@ recorded revision before expecting these screens.
 
 ### Attachments (source client `0.1.0+7`)
 
-In a conversation, choose **Attach file** (paperclip), select a file smaller
+In a conversation, choose **Adjuntar archivo** (the paperclip), select a file smaller
 than 25 MiB, and confirm. The private queued copy survives restart. If offline,
-use the file's **Send / resume** button when connectivity returns; reattaching
+use the file's **Enviar / reanudar** button when connectivity returns; reattaching
 would create another message. Incoming files download only when you choose
-**Download**. Use **Save copy…** to choose an external destination explicitly.
+**Descargar**. Use **Guardar copia…** to choose an external destination explicitly.
 That exported copy is outside Arveil's encrypted profile and may be backed up
 by its destination. Cancelling an unfinished transfer discards its local data;
 it does not recall a sent message. Request another copy if the relay reports

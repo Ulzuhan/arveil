@@ -88,7 +88,31 @@ Future<void> main() async {
         EnginePhase.sendSemanticsUpdate,
         const Duration(seconds: 90),
       );
+      Future<void> until(bool Function() ready, String reason) async {
+        final deadline = DateTime.now().add(const Duration(seconds: 30));
+        while (!ready()) {
+          expect(DateTime.now().isBefore(deadline), isTrue, reason: reason);
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        await settle();
+      }
+
+      Future<void> transferred(
+        ConversationController controller,
+        String id,
+        AttachmentStateView state,
+      ) => until(
+        () =>
+            !controller.activeTransfers.contains(id) &&
+            controller.events.any(
+              (event) =>
+                  event.eventId == id && event.attachment?.state == state,
+            ),
+        'The transfer did not reach $state',
+      );
+
       Future<void> tap(Finder finder) async {
+        await until(() => finder.evaluate().isNotEmpty, 'Missing UI action');
         await tester.ensureVisible(finder);
         await tester.tap(finder);
         await settle();
@@ -122,6 +146,11 @@ Future<void> main() async {
       await relayState('offline');
       await tap(find.byKey(const Key('attach-file')));
       await tap(find.byKey(const Key('confirm-attachment')));
+      // A settled frame does not mean native I/O has completed.
+      await until(
+        () => chat.events.length == 1 && chat.activeTransfers.isEmpty,
+        'Offline attachment was not durably queued',
+      );
       final queued = (await alice.historyPage(
         groupId: group,
         limit: 50,
@@ -142,6 +171,7 @@ Future<void> main() async {
       await chat.select(group);
       await settle();
       await tap(find.byKey(Key('resume-${queued.eventId}')));
+      await transferred(chat, queued.eventId, AttachmentStateView.sent);
       expect(
         (await alice.historyPage(
           groupId: group,
@@ -168,9 +198,11 @@ Future<void> main() async {
       await peerChat.select(group);
       await settle();
       await tap(find.byKey(Key('resume-${received.eventId}')));
+      await transferred(peerChat, received.eventId, AttachmentStateView.ready);
       await tap(find.byKey(Key('export-${received.eventId}')));
       expect(files.exported, isNull);
       await tap(find.byKey(const Key('confirm-export')));
+      await until(() => files.exported != null, 'Export did not complete');
       expect(files.exported, bytes);
 
       final secondBytes = Uint8List.fromList([9, 8, 7, 6]);
@@ -191,6 +223,11 @@ Future<void> main() async {
       );
       expect(secondIncoming.attachment!.name, received.attachment!.name);
       await tap(find.byKey(Key('resume-${secondIncoming.eventId}')));
+      await transferred(
+        peerChat,
+        secondIncoming.eventId,
+        AttachmentStateView.ready,
+      );
       expect(
         await bob.exportAttachment(groupId: group, eventId: received.eventId),
         bytes,
@@ -238,6 +275,7 @@ Future<void> main() async {
       await chat.select(group);
       await settle();
       await tap(find.byKey(Key('cancel-$cancelled')));
+      await transferred(chat, cancelled, AttachmentStateView.cancelled);
       final row = (await alice.historyPage(
         groupId: group,
         limit: 50,
