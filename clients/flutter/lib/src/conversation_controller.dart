@@ -159,6 +159,29 @@ class ConversationController extends ChangeNotifier {
     events = rows;
     before = page.next;
     _changed();
+    unawaited(_markSeen(group));
+  }
+
+  final Map<String, int> _marked = {};
+
+  /// Tell Rust how far the open conversation has been seen, only while the
+  /// app is in the foreground. A failure leaves the marker where it was and
+  /// the next read tries again.
+  Future<void> _markSeen(String group) async {
+    if (_disposed || _active == false || selected != group || events.isEmpty) {
+      return;
+    }
+    final newest = events.last.cursor;
+    if ((_marked[group] ?? 0) >= newest) return;
+    try {
+      final marker = await profile.markRead(groupId: group, cursor: newest);
+      if (_disposed) return;
+      _marked[group] = marker.cursor;
+      final row = conversations.where((c) => c.groupId == group).firstOrNull;
+      if (row != null && row.unread != marker.unread) unawaited(refresh());
+    } catch (_) {
+      // The marker stays where it was; the next read tries again.
+    }
   }
 
   Future<void> older() async {

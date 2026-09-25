@@ -39,6 +39,8 @@ class AddressProfile extends ChatProfile {
             peerDevices: conversationPeople!.length,
             peers: conversationPeople!,
             eventCount: 1,
+            unread: 0,
+            lastActivity: 0,
           ),
         ];
 
@@ -334,6 +336,8 @@ void main() {
             peerDevices: 4,
             peers: peers,
             eventCount: 0,
+            unread: 0,
+            lastActivity: 0,
           ),
         ),
         'Ana, Ana',

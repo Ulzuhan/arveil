@@ -21,7 +21,7 @@ use rusqlite::Connection;
 use crate::storage::StorageError;
 
 /// The newest profile schema this build reads and writes.
-pub const PROFILE_SCHEMA_VERSION: u32 = 2;
+pub const PROFILE_SCHEMA_VERSION: u32 = 3;
 
 /// One step from `version - 1` to `version`.
 pub(crate) struct Migration {
@@ -37,6 +37,10 @@ const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 2,
         apply: event_senders,
+    },
+    Migration {
+        version: 3,
+        apply: read_markers,
     },
 ];
 
@@ -92,7 +96,7 @@ pub(crate) fn migrate_with(
 /// applied this text with `CREATE TABLE IF NOT EXISTS` on every open, so
 /// running it here adds whatever tables an older profile is missing and
 /// leaves the rest alone.
-fn baseline_schema() -> String {
+pub(crate) fn baseline_schema() -> String {
     [
         crate::storage::MLS_SCHEMA,
         crate::client::CLIENT_SCHEMA,
@@ -166,6 +170,22 @@ fn event_senders(conn: &Connection) -> Result<(), StorageError> {
     conn.execute_batch(
         "ALTER TABLE events ADD COLUMN sender_device BLOB;
          ALTER TABLE events ADD COLUMN sender_identity BLOB;",
+    )?;
+    Ok(())
+}
+
+/// Version 3: how far this device has read each conversation. What an
+/// existing conversation already holds counts as read, so an update does
+/// not turn every old message into a new one. Builds that predate
+/// versioning never see the table.
+fn read_markers(conn: &Connection) -> Result<(), StorageError> {
+    conn.execute_batch(
+        "CREATE TABLE read_markers (
+             group_id BLOB PRIMARY KEY,
+             cursor   INTEGER NOT NULL
+         );
+         INSERT INTO read_markers (group_id, cursor)
+             SELECT group_id, MAX(id) FROM events GROUP BY group_id;",
     )?;
     Ok(())
 }

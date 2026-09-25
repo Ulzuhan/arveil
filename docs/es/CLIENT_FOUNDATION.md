@@ -454,3 +454,59 @@ Evidencia:
   El siguiente mensaje recibido llevó el dispositivo y la identidad del
   participante, el siguiente enviado quedó como propio, las filas anteriores
   siguieron vacías y la CLI antigua siguió leyendo el perfil.
+
+## Resumen de conversaciones y no leídos (25 de septiembre de 2026)
+
+Cada fila de conversación incluye ahora tres cosas: su evento más reciente,
+cuántos mensajes quedan sin leer y cuándo tuvo actividad por última vez. El
+puente ordena la lista de la GUI por esa actividad. La capa de aplicación
+conserva el orden en que se iniciaron las conversaciones, porque la línea de
+comandos las lista así y el script de aceptación de la fase 4 las elige por
+posición.
+
+- La migración 3 añade `read_markers`, un cursor por conversación. Las
+  conversaciones que ya existían cuentan como leídas hasta su evento más
+  reciente, así que una actualización no convierte mensajes antiguos en nuevos.
+- `mark_read(group, cursor)` solo hace avanzar el marcador, y nunca más allá del
+  evento más reciente. Una pantalla desfasada o una llamada excesiva no pueden,
+  por tanto, ocultar lo que llegue después. La llamada devuelve el marcador
+  vigente y los no leídos que quedan.
+- Los no leídos son los eventos posteriores al marcador escritos por otra
+  identidad. Nunca cuentan los tipos propios de este dispositivo ni los mensajes
+  de otro dispositivo de la misma identidad. Las filas recibidas antes de
+  guardar el remitente cuentan si quedan después del marcador.
+- `ConversationView` añade tres campos:
+  - `last_event`: el tipo, una vista previa de texto en una línea de como mucho
+    120 caracteres, el nombre del adjunto, la etiqueta del remitente, si es
+    propio, la hora y los estados de entrega.
+  - `unread`: el número de mensajes sin leer.
+  - `last_activity`: la hora del evento más reciente, o de cuándo este
+    dispositivo empezó a guardar la conversación.
+
+  Las filas de la GUI se ordenan por actividad. El orden de los eventos
+  deshace los empates dentro del mismo segundo, y un empate completo conserva
+  el orden de inicio. Como en el historial, solo cruzan el puente cuerpos de
+  texto.
+- La GUI marca como leída la conversación abierta hasta el evento más reciente
+  que muestra. Lo hace solo en primer plano y una vez por cursor. Un fallo deja
+  el marcador donde estaba, y la siguiente lectura lo reintenta. Las filas
+  muestran la vista previa (con el autor en grupos y «Tú:» en los propios), la
+  hora y un recuento de no leídos que los lectores de pantalla anuncian como
+  parte de la fila.
+
+Evidencia:
+
+- Una prueba del puente cubre el orden por actividad y sus desempates.
+- Las pruebas del core cubren marcadores que solo avanzan y se detienen en el
+  evento más reciente, no leídos que excluyen tipos y dispositivos propios, y la
+  migración 3.
+- Una prueba de aplicación pasa por el ejecutor. Cubre el orden de inicio, las
+  vistas previas, las marcas desfasadas, los marcadores tras reabrir y que los mensajes
+  nuevos vuelvan a quedar sin leer.
+- Una prueba del puente comprueba que la vista previa corta con seguridad el
+  texto multibyte, ocupa una línea y nunca expone un cuerpo que no sea texto.
+- Las pruebas de Flutter cubren el marcado único, las vistas previas de las
+  filas y los recuentos de no leídos.
+- Una actualización desde binarios de `main` adoptó un perfil CLI a la versión
+  3. Lo que contenía antes contó como leído, el primer mensaje posterior quedó
+  sin leer y la CLI antigua siguió leyendo el perfil.

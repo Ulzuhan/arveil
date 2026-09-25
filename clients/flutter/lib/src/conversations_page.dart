@@ -12,6 +12,23 @@ import 'rust/api/profile.dart';
 
 String shortId(String id) => id.length <= 12 ? id : id.substring(0, 12);
 
+/// Whether more than one other identity writes in a conversation, so
+/// messages need their author named.
+bool isGroup(ConversationView row) =>
+    row.peers.where((p) => !p.own).map((p) => p.identityId).toSet().length > 1;
+
+/// One line about a conversation's newest event, for its row in the list.
+String rowPreview(ConversationView row, LastEventView last) {
+  final text = last.preview.isNotEmpty
+      ? last.preview
+      : last.attachmentName != null
+      ? 'Adjunto: ${last.attachmentName}'
+      : 'Evento de conversación';
+  if (last.own) return 'Tú: $text';
+  final label = last.senderLabel;
+  return isGroup(row) && label != null ? '$label: $text' : text;
+}
+
 String conversationTitle(ConversationView row) {
   final people = <String, String>{
     for (final p in row.peers)
@@ -420,7 +437,38 @@ class _ConversationsPageState extends State<ConversationsPage>
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                '${row.peerDevices} dispositivos · ${row.eventCount} mensajes',
+                switch (row.lastEvent) {
+                  final last? => rowPreview(row, last),
+                  null =>
+                    '${row.peerDevices} dispositivos · ${row.eventCount} mensajes',
+                },
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (row.lastActivity > 0)
+                    Text(
+                      recordedTime(row.lastActivity),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  if (row.unread > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Semantics(
+                        label: row.unread == 1
+                            ? '1 mensaje sin leer'
+                            : '${row.unread} mensajes sin leer',
+                        excludeSemantics: true,
+                        child: Badge.count(
+                          key: Key('unread-${row.groupId}'),
+                          count: row.unread,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               onTap: () => _select(row.groupId),
             );
@@ -430,14 +478,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   /// Whether more than one other person writes here, so received messages
   /// need their author named.
   bool get _group =>
-      chat.conversations
-          .where((c) => c.groupId == chat.selected)
-          .expand((c) => c.peers)
-          .where((p) => !p.own)
-          .map((p) => p.identityId)
-          .toSet()
-          .length >
-      1;
+      chat.conversations.where((c) => c.groupId == chat.selected).any(isGroup);
 
   Widget _history() => Column(
     children: [

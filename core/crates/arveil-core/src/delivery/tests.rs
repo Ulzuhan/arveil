@@ -316,3 +316,73 @@ fn events_keep_their_sender_and_time() {
     let updated = page.iter().find(|e| e.event_id == b"known").unwrap();
     assert_eq!(updated.sender_identity.as_deref(), Some(&[3u8; 32][..]));
 }
+
+#[test]
+fn read_markers_only_move_forward_and_count_what_others_wrote() {
+    let conn = SharedConn::open_in_memory().unwrap();
+    let delivery = Delivery::open(conn).unwrap();
+    let group = [1u8; 32];
+    let me = vec![9u8; 32];
+    let other = EventSender {
+        device_id: vec![2; 16],
+        identity_id: Some(vec![3; 32]),
+    };
+    let own_device = EventSender {
+        device_id: vec![4; 16],
+        identity_id: Some(me.clone()),
+    };
+    let cursor_of = |d: &Delivery, id: &[u8]| {
+        d.events_page(&group, None, 50)
+            .unwrap()
+            .into_iter()
+            .find(|e| e.event_id == id)
+            .unwrap()
+            .cursor
+    };
+
+    // Nothing read yet, and nothing to mark in an empty conversation.
+    assert_eq!(delivery.mark_read(&group, 10).unwrap(), 0);
+    assert_eq!(delivery.unread_count(&group, Some(&me)).unwrap(), 0);
+
+    delivery
+        .record_event_by(&group, b"in-1", "received", b"a", Some(&other))
+        .unwrap();
+    delivery
+        .record_event_by(&group, b"mine", "sent", b"b", None)
+        .unwrap();
+    delivery
+        .record_event_by(
+            &group,
+            b"from-my-phone",
+            "received",
+            b"c",
+            Some(&own_device),
+        )
+        .unwrap();
+    delivery
+        .record_event(&group, b"legacy-in", "received", b"d")
+        .unwrap();
+    // Another identity's message and an old row nobody can attribute; what
+    // this identity wrote, from any device, never counts.
+    assert_eq!(delivery.unread_count(&group, Some(&me)).unwrap(), 2);
+
+    let first = cursor_of(&delivery, b"in-1");
+    assert_eq!(delivery.mark_read(&group, first).unwrap(), first);
+    assert_eq!(delivery.unread_count(&group, Some(&me)).unwrap(), 1);
+
+    // A screen that marks past the end cannot hide what arrives later.
+    let newest = cursor_of(&delivery, b"legacy-in");
+    assert_eq!(delivery.mark_read(&group, i64::MAX).unwrap(), newest);
+    delivery
+        .record_event_by(&group, b"in-2", "received", b"e", Some(&other))
+        .unwrap();
+    assert_eq!(delivery.unread_count(&group, Some(&me)).unwrap(), 1);
+
+    // A stale screen marking an older cursor does not move it back.
+    assert_eq!(delivery.mark_read(&group, first).unwrap(), newest);
+    assert_eq!(delivery.mark_read(&group, 0).unwrap(), newest);
+    assert_eq!(delivery.unread_count(&group, Some(&me)).unwrap(), 1);
+
+    // Markers are per conversation.
+    assert_eq!(delivery.read_cursor(&[2u8; 32]).unwrap(), 0);
+}

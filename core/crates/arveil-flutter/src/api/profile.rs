@@ -370,7 +370,8 @@ pub struct HistoryPageView {
     pub next: Option<i64>,
 }
 
-/// One row of the conversation list.
+/// One row of the conversation list. The application orders rows by
+/// `last_activity`, most recent first.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConversationView {
     pub group_id: String,
@@ -378,6 +379,36 @@ pub struct ConversationView {
     pub peer_devices: u32,
     pub peers: Vec<PeerView>,
     pub event_count: u32,
+    pub last_event: Option<LastEventView>,
+    /// Messages after this device's read marker that someone else wrote.
+    pub unread: u32,
+    /// Unix seconds of the newest event, or of when this device started
+    /// keeping the conversation.
+    pub last_activity: i64,
+}
+
+/// What a conversation row says about its newest event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LastEventView {
+    /// Position of the event in its conversation, as history reports it.
+    pub cursor: i64,
+    pub kind: String,
+    /// The start of a text message on one line, at most `PREVIEW_CHARS`
+    /// characters; empty for every other kind.
+    pub preview: String,
+    pub attachment_name: Option<String>,
+    pub sender_label: Option<String>,
+    pub own: bool,
+    pub created_at: i64,
+    /// Delivery state per mailbox, for events this device sent.
+    pub delivery: Vec<String>,
+}
+
+/// How far a conversation has been read on this device.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReadMarkerView {
+    pub cursor: i64,
+    pub unread: u32,
 }
 
 /// Whether a profile already lives in this directory. The difference
@@ -919,15 +950,32 @@ impl Profile {
         })
     }
 
-    /// The conversation list, as a query that answers from local state.
+    /// Mark a conversation read up to `cursor`, the newest event a screen
+    /// showed. Marking twice, late or past the end is harmless.
+    pub fn mark_read(&self, group_id: String, cursor: i64) -> Result<ReadMarkerView, CommandError> {
+        let group = decode_hex(&group_id)?;
+        let marker = self
+            .inner
+            .mark_read(&group, cursor)
+            .map_err(command_error)?;
+        Ok(ReadMarkerView {
+            cursor: marker.cursor,
+            unread: marker.unread,
+        })
+    }
+
+    /// The conversation list, as a query that answers from local state,
+    /// most recently active first.
     pub fn conversations(&self) -> Result<Vec<ConversationView>, CommandError> {
-        Ok(self
+        let mut rows: Vec<ConversationView> = self
             .inner
             .conversations()
             .map_err(command_error)?
             .into_iter()
             .map(view)
-            .collect())
+            .collect();
+        by_activity(&mut rows);
+        Ok(rows)
     }
 }
 
@@ -1147,6 +1195,53 @@ fn view(summary: ConversationSummary) -> ConversationView {
             })
             .collect(),
         event_count: summary.event_count as u32,
+        last_event: summary.last_event.map(last_event_view),
+        unread: summary.unread,
+        last_activity: summary.last_activity,
+    }
+}
+
+/// Most recent activity first. Event identifiers grow across
+/// conversations, so they order what happened within the same second; a
+/// full tie keeps the order conversations were started (the sort is stable).
+fn by_activity(rows: &mut [ConversationView]) {
+    rows.sort_by(|a, b| {
+        let cursor = |row: &ConversationView| row.last_event.as_ref().map(|e| e.cursor);
+        b.last_activity
+            .cmp(&a.last_activity)
+            .then_with(|| cursor(b).cmp(&cursor(a)))
+    });
+}
+
+/// The most characters of a message a conversation row shows.
+const PREVIEW_CHARS: usize = 120;
+
+fn last_event_view(event: HistoryEvent) -> LastEventView {
+    // The same boundary as history: only text bodies cross it, and here
+    // only their beginning, on one line.
+    let preview = if matches!(event.kind.as_str(), "sent" | "received") {
+        let text = String::from_utf8_lossy(&event.body);
+        let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        match line.char_indices().nth(PREVIEW_CHARS) {
+            Some((end, _)) => format!("{}…", &line[..end]),
+            None => line,
+        }
+    } else {
+        String::new()
+    };
+    LastEventView {
+        cursor: event.cursor,
+        kind: event.kind,
+        preview,
+        attachment_name: event.attachment.map(|a| a.name),
+        sender_label: event.sender_label,
+        own: event.own,
+        created_at: event.created_at,
+        delivery: event
+            .delivery_states
+            .into_iter()
+            .map(|state| state.state)
+            .collect(),
     }
 }
 
@@ -1268,6 +1363,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::QueryConversations => "query-conversations",
         Operation::QueryPeers => "query-peers",
         Operation::QueryHistoryPage => "query-history-page",
+        Operation::MarkRead => "mark-read",
         Operation::QueryArchived => "query-archived",
     }
 }
@@ -1276,6 +1372,69 @@ fn operation_name(operation: Operation) -> &'static str {
 mod tests {
     use super::*;
     use arveil_app::{OperationResult, StateChange};
+
+    fn event(kind: &str, body: &[u8]) -> HistoryEvent {
+        HistoryEvent {
+            cursor: 1,
+            event_id: vec![1; 16],
+            kind: kind.into(),
+            body: body.to_vec(),
+            delivery_states: vec![],
+            attachment: None,
+            created_at: 1_790_000_000,
+            sender_identity: None,
+            sender_label: Some("Lucía".into()),
+            own: false,
+        }
+    }
+
+    #[test]
+    fn rows_follow_activity_and_keep_start_order_on_a_full_tie() {
+        let row = |id: &str, activity: i64, cursor: Option<i64>| ConversationView {
+            group_id: id.into(),
+            creator: true,
+            peer_devices: 1,
+            peers: vec![],
+            event_count: u32::from(cursor.is_some()),
+            last_event: cursor.map(|cursor| LastEventView {
+                cursor,
+                ..last_event_view(event("received", b"x"))
+            }),
+            unread: 0,
+            last_activity: activity,
+        };
+        // Started in this order: a, b, c, d, e.
+        let mut rows = vec![
+            row("a", 100, Some(1)),
+            row("b", 200, Some(2)),
+            row("c", 200, Some(5)),
+            row("d", 50, None),
+            row("e", 50, None),
+        ];
+        by_activity(&mut rows);
+        let order: Vec<_> = rows.iter().map(|r| r.group_id.as_str()).collect();
+        // Same second: the later event first. No events and the same
+        // second: the order they were started.
+        assert_eq!(order, ["c", "b", "a", "d", "e"]);
+    }
+
+    #[test]
+    fn a_row_preview_is_one_short_line_of_text_and_nothing_else() {
+        let short = last_event_view(event("received", b"hola\n  familia"));
+        assert_eq!(short.preview, "hola familia");
+        assert_eq!(short.sender_label.as_deref(), Some("Lucía"));
+
+        // Cut by characters, not bytes: multibyte text never splits.
+        let long = "ñ".repeat(PREVIEW_CHARS + 5);
+        let cut = last_event_view(event("sent", long.as_bytes()));
+        assert_eq!(cut.preview.chars().count(), PREVIEW_CHARS + 1);
+        assert!(cut.preview.ends_with('…'));
+
+        for kind in ["file-pending", "file-outgoing", "sent-file"] {
+            let file = last_event_view(event(kind, b"private descriptor or local path"));
+            assert!(file.preview.is_empty(), "{kind} leaked its body");
+        }
+    }
 
     #[test]
     fn file_event_bodies_never_expose_descriptors_or_host_paths_to_dart() {

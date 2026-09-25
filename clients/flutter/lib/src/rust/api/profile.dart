@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `by_activity`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `last_event_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -81,7 +81,8 @@ abstract class Profile implements RustOpaqueInterface {
 
   Future<List<ContactView>> contacts();
 
-  /// The conversation list, as a query that answers from local state.
+  /// The conversation list, as a query that answers from local state,
+  /// most recently active first.
   Future<List<ConversationView>> conversations();
 
   Future<ChatMutationView> createContactConversation({
@@ -130,6 +131,13 @@ abstract class Profile implements RustOpaqueInterface {
 
   /// Local snapshot only: its timestamp identifies an earlier relay report.
   Future<KeyPackageSupplyView> keyPackageSupply();
+
+  /// Mark a conversation read up to `cursor`, the newest event a screen
+  /// showed. Marking twice, late or past the end is harmless.
+  Future<ReadMarkerView> markRead({
+    required String groupId,
+    required PlatformInt64 cursor,
+  });
 
   Future<String> ownRoute();
 
@@ -494,13 +502,22 @@ class ContactView {
           devices == other.devices;
 }
 
-/// One row of the conversation list.
+/// One row of the conversation list. The application orders rows by
+/// `last_activity`, most recent first.
 class ConversationView {
   final String groupId;
   final bool creator;
   final int peerDevices;
   final List<PeerView> peers;
   final int eventCount;
+  final LastEventView? lastEvent;
+
+  /// Messages after this device's read marker that someone else wrote.
+  final int unread;
+
+  /// Unix seconds of the newest event, or of when this device started
+  /// keeping the conversation.
+  final PlatformInt64 lastActivity;
 
   const ConversationView({
     required this.groupId,
@@ -508,6 +525,9 @@ class ConversationView {
     required this.peerDevices,
     required this.peers,
     required this.eventCount,
+    this.lastEvent,
+    required this.unread,
+    required this.lastActivity,
   });
 
   @override
@@ -516,7 +536,10 @@ class ConversationView {
       creator.hashCode ^
       peerDevices.hashCode ^
       peers.hashCode ^
-      eventCount.hashCode;
+      eventCount.hashCode ^
+      lastEvent.hashCode ^
+      unread.hashCode ^
+      lastActivity.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -527,7 +550,10 @@ class ConversationView {
           creator == other.creator &&
           peerDevices == other.peerDevices &&
           peers == other.peers &&
-          eventCount == other.eventCount;
+          eventCount == other.eventCount &&
+          lastEvent == other.lastEvent &&
+          unread == other.unread &&
+          lastActivity == other.lastActivity;
 }
 
 class DeviceInventoryView {
@@ -709,6 +735,60 @@ class KitView {
           runtimeType == other.runtimeType &&
           encrypted == other.encrypted &&
           secret == other.secret;
+}
+
+/// What a conversation row says about its newest event.
+class LastEventView {
+  /// Position of the event in its conversation, as history reports it.
+  final PlatformInt64 cursor;
+  final String kind;
+
+  /// The start of a text message on one line, at most `PREVIEW_CHARS`
+  /// characters; empty for every other kind.
+  final String preview;
+  final String? attachmentName;
+  final String? senderLabel;
+  final bool own;
+  final PlatformInt64 createdAt;
+
+  /// Delivery state per mailbox, for events this device sent.
+  final List<String> delivery;
+
+  const LastEventView({
+    required this.cursor,
+    required this.kind,
+    required this.preview,
+    this.attachmentName,
+    this.senderLabel,
+    required this.own,
+    required this.createdAt,
+    required this.delivery,
+  });
+
+  @override
+  int get hashCode =>
+      cursor.hashCode ^
+      kind.hashCode ^
+      preview.hashCode ^
+      attachmentName.hashCode ^
+      senderLabel.hashCode ^
+      own.hashCode ^
+      createdAt.hashCode ^
+      delivery.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LastEventView &&
+          runtimeType == other.runtimeType &&
+          cursor == other.cursor &&
+          kind == other.kind &&
+          preview == other.preview &&
+          attachmentName == other.attachmentName &&
+          senderLabel == other.senderLabel &&
+          own == other.own &&
+          createdAt == other.createdAt &&
+          delivery == other.delivery;
 }
 
 class ManagedDeviceView {
@@ -939,6 +1019,25 @@ class ProgressView {
           sequence == other.sequence &&
           operation == other.operation &&
           kind == other.kind;
+}
+
+/// How far a conversation has been read on this device.
+class ReadMarkerView {
+  final PlatformInt64 cursor;
+  final int unread;
+
+  const ReadMarkerView({required this.cursor, required this.unread});
+
+  @override
+  int get hashCode => cursor.hashCode ^ unread.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReadMarkerView &&
+          runtimeType == other.runtimeType &&
+          cursor == other.cursor &&
+          unread == other.unread;
 }
 
 class RevocationProgressView {

@@ -198,3 +198,100 @@ fn received_messages_name_their_sender_and_keep_their_time() {
     drop((s, receiving, engine, client));
     std::fs::remove_dir_all(&path).ok();
 }
+
+#[test]
+fn conversation_rows_count_unread_and_keep_markers() {
+    let path = std::env::temp_dir().join(format!(
+        "arveil-summaries-{}",
+        hex::encode(random_delivery_id().unwrap())
+    ));
+    let config = ProfileConfig::unencrypted(&path);
+    let client = open_client(&config).unwrap();
+    client.identity_new().unwrap();
+    client.device_new(onboarding::now()).unwrap();
+    let other = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+    let other_root = other.identity_new().unwrap();
+    let (other_device, _) = other.device_new(onboarding::now()).unwrap();
+    let them = EventSender {
+        device_id: other_device.keys.device_id.to_vec(),
+        identity_id: Some(other_root.identity_id()),
+    };
+    let (quiet, busy, empty) = (vec![1u8; 32], vec![2u8; 32], vec![3u8; 32]);
+    for group in [&quiet, &busy, &empty] {
+        client
+            .conversation_save(&Conversation {
+                group_id: group.clone(),
+                creator: true,
+                peers: vec![peer_of(
+                    other_root.identity_id(),
+                    &other_device,
+                    other_root.public().as_bytes(),
+                )],
+            })
+            .unwrap();
+    }
+    client
+        .contact_rename(&other_root.identity_id(), "Lucía")
+        .unwrap();
+    let delivery = client.delivery().unwrap();
+    let long = "una línea\ncon salto y un texto bastante largo ".repeat(6);
+    delivery
+        .record_event_by(&quiet, b"q-1", "received", b"hola", Some(&them))
+        .unwrap();
+    delivery
+        .record_event_by(&busy, b"b-1", "received", b"primero", Some(&them))
+        .unwrap();
+    delivery
+        .record_event_by(&busy, b"b-2", "sent", b"respuesta", None)
+        .unwrap();
+    delivery
+        .record_event_by(&busy, b"b-3", "received", long.as_bytes(), Some(&them))
+        .unwrap();
+
+    let app = Application::open(config.clone()).unwrap();
+    let rows = app.conversations().unwrap();
+    // The application keeps the order conversations were started: the
+    // command line lists them so and its scripts pick them by position.
+    // Screens order by `last_activity` instead.
+    let order: Vec<_> = rows.iter().map(|r| r.group_id.clone()).collect();
+    assert_eq!(order, [quiet.clone(), busy.clone(), empty.clone()]);
+    let row = |group: &[u8]| rows.iter().find(|r| r.group_id == group).unwrap().clone();
+    let busy_row = row(&busy);
+    assert_eq!(busy_row.unread, 2, "the sent reply is not unread");
+    let last = busy_row.last_event.unwrap();
+    assert_eq!(last.sender_label.as_deref(), Some("Lucía"));
+    assert!(!last.own);
+    assert_eq!(row(&quiet).unread, 1);
+    let empty_row = row(&empty);
+    assert_eq!((empty_row.unread, empty_row.last_event), (0, None));
+    assert!(empty_row.last_activity > 0);
+
+    let cursor = app
+        .history_page(&busy, None, 10)
+        .unwrap()
+        .events
+        .last()
+        .unwrap()
+        .cursor;
+    assert_eq!(
+        app.mark_read(&busy, cursor).unwrap(),
+        ReadMarker { cursor, unread: 0 }
+    );
+    // A stale screen cannot move the marker back.
+    assert_eq!(app.mark_read(&busy, 1).unwrap().cursor, cursor);
+    app.close();
+    drop(app);
+
+    // Markers survive reopening, and what arrives next is unread again.
+    delivery
+        .record_event_by(&busy, b"b-4", "received", b"otra vez", Some(&them))
+        .unwrap();
+    let app = Application::open(config).unwrap();
+    let rows = app.conversations().unwrap();
+    let busy_row = rows.iter().find(|r| r.group_id == busy).unwrap();
+    assert_eq!(busy_row.unread, 1);
+    assert_eq!(rows.iter().find(|r| r.group_id == quiet).unwrap().unread, 1);
+    app.close();
+    drop((app, delivery, client));
+    std::fs::remove_dir_all(&path).ok();
+}

@@ -84,6 +84,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  LastEventView dco_decode_box_autoadd_last_event_view(dynamic raw);
+
+  @protected
   PairingView dco_decode_box_autoadd_pairing_view(dynamic raw);
 
   @protected
@@ -137,6 +140,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   KitView dco_decode_kit_view(dynamic raw);
 
   @protected
+  LastEventView dco_decode_last_event_view(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -188,6 +194,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  LastEventView? dco_decode_opt_box_autoadd_last_event_view(dynamic raw);
+
+  @protected
   PairingView? dco_decode_opt_box_autoadd_pairing_view(dynamic raw);
 
   @protected
@@ -215,6 +224,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ProgressView dco_decode_progress_view(dynamic raw);
+
+  @protected
+  ReadMarkerView dco_decode_read_marker_view(dynamic raw);
 
   @protected
   RevocationProgressView dco_decode_revocation_progress_view(dynamic raw);
@@ -317,6 +329,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  LastEventView sse_decode_box_autoadd_last_event_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PairingView sse_decode_box_autoadd_pairing_view(SseDeserializer deserializer);
 
   @protected
@@ -376,6 +393,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   KitView sse_decode_kit_view(SseDeserializer deserializer);
+
+  @protected
+  LastEventView sse_decode_last_event_view(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -449,6 +469,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  LastEventView? sse_decode_opt_box_autoadd_last_event_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PairingView? sse_decode_opt_box_autoadd_pairing_view(
     SseDeserializer deserializer,
   );
@@ -478,6 +503,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ProgressView sse_decode_progress_view(SseDeserializer deserializer);
+
+  @protected
+  ReadMarkerView sse_decode_read_marker_view(SseDeserializer deserializer);
 
   @protected
   RevocationProgressView sse_decode_revocation_progress_view(
@@ -607,6 +635,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_last_event_view(
+    LastEventView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_pairing_view(
     PairingView self,
     SseSerializer serializer,
@@ -686,6 +720,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_kit_view(KitView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_last_event_view(LastEventView self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -778,6 +815,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_last_event_view(
+    LastEventView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_pairing_view(
     PairingView? self,
     SseSerializer serializer,
@@ -812,6 +855,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_progress_view(ProgressView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_read_marker_view(
+    ReadMarkerView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_revocation_progress_view(

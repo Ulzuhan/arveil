@@ -87,6 +87,9 @@ pub struct ExportedEvent {
 /// A local event: `(event_id, kind, body)`.
 pub type EventRow = (Vec<u8>, String, Vec<u8>);
 
+/// Kinds of event this device writes itself. Everything else arrived.
+pub const OWN_KINDS: &[&str] = &["sent", "sent-file", "file-outgoing"];
+
 /// The device that wrote an event, as MLS authenticated it, and the
 /// identity this profile knows for that device, if any yet.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -429,6 +432,58 @@ impl Delivery {
             })
         })?;
         rows.collect()
+    }
+
+    /// Mark `group` read up to `cursor`. A marker only moves forward, and
+    /// never past the newest event the conversation holds, so a stale or
+    /// overreaching caller cannot hide what arrives later. Returns the
+    /// marker in effect; 0 while nothing has been read.
+    pub fn mark_read(&self, group_id: &[u8], cursor: i64) -> Result<i64, rusqlite::Error> {
+        let conn = self.conn.lock();
+        conn.execute(
+            "INSERT INTO read_markers (group_id, cursor)
+             SELECT ?1, MIN(?2, newest)
+               FROM (SELECT MAX(id) AS newest FROM events WHERE group_id = ?1)
+              WHERE newest IS NOT NULL AND ?2 > 0
+             ON CONFLICT(group_id) DO UPDATE SET cursor = MAX(cursor, excluded.cursor)",
+            params![group_id, cursor],
+        )?;
+        drop(conn);
+        self.read_cursor(group_id)
+    }
+
+    /// How far `group` has been read on this device; 0 while nothing has.
+    pub fn read_cursor(&self, group_id: &[u8]) -> Result<i64, rusqlite::Error> {
+        self.conn.lock().query_row(
+            "SELECT COALESCE((SELECT cursor FROM read_markers WHERE group_id = ?1), 0)",
+            params![group_id],
+            |r| r.get(0),
+        )
+    }
+
+    /// Events after the read marker that another identity wrote. What this
+    /// device or another device of `own_identity` wrote is never unread.
+    pub fn unread_count(
+        &self,
+        group_id: &[u8],
+        own_identity: Option<&[u8]>,
+    ) -> Result<u32, rusqlite::Error> {
+        let own_kinds = OWN_KINDS
+            .iter()
+            .map(|kind| format!("'{kind}'"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        self.conn.lock().query_row(
+            &format!(
+                "SELECT count(*) FROM events
+                  WHERE group_id = ?1
+                    AND id > COALESCE((SELECT cursor FROM read_markers WHERE group_id = ?1), 0)
+                    AND kind NOT IN ({own_kinds})
+                    AND (?2 IS NULL OR sender_identity IS NULL OR sender_identity != ?2)"
+            ),
+            params![group_id, own_identity],
+            |r| r.get(0),
+        )
     }
 
     pub fn events(&self, group_id: &[u8]) -> Result<Vec<EventRow>, rusqlite::Error> {
