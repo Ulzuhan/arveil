@@ -293,3 +293,38 @@ Los candidatos `0.1.0+5` y el borrador de release siguen iguales. La
 aceptación de los diálogos nativos de kits sigue abierta. Los comandos de
 reproducción y ajustes locales de las herramientas Android están en el
 [README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+
+
+## Aceptación de adjuntos en la GUI (25 de septiembre de 2026)
+
+El cliente fuente `0.1.0+7` pasó estas comprobaciones nativas:
+
+| Plataforma y escenario | Revisión de la implementación del cliente |
+|---|---|
+| macOS 26.6.2 Apple silicon, Xcode 27.0, llavero de inicio de sesión: transferencias | `234406740fac64852d7583f77530305638987100` |
+| Emulador Android 15/API 35 ARM64, Keystore: transferencias | `b943594b222c09a5c495b5c6c8fac3ab0f5303f7` |
+| El mismo emulador Android: diálogos reales de abrir/guardar adjuntos | `6771842c387854f06abbebf5fe443e81c2403911` |
+
+El escenario de transferencias usa dos perfiles cifrados, Rust/SQLCipher nativo
+y un relay local aislado. Comprueba confirmación, cola sin red, reapertura cifrada,
+reanudación de subida sin otro evento, descarga voluntaria, exportación verificada,
+dos archivos con el mismo nombre, cancelación y sincronización repetida sin
+duplicados. Sus selectores son sustitutos en memoria; no escribe descargas de
+adjuntos en claro. El ejecutor Android espera a la finalización de la transferencia,
+sin asumir que una pantalla estabilizada implica haber terminado la E/S nativa.
+
+La prueba interactiva Android separada usa diálogos reales del sistema y un
+archivo sintético de 37 bytes, sin perfil, relay ni kit de identidad. Pasaron
+selección, cancelar al abrir, cancelar al guardar y guardado explícito. El archivo
+exportado coincidió byte a byte con el original y no se creó caché en claro de
+`file_picker`. Después se retiraron ambos documentos desechables. Android lee
+la URI de origen directamente con un flujo acotado; tres regresiones JVM cubren
+entrada vacía/al límite, flujo demasiado grande de longitud desconocida y
+cancelación antes de leer.
+
+Pasaron los 43 tests Flutter y 99 tests Rust (uno sigue ignorado), además del
+análisis estático y las comprobaciones de privacidad. Los comandos están en el
+[README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).
+Es aceptación del código: siguen sin verificar los diálogos nativos de adjuntos
+en macOS, Android físico, descarga nueva y adjuntos entre apps de release
+independientes. Los candidatos `0.1.0+5` y el borrador de release siguen iguales.

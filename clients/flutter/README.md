@@ -244,10 +244,11 @@ those two disposable files. No identity profile, relay or kit is used.
 The test is skipped unless explicitly enabled. Keep raw diagnostics private
 and run `flutter clean` afterwards; never distribute this integration build.
 
-The bounded Android reader also has JVM regressions, run in CI after the
-Android build has generated the local Gradle wrapper and SDK properties:
+The bounded Android reader also has JVM regressions, run in CI. Generate the
+local Gradle wrapper and SDK properties first, without building an APK:
 
 ```sh
+flutter build apk --debug --config-only
 cd android
 ./gradlew app:testDebugUnitTest -Ptarget-platform=android-arm64
 ```
