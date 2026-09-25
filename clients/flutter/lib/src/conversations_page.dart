@@ -374,6 +374,18 @@ class _ConversationsPageState extends State<ConversationsPage>
                     const LinearProgressIndicator(
                       semanticsLabel: 'Sincronizando',
                     ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+                    child: Text(
+                      syncStatusText(
+                        chat.syncState,
+                        chat.lastSynced,
+                        DateTime.now(),
+                      ),
+                      key: const Key('sync-status'),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
                   if (chat.networkError case final message?) _banner(message),
                   if (chat.error case final message?)
                     _banner(message, error: true),

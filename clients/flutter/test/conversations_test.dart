@@ -654,4 +654,54 @@ void main() {
     );
     expect(find.byKey(const Key('message-verified')), findsNothing);
   });
+
+  test('the sync line says when it last worked, never that mail arrived', () {
+    final now = DateTime(2026, 9, 25, 18, 30);
+    expect(syncStatusText(SyncState.never, null, now), 'Aún sin sincronizar');
+    expect(
+      syncStatusText(
+        SyncState.synced,
+        now.subtract(const Duration(seconds: 20)),
+        now,
+      ),
+      'Sincronizado ahora',
+    );
+    expect(
+      syncStatusText(
+        SyncState.synced,
+        now.subtract(const Duration(minutes: 2)),
+        now,
+      ),
+      'Sincronizado hace 2 min',
+    );
+    expect(
+      syncStatusText(SyncState.offline, DateTime(2026, 9, 25, 16, 5), now),
+      'Sin conexión con tu servidor · última sincronización a las 16:05',
+    );
+    expect(
+      syncStatusText(SyncState.refused, null, now),
+      'El servidor rechazó la sincronización',
+    );
+  });
+
+  testWidgets('a transport failure reads as offline, not as a server refusal', (
+    tester,
+  ) async {
+    final profile = ChatProfile();
+    final chat = await open(tester, profile);
+    await chat.sync();
+    await tester.pumpAndSettle();
+    expect(chat.syncState, SyncState.synced);
+    expect(chat.lastSynced, isNotNull);
+    expect(find.byKey(const Key('sync-status')), findsOneWidget);
+
+    profile.offline = true;
+    await chat.sync();
+    await tester.pumpAndSettle();
+    expect(chat.syncState, SyncState.offline);
+    expect(chat.lastSynced, isNotNull, reason: 'the last success is kept');
+    expect(find.textContaining('Sin conexión con tu servidor'), findsOneWidget);
+    expect(find.textContaining('PRIVATE_DIAGNOSTIC'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
 }
