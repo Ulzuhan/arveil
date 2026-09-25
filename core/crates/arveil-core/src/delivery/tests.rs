@@ -269,14 +269,14 @@ fn events_keep_their_sender_and_time() {
         .record_event(&group, b"legacy", "received", b"sin remitente")
         .unwrap();
     let known = EventSender {
-        device_id: vec![2; 16],
+        device_id: Some(vec![2; 16]),
         identity_id: Some(vec![3; 32]),
     };
     delivery
         .record_event_by(&group, b"known", "received", b"hola", Some(&known))
         .unwrap();
     let unknown_identity = EventSender {
-        device_id: vec![4; 16],
+        device_id: Some(vec![4; 16]),
         identity_id: None,
     };
     delivery
@@ -324,11 +324,11 @@ fn read_markers_only_move_forward_and_count_what_others_wrote() {
     let group = [1u8; 32];
     let me = vec![9u8; 32];
     let other = EventSender {
-        device_id: vec![2; 16],
+        device_id: Some(vec![2; 16]),
         identity_id: Some(vec![3; 32]),
     };
     let own_device = EventSender {
-        device_id: vec![4; 16],
+        device_id: Some(vec![4; 16]),
         identity_id: Some(me.clone()),
     };
     let cursor_of = |d: &Delivery, id: &[u8]| {
@@ -385,4 +385,25 @@ fn read_markers_only_move_forward_and_count_what_others_wrote() {
 
     // Markers are per conversation.
     assert_eq!(delivery.read_cursor(&[2u8; 32]).unwrap(), 0);
+}
+
+#[test]
+fn notices_are_never_unread() {
+    let conn = SharedConn::open_in_memory().unwrap();
+    let delivery = Delivery::open(conn).unwrap();
+    let group = [1u8; 32];
+    let them = EventSender {
+        device_id: None,
+        identity_id: Some(vec![3; 32]),
+    };
+    delivery
+        .record_event_by(&group, b"notice", DEVICES_CHANGED, b"", Some(&them))
+        .unwrap();
+    assert_eq!(delivery.unread_count(&group, Some(&[9u8; 32])).unwrap(), 0);
+    // One notice per conversation and manifest: the identifier differs by
+    // group and by sequence, and is stable.
+    let id = |sequence, group: &[u8]| notice_event_id(&[3u8; 32], sequence, group);
+    assert_eq!(id(2, &group), id(2, &group));
+    assert_ne!(id(2, &group), id(3, &group));
+    assert_ne!(id(2, &group), id(2, &[2u8; 32]));
 }

@@ -9,17 +9,21 @@ impl Client {
     pub fn archive_snapshot(&self) -> rusqlite::Result<Vec<(bool, ArchiveRecord)>> {
         self.unit_of_work(|| {
         let conn = self.conn.lock();
-        let sql = "SELECT 1 AS live, group_id, event_id, kind, body, created_at, NULL AS file_name, X'' AS file, 0 AS file_present FROM events
+        // Local notices describe this profile's view of a conversation;
+        // they are not history anybody wrote, so archives leave them out.
+        let sql = format!("SELECT 1 AS live, group_id, event_id, kind, body, created_at, NULL AS file_name, X'' AS file, 0 AS file_present FROM events
+            WHERE kind != '{notice}'
             UNION ALL SELECT 0, a.group_id, a.event_id, kind, body, created_at, file_name, COALESCE(f.bytes, X''), f.bytes IS NOT NULL
             FROM archived_events a LEFT JOIN archived_files f USING(group_id,event_id)
-            WHERE NOT EXISTS(SELECT 1 FROM events e WHERE e.group_id=a.group_id AND e.event_id=a.event_id)";
+            WHERE NOT EXISTS(SELECT 1 FROM events e WHERE e.group_id=a.group_id AND e.event_id=a.event_id)",
+            notice = crate::delivery::DEVICES_CHANGED);
         let (count, size): (i64, i64) = conn.query_row(&format!(
             "SELECT count(*), COALESCE(sum(length(body)+length(file)+length(group_id)+length(event_id)+length(kind)+COALESCE(length(file_name),0)+256),0) FROM ({sql})"
         ), [], |r| Ok((r.get(0)?,r.get(1)?)))?;
         if count > MAX_ARCHIVE_RECORDS as i64 || size > MAX_ARCHIVE_PAYLOAD_BYTES as i64 {
             return Err(rusqlite::Error::InvalidQuery);
         }
-        conn.prepare(sql)?
+        conn.prepare(&sql)?
             .query_map([], |r| {
                 Ok((
                     r.get(0)?,

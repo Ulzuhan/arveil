@@ -2756,6 +2756,7 @@ impl SseDecode for crate::api::profile::HistoryEventView {
         let mut var_senderIdentity = <Option<String>>::sse_decode(deserializer);
         let mut var_senderLabel = <Option<String>>::sse_decode(deserializer);
         let mut var_own = <bool>::sse_decode(deserializer);
+        let mut var_notice = <Option<crate::api::profile::NoticeView>>::sse_decode(deserializer);
         return crate::api::profile::HistoryEventView {
             cursor: var_cursor,
             event_id: var_eventId,
@@ -2767,6 +2768,7 @@ impl SseDecode for crate::api::profile::HistoryEventView {
             sender_identity: var_senderIdentity,
             sender_label: var_senderLabel,
             own: var_own,
+            notice: var_notice,
         };
     }
 }
@@ -2852,6 +2854,7 @@ impl SseDecode for crate::api::profile::LastEventView {
         let mut var_own = <bool>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_delivery = <Vec<String>>::sse_decode(deserializer);
+        let mut var_notice = <Option<crate::api::profile::NoticeView>>::sse_decode(deserializer);
         return crate::api::profile::LastEventView {
             cursor: var_cursor,
             kind: var_kind,
@@ -2861,6 +2864,7 @@ impl SseDecode for crate::api::profile::LastEventView {
             own: var_own,
             created_at: var_createdAt,
             delivery: var_delivery,
+            notice: var_notice,
         };
     }
 }
@@ -3028,6 +3032,18 @@ impl SseDecode for crate::api::profile::ManagedDeviceView {
     }
 }
 
+impl SseDecode for crate::api::profile::NoticeView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_added = <u32>::sse_decode(deserializer);
+        let mut var_removed = <u32>::sse_decode(deserializer);
+        return crate::api::profile::NoticeView {
+            added: var_added,
+            removed: var_removed,
+        };
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3083,6 +3099,17 @@ impl SseDecode for Option<crate::api::profile::LastEventView> {
             return Some(<crate::api::profile::LastEventView>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::profile::NoticeView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::profile::NoticeView>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -4052,6 +4079,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::HistoryEventView {
             self.sender_identity.into_into_dart().into_dart(),
             self.sender_label.into_into_dart().into_dart(),
             self.own.into_into_dart().into_dart(),
+            self.notice.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4165,6 +4193,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::LastEventView {
             self.own.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.delivery.into_into_dart().into_dart(),
+            self.notice.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4200,6 +4229,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::ManagedDeviceView>
     for crate::api::profile::ManagedDeviceView
 {
     fn into_into_dart(self) -> crate::api::profile::ManagedDeviceView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::profile::NoticeView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.added.into_into_dart().into_dart(),
+            self.removed.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::profile::NoticeView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::NoticeView>
+    for crate::api::profile::NoticeView
+{
+    fn into_into_dart(self) -> crate::api::profile::NoticeView {
         self
     }
 }
@@ -4824,6 +4874,7 @@ impl SseEncode for crate::api::profile::HistoryEventView {
         <Option<String>>::sse_encode(self.sender_identity, serializer);
         <Option<String>>::sse_encode(self.sender_label, serializer);
         <bool>::sse_encode(self.own, serializer);
+        <Option<crate::api::profile::NoticeView>>::sse_encode(self.notice, serializer);
     }
 }
 
@@ -4897,6 +4948,7 @@ impl SseEncode for crate::api::profile::LastEventView {
         <bool>::sse_encode(self.own, serializer);
         <i64>::sse_encode(self.created_at, serializer);
         <Vec<String>>::sse_encode(self.delivery, serializer);
+        <Option<crate::api::profile::NoticeView>>::sse_encode(self.notice, serializer);
     }
 }
 
@@ -5023,6 +5075,14 @@ impl SseEncode for crate::api::profile::ManagedDeviceView {
     }
 }
 
+impl SseEncode for crate::api::profile::NoticeView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.added, serializer);
+        <u32>::sse_encode(self.removed, serializer);
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5069,6 +5129,16 @@ impl SseEncode for Option<crate::api::profile::LastEventView> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::profile::LastEventView>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::profile::NoticeView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::profile::NoticeView>::sse_encode(value, serializer);
         }
     }
 }

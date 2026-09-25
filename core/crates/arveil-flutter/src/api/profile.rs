@@ -365,6 +365,15 @@ pub struct HistoryEventView {
     pub sender_label: Option<String>,
     /// Written by this identity, from this device or another of its own.
     pub own: bool,
+    /// For a device-change notice, what changed; its author is the sender.
+    pub notice: Option<NoticeView>,
+}
+
+/// A contact's devices changed. Counts only: no device is named.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoticeView {
+    pub added: u32,
+    pub removed: u32,
 }
 
 /// One page, oldest first within the page.
@@ -408,6 +417,7 @@ pub struct LastEventView {
     pub created_at: i64,
     /// Delivery state per mailbox, for events this device sent.
     pub delivery: Vec<String>,
+    pub notice: Option<NoticeView>,
 }
 
 /// How far a conversation has been read on this device.
@@ -1139,6 +1149,14 @@ fn event_view(event: HistoryEvent) -> HistoryEventView {
         sender_identity: event.sender_identity.as_deref().map(hex),
         sender_label: event.sender_label,
         own: event.own,
+        notice: event.notice.map(notice_view),
+    }
+}
+
+fn notice_view(change: arveil_app::DeviceChange) -> NoticeView {
+    NoticeView {
+        added: change.added,
+        removed: change.removed,
     }
 }
 
@@ -1259,6 +1277,7 @@ fn last_event_view(event: HistoryEvent) -> LastEventView {
             .into_iter()
             .map(|state| state.state)
             .collect(),
+        notice: event.notice.map(notice_view),
     }
 }
 
@@ -1403,6 +1422,7 @@ mod tests {
             sender_identity: None,
             sender_label: Some("Lucía".into()),
             own: false,
+            notice: None,
         }
     }
 
@@ -1473,6 +1493,7 @@ mod tests {
                 sender_identity: None,
                 sender_label: None,
                 own: false,
+                notice: None,
             });
             assert!(view.body.is_empty());
         }
@@ -1487,6 +1508,7 @@ mod tests {
             sender_identity: Some(vec![0xab, 0xcd]),
             sender_label: Some("Lucía".into()),
             own: false,
+            notice: None,
         });
         assert_eq!(view.body, b"message");
         assert_eq!(view.created_at, 1_790_000_000);

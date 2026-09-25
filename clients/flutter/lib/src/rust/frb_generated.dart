@@ -2177,6 +2177,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  NoticeView dco_decode_box_autoadd_notice_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_notice_view(raw);
+  }
+
+  @protected
   PairingView dco_decode_box_autoadd_pairing_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_pairing_view(raw);
@@ -2328,8 +2334,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   HistoryEventView dco_decode_history_event_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return HistoryEventView(
       cursor: dco_decode_i_64(arr[0]),
       eventId: dco_decode_String(arr[1]),
@@ -2341,6 +2347,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       senderIdentity: dco_decode_opt_String(arr[7]),
       senderLabel: dco_decode_opt_String(arr[8]),
       own: dco_decode_bool(arr[9]),
+      notice: dco_decode_opt_box_autoadd_notice_view(arr[10]),
     );
   }
 
@@ -2405,8 +2412,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   LastEventView dco_decode_last_event_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return LastEventView(
       cursor: dco_decode_i_64(arr[0]),
       kind: dco_decode_String(arr[1]),
@@ -2416,6 +2423,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       own: dco_decode_bool(arr[5]),
       createdAt: dco_decode_i_64(arr[6]),
       delivery: dco_decode_list_String(arr[7]),
+      notice: dco_decode_opt_box_autoadd_notice_view(arr[8]),
     );
   }
 
@@ -2506,6 +2514,18 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  NoticeView dco_decode_notice_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return NoticeView(
+      added: dco_decode_u_32(arr[0]),
+      removed: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -2533,6 +2553,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   LastEventView? dco_decode_opt_box_autoadd_last_event_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_last_event_view(raw);
+  }
+
+  @protected
+  NoticeView? dco_decode_opt_box_autoadd_notice_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_notice_view(raw);
   }
 
   @protected
@@ -3003,6 +3029,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  NoticeView sse_decode_box_autoadd_notice_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_notice_view(deserializer));
+  }
+
+  @protected
   PairingView sse_decode_box_autoadd_pairing_view(
     SseDeserializer deserializer,
   ) {
@@ -3194,6 +3226,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     var var_senderIdentity = sse_decode_opt_String(deserializer);
     var var_senderLabel = sse_decode_opt_String(deserializer);
     var var_own = sse_decode_bool(deserializer);
+    var var_notice = sse_decode_opt_box_autoadd_notice_view(deserializer);
     return HistoryEventView(
       cursor: var_cursor,
       eventId: var_eventId,
@@ -3205,6 +3238,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       senderIdentity: var_senderIdentity,
       senderLabel: var_senderLabel,
       own: var_own,
+      notice: var_notice,
     );
   }
 
@@ -3275,6 +3309,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     var var_own = sse_decode_bool(deserializer);
     var var_createdAt = sse_decode_i_64(deserializer);
     var var_delivery = sse_decode_list_String(deserializer);
+    var var_notice = sse_decode_opt_box_autoadd_notice_view(deserializer);
     return LastEventView(
       cursor: var_cursor,
       kind: var_kind,
@@ -3284,6 +3319,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       own: var_own,
       createdAt: var_createdAt,
       delivery: var_delivery,
+      notice: var_notice,
     );
   }
 
@@ -3455,6 +3491,14 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  NoticeView sse_decode_notice_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_added = sse_decode_u_32(deserializer);
+    var var_removed = sse_decode_u_32(deserializer);
+    return NoticeView(added: var_added, removed: var_removed);
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -3510,6 +3554,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_last_event_view(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  NoticeView? sse_decode_opt_box_autoadd_notice_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_notice_view(deserializer));
     } else {
       return null;
     }
@@ -4043,6 +4100,15 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_notice_view(
+    NoticeView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_notice_view(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_pairing_view(
     PairingView self,
     SseSerializer serializer,
@@ -4208,6 +4274,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_opt_String(self.senderIdentity, serializer);
     sse_encode_opt_String(self.senderLabel, serializer);
     sse_encode_bool(self.own, serializer);
+    sse_encode_opt_box_autoadd_notice_view(self.notice, serializer);
   }
 
   @protected
@@ -4275,6 +4342,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_bool(self.own, serializer);
     sse_encode_i_64(self.createdAt, serializer);
     sse_encode_list_String(self.delivery, serializer);
+    sse_encode_opt_box_autoadd_notice_view(self.notice, serializer);
   }
 
   @protected
@@ -4432,6 +4500,13 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_notice_view(NoticeView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.added, serializer);
+    sse_encode_u_32(self.removed, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -4490,6 +4565,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_last_event_view(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_notice_view(
+    NoticeView? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_notice_view(self, serializer);
     }
   }
 

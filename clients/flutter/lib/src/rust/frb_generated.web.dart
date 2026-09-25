@@ -87,6 +87,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   LastEventView dco_decode_box_autoadd_last_event_view(dynamic raw);
 
   @protected
+  NoticeView dco_decode_box_autoadd_notice_view(dynamic raw);
+
+  @protected
   PairingView dco_decode_box_autoadd_pairing_view(dynamic raw);
 
   @protected
@@ -182,6 +185,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   ManagedDeviceView dco_decode_managed_device_view(dynamic raw);
 
   @protected
+  NoticeView dco_decode_notice_view(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -195,6 +201,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   LastEventView? dco_decode_opt_box_autoadd_last_event_view(dynamic raw);
+
+  @protected
+  NoticeView? dco_decode_opt_box_autoadd_notice_view(dynamic raw);
 
   @protected
   PairingView? dco_decode_opt_box_autoadd_pairing_view(dynamic raw);
@@ -334,6 +343,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  NoticeView sse_decode_box_autoadd_notice_view(SseDeserializer deserializer);
+
+  @protected
   PairingView sse_decode_box_autoadd_pairing_view(SseDeserializer deserializer);
 
   @protected
@@ -453,6 +465,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  NoticeView sse_decode_notice_view(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -470,6 +485,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   LastEventView? sse_decode_opt_box_autoadd_last_event_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NoticeView? sse_decode_opt_box_autoadd_notice_view(
     SseDeserializer deserializer,
   );
 
@@ -641,6 +661,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_notice_view(
+    NoticeView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_pairing_view(
     PairingView self,
     SseSerializer serializer,
@@ -794,6 +820,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_notice_view(NoticeView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -817,6 +846,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   @protected
   void sse_encode_opt_box_autoadd_last_event_view(
     LastEventView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_notice_view(
+    NoticeView? self,
     SseSerializer serializer,
   );
 

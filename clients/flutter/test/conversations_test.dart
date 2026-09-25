@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
 import 'package:arveil/main.dart';
@@ -603,5 +604,54 @@ void main() {
     expect(find.bySemanticsLabel(RegExp('1 mensaje sin leer')), findsOneWidget);
     semantics.dispose();
     await tester.pumpWidget(const SizedBox());
+  });
+
+  test('device notices say who changed how many devices, never which', () {
+    expect(
+      noticeText('Lucía', const NoticeView(added: 1, removed: 0)),
+      'Lucía ha añadido un dispositivo.',
+    );
+    expect(
+      noticeText(null, const NoticeView(added: 2, removed: 1)),
+      'Un contacto ha añadido 2 dispositivos y ha retirado un dispositivo.',
+    );
+  });
+
+  testWidgets('a device notice asks to compare numbers unless verified', (
+    tester,
+  ) async {
+    HistoryEventView notice(String id) => HistoryEventView(
+      cursor: 1,
+      eventId: id,
+      kind: 'devices-changed',
+      body: Uint8List(0),
+      delivery: const [],
+      createdAt: 1790000000,
+      senderLabel: 'Lucía',
+      own: false,
+      notice: const NoticeView(added: 1, removed: 0),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              MessageBubble(event: notice('verified'), senderVerified: true),
+              MessageBubble(event: notice('unverified')),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Lucía ha añadido un dispositivo.'), findsNWidgets(2));
+    expect(
+      find.text('El cambio está firmado por su identidad verificada.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Compara su número de seguridad si no esperabas este cambio.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('message-verified')), findsNothing);
   });
 }

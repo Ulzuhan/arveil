@@ -21,7 +21,7 @@ use rusqlite::Connection;
 use crate::storage::StorageError;
 
 /// The newest profile schema this build reads and writes.
-pub const PROFILE_SCHEMA_VERSION: u32 = 4;
+pub const PROFILE_SCHEMA_VERSION: u32 = 5;
 
 /// One step from `version - 1` to `version`.
 pub(crate) struct Migration {
@@ -45,6 +45,10 @@ const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 4,
         apply: kit_exports,
+    },
+    Migration {
+        version: 5,
+        apply: manifest_devices,
     },
 ];
 
@@ -208,6 +212,15 @@ fn kit_exports(conn: &Connection) -> Result<(), StorageError> {
              saved_at         INTEGER
          );",
     )?;
+    Ok(())
+}
+
+/// Version 5: the active devices of each contact's accepted manifest, so
+/// the next manifest can say which devices it added or removed. Manifests
+/// accepted before this version have no set; the next one becomes the
+/// baseline and announces nothing.
+fn manifest_devices(conn: &Connection) -> Result<(), StorageError> {
+    conn.execute_batch("ALTER TABLE peer_manifests ADD COLUMN active BLOB;")?;
     Ok(())
 }
 
