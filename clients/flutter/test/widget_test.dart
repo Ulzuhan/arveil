@@ -102,7 +102,10 @@ void main() {
       await tester.tap(find.text('Crear identidad y unirme'));
       await tester.pumpAndSettle();
       expect(profile.enrollments, 0);
-      expect(find.text('Pega los datos completos del relay.'), findsOneWidget);
+      expect(
+        find.text('Pega los datos completos del servidor.'),
+        findsOneWidget,
+      );
       await tester.enterText(find.byKey(const Key('bootstrap')), relay);
       await tester.enterText(find.byKey(const Key('invite')), invitation);
       await tester.ensureVisible(find.text('Crear identidad y unirme'));

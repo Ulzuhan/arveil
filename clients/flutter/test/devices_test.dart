@@ -100,7 +100,7 @@ void main() {
       await press(tester, find.byKey(const Key('confirm-device-revocation')));
       expect(p.revocations, 1);
       expect(p.target, 'other-device');
-      expect(find.text('Revocación aceptada por el relay'), findsOneWidget);
+      expect(find.text('Revocación aceptada por el servidor'), findsOneWidget);
       expect(
         find.text('Conversaciones locales pendientes de retirarlo: 1'),
         findsOneWidget,
@@ -126,7 +126,7 @@ void main() {
       await press(tester, find.byKey(const Key('revoke-other-device')));
       await press(tester, find.byKey(const Key('confirm-device-revocation')));
       expect(
-        find.text('Pendiente de publicar la revocación en el relay'),
+        find.text('Pendiente de publicar la revocación en el servidor'),
         findsOneWidget,
       );
       expect(find.textContaining('PRIVATE_PATH'), findsNothing);
@@ -134,7 +134,7 @@ void main() {
       await press(tester, find.byKey(const Key('sync-devices')));
       expect(p.syncs, 1);
       expect(p.revocations, 1);
-      expect(find.text('Revocación aceptada por el relay'), findsOneWidget);
+      expect(find.text('Revocación aceptada por el servidor'), findsOneWidget);
     },
   );
 

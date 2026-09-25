@@ -185,7 +185,7 @@ abstract class AppLocalizations {
   /// No description provided for @enrollBody.
   ///
   /// In es, this message translates to:
-  /// **'Pide al administrador los datos del relay y una invitación. Tu identidad se crea en este dispositivo al continuar.'**
+  /// **'Pide al administrador los datos del servidor y una invitación. Tu identidad se crea en este dispositivo al continuar.'**
   String get enrollBody;
 
   /// No description provided for @setupRedeeming.
@@ -221,13 +221,13 @@ abstract class AppLocalizations {
   /// No description provided for @enrollRelayLabel.
   ///
   /// In es, this message translates to:
-  /// **'Datos del relay'**
+  /// **'Datos del servidor'**
   String get enrollRelayLabel;
 
   /// No description provided for @enrollRelayInvalid.
   ///
   /// In es, this message translates to:
-  /// **'Pega los datos completos del relay.'**
+  /// **'Pega los datos completos del servidor.'**
   String get enrollRelayInvalid;
 
   /// No description provided for @enrollInviteLabel.
@@ -311,7 +311,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryRollbackWarning.
   ///
   /// In es, this message translates to:
-  /// **'El relay conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.'**
+  /// **'El servidor conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.'**
   String get recoveryRollbackWarning;
 
   /// No description provided for @openConversations.
@@ -335,7 +335,7 @@ abstract class AppLocalizations {
   /// No description provided for @linkedDeviceKitNote.
   ///
   /// In es, this message translates to:
-  /// **'Este dispositivo está vinculado. El kit de recuperación se exporta desde el dispositivo administrador.'**
+  /// **'Este dispositivo está vinculado. El kit de identidad se exporta desde el dispositivo administrador.'**
   String get linkedDeviceKitNote;
 
   /// No description provided for @errorSecureStorageUnavailable.
@@ -419,7 +419,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorTransport.
   ///
   /// In es, this message translates to:
-  /// **'No se pudo conectar con el relay. Comprueba la conexión y sigue las indicaciones de la operación pendiente.'**
+  /// **'No se pudo conectar con el servidor. Comprueba la conexión y sigue las indicaciones de la operación pendiente.'**
   String get errorTransport;
 
   /// No description provided for @errorDomain.
@@ -431,7 +431,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorProtocol.
   ///
   /// In es, this message translates to:
-  /// **'El relay no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.'**
+  /// **'El servidor no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.'**
   String get errorProtocol;
 
   /// No description provided for @errorBusy.
@@ -635,13 +635,13 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryIncomplete.
   ///
   /// In es, this message translates to:
-  /// **'Selecciona el kit, introduce su clave y los datos del relay, y confirma las consecuencias de la recuperación.'**
+  /// **'Selecciona el kit, introduce su clave y los datos del servidor, y confirma las consecuencias de la recuperación.'**
   String get recoveryIncomplete;
 
   /// No description provided for @kitTitle.
   ///
   /// In es, this message translates to:
-  /// **'Kit de recuperación'**
+  /// **'Kit de identidad'**
   String get kitTitle;
 
   /// No description provided for @kitExplanation.
@@ -713,7 +713,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryRelayLabel.
   ///
   /// In es, this message translates to:
-  /// **'Datos del relay original'**
+  /// **'Datos del servidor original'**
   String get recoveryRelayLabel;
 
   /// No description provided for @recoveryChooseKit.
@@ -755,7 +755,7 @@ abstract class AppLocalizations {
   /// No description provided for @recoveryResumeBody.
   ///
   /// In es, this message translates to:
-  /// **'La identidad y las claves del nuevo dispositivo están guardadas. El relay puede haber aceptado ya la revocación de los anteriores. Reanuda esta misma operación; no necesitas volver a abrir el kit ni crear otro perfil.'**
+  /// **'La identidad y las claves del nuevo dispositivo están guardadas. El servidor puede haber aceptado ya la revocación de los anteriores. Reanuda esta misma operación; no necesitas volver a abrir el kit ni crear otro perfil.'**
   String get recoveryResumeBody;
 
   /// No description provided for @recoveryResume.
@@ -767,13 +767,13 @@ abstract class AppLocalizations {
   /// No description provided for @keyPackagesTitle.
   ///
   /// In es, this message translates to:
-  /// **'Disponibilidad para nuevas conversaciones'**
+  /// **'Claves para grupos nuevos'**
   String get keyPackagesTitle;
 
   /// No description provided for @keyPackagesExplanation.
   ///
   /// In es, this message translates to:
-  /// **'Este dispositivo publica claves de un solo uso (KeyPackages) para que otras personas puedan iniciar conversaciones con él. Las conversaciones existentes conservan sus propias claves.'**
+  /// **'Este dispositivo publica claves de un solo uso para que otras personas puedan iniciar conversaciones con él. Las conversaciones existentes conservan sus propias claves.'**
   String get keyPackagesExplanation;
 
   /// No description provided for @keyPackagesUnknown.
@@ -803,7 +803,7 @@ abstract class AppLocalizations {
   /// No description provided for @keyPackagesCount.
   ///
   /// In es, this message translates to:
-  /// **'{count, plural, =1{1 clave disponible según el relay.} other{{count} claves disponibles según el relay.}}'**
+  /// **'{count, plural, =1{1 clave disponible según el servidor.} other{{count} claves disponibles según el servidor.}}'**
   String keyPackagesCount(int count);
 
   /// No description provided for @keyPackagesCheckedAt.
@@ -899,7 +899,7 @@ abstract class AppLocalizations {
   /// No description provided for @deliveryAccepted.
   ///
   /// In es, this message translates to:
-  /// **'Aceptado por el relay · lectura sin confirmar'**
+  /// **'Aceptado por el servidor · lectura sin confirmar'**
   String get deliveryAccepted;
 
   /// No description provided for @deliveryRejected.
@@ -935,7 +935,7 @@ abstract class AppLocalizations {
   /// No description provided for @attachmentExpiredOnRelay.
   ///
   /// In es, this message translates to:
-  /// **'Archivo caducado en el relay. Pide que lo envíen de nuevo.'**
+  /// **'Archivo caducado en el servidor. Pide que lo envíen de nuevo.'**
   String get attachmentExpiredOnRelay;
 
   /// No description provided for @attachmentUnverified.
@@ -1007,7 +1007,7 @@ abstract class AppLocalizations {
   /// No description provided for @devicesRevokeConsequences.
   ///
   /// In es, this message translates to:
-  /// **'La revocación es permanente. Se guardará aquí y se publicará al conectar. El relay bloqueará el dispositivo cuando acepte el cambio; las conversaciones también necesitan retirarlo de su grupo. No borra las copias ni el historial que ya tenga.'**
+  /// **'La revocación es permanente. Se guardará aquí y se publicará al conectar. El servidor bloqueará el dispositivo cuando acepte el cambio; las conversaciones también necesitan retirarlo de su grupo. No borra las copias ni el historial que ya tenga.'**
   String get devicesRevokeConsequences;
 
   /// No description provided for @cancel.
@@ -1097,13 +1097,13 @@ abstract class AppLocalizations {
   /// No description provided for @devicesRevocationAccepted.
   ///
   /// In es, this message translates to:
-  /// **'Revocación aceptada por el relay'**
+  /// **'Revocación aceptada por el servidor'**
   String get devicesRevocationAccepted;
 
   /// No description provided for @devicesRevocationPending.
   ///
   /// In es, this message translates to:
-  /// **'Pendiente de publicar la revocación en el relay'**
+  /// **'Pendiente de publicar la revocación en el servidor'**
   String get devicesRevocationPending;
 
   /// No description provided for @devicesGroupsWaiting.
@@ -1139,7 +1139,7 @@ abstract class AppLocalizations {
   /// No description provided for @devicesAcceptanceCaveat.
   ///
   /// In es, this message translates to:
-  /// **'La aceptación del relay no confirma que los demás dispositivos hayan recibido el aviso.'**
+  /// **'La aceptación del servidor no confirma que los demás dispositivos hayan recibido el aviso.'**
   String get devicesAcceptanceCaveat;
 
   /// No description provided for @devicesRevoke.
@@ -1163,13 +1163,13 @@ abstract class AppLocalizations {
   /// No description provided for @pairingRelayLabel.
   ///
   /// In es, this message translates to:
-  /// **'Datos del relay'**
+  /// **'Datos del servidor'**
   String get pairingRelayLabel;
 
   /// No description provided for @pairingRelayInvalid.
   ///
   /// In es, this message translates to:
-  /// **'Pega los datos completos del relay.'**
+  /// **'Pega los datos completos del servidor.'**
   String get pairingRelayInvalid;
 
   /// No description provided for @pairingGenerate.
@@ -1181,7 +1181,7 @@ abstract class AppLocalizations {
   /// No description provided for @pairingConfirmationSaved.
   ///
   /// In es, this message translates to:
-  /// **'La confirmación está guardada. Falta terminar la configuración en el relay.'**
+  /// **'La confirmación está guardada. Falta terminar la configuración en el servidor.'**
   String get pairingConfirmationSaved;
 
   /// No description provided for @pairingResumeFinish.
@@ -1343,7 +1343,7 @@ abstract class AppLocalizations {
   /// No description provided for @archiveExplanation.
   ///
   /// In es, this message translates to:
-  /// **'El archivo recupera mensajes y adjuntos disponibles, sin recuperar la identidad ni las sesiones de grupo. Restaura primero tu identidad con su kit si has perdido el dispositivo.'**
+  /// **'El historial cifrado recupera mensajes y adjuntos disponibles, sin recuperar la identidad ni las sesiones de grupo. Restaura primero tu identidad con su kit si has perdido el dispositivo.'**
   String get archiveExplanation;
 
   /// No description provided for @archiveKeepApart.
@@ -1613,7 +1613,7 @@ abstract class AppLocalizations {
   /// No description provided for @contactRouteHelper.
   ///
   /// In es, this message translates to:
-  /// **'Pide la ruta de este relay a la persona que quieres añadir.'**
+  /// **'Pide la ruta de este servidor a la persona que quieres añadir.'**
   String get contactRouteHelper;
 
   /// No description provided for @contactPrepare.
@@ -2021,7 +2021,7 @@ abstract class AppLocalizations {
   /// No description provided for @newConversationRoutesHelp.
   ///
   /// In es, this message translates to:
-  /// **'O utiliza una ruta nueva. Pide a tus contactos su ruta de este relay. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.'**
+  /// **'O utiliza una ruta nueva. Pide a tus contactos su ruta de este servidor. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.'**
   String get newConversationRoutesHelp;
 
   /// No description provided for @newConversationRoutesLabel.

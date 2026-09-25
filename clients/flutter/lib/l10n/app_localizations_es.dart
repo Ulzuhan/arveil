@@ -56,7 +56,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get enrollBody =>
-      'Pide al administrador los datos del relay y una invitación. Tu identidad se crea en este dispositivo al continuar.';
+      'Pide al administrador los datos del servidor y una invitación. Tu identidad se crea en este dispositivo al continuar.';
 
   @override
   String get setupRedeeming => 'Pendiente de confirmar la invitación.';
@@ -76,10 +76,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get setupNew => 'Listo para crear tu identidad.';
 
   @override
-  String get enrollRelayLabel => 'Datos del relay';
+  String get enrollRelayLabel => 'Datos del servidor';
 
   @override
-  String get enrollRelayInvalid => 'Pega los datos completos del relay.';
+  String get enrollRelayInvalid => 'Pega los datos completos del servidor.';
 
   @override
   String get enrollInviteLabel => 'Invitación';
@@ -126,7 +126,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get recoveryRollbackWarning =>
-      'El relay conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.';
+      'El servidor conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.';
 
   @override
   String get openConversations => 'Abrir conversaciones';
@@ -139,7 +139,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get linkedDeviceKitNote =>
-      'Este dispositivo está vinculado. El kit de recuperación se exporta desde el dispositivo administrador.';
+      'Este dispositivo está vinculado. El kit de identidad se exporta desde el dispositivo administrador.';
 
   @override
   String get errorSecureStorageUnavailable =>
@@ -194,7 +194,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorTransport =>
-      'No se pudo conectar con el relay. Comprueba la conexión y sigue las indicaciones de la operación pendiente.';
+      'No se pudo conectar con el servidor. Comprueba la conexión y sigue las indicaciones de la operación pendiente.';
 
   @override
   String get errorDomain =>
@@ -202,7 +202,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorProtocol =>
-      'El relay no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.';
+      'El servidor no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.';
 
   @override
   String get errorBusy =>
@@ -333,10 +333,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get recoveryIncomplete =>
-      'Selecciona el kit, introduce su clave y los datos del relay, y confirma las consecuencias de la recuperación.';
+      'Selecciona el kit, introduce su clave y los datos del servidor, y confirma las consecuencias de la recuperación.';
 
   @override
-  String get kitTitle => 'Kit de recuperación';
+  String get kitTitle => 'Kit de identidad';
 
   @override
   String get kitExplanation =>
@@ -378,7 +378,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Usa el kit más reciente y su clave. Esta recuperación crea un dispositivo administrador nuevo y revoca los dispositivos anteriores incluidos en el manifiesto. El historial no se recupera; tendrás que incorporarte de nuevo a los grupos.';
 
   @override
-  String get recoveryRelayLabel => 'Datos del relay original';
+  String get recoveryRelayLabel => 'Datos del servidor original';
 
   @override
   String get recoveryChooseKit => 'Seleccionar kit cifrado';
@@ -401,17 +401,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get recoveryResumeBody =>
-      'La identidad y las claves del nuevo dispositivo están guardadas. El relay puede haber aceptado ya la revocación de los anteriores. Reanuda esta misma operación; no necesitas volver a abrir el kit ni crear otro perfil.';
+      'La identidad y las claves del nuevo dispositivo están guardadas. El servidor puede haber aceptado ya la revocación de los anteriores. Reanuda esta misma operación; no necesitas volver a abrir el kit ni crear otro perfil.';
 
   @override
   String get recoveryResume => 'Reanudar recuperación';
 
   @override
-  String get keyPackagesTitle => 'Disponibilidad para nuevas conversaciones';
+  String get keyPackagesTitle => 'Claves para grupos nuevos';
 
   @override
   String get keyPackagesExplanation =>
-      'Este dispositivo publica claves de un solo uso (KeyPackages) para que otras personas puedan iniciar conversaciones con él. Las conversaciones existentes conservan sus propias claves.';
+      'Este dispositivo publica claves de un solo uso para que otras personas puedan iniciar conversaciones con él. Las conversaciones existentes conservan sus propias claves.';
 
   @override
   String get keyPackagesUnknown => 'Disponibilidad sin comprobar';
@@ -430,8 +430,8 @@ class AppLocalizationsEs extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count claves disponibles según el relay.',
-      one: '1 clave disponible según el relay.',
+      other: '$count claves disponibles según el servidor.',
+      one: '1 clave disponible según el servidor.',
     );
     return '$_temp0';
   }
@@ -494,7 +494,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deliveryAccepted =>
-      'Aceptado por el relay · lectura sin confirmar';
+      'Aceptado por el servidor · lectura sin confirmar';
 
   @override
   String get deliveryRejected => 'Algún buzón rechazó el mensaje';
@@ -516,7 +516,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get attachmentExpiredOnRelay =>
-      'Archivo caducado en el relay. Pide que lo envíen de nuevo.';
+      'Archivo caducado en el servidor. Pide que lo envíen de nuevo.';
 
   @override
   String get attachmentUnverified =>
@@ -558,7 +558,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get devicesRevokeConsequences =>
-      'La revocación es permanente. Se guardará aquí y se publicará al conectar. El relay bloqueará el dispositivo cuando acepte el cambio; las conversaciones también necesitan retirarlo de su grupo. No borra las copias ni el historial que ya tenga.';
+      'La revocación es permanente. Se guardará aquí y se publicará al conectar. El servidor bloqueará el dispositivo cuando acepte el cambio; las conversaciones también necesitan retirarlo de su grupo. No borra las copias ni el historial que ya tenga.';
 
   @override
   String get cancel => 'Cancelar';
@@ -610,11 +610,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get devicesNotRevoked => 'No consta revocado en este perfil';
 
   @override
-  String get devicesRevocationAccepted => 'Revocación aceptada por el relay';
+  String get devicesRevocationAccepted => 'Revocación aceptada por el servidor';
 
   @override
   String get devicesRevocationPending =>
-      'Pendiente de publicar la revocación en el relay';
+      'Pendiente de publicar la revocación en el servidor';
 
   @override
   String devicesGroupsWaiting(int count) {
@@ -642,7 +642,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get devicesAcceptanceCaveat =>
-      'La aceptación del relay no confirma que los demás dispositivos hayan recibido el aviso.';
+      'La aceptación del servidor no confirma que los demás dispositivos hayan recibido el aviso.';
 
   @override
   String get devicesRevoke => 'Revocar dispositivo';
@@ -655,17 +655,17 @@ class AppLocalizationsEs extends AppLocalizations {
       'Usa tu dispositivo administrador para autorizar este perfil. La vinculación conserva tu identidad; no copia el historial anterior.';
 
   @override
-  String get pairingRelayLabel => 'Datos del relay';
+  String get pairingRelayLabel => 'Datos del servidor';
 
   @override
-  String get pairingRelayInvalid => 'Pega los datos completos del relay.';
+  String get pairingRelayInvalid => 'Pega los datos completos del servidor.';
 
   @override
   String get pairingGenerate => 'Generar código de vinculación';
 
   @override
   String get pairingConfirmationSaved =>
-      'La confirmación está guardada. Falta terminar la configuración en el relay.';
+      'La confirmación está guardada. Falta terminar la configuración en el servidor.';
 
   @override
   String get pairingResumeFinish => 'Reanudar finalización';
@@ -770,7 +770,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get archiveExplanation =>
-      'El archivo recupera mensajes y adjuntos disponibles, sin recuperar la identidad ni las sesiones de grupo. Restaura primero tu identidad con su kit si has perdido el dispositivo.';
+      'El historial cifrado recupera mensajes y adjuntos disponibles, sin recuperar la identidad ni las sesiones de grupo. Restaura primero tu identidad con su kit si has perdido el dispositivo.';
 
   @override
   String get archiveKeepApart =>
@@ -933,7 +933,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get contactRouteHelper =>
-      'Pide la ruta de este relay a la persona que quieres añadir.';
+      'Pide la ruta de este servidor a la persona que quieres añadir.';
 
   @override
   String get contactPrepare => 'Preparar contacto';
@@ -1222,7 +1222,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get newConversationRoutesHelp =>
-      'O utiliza una ruta nueva. Pide a tus contactos su ruta de este relay. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.';
+      'O utiliza una ruta nueva. Pide a tus contactos su ruta de este servidor. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.';
 
   @override
   String get newConversationRoutesLabel => 'Rutas de contacto';

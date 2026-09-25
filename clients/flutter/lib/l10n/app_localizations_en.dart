@@ -140,7 +140,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get linkedDeviceKitNote =>
-      'This device is linked. The recovery kit is exported from the administration device.';
+      'This device is linked. The identity kit is exported from the administration device.';
 
   @override
   String get errorSecureStorageUnavailable =>
@@ -335,7 +335,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose the kit, enter its key and the server details, and confirm the consequences of the recovery.';
 
   @override
-  String get kitTitle => 'Recovery kit';
+  String get kitTitle => 'Identity kit';
 
   @override
   String get kitExplanation =>
@@ -406,11 +406,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recoveryResume => 'Resume recovery';
 
   @override
-  String get keyPackagesTitle => 'Availability for new conversations';
+  String get keyPackagesTitle => 'Keys for new groups';
 
   @override
   String get keyPackagesExplanation =>
-      'This device publishes single-use keys for new groups so that other people can start conversations with it. Existing conversations keep their own keys.';
+      'This device publishes single-use keys so that other people can start conversations with it. Existing conversations keep their own keys.';
 
   @override
   String get keyPackagesUnknown => 'Availability not checked';
@@ -763,7 +763,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get archiveExplanation =>
-      'The file recovers the available messages and attachments, without recovering the identity or group sessions. Restore your identity with its kit first if you lost the device.';
+      'The encrypted history recovers the available messages and attachments, without recovering the identity or group sessions. Restore your identity with its kit first if you lost the device.';
 
   @override
   String get archiveKeepApart =>
