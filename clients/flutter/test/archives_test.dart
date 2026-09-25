@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:arveil/src/archive_files.dart';
 import 'package:arveil/src/archives_page.dart';
@@ -56,12 +57,13 @@ class ArchiveProfile extends ChatProfile {
 
 class MemoryArchives extends ArchiveFiles {
   bool cancelled = false;
+  Completer<bool>? saving;
   Uint8List? saved;
   @override
   Future<bool> save(Uint8List encrypted) async {
     if (cancelled) return false;
     saved = encrypted;
-    return true;
+    return saving == null ? true : await saving!.future;
   }
 
   @override
@@ -112,6 +114,36 @@ void main() {
       t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     },
   );
+  testWidgets('native save result waits for an explicit foreground reveal', (
+    t,
+  ) async {
+    final files = MemoryArchives()..saving = Completer<bool>();
+    await show(t, ArchiveProfile(), files);
+    await press(t, find.byType(CheckboxListTile));
+    await t.tap(find.byKey(const Key('export-archive')));
+    await t.pump();
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    files.saving!.complete(true);
+    await t.pumpAndSettle();
+    expect(find.text('fixture-secret'), findsNothing);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await t.pump();
+    expect(find.text('fixture-secret'), findsNothing);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pump();
+    expect(find.text('fixture-secret'), findsNothing);
+    await press(t, find.text('Mostrar clave del archivo guardado'));
+    expect(find.text('fixture-secret'), findsOneWidget);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await t.pump();
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pump();
+    expect(find.text('fixture-secret'), findsNothing);
+    expect(find.text('Mostrar clave del archivo guardado'), findsNothing);
+  });
   testWidgets(
     'import clears secret and shows read-only records without a send action',
     (t) async {
