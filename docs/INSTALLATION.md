@@ -114,13 +114,15 @@ Android reports a conflict. Check `BUILD.json` for version and certificate detai
 
 ### First use and limits
 
-The interface follows the system language: English when the system prefers it,
-Spanish otherwise; the button names below are the Spanish ones. A completed
-enrollment opens **Chats**, with **Contactos** and **Ajustes** in the bottom bar
-on a phone or in the side rail on a wide window. On a connection failure,
-close/reopen and retry with the **same relay and invitation**; successful
-enrollment does not need another invitation on reopen. Current source also
-supports pairing, recovery kits and conversations.
+The interface follows the system language (English when the system prefers it,
+Spanish otherwise) unless you choose one in **Ajustes → Apariencia**, which also
+sets the theme, accent, conversation background and text size; the button names
+below are the Spanish ones. A completed enrollment opens **Chats**, with
+**Contactos** and **Ajustes** in the bottom bar on a phone or in the side rail
+on a wide window. On a connection failure, close/reopen and retry with the
+**same relay and invitation**; successful enrollment does not need another
+invitation on reopen. Current source also supports pairing, recovery kits and
+conversations.
 
 To try conversations with disposable profiles on the same relay using the
 current source or a package containing it:
@@ -259,3 +261,12 @@ When saving an identity kit, the equivalent action is **Mostrar clave del kit
 guardado**. A save completed in the background requires this explicit reveal
 after returning. Once back in the app, switching away again discards the pending
 key as well; export another copy if needed. Neither key is stored by Arveil.
+
+## If something goes wrong (source after `0.1.0+11`)
+
+Open **Ajustes → Diagnóstico**. It shows a short report (version, commit,
+system, language, the profile's stage and counts, and codes of recent
+failures) before anything leaves the device, and **Guardar informe** saves it
+as a text file you can attach to a support request. The report holds no keys,
+identifiers, routes, addresses, invitations, names or message content; read it
+before sharing it all the same.

@@ -43,7 +43,7 @@ class _ArveilAppState extends State<ArveilApp> {
     builder: (context, _) {
       final look = _appearance.value;
       return MaterialApp(
-        title: 'Arveil',
+        onGenerateTitle: (context) => context.l10n.appTitle,
         debugShowCheckedModeBanner: false,
         theme: ArveilTheme.light(accent: look.accent),
         darkTheme: ArveilTheme.dark(accent: look.accent),

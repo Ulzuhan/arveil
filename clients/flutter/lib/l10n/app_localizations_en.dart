@@ -1521,4 +1521,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get diagnosticsSaveFailed => 'The report could not be saved';
+
+  @override
+  String get languageSpanish => 'Español';
+
+  @override
+  String get languageEnglish => 'English';
 }

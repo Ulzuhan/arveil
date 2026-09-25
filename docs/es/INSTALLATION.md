@@ -121,12 +121,15 @@ instalación. Conserva la app actual si Android informa de un conflicto.
 
 ### Primer uso y límites
 
-La interfaz sigue el idioma del sistema: inglés si el sistema lo prefiere y
-español en los demás casos. El alta completada abre **Chats**, con **Contactos**
-y **Ajustes** en la barra inferior del móvil o en el raíl lateral de una ventana
-ancha. Si falla la conexión, cierra/reabre y reintenta con el **mismo relay y la
-misma invitación**. Al reabrir un alta completada no necesitas otra invitación.
-El código actual también permite emparejamiento, kits y conversaciones.
+La interfaz sigue el idioma del sistema (inglés si el sistema lo prefiere y
+español en los demás casos) salvo que elijas uno en **Ajustes → Apariencia**,
+donde también se eligen el tema, el color de acento, el fondo de las
+conversaciones y el tamaño del texto. El alta completada abre **Chats**, con
+**Contactos** y **Ajustes** en la barra inferior del móvil o en el raíl lateral
+de una ventana ancha. Si falla la conexión, cierra/reabre y reintenta con el
+**mismo relay y la misma invitación**. Al reabrir un alta completada no
+necesitas otra invitación. El código actual también permite emparejamiento, kits
+y conversaciones.
 
 Para probar conversaciones con perfiles desechables del mismo relay usando
 el código actual o un paquete que lo incluya:
@@ -271,3 +274,12 @@ Al guardar un kit de identidad, la acción equivalente es **Mostrar clave del ki
 guardado**. Si el guardado termina en segundo plano, mostrar la clave requiere
 esta acción explícita al volver. Una vez de vuelta, cambiar de app descarta la clave
 pendiente; exporta otra copia si hace falta. Arveil no guarda ninguna de ellas.
+
+## Si algo falla (código posterior a `0.1.0+11`)
+
+Abre **Ajustes → Diagnóstico**. Muestra un informe breve (versión, commit,
+sistema, idioma, la fase y los recuentos del perfil, y códigos de los últimos
+fallos) antes de que salga del dispositivo, y **Guardar informe** lo guarda
+como archivo de texto para adjuntarlo a una petición de ayuda. El informe no
+contiene claves, identificadores, rutas, direcciones, invitaciones, nombres ni
+el contenido de los mensajes; léelo igualmente antes de compartirlo.

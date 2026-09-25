@@ -2557,6 +2557,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se pudo guardar el informe'**
   String get diagnosticsSaveFailed;
+
+  /// Always the language's own name, in every locale.
+  ///
+  /// In es, this message translates to:
+  /// **'Español'**
+  String get languageSpanish;
+
+  /// Always the language's own name, in every locale.
+  ///
+  /// In es, this message translates to:
+  /// **'English'**
+  String get languageEnglish;
 }
 
 class _AppLocalizationsDelegate

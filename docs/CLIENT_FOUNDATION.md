@@ -857,3 +857,23 @@ Evidence: `test/diagnostics_test.dart` builds a profile whose identifiers,
 names, messages, route, safety number, server, system paths and error
 reasons are marked as secrets, and checks that none appears in the report
 while the counts do; and that the screen saves exactly what it shows.
+
+## Screenshots and closing the redesign (September 25, 2026)
+
+The main screens have full goldens on phone (390×844) and desktop (1280×800),
+in light and dark (`test/goldens/screens_test.dart`), with an invented circle
+of people and messages and fixed local times, so they look the same in any
+time zone. The documentation's screenshots are copies of those goldens:
+`scripts/update_screenshots.sh` regenerates them and a test checks they do not
+drift.
+
+![Chats on a phone, light theme](assets/screens/phone_chats_light.png){ width="260" }
+![A group conversation on a phone, dark theme](assets/screens/phone_conversation_dark.png){ width="260" }
+![Settings in sections on a phone](assets/screens/phone_settings_light.png){ width="260" }
+
+![Desktop with list, conversation and details](assets/screens/desktop_conversation_light.png)
+
+`test/hygiene_test.dart` checks that outside `design/` and `l10n/` no colour
+or visible text is written by hand (only `Colors.transparent` and the
+technical `arveil-bootstrap:v0:…` format are allowed). The app name and the
+language names also come from the ARBs.

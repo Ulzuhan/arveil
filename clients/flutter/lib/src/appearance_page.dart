@@ -141,8 +141,8 @@ class AppearancePage extends StatelessWidget {
                       children: [
                         for (final (choice, label) in [
                           (LanguageChoice.system, l10n.languageSystem),
-                          (LanguageChoice.spanish, 'Español'),
-                          (LanguageChoice.english, 'English'),
+                          (LanguageChoice.spanish, l10n.languageSpanish),
+                          (LanguageChoice.english, l10n.languageEnglish),
                         ])
                           RadioListTile<LanguageChoice>(
                             key: Key('language-${choice.name}'),
