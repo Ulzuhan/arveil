@@ -37,6 +37,8 @@ No introducir reglas de negocio en el puente ni duplicar el estado durable en ot
 
 M3b.0 debe completarse antes de diseñar todas las pantallas. macOS/Android son prioritarios, no una promesa de que las otras plataformas se implementarán sin trabajo adicional. El orden Windows/Linux frente a iOS puede ajustarse según uso real sin cambiar la arquitectura.
 
+El sistema visual, la personalización y el plan del rediseño que precede a la prueba con usuarios externos de M3b.5 están en [Diseño del cliente](CLIENT_DESIGN.md). Ese plan cubre la accesibilidad, la navegación de escritorio, la adaptación móvil y el diagnóstico sin secretos de M3b.5, y añade los datos que la interfaz necesita del contrato Rust. No sustituye los criterios de aceptación de este documento.
+
 ## Contrato de instalación y distribución
 
 La instalación sencilla es un requisito de producto. Mantener actualizada
