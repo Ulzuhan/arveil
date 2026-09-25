@@ -10,9 +10,13 @@ class PairingPanel extends StatefulWidget {
     super.key,
     required this.session,
     this.administration = false,
+    this.heading = true,
   });
   final ProfileSession session;
   final bool administration;
+
+  /// Shows the panel's own title; off on a screen whose bar names it.
+  final bool heading;
 
   @override
   State<PairingPanel> createState() => _PairingPanelState();
@@ -198,11 +202,13 @@ class _PairingPanelState extends State<PairingPanel> {
   Widget _administration(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        context.l10n.pairingOtherTitle,
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      const SizedBox(height: 12),
+      if (widget.heading) ...[
+        Text(
+          context.l10n.pairingOtherTitle,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+      ],
       if (session.approvalCode case final verification?) ...[
         Text(context.l10n.pairingAdminCompare),
         const SizedBox(height: 12),

@@ -2,7 +2,7 @@
 
 [Versión española](es/CLIENT_DESIGN.md). The Spanish document is the normative source; this condensed English translation must be updated in the same review, and the Spanish text prevails if they diverge.
 
-Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history), A1b (sender in the encrypted history), A2 (conversation summary and unread counts), A3 (kit state, device notices and sync status), B1 (tokens, theme and components), B2 (Spanish and English), C1 (adaptive navigation and shortcuts), C2 (chat list) and C3 (conversation); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
+Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history), A1b (sender in the encrypted history), A2 (conversation summary and unread counts), A3 (kit state, device notices and sync status), B1 (tokens, theme and components), B2 (Spanish and English), C1 (adaptive navigation and shortcuts), C2 (chat list), C3 (conversation) and C5 (contacts, verification and settings); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
 
 ## Why, and what not
 
@@ -68,7 +68,7 @@ One small PR per package with its own tests. Relative size: S (up to a day), M (
 | C2 Chat list (implemented) | S | A2, A3, C1 | Full rows, persistent kit notice, sync indicator, name search with ⌘K, empty state |
 | C3 Conversation (implemented) | M | A1, A3, C1 | Grouped bubbles, date separators, delivery detail, attachment states, system notices, offline banner, composer, `mark_read`, desktop details pane |
 | C4 Welcome and enrollment | M | B1, B2 | Three entry points, step-by-step invitation flow, pairing and restore, kit with "Later" and visible risk |
-| C5 Contacts, verification and settings | M | B1, B2, A3 | Contacts and new chat, safety-number grid, sectioned settings, devices, encrypted history and keys migrated |
+| C5 Contacts, verification and settings (implemented) | M | B1, B2, A3 | Contacts and new chat, safety-number grid, sectioned settings, devices, encrypted history and keys migrated |
 | D1 Appearance | M | B1, C1 | First-version personalization with immediate changes and safe defaults |
 | E1 Accessibility | M | C2–C5, D1 | Semantics labels, focus order, 200 % text without overflow, reduced motion; manual TalkBack (physical Android) and VoiceOver (macOS) review |
 | E2 Secret-free diagnostics | S | C5 | Exported report with version, OS, locale, profile state and typed error codes only; a test searches it for test-profile secrets |

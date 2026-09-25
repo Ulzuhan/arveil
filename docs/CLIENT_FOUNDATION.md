@@ -727,3 +727,33 @@ Evidence:
   click, the panel from 1200 dp and the dialog below it, the offline notice on
   phones, and an empty conversation.
 - The component goldens were regenerated with bubbles sized to their content.
+
+## Contacts, verification and settings (September 25, 2026)
+
+- **Contacts.** The list starts with "Your contact route", which shows and
+  copies this device's route (it leaves the chats bar). Each contact has an
+  avatar, the verified mark or "Unverified", and how many devices are
+  available. With no contacts, it offers to add one.
+- **Verification.** Adding a contact or opening its details shows the
+  identity and the safety number in the four-row grid, with "They match" and
+  "They differ". While adding, "They match" saves the contact as verified; on
+  a saved contact, it verifies it. "They differ" explains it must not be
+  verified and that the route should be asked for again through another
+  channel. Saving unverified is still possible and never verifies.
+- **Settings in sections.** Your identity (whether this device manages or is
+  linked, and your route), Security and recovery (identity kit, devices,
+  linking another device and encrypted history), Connection (keys for new
+  groups) and App (licences), then "Close profile". Each row states where it
+  stands: the kit not saved, out of date or the date it was saved, drawn as a
+  notice when it needs attention, and the last key check.
+- **Screens of their own.** The kit, linking and keys open on their own
+  screen with a bar, showing the profile's activity and errors there. "Save
+  kit" in the list's reminder opens the kit screen directly. Devices and
+  encrypted history use the design system's margins, cards and notices.
+- `SettingsGroup` is now a `Material`, so tapping its rows shows feedback.
+
+Evidence: `test/settings_test.dart` covers the sections and kit states (saved,
+not saved and linked device), each screen with its bar, the own route from
+contacts, the list with verification, the empty list, and adding a contact
+that is saved verified only after "They match". The kit, key, linking and
+contact tests follow the new path.

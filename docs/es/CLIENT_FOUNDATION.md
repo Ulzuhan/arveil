@@ -786,3 +786,36 @@ Evidencia:
   el aviso sin conexión en el móvil y la conversación vacía.
 - Los goldens de componentes se regeneraron con las burbujas ajustadas a su
   contenido.
+
+## Contactos, verificación y ajustes (25 de septiembre de 2026)
+
+- **Contactos.** La lista empieza por «Tu ruta de contacto», que muestra y
+  copia la ruta de este dispositivo (sale de la barra de chats). Cada contacto
+  lleva su avatar, la marca de verificado o «Sin verificar» y cuántos
+  dispositivos tiene disponibles. Sin contactos se ofrece añadir uno.
+- **Verificación.** Al añadir un contacto o abrir sus datos se ve su identidad
+  y el número de seguridad en la rejilla de cuatro filas, con «Coinciden» y
+  «No coinciden». En un alta, «Coinciden» hace que el contacto se guarde
+  verificado; en un contacto guardado, lo verifica. «No coinciden» explica
+  que no debe verificarse y que conviene pedir otra vez la ruta por otro
+  canal. Guardarlo sin verificar sigue siendo posible y nunca verifica.
+- **Ajustes por secciones.** Tu identidad (si este dispositivo administra o
+  está vinculado, y tu ruta), Seguridad y recuperación (kit de identidad,
+  dispositivos, vincular otro dispositivo e historial cifrado), Conexión
+  (claves para grupos nuevos) y Aplicación (licencias), y al final «Cerrar
+  perfil». Cada fila dice su estado: el kit sin guardar, desactualizado o la
+  fecha en que se guardó, con aspecto de aviso cuando requiere atención, y la
+  última consulta de claves.
+- **Pantallas propias.** El kit, la vinculación y las claves se abren en su
+  propia pantalla con barra, y la actividad y los errores del perfil se
+  muestran allí. «Guardar kit» en el aviso de la lista abre directamente la
+  pantalla del kit. Dispositivos e historial cifrado usan los márgenes,
+  tarjetas y avisos del sistema de diseño.
+- `SettingsGroup` es ahora un `Material`, para que se vea la respuesta al
+  pulsar sus filas.
+
+Evidencia: `test/settings_test.dart` cubre las secciones y los estados del kit
+(guardado, sin guardar y dispositivo vinculado), cada pantalla con su barra,
+la ruta propia desde contactos, la lista con verificación, la lista vacía y el
+alta que solo se guarda verificada tras «Coinciden». Las pruebas del kit, las
+claves, la vinculación y los contactos siguen el camino nuevo.

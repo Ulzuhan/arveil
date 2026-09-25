@@ -109,6 +109,28 @@ Future<void> openSettings(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Opens one of the screens listed in settings, such as the identity kit.
+Future<void> openSetting(WidgetTester tester, String key) async {
+  await openSettings(tester);
+  final row = find.byKey(Key(key));
+  await tester.scrollUntilVisible(row, 100);
+  await tester.tap(row);
+  await tester.pumpAndSettle();
+}
+
+/// Closes the profile from settings, leaving any screen opened from it.
+Future<void> closeProfile(WidgetTester tester) async {
+  while (find.byType(BackButton).evaluate().isNotEmpty) {
+    await tester.tap(find.byType(BackButton).first);
+    await tester.pumpAndSettle();
+  }
+  await openSettings(tester);
+  final row = find.byKey(const Key('close-profile'));
+  await tester.scrollUntilVisible(row, 100);
+  await tester.tap(row);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets(
     'enrollment validates, retries and recognizes completion after reopening',
@@ -153,9 +175,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(home, findsOneWidget);
       expect(find.byKey(const Key('invite')), findsNothing);
-      await openSettings(tester);
-      await tester.tap(find.text('Cerrar perfil'));
-      await tester.pumpAndSettle();
+      await closeProfile(tester);
       await tester.ensureVisible(find.text('Abrir perfil'));
       await tester.tap(find.text('Abrir perfil'));
       await tester.pumpAndSettle();

@@ -940,13 +940,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Compare this number with the other person through another channel. The local name does not replace this check.';
 
   @override
-  String get contactCompared =>
-      'We compared the number through another channel and it matches.';
-
-  @override
-  String get contactVerify => 'Verify contact';
-
-  @override
   String contactRoutes(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1096,9 +1089,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backToConversations => 'Back to conversations';
-
-  @override
-  String get myRoute => 'My route';
 
   @override
   String get newConversation => 'New conversation';
@@ -1310,4 +1300,56 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get settingsSecurity => 'Security and recovery';
+
+  @override
+  String get settingsConnection => 'Connection';
+
+  @override
+  String get settingsApp => 'App';
+
+  @override
+  String get kitStateNever => 'Not saved';
+
+  @override
+  String get kitStateStale => 'Out of date: your devices changed';
+
+  @override
+  String kitStateSaved(String date) {
+    return 'Saved on $date';
+  }
+
+  @override
+  String get identityAdministrator => 'This device manages your devices';
+
+  @override
+  String get identityLinked => 'Linked device';
+
+  @override
+  String get shareMyRouteHelp => 'So other people can add you';
+
+  @override
+  String get licenses => 'Licences';
+
+  @override
+  String get safetyNumberTitle => 'Safety number';
+
+  @override
+  String get numbersMatch => 'They match';
+
+  @override
+  String get numbersDiffer => 'They differ';
+
+  @override
+  String get mismatchTitle => 'The numbers do not match';
+
+  @override
+  String get mismatchBody =>
+      'Do not verify this contact. The route may not be theirs or may have changed: ask them to send it again through another channel.';
+
+  @override
+  String get comparedWillVerify =>
+      'They match: the contact will be saved as verified.';
 }

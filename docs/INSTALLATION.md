@@ -124,13 +124,15 @@ supports pairing, recovery kits and conversations.
 To try conversations with disposable profiles on the same relay using the
 current source or a package containing it:
 
-1. In **Chats**, select **Mi ruta** to share this device's route
-   privately with your contact. Each person can obtain their route here.
+1. In **Contactos**, select **Tu ruta de contacto** to share this device's
+   route privately with your contact. Each person can obtain their route here.
 2. Open **Contactos → Añadir contacto**, paste a route, give it an optional local
    name and choose **Preparar contacto**. Compare the full safety number through
    an independent channel; both people can preview the other's route.
-3. Confirm the comparison and **Guardar contacto**, or save it unverified and
-   use **Verificar contacto** later. A name never verifies an identity. **Guardar
+3. Choose **Coinciden** when the numbers match, then **Guardar contacto**; if
+   they differ, choose **No coinciden** and do not verify. You can also save it
+   unverified and choose **Coinciden** in its details later. A name never
+   verifies an identity. **Guardar
    nombre** edits the alias locally; an empty name removes it. Import another
    route through **Añadir contacto**; an empty name preserves an existing alias.
 4. Open **Nueva conversación → Elegir contactos guardados**. Select verified

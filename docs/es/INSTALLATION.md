@@ -130,13 +130,15 @@ El código actual también permite emparejamiento, kits y conversaciones.
 Para probar conversaciones con perfiles desechables del mismo relay usando
 el código actual o un paquete que lo incluya:
 
-1. En **Chats**, pulsa **Mi ruta** para compartir en privado la ruta
-   de este dispositivo con tu contacto. Cada persona obtiene aquí su ruta.
+1. En **Contactos**, pulsa **Tu ruta de contacto** para compartir en privado la
+   ruta de este dispositivo con tu contacto. Cada persona obtiene aquí su ruta.
 2. Entra en **Contactos → Añadir contacto**, pega una ruta, asigna un nombre local
    opcional y pulsa **Preparar contacto**. Comparad el número completo por otro
    canal; ambos podéis previsualizar la ruta de la otra persona.
-3. Confirma la comparación y pulsa **Guardar contacto**, o guárdalo sin verificar
-   y utiliza **Verificar contacto** después. Un nombre no verifica una identidad.
+3. Pulsa **Coinciden** si los números coinciden y después **Guardar contacto**;
+   si no, pulsa **No coinciden** y no lo verifiques. También puedes guardarlo sin
+   verificar y pulsar **Coinciden** más tarde en sus datos. Un nombre no verifica
+   una identidad.
    **Guardar nombre** cambia el alias local; un nombre vacío lo elimina. Importa
    otra ruta desde **Añadir contacto**; dejar el nombre vacío conserva el alias existente.
 4. Abre **Nueva conversación → Elegir contactos guardados**, selecciona contactos

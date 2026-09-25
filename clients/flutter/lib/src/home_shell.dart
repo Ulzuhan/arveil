@@ -80,7 +80,6 @@ class _HomeShellState extends State<HomeShell> {
     widget.session.setup!.bootstrap!,
   );
   final _chats = GlobalKey<ConversationsPageState>();
-  final _kitPanel = GlobalKey();
 
   /// Keeps the destinations' state when the window crosses a size class
   /// and the layout around them changes.
@@ -112,14 +111,8 @@ class _HomeShellState extends State<HomeShell> {
     });
   }
 
-  void _saveKit() {
-    _go(HomeDestination.settings);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_kitPanel.currentContext case final panel?) {
-        unawaited(Scrollable.ensureVisible(panel));
-      }
-    });
-  }
+  void _saveKit() =>
+      Navigator.of(context).push(kitRoute(widget.session, widget.kitFiles));
 
   /// Why the administration device should save a kit now, or nothing:
   /// a title and what it means.
@@ -180,7 +173,6 @@ class _HomeShellState extends State<HomeShell> {
         HomeDestination.settings => SettingsPage(
           session: widget.session,
           kitFiles: widget.kitFiles,
-          kitPanel: _kitPanel,
           onClose: widget.onClose,
         ),
       };

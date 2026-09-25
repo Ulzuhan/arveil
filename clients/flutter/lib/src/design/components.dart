@@ -536,11 +536,12 @@ class SettingsGroup extends StatelessWidget {
               ),
             ),
           ),
-        Container(
+        // A Material, so rows' ink shows on the card.
+        Material(
+          color: c.surface,
           clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: c.surface,
-            border: Border.all(color: c.line),
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: c.line),
             borderRadius: BorderRadius.circular(ArveilShape.card),
           ),
           child: Column(
