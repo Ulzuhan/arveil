@@ -569,3 +569,37 @@ Evidencia:
   historial de bob mostró un aviso de un dispositivo añadido, y otra
   sincronización no lo repitió. Una actualización desde binarios de `main`
   adoptó perfiles a la versión 5, y la CLI antigua siguió leyéndolos.
+
+## Autores en el historial cifrado (25 de septiembre de 2026)
+
+Los registros exportados del historial indican ahora su autor cuando el
+dispositivo que exporta lo conocía, igual que el historial en vivo: la
+identidad guardada con el evento, la identidad del roster para su dispositivo
+o esta identidad para lo que envió.
+
+- El autor es un campo opcional `sender_identity` dentro de la versión 1 del
+  formato, siguiendo el precedente de `file_present`, en lugar de una versión
+  nueva. Un registro sin autor escribe exactamente los mismos bytes que antes.
+  Los archivos anteriores se importan sin autor, y las builds anteriores al
+  campo lo ignoran.
+- La migración 6 añade `sender_identity` a `archived_events`. La importación
+  conserva la primera copia de un registro, así que un archivo posterior que
+  nombre otro autor para el mismo registro es un duplicado y no cambia nada.
+  Un autor que no sea una identidad de 32 bytes se rechaza, y no se importa
+  nada de ese archivo.
+- La página del historial cifrado y las conversaciones importadas muestran el
+  autor por nombre local o identificador corto, marcado como versión del
+  archivo («según el archivo»): un archivo es historial aportado por el
+  usuario, no prueba de autoría.
+- Los avisos de cambios de dispositivos nunca entran en una exportación. El
+  exportador rechaza tipos desconocidos, así que dejarlos fuera también evita
+  que falle una exportación después de un aviso.
+
+Evidencia: una prueba del core lee y escribe el formato en ambos sentidos.
+Una prueba de aplicación exporta filas con autor, propias, sin atribuir y
+avisos, las importa en un perfil restaurado, comprueba las etiquetas en la
+página del archivo y en las conversaciones importadas, confirma que se ignora
+un autor posterior en conflicto y rechaza un autor malformado. Una prueba de
+Flutter cubre la etiqueta. Los flujos de archivo de la fase 2 pasan con la
+CLI, y una actualización desde binarios de `main` adoptó perfiles a la
+versión 6.

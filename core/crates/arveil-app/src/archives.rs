@@ -40,6 +40,14 @@ pub struct ArchiveEntry {
     pub created_at: i64,
     pub file_name: Option<String>,
     pub file_size: Option<u64>,
+    /// The author the archive named, when it named one: the exporting
+    /// device's claim, not proof of authorship.
+    pub sender_identity: Option<Vec<u8>>,
+    /// Local name or short identifier of that author; absent for this
+    /// identity's own records and for records without an author.
+    pub sender_label: Option<String>,
+    /// Written by this identity, by the archive's account.
+    pub own: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArchivePage {
@@ -68,6 +76,7 @@ fn normalize(r: &mut ArchiveRecord) -> Result<(), CliError> {
     if r.group_id.is_empty()
         || r.group_id.len() > 128
         || r.event_id.len() != 16
+        || r.sender_identity.as_ref().is_some_and(|id| id.len() != 32)
         || r.body.len() > 1024 * 1024
         || r.file.len() > MAX_ATTACHMENT_BYTES
     {
@@ -199,7 +208,9 @@ pub(super) fn page(
     limit: u32,
 ) -> Result<ArchivePage, CliError> {
     let limit = limit.clamp(1, 100) as usize;
-    let mut rows = open_client(config)?
+    let client = open_client(config)?;
+    let own_identity = client.identity_id().map_err(storage_error("identity"))?;
+    let mut rows = client
         .archive_page(before, limit + 1)
         .map_err(storage_error("archive"))?;
     let next = if rows.len() > limit {
@@ -212,6 +223,12 @@ pub(super) fn page(
         .into_iter()
         .map(|(_, mut r, file_size)| {
             normalize(&mut r)?;
+            let own = r.kind.starts_with("sent")
+                || (r.sender_identity.is_some() && r.sender_identity == own_identity);
+            let sender_label = match &r.sender_identity {
+                Some(identity) if !own => Some(identity_label(&client, identity)?),
+                _ => None,
+            };
             Ok(ArchiveEntry {
                 group_id: r.group_id,
                 event_id: r.event_id,
@@ -220,6 +237,9 @@ pub(super) fn page(
                 created_at: r.created_at,
                 file_name: r.file_name,
                 file_size,
+                sender_identity: r.sender_identity,
+                sender_label,
+                own,
             })
         })
         .collect::<Result<_, CliError>>()?;

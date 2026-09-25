@@ -21,7 +21,7 @@ use rusqlite::Connection;
 use crate::storage::StorageError;
 
 /// The newest profile schema this build reads and writes.
-pub const PROFILE_SCHEMA_VERSION: u32 = 5;
+pub const PROFILE_SCHEMA_VERSION: u32 = 6;
 
 /// One step from `version - 1` to `version`.
 pub(crate) struct Migration {
@@ -49,6 +49,10 @@ const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 5,
         apply: manifest_devices,
+    },
+    Migration {
+        version: 6,
+        apply: archived_senders,
     },
 ];
 
@@ -221,6 +225,13 @@ fn kit_exports(conn: &Connection) -> Result<(), StorageError> {
 /// baseline and announces nothing.
 fn manifest_devices(conn: &Connection) -> Result<(), StorageError> {
     conn.execute_batch("ALTER TABLE peer_manifests ADD COLUMN active BLOB;")?;
+    Ok(())
+}
+
+/// Version 6: the author an imported history record names, as the
+/// exporting device knew it. Records imported before stay without one.
+fn archived_senders(conn: &Connection) -> Result<(), StorageError> {
+    conn.execute_batch("ALTER TABLE archived_events ADD COLUMN sender_identity BLOB;")?;
     Ok(())
 }
 

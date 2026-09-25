@@ -2072,8 +2072,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   ArchiveEntryView dco_decode_archive_entry_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return ArchiveEntryView(
       groupId: dco_decode_String(arr[0]),
       eventId: dco_decode_String(arr[1]),
@@ -2082,6 +2082,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       createdAt: dco_decode_i_64(arr[4]),
       fileName: dco_decode_opt_String(arr[5]),
       fileSize: dco_decode_opt_box_autoadd_u_64(arr[6]),
+      senderLabel: dco_decode_opt_String(arr[7]),
+      own: dco_decode_bool(arr[8]),
     );
   }
 
@@ -2915,6 +2917,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     var var_createdAt = sse_decode_i_64(deserializer);
     var var_fileName = sse_decode_opt_String(deserializer);
     var var_fileSize = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_senderLabel = sse_decode_opt_String(deserializer);
+    var var_own = sse_decode_bool(deserializer);
     return ArchiveEntryView(
       groupId: var_groupId,
       eventId: var_eventId,
@@ -2923,6 +2927,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       createdAt: var_createdAt,
       fileName: var_fileName,
       fileSize: var_fileSize,
+      senderLabel: var_senderLabel,
+      own: var_own,
     );
   }
 
@@ -4002,6 +4008,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_i_64(self.createdAt, serializer);
     sse_encode_opt_String(self.fileName, serializer);
     sse_encode_opt_box_autoadd_u_64(self.fileSize, serializer);
+    sse_encode_opt_String(self.senderLabel, serializer);
+    sse_encode_bool(self.own, serializer);
   }
 
   @protected

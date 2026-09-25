@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A2 (resumen de conversaciones y no leídos) y A3 (estado del kit, avisos de dispositivos y estado de sincronización); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos) y A3 (estado del kit, avisos de dispositivos y estado de sincronización); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -183,7 +183,7 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 - Los eventos antiguos sin remitente se muestran sin nombre, nunca con un remitente supuesto.
 - Pruebas: grupo de tres con dos emisores; emisor revocado después; importación de ambas versiones; paginación intacta; bindings regenerados sin deriva.
 
-**A1b — Remitente en el historial cifrado (S).** Depende de A1.
+**A1b — Remitente en el historial cifrado (S).** Depende de A1. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
 - Cada registro exportado incluye la identidad del remitente cuando se conoce, como campo opcional dentro de la versión 1 del formato, igual que `file_present`. Así los archivos nuevos siguen importándose en builds anteriores, que ignoran el campo, y los antiguos se importan sin remitente. Esto sustituye a la nueva versión de formato prevista antes.
 - `archived_events` gana la columna del remitente mediante una migración. Los registros importados muestran el nombre local de esa identidad si existe, pero siguen presentándose como historial importado: un archivo aportado por el usuario no prueba la autoría.

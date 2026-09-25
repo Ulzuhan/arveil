@@ -265,12 +265,15 @@ pub(super) async fn revoke(
         record_change(StateChange::ArchivedConversation {
             group_id: group_id.clone(),
         });
-        for (kind, body, _) in s
+        for row in s
             .client
             .archived(&group_id)
             .map_err(storage_error("archived"))?
         {
-            record_change(StateChange::ArchivedEvent { kind, body });
+            record_change(StateChange::ArchivedEvent {
+                kind: row.kind,
+                body: row.body,
+            });
         }
     }
     let n = publish_pending(config, &s, &mut conn).await?;
