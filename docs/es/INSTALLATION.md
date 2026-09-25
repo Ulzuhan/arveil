@@ -2,15 +2,19 @@
 
 [English](../INSTALLATION.md).
 
-**Disponibilidad actual (24 de septiembre de 2026):** todavía no hay releases
+**Disponibilidad actual (25 de septiembre de 2026):** todavía no hay releases
 publicadas en GitHub. El [comando de empaquetado](CLIENT_RELEASES.md) prepara
 candidatos experimentales: ZIP para macOS y APK para Android. El código actual permite
 alta por invitación, emparejamiento y exportación/restauración del kit cifrado
 de identidad, creación verificada de conversaciones, historial paginado, texto
-sin conexión y sincronización. Los paquetes experimentales `0.1.0+5` pasaron
-la prueba de conversación Mac ↔ emulador Android y la actualización desde
-`0.1.0+2` conservando los perfiles inscritos; véase el
-[registro de aceptación](PLATFORMS.md#aceptación-cruzada-de-paquetes-24-de-septiembre-de-2026).
+sin conexión y sincronización, contactos guardados, adjuntos, revocación de
+dispositivos y exportación/importación cifrada del historial. Los candidatos
+`0.1.0+10` incluyen estas funciones y la corrección de la clave tras el selector
+nativo. El emulador Android conservó el perfil al actualizar y pasó guardado,
+apertura, importación repetida y reinicio; falta verificar la reapertura del
+perfil macOS en esta versión. Consulta el
+[registro de aceptación](PLATFORMS.md#aceptación-del-paquete-corregido-y-sus-selectores-25-de-septiembre-de-2026).
+Los candidatos anteriores `0.1.0+5` pasaron conversación Mac ↔ emulador Android.
 Los paquetes anteriores pueden incluir solo el alta: comprueba la revisión
 y sus notas. En esta fase, utiliza perfiles de prueba desechables.
 
@@ -117,9 +121,8 @@ perfil. Si falla la conexión, cierra/reabre y reintenta con el **mismo relay y
 la misma invitación**. Al reabrir un alta completada no necesitas otra
 invitación. El código actual también permite emparejamiento, kits y conversaciones.
 
-Para probar conversaciones con perfiles desechables del mismo relay (la agenda
-requiere el cliente fuente `0.1.0+6`; los paquetes `0.1.0+5` conservan el flujo
-de pegar rutas):
+Para probar conversaciones con perfiles desechables del mismo relay usando
+el código actual o un paquete que lo incluya:
 
 1. Pulsa **Abrir conversaciones** y **Mi ruta** para compartir en privado la ruta
    de este dispositivo con tu contacto. Cada persona obtiene aquí su ruta.
@@ -138,11 +141,11 @@ de pegar rutas):
    **Sincronizar** reintenta su publicación. Aceptación del relay no confirma lectura.
 
 La sincronización automática funciona con la pantalla de conversaciones en primer
-plano. Faltan push, recepción en segundo plano, acciones de adjuntos y gestión de
-miembros. Los paquetes experimentales anteriores pueden preceder estos cambios:
+plano. Faltan push, recepción en segundo plano y gestión general de miembros.
+Los paquetes experimentales anteriores pueden preceder estos cambios:
 comprueba su revisión antes de esperar estas pantallas.
 
-### Adjuntos (cliente fuente `0.1.0+7`)
+### Adjuntos (disponibles desde `0.1.0+7`)
 
 Dentro de una conversación, pulsa **Adjuntar archivo** (clip), selecciona un
 archivo de menos de 25 MiB y confirma. La copia privada pendiente sobrevive al
@@ -152,8 +155,7 @@ pulsar **Descargar**. **Guardar copia…** permite elegir explícitamente un
 destino externo. Esa copia queda fuera del perfil cifrado de Arveil y puede
 entrar en las copias de seguridad del destino. Cancelar una transferencia
 incompleta elimina sus datos locales; no retira un mensaje enviado. Pide otra
-copia si el relay indica caducidad. Los paquetes candidatos `0.1.0+5` todavía
-no incluyen esta interfaz.
+copia si el relay indica caducidad.
 
 ## Compilar desde el código
 
@@ -214,7 +216,7 @@ repositorio. Son criterios de entrega, no una afirmación de que los paquetes
 o todas esas pruebas existan ya; véase la [fase 3b](PHASE3B.md).
 
 
-## Gestionar tus dispositivos (código fuente `0.1.0+8`)
+## Gestionar tus dispositivos (disponible desde `0.1.0+8`)
 
 Abre **Gestionar dispositivos** desde el perfil. Compara el identificador
 completo con el del otro dispositivo antes de revocarlo. Solo el administrador
@@ -232,11 +234,13 @@ Actualiza el relay desde la misma revisión del código al probar esta función.
 Los relays anteriores devuelven 409 al repetir un manifiesto; esta versión
 acepta el reintento idéntico y guarda la revocación y el manifiesto juntos.
 
-## Guardar y recuperar el historial (código fuente `0.1.0+9`)
+## Guardar y recuperar el historial (disponible desde `0.1.0+9`)
 
 1. En el perfil, abre **Historial cifrado**, confirma que la copia permite leer
-   mensajes antiguos y pulsa **Guardar historial cifrado**. Guarda su clave por
-   separado, por ejemplo en un gestor de contraseñas. Desaparece al salir o
+   mensajes antiguos y pulsa **Guardar historial cifrado**. Si el selector nativo
+   termina antes de que la app recupere el foco, pulsa **Mostrar clave del archivo
+   guardado** al volver (corregido en `0.1.0+10`). Guarda su clave por separado,
+   por ejemplo en un gestor de contraseñas. Desaparece al salir o
    cambiar de app; exporta otra copia si la pierdes. Revisa los adjuntos sin
    copia: no se descargan pendientes ni se buscan archivos antiguos de la CLI.
 2. Tras perder un dispositivo, recupera primero la misma identidad con su kit
@@ -250,6 +254,11 @@ acepta el reintento idéntico y guarda la revocación y el manifiesto juntos.
    ni reincorpora a grupos antiguos. Comparte la ruta del dispositivo recuperado
    con un contacto y cread expresamente una conversación nueva para hablar.
 
-Disponible desde el código fuente; los candidatos `0.1.0+5` existentes no incluyen
-esta pantalla. Límite de 64 MiB y 10.000 registros por archivo; consulta
+Incluido en los candidatos `0.1.0+10`. Límite de 64 MiB y 10.000 registros por
+archivo; consulta
 [los límites de implementación](CLIENT_FOUNDATION.md#historial-cifrado-y-recuperación-tras-pérdida-cuarta-entrega-de-m3b4).
+
+Al guardar un kit de identidad, la acción equivalente es **Mostrar clave del kit
+guardado**. Si el guardado termina en segundo plano, mostrar la clave requiere
+esta acción explícita al volver. Una vez de vuelta, cambiar de app descarta la clave
+pendiente; exporta otra copia si hace falta. Arveil no guarda ninguna de ellas.

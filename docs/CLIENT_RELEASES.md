@@ -14,7 +14,9 @@ and `ANDROID_HOME` for your installation. Put Flutter and Java tools on `PATH`.
 The initial package targets are Apple silicon macOS and Android ARM64.
 The helper records the minimum OS/SDK in `BUILD.json`. Builds are experimental:
 the current GUI supports invitation enrollment, pairing and identity-kit
-export/restore, KeyPackage replenishment and conversations with offline text and sync. Existing candidates are tied to
+export/restore, KeyPackage replenishment, conversations with offline text and
+sync, saved contacts, attachments, device revocation and encrypted history
+export/import. Existing candidates are tied to
 their recorded source revision; these changes do not update old binaries.
 
 ## Android: create the signing key once

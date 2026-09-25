@@ -284,7 +284,7 @@ Source `0.1.0+9` adds encrypted history export/import, read-only imported record
 and explicit copies of available archived attachments. Restore the matching
 identity first after device loss. The archive and its key are separate from the
 identity kit and its key; importing never restores MLS sessions or resends text.
-See [installation steps](../../docs/INSTALLATION.md#save-and-recover-history-source-0109).
+See [installation steps](../../docs/INSTALLATION.md#save-and-recover-history-available-since-0109).
 
 ```sh
 python3 scripts/test_client_conversations.py --device macos --scenario archives
