@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `by_activity`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `last_event_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `by_activity`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -72,6 +72,10 @@ abstract class Profile implements RustOpaqueInterface {
   /// profile. Idempotent, and every later call fails instead of quietly
   /// opening it again.
   Future<void> close();
+
+  /// The user saved the last exported kit and confirmed its key is kept
+  /// apart. Read `setup` again for the new kit state.
+  Future<void> confirmKitSaved();
 
   Future<void> confirmPairing({
     required String bootstrap,
@@ -617,6 +621,9 @@ class HistoryEventView {
   /// Written by this identity, from this device or another of its own.
   final bool own;
 
+  /// For a device-change notice, what changed; its author is the sender.
+  final NoticeView? notice;
+
   const HistoryEventView({
     required this.cursor,
     required this.eventId,
@@ -628,6 +635,7 @@ class HistoryEventView {
     this.senderIdentity,
     this.senderLabel,
     required this.own,
+    this.notice,
   });
 
   @override
@@ -641,7 +649,8 @@ class HistoryEventView {
       createdAt.hashCode ^
       senderIdentity.hashCode ^
       senderLabel.hashCode ^
-      own.hashCode;
+      own.hashCode ^
+      notice.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -657,7 +666,8 @@ class HistoryEventView {
           createdAt == other.createdAt &&
           senderIdentity == other.senderIdentity &&
           senderLabel == other.senderLabel &&
-          own == other.own;
+          own == other.own &&
+          notice == other.notice;
 }
 
 /// One page, oldest first within the page.
@@ -753,6 +763,7 @@ class LastEventView {
 
   /// Delivery state per mailbox, for events this device sent.
   final List<String> delivery;
+  final NoticeView? notice;
 
   const LastEventView({
     required this.cursor,
@@ -763,6 +774,7 @@ class LastEventView {
     required this.own,
     required this.createdAt,
     required this.delivery,
+    this.notice,
   });
 
   @override
@@ -774,7 +786,8 @@ class LastEventView {
       senderLabel.hashCode ^
       own.hashCode ^
       createdAt.hashCode ^
-      delivery.hashCode;
+      delivery.hashCode ^
+      notice.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -788,7 +801,8 @@ class LastEventView {
           senderLabel == other.senderLabel &&
           own == other.own &&
           createdAt == other.createdAt &&
-          delivery == other.delivery;
+          delivery == other.delivery &&
+          notice == other.notice;
 }
 
 class ManagedDeviceView {
@@ -820,6 +834,25 @@ class ManagedDeviceView {
           current == other.current &&
           revoked == other.revoked &&
           revocation == other.revocation;
+}
+
+/// A contact's devices changed. Counts only: no device is named.
+class NoticeView {
+  final int added;
+  final int removed;
+
+  const NoticeView({required this.added, required this.removed});
+
+  @override
+  int get hashCode => added.hashCode ^ removed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NoticeView &&
+          runtimeType == other.runtimeType &&
+          added == other.added &&
+          removed == other.removed;
 }
 
 class PairingView {
@@ -1135,6 +1168,14 @@ class SetupView {
   final String? bootstrap;
   final bool administrator;
   final bool recoveryWarning;
+
+  /// Unix seconds when the user last confirmed saving an identity kit on
+  /// this administration device; absent if never.
+  final PlatformInt64? kitSavedAt;
+
+  /// Devices changed after the saved kit was made; a new kit should
+  /// replace it.
+  final bool kitStale;
   final PairingView? pairing;
 
   const SetupView({
@@ -1143,6 +1184,8 @@ class SetupView {
     this.bootstrap,
     required this.administrator,
     required this.recoveryWarning,
+    this.kitSavedAt,
+    required this.kitStale,
     this.pairing,
   });
 
@@ -1153,6 +1196,8 @@ class SetupView {
       bootstrap.hashCode ^
       administrator.hashCode ^
       recoveryWarning.hashCode ^
+      kitSavedAt.hashCode ^
+      kitStale.hashCode ^
       pairing.hashCode;
 
   @override
@@ -1165,6 +1210,8 @@ class SetupView {
           bootstrap == other.bootstrap &&
           administrator == other.administrator &&
           recoveryWarning == other.recoveryWarning &&
+          kitSavedAt == other.kitSavedAt &&
+          kitStale == other.kitStale &&
           pairing == other.pairing;
 }
 

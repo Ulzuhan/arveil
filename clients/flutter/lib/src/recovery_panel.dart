@@ -141,10 +141,13 @@ class _RecoveryPanelState extends State<RecoveryPanel>
         ),
         const SizedBox(height: 12),
         FilledButton(
-          onPressed: () => setState(() {
-            _exportedSecret.clear();
-            _saved = true;
-          }),
+          onPressed: () {
+            setState(() {
+              _exportedSecret.clear();
+              _saved = true;
+            });
+            session.confirmKitSaved();
+          },
           child: const Text('He guardado la clave por separado'),
         ),
       ] else ...[

@@ -6,6 +6,33 @@ import 'package:flutter/foundation.dart';
 import 'attachment_files.dart';
 import 'rust/api/profile.dart';
 
+/// What the screen can honestly say about reaching the server. Nothing
+/// here promises delivery: only when this device last synced, and why the
+/// last attempt did not.
+enum SyncState { never, syncing, synced, offline, refused }
+
+/// One line about synchronization, relative to `now`.
+String syncStatusText(SyncState state, DateTime? lastSynced, DateTime now) {
+  String since(DateTime at) {
+    final minutes = now.difference(at).inMinutes;
+    if (minutes < 1) return 'ahora';
+    if (minutes < 60) return 'hace $minutes min';
+    String two(int n) => n.toString().padLeft(2, '0');
+    return 'a las ${two(at.hour)}:${two(at.minute)}';
+  }
+
+  final last = lastSynced == null
+      ? ''
+      : ' · última sincronización ${since(lastSynced)}';
+  return switch (state) {
+    SyncState.never => 'Aún sin sincronizar',
+    SyncState.syncing => 'Sincronizando…',
+    SyncState.synced => 'Sincronizado ${since(lastSynced ?? now)}',
+    SyncState.offline => 'Sin conexión con tu servidor$last',
+    SyncState.refused => 'El servidor rechazó la sincronización$last',
+  };
+}
+
 /// Ephemeral projections only; Rust owns messages, outbox and MLS state.
 class ConversationController extends ChangeNotifier {
   ConversationController(this.profile, this.bootstrap);
@@ -22,6 +49,11 @@ class ConversationController extends ChangeNotifier {
   bool creating = false;
   String? error;
   String? networkError;
+  SyncState syncState = SyncState.never;
+
+  /// When the last sync this controller ran succeeded. Presentation only:
+  /// a new screen starts without one.
+  DateTime? lastSynced;
   String? notice;
   bool _disposed = false;
   // Null means no lifecycle state has arrived during the initial local read.
@@ -229,6 +261,7 @@ class ConversationController extends ChangeNotifier {
 
   Future<void> _performSync() async {
     syncing = true;
+    syncState = SyncState.syncing;
     _changed();
     try {
       do {
@@ -237,9 +270,17 @@ class ConversationController extends ChangeNotifier {
           await profile.sync_(bootstrap: bootstrap);
           if (_disposed) return;
           networkError = null;
-        } catch (_) {
-          networkError =
-              'Sincronización pendiente. Puedes leer y escribir sin conexión; usa Sincronizar para reintentar.';
+          lastSynced = DateTime.now();
+          syncState = SyncState.synced;
+        } catch (failure) {
+          // Only a transport failure means the server was not reached; any
+          // other typed refusal came from a server that answered.
+          syncState = failure is CommandError_Transport
+              ? SyncState.offline
+              : SyncState.refused;
+          networkError = syncState == SyncState.offline
+              ? 'Sincronización pendiente. Puedes leer y escribir sin conexión; usa Sincronizar para reintentar.'
+              : 'El servidor no aceptó la sincronización. Tus mensajes siguen guardados en este dispositivo; comprueba los datos del servidor con quien lo administra.';
           _syncAgain = false;
         }
         await refresh();

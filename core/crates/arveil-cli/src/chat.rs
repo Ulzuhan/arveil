@@ -533,6 +533,15 @@ fn render_history(conversation: ConversationHistory) {
             );
             continue;
         }
+        if let Some(change) = event.notice {
+            println!(
+                "  [  notice] {}: {} device(s) added, {} removed",
+                event.sender_label.as_deref().unwrap_or("a contact"),
+                change.added,
+                change.removed
+            );
+            continue;
+        }
         println!(
             "  [{:>8}] {}",
             event.kind,

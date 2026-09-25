@@ -29,6 +29,7 @@ class SupplyProfile extends FakeProfile {
       stage: SetupStage.ready,
       administrator: false,
       recoveryWarning: false,
+      kitStale: false,
       bootstrap: relay,
     );
   }

@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo) y A2 (resumen de conversaciones y no leídos); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A2 (resumen de conversaciones y no leídos) y A3 (estado del kit, avisos de dispositivos y estado de sincronización); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -159,7 +159,7 @@ Hallazgos del 25 de septiembre de 2026 que condicionan el orden del plan:
 - `HistoryEventView` no incluye remitente ni hora. Al procesar un mensaje de aplicación, `arveil-app` registra el evento sin el remitente, aunque `mls-rs` lo identifica mediante `sender_index`. Resuelto en A1 para el historial en vivo.
 - `ConversationView` no incluye último mensaje, última actividad ni no leídos, y no existe una marca de lectura. Resuelto en A2.
 - La base del perfil no tiene versionado de esquema: se crea con `CREATE TABLE IF NOT EXISTS`. Añadir columnas exige migraciones. Resuelto en A0.
-- El estado del kit (exportado o pospuesto) solo vive en memoria del panel de recuperación; un aviso persistente necesita estado durable.
+- El estado del kit (exportado o pospuesto) solo vive en memoria del panel de recuperación; un aviso persistente necesita estado durable. Resuelto en A3.
 - La hora de la última sincronización solo existe en el controlador de conversaciones de Dart, que sincroniza cada 10 segundos mientras está abierto. Como proyección de presentación es aceptable.
 
 ## Plan de implementación
@@ -195,7 +195,7 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 - Marca de lectura local por conversación, monótona (`max(actual, nueva)`), con una operación `mark_read`. Los registros importados no cuentan como no leídos.
 - Pruebas: sincronización concurrente con el marcado; un reinicio conserva la marca; orden estable ante empates; las consultas locales responden durante una sincronización lenta, según el contrato de admisión de M3b.1.
 
-**A3 — Estado de recuperación y avisos de sistema (S).** Depende de A0.
+**A3 — Estado de recuperación y avisos de sistema (S).** Depende de A0. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md). El aviso se registra en todas las conversaciones compartidas con la identidad, no solo en la que trajo el manifiesto, porque un manifiesto solo es nuevo la primera vez que se acepta, venga del grupo o del relay.
 
 - Persistir la fecha de la última exportación correcta del kit y exponerla en una consulta de estado de recuperación. «Más tarde» oculta el aviso solo durante la sesión.
 - Registrar un evento local de sistema cuando un manifiesto aceptado cambia los dispositivos activos de un contacto, en la conversación por la que llegó, indicando si se añadió o retiró un dispositivo y si la identidad está verificada.

@@ -37,7 +37,7 @@ mod recovery;
 pub use key_packages::{KeyPackageLevel, KeyPackageSupply};
 pub use recovery::{KitExport, RecoveryRequest, RecoveryResult};
 
-pub use arveil_core::client::{EnrollmentPhase, PairingCompletionPhase};
+pub use arveil_core::client::{DeviceChange, EnrollmentPhase, PairingCompletionPhase, SavedKit};
 pub use onboarding::{
     DeviceLinkAuthorization, DeviceLinkRequest, Enrollment, EnrollmentFinish, Identity,
     LinkedDevice, PairingSession, PairingVerification, finish_enrollment,
@@ -104,6 +104,7 @@ pub enum Operation {
     QueryArchivePage,
     ExportArchiveFile,
     ExportKit,
+    ConfirmKitSaved,
     RestoreKit,
     ResumeRecovery,
     QueryOnboarding,
@@ -206,6 +207,7 @@ pub enum ClientCommand {
         event_id: Vec<u8>,
     },
     ExportKit,
+    ConfirmKitSaved,
     RestoreKit {
         request: RecoveryRequest,
     },
@@ -325,6 +327,7 @@ impl ClientCommand {
             Self::QueryArchivePage { .. } => Operation::QueryArchivePage,
             Self::ExportArchiveFile { .. } => Operation::ExportArchiveFile,
             Self::ExportKit => Operation::ExportKit,
+            Self::ConfirmKitSaved => Operation::ConfirmKitSaved,
             Self::RestoreKit { .. } => Operation::RestoreKit,
             Self::ResumeRecovery => Operation::ResumeRecovery,
             Self::QueryDevices => Operation::QueryDevices,
@@ -1087,6 +1090,12 @@ pub struct OnboardingStatus {
     pub administrator: bool,
     pub recovering: bool,
     pub recovery_warning: bool,
+    /// When the user last confirmed saving an identity kit, on the
+    /// administration device; `None` if never.
+    pub kit_saved_at: Option<u64>,
+    /// The saved kit predates the current device manifest: devices changed
+    /// after it was made, so a new one should replace it.
+    pub kit_stale: bool,
     pub pairing: Option<PairingStatus>,
 }
 
@@ -1137,6 +1146,9 @@ pub struct HistoryEvent {
     pub sender_label: Option<String>,
     /// Written by this identity, from this device or another of its own.
     pub own: bool,
+    /// For a device-change notice, what changed. Notices are local: nobody
+    /// wrote them to the conversation.
+    pub notice: Option<arveil_core::client::DeviceChange>,
 }
 
 /// One page of a conversation, newest first. `next` is the cursor for the
@@ -1200,6 +1212,7 @@ pub enum CommandOutput {
     ArchiveReceipt(ArchiveReceipt),
     ArchivePage(ArchivePage),
     Kit(KitExport),
+    KitSaved(SavedKit),
     KeyPackageSupply(KeyPackageSupply),
     Recovery(RecoveryResult),
     OnboardingStatus(OnboardingStatus),
@@ -2009,6 +2022,15 @@ impl Application {
         }
     }
 
+    /// Record that the user saved the last exported kit and its key. Only
+    /// a confirmed kit clears the reminder to save one.
+    pub fn confirm_kit_saved(&self) -> Result<SavedKit, ApplicationError> {
+        match self.execute(ClientCommand::ConfirmKitSaved)? {
+            CommandOutput::KitSaved(kit) => Ok(kit),
+            _ => unreachable!("kit confirmation output"),
+        }
+    }
+
     pub fn restore_kit(
         &self,
         request: RecoveryRequest,
@@ -2657,6 +2679,9 @@ async fn run_command(
         ClientCommand::ExportKit => recovery::export(config)
             .map(CommandOutput::Kit)
             .map_err(|e| application_error(Operation::ExportKit, e)),
+        ClientCommand::ConfirmKitSaved => recovery::confirm_saved(config)
+            .map(CommandOutput::KitSaved)
+            .map_err(|e| application_error(Operation::ConfirmKitSaved, e)),
         ClientCommand::RestoreKit { request } => Box::pin(run_operation_with_value(
             Operation::RestoreKit,
             recovery::restore(config, request),
@@ -3154,6 +3179,9 @@ fn history_event(
         Vec::new()
     };
     let by = attribution(session, group, &row)?;
+    let notice = (row.kind == arveil_core::delivery::DEVICES_CHANGED)
+        .then(|| arveil_core::client::DeviceChange::decode(&row.body))
+        .flatten();
     Ok(HistoryEvent {
         attachment: attachment_ui::summary(&session.delivery, &row.event_id, &row.kind, &row.body)?,
         cursor: row.cursor,
@@ -3165,6 +3193,7 @@ fn history_event(
         sender_identity: by.identity,
         sender_label: by.label,
         own: by.own,
+        notice,
     })
 }
 
@@ -3249,6 +3278,7 @@ fn archived_conversations(
                     // Imported records carry no sender yet.
                     sender_identity: None,
                     sender_label: None,
+                    notice: None,
                 })
                 .collect();
             Ok(ConversationHistory {
@@ -4190,15 +4220,44 @@ fn event_sender<C: MlsConfig>(
         .device_identity(gid, &device_id)
         .map_err(storage_error("sender"))?;
     Ok(Some(EventSender {
-        device_id,
+        device_id: Some(device_id),
         identity_id,
     }))
+}
+
+/// A contact's accepted manifest changed its devices: say so in every
+/// conversation shared with that identity, not only the one that carried
+/// it, as a local notice that counts devices and names none of them.
+fn record_device_notices(
+    s: &Session,
+    identity: &[u8],
+    sequence: u64,
+    change: arveil_core::client::DeviceChange,
+    carrier: Option<Vec<u8>>,
+) -> Result<(), arveil_core::client::ClientError> {
+    if change.is_empty() {
+        return Ok(());
+    }
+    let sender = EventSender {
+        device_id: carrier,
+        identity_id: Some(identity.to_vec()),
+    };
+    for group in s.client.groups_with_identity(identity)? {
+        s.delivery.record_event_by(
+            &group,
+            &arveil_core::delivery::notice_event_id(identity, sequence, &group),
+            arveil_core::delivery::DEVICES_CHANGED,
+            &change.encode(),
+            Some(&sender),
+        )?;
+    }
+    Ok(())
 }
 
 /// What this device writes is its own, from its own identity.
 fn own_sender(s: &Session) -> EventSender {
     EventSender {
-        device_id: s.device.keys.device_id.to_vec(),
+        device_id: Some(s.device.keys.device_id.to_vec()),
         identity_id: Some(s.identity_id.clone()),
     }
 }
@@ -4277,10 +4336,28 @@ fn handle_mls<C: MlsConfig>(
                             let claimed =
                                 arveil_core::identity::manifest_identity_unverified(&ev.body);
                             let (body, new) = match claimed {
-                                Some(id) if id != s.identity_id => s
-                                    .client
-                                    .peer_manifest_accept(&id, &ev.body)
-                                    .map_err(domain_error("manifest"))?,
+                                Some(id) if id != s.identity_id => {
+                                    let (body, new, change) = s
+                                        .client
+                                        .peer_manifest_accept(&id, &ev.body)
+                                        .map_err(domain_error("manifest"))?;
+                                    if new {
+                                        // Inside the receive unit: the
+                                        // notices commit with the manifest.
+                                        let carrier =
+                                            event_sender(s, &group, &gid, app.sender_index)?
+                                                .and_then(|sender| sender.device_id);
+                                        record_device_notices(
+                                            s,
+                                            &id,
+                                            body.manifest_sequence,
+                                            change,
+                                            carrier,
+                                        )
+                                        .map_err(storage_error("notice"))?;
+                                    }
+                                    (body, new)
+                                }
                                 _ => s
                                     .client
                                     .manifest_accept_own(&ev.body)
@@ -4519,7 +4596,14 @@ async fn refresh_manifests(s: &Session, conn: &mut Connection) -> Result<(), Cli
         let accepted = if id == s.identity_id {
             s.client.manifest_accept_own(&signed)
         } else {
-            s.client.peer_manifest_accept(&id, &signed)
+            // The manifest and its notices commit together, or neither does.
+            s.client.unit_of_work(|| {
+                let (body, new, change) = s.client.peer_manifest_accept(&id, &signed)?;
+                if new {
+                    record_device_notices(s, &id, body.manifest_sequence, change, None)?;
+                }
+                Ok((body, new))
+            })
         };
         match accepted {
             Ok((body, true)) => record_change(StateChange::ManifestUpdated {
@@ -5261,6 +5345,8 @@ mod tests {
                 administrator: false,
                 recovering: false,
                 recovery_warning: false,
+                kit_saved_at: None,
+                kit_stale: false,
                 pairing: None,
             }
         );

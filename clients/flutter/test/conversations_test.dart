@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
 import 'package:arveil/main.dart';
@@ -141,6 +142,7 @@ void main() {
       ..state = const SetupView(
         administrator: false,
         recoveryWarning: false,
+        kitStale: false,
         stage: SetupStage.ready,
         bootstrap: relay,
       );
@@ -601,6 +603,105 @@ void main() {
     );
     expect(find.bySemanticsLabel(RegExp('1 mensaje sin leer')), findsOneWidget);
     semantics.dispose();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  test('device notices say who changed how many devices, never which', () {
+    expect(
+      noticeText('Lucía', const NoticeView(added: 1, removed: 0)),
+      'Lucía ha añadido un dispositivo.',
+    );
+    expect(
+      noticeText(null, const NoticeView(added: 2, removed: 1)),
+      'Un contacto ha añadido 2 dispositivos y ha retirado un dispositivo.',
+    );
+  });
+
+  testWidgets('a device notice asks to compare numbers unless verified', (
+    tester,
+  ) async {
+    HistoryEventView notice(String id) => HistoryEventView(
+      cursor: 1,
+      eventId: id,
+      kind: 'devices-changed',
+      body: Uint8List(0),
+      delivery: const [],
+      createdAt: 1790000000,
+      senderLabel: 'Lucía',
+      own: false,
+      notice: const NoticeView(added: 1, removed: 0),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              MessageBubble(event: notice('verified'), senderVerified: true),
+              MessageBubble(event: notice('unverified')),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Lucía ha añadido un dispositivo.'), findsNWidgets(2));
+    expect(
+      find.text('El cambio está firmado por su identidad verificada.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Compara su número de seguridad si no esperabas este cambio.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('message-verified')), findsNothing);
+  });
+
+  test('the sync line says when it last worked, never that mail arrived', () {
+    final now = DateTime(2026, 9, 25, 18, 30);
+    expect(syncStatusText(SyncState.never, null, now), 'Aún sin sincronizar');
+    expect(
+      syncStatusText(
+        SyncState.synced,
+        now.subtract(const Duration(seconds: 20)),
+        now,
+      ),
+      'Sincronizado ahora',
+    );
+    expect(
+      syncStatusText(
+        SyncState.synced,
+        now.subtract(const Duration(minutes: 2)),
+        now,
+      ),
+      'Sincronizado hace 2 min',
+    );
+    expect(
+      syncStatusText(SyncState.offline, DateTime(2026, 9, 25, 16, 5), now),
+      'Sin conexión con tu servidor · última sincronización a las 16:05',
+    );
+    expect(
+      syncStatusText(SyncState.refused, null, now),
+      'El servidor rechazó la sincronización',
+    );
+  });
+
+  testWidgets('a transport failure reads as offline, not as a server refusal', (
+    tester,
+  ) async {
+    final profile = ChatProfile();
+    final chat = await open(tester, profile);
+    await chat.sync();
+    await tester.pumpAndSettle();
+    expect(chat.syncState, SyncState.synced);
+    expect(chat.lastSynced, isNotNull);
+    expect(find.byKey(const Key('sync-status')), findsOneWidget);
+
+    profile.offline = true;
+    await chat.sync();
+    await tester.pumpAndSettle();
+    expect(chat.syncState, SyncState.offline);
+    expect(chat.lastSynced, isNotNull, reason: 'the last success is kept');
+    expect(find.textContaining('Sin conexión con tu servidor'), findsOneWidget);
+    expect(find.textContaining('PRIVATE_DIAGNOSTIC'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 }

@@ -14,6 +14,7 @@ class FakeProfile implements Profile {
   SetupView state = const SetupView(
     administrator: false,
     recoveryWarning: false,
+    kitStale: false,
     stage: SetupStage.new_,
   );
   int enrollments = 0;
@@ -41,6 +42,7 @@ class FakeProfile implements Profile {
       state = const SetupView(
         administrator: false,
         recoveryWarning: false,
+        kitStale: false,
         stage: SetupStage.redeeming,
         bootstrap: relay,
       );
@@ -52,6 +54,7 @@ class FakeProfile implements Profile {
     state = const SetupView(
       administrator: false,
       recoveryWarning: false,
+      kitStale: false,
       stage: SetupStage.ready,
       bootstrap: relay,
     );

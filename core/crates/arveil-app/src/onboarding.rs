@@ -32,6 +32,15 @@ pub fn status(config: &ProfileConfig) -> Result<super::OnboardingStatus, CliErro
     let recovery = client
         .recovery_progress()
         .map_err(client_error("recovery"))?;
+    let kit = if has_root {
+        client.saved_kit().map_err(client_error("kit"))?
+    } else {
+        None
+    };
+    let manifest_sequence = client
+        .manifest_state()
+        .map_err(client_error("manifest"))?
+        .map(|state| state.sequence);
     let session = client
         .latest_pairing_session()
         .map_err(client_error("pairing"))?;
@@ -81,6 +90,8 @@ pub fn status(config: &ProfileConfig) -> Result<super::OnboardingStatus, CliErro
         recovery_warning: recovery
             .as_ref()
             .is_some_and(|p| p.previous_sequence.is_some_and(|n| n < p.kit_sequence)),
+        kit_saved_at: kit.map(|k| k.saved_at),
+        kit_stale: kit.is_some_and(|k| manifest_sequence.is_some_and(|m| k.manifest_sequence < m)),
         pairing,
         phase: enrollment.map(|progress| progress.phase),
     })

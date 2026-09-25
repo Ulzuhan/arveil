@@ -213,7 +213,7 @@ fn conversation_rows_count_unread_and_keep_markers() {
     let other_root = other.identity_new().unwrap();
     let (other_device, _) = other.device_new(onboarding::now()).unwrap();
     let them = EventSender {
-        device_id: other_device.keys.device_id.to_vec(),
+        device_id: Some(other_device.keys.device_id.to_vec()),
         identity_id: Some(other_root.identity_id()),
     };
     let (quiet, busy, empty) = (vec![1u8; 32], vec![2u8; 32], vec![3u8; 32]);
@@ -293,5 +293,118 @@ fn conversation_rows_count_unread_and_keep_markers() {
     assert_eq!(rows.iter().find(|r| r.group_id == quiet).unwrap().unread, 1);
     app.close();
     drop((app, delivery, client));
+    std::fs::remove_dir_all(&path).ok();
+}
+
+#[test]
+fn a_contacts_new_device_is_announced_in_every_shared_conversation() {
+    let path = std::env::temp_dir().join(format!(
+        "arveil-notices-{}",
+        hex::encode(random_delivery_id().unwrap())
+    ));
+    let config = ProfileConfig::unencrypted(&path);
+    let client = open_client(&config).unwrap();
+    let root = client.identity_new().unwrap();
+    let (me, _) = client.device_new(onboarding::now()).unwrap();
+    client
+        .realm_save(&[7; 32], &root.public(), &[8; 32], "ws://127.0.0.1:9")
+        .unwrap();
+    client.realm_mark_enrolled(&[7; 32]).unwrap();
+    client
+        .mailbox_save(&OwnMailbox {
+            mailbox_id: vec![3; 16],
+            read_capability: vec![4; 32],
+            write_capability: vec![5; 32],
+        })
+        .unwrap();
+    let other = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+    let other_root = other.identity_new().unwrap();
+    let (other_device, _) = other.device_new(onboarding::now()).unwrap();
+
+    let engine = client.mls_engine(me.mls_identity());
+    let other_engine = other.mls_engine(other_device.mls_identity());
+    let mut group = engine.create_group().unwrap();
+    let commit = group
+        .commit_builder()
+        .add_member(other_engine.key_package().unwrap())
+        .unwrap()
+        .build()
+        .unwrap();
+    group.apply_pending_commit().unwrap();
+    group.write_to_storage().unwrap();
+    let gid = group.group_id().to_vec();
+    let mut other_group = other_engine.join(&commit.welcome_messages[0]).unwrap();
+    // A second conversation with the same contact, carried elsewhere.
+    let second = vec![6u8; 32];
+    for group_id in [gid.clone(), second.clone()] {
+        client
+            .conversation_save(&Conversation {
+                group_id,
+                creator: true,
+                peers: vec![peer_of(
+                    other_root.identity_id(),
+                    &other_device,
+                    other_root.public().as_bytes(),
+                )],
+            })
+            .unwrap();
+    }
+    let (s, receiving) = session(&config).unwrap();
+    let notices = |group: &[u8]| {
+        history_page(&config, group, None, 20)
+            .unwrap()
+            .events
+            .into_iter()
+            .filter(|e| e.notice.is_some())
+            .collect::<Vec<_>>()
+    };
+
+    // The first manifest this profile learns is a baseline, not news.
+    let baseline = other.latest_manifest().unwrap().unwrap();
+    let message = other_group
+        .encrypt_application_message(&encode_event("manifest", &baseline).unwrap(), vec![])
+        .unwrap();
+    handle_mls(&s, &receiving, message, b"manifest-first-1").unwrap();
+    assert!(notices(&gid).is_empty());
+
+    // The contact links another device.
+    let extra = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+    let pending = extra.device_pending_new().unwrap();
+    other
+        .device_authorize(&pending.keys.public(), onboarding::now())
+        .unwrap();
+    let next = other.latest_manifest().unwrap().unwrap();
+    let message = other_group
+        .encrypt_application_message(&encode_event("manifest", &next).unwrap(), vec![])
+        .unwrap();
+    handle_mls(&s, &receiving, message, b"manifest-second2").unwrap();
+    for group_id in [&gid, &second] {
+        let found = notices(group_id);
+        assert_eq!(found.len(), 1, "one notice in each shared conversation");
+        let notice = &found[0];
+        assert_eq!(
+            notice.notice,
+            Some(DeviceChange {
+                added: 1,
+                removed: 0
+            })
+        );
+        assert_eq!(notice.sender_identity, Some(other_root.identity_id()));
+        assert!(notice.sender_label.is_some());
+        assert!(!notice.own);
+        assert!(notice.body.is_empty() || DeviceChange::decode(&notice.body).is_some());
+    }
+    // Notices are not messages: nothing is unread.
+    for row in conversation_summaries(&config).unwrap() {
+        assert_eq!(row.unread, 0);
+    }
+    // The same manifest again announces nothing more.
+    let message = other_group
+        .encrypt_application_message(&encode_event("manifest", &next).unwrap(), vec![])
+        .unwrap();
+    handle_mls(&s, &receiving, message, b"manifest-repeat3").unwrap();
+    assert_eq!(notices(&gid).len(), 1);
+
+    drop((s, receiving, engine, client));
     std::fs::remove_dir_all(&path).ok();
 }

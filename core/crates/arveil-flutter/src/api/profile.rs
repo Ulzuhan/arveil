@@ -44,6 +44,12 @@ pub struct SetupView {
     pub bootstrap: Option<String>,
     pub administrator: bool,
     pub recovery_warning: bool,
+    /// Unix seconds when the user last confirmed saving an identity kit on
+    /// this administration device; absent if never.
+    pub kit_saved_at: Option<i64>,
+    /// Devices changed after the saved kit was made; a new kit should
+    /// replace it.
+    pub kit_stale: bool,
     pub pairing: Option<PairingView>,
 }
 
@@ -359,6 +365,15 @@ pub struct HistoryEventView {
     pub sender_label: Option<String>,
     /// Written by this identity, from this device or another of its own.
     pub own: bool,
+    /// For a device-change notice, what changed; its author is the sender.
+    pub notice: Option<NoticeView>,
+}
+
+/// A contact's devices changed. Counts only: no device is named.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoticeView {
+    pub added: u32,
+    pub removed: u32,
 }
 
 /// One page, oldest first within the page.
@@ -402,6 +417,7 @@ pub struct LastEventView {
     pub created_at: i64,
     /// Delivery state per mailbox, for events this device sent.
     pub delivery: Vec<String>,
+    pub notice: Option<NoticeView>,
 }
 
 /// How far a conversation has been read on this device.
@@ -486,6 +502,8 @@ impl Profile {
             bootstrap: status.bootstrap,
             administrator: status.administrator,
             recovery_warning: status.recovery_warning,
+            kit_saved_at: status.kit_saved_at.map(|at| at as i64),
+            kit_stale: status.kit_stale,
             pairing: status.pairing.map(|p| PairingView {
                 session_id: p.session.session_id,
                 code: p.session.code,
@@ -650,6 +668,15 @@ impl Profile {
             encrypted: kit.encrypted,
             secret: kit.secret,
         })
+    }
+
+    /// The user saved the last exported kit and confirmed its key is kept
+    /// apart. Read `setup` again for the new kit state.
+    pub fn confirm_kit_saved(&self) -> Result<(), CommandError> {
+        self.inner
+            .confirm_kit_saved()
+            .map(|_| ())
+            .map_err(command_error)
     }
 
     pub fn restore_kit(
@@ -1122,6 +1149,14 @@ fn event_view(event: HistoryEvent) -> HistoryEventView {
         sender_identity: event.sender_identity.as_deref().map(hex),
         sender_label: event.sender_label,
         own: event.own,
+        notice: event.notice.map(notice_view),
+    }
+}
+
+fn notice_view(change: arveil_app::DeviceChange) -> NoticeView {
+    NoticeView {
+        added: change.added,
+        removed: change.removed,
     }
 }
 
@@ -1242,6 +1277,7 @@ fn last_event_view(event: HistoryEvent) -> LastEventView {
             .into_iter()
             .map(|state| state.state)
             .collect(),
+        notice: event.notice.map(notice_view),
     }
 }
 
@@ -1337,6 +1373,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::QueryArchivePage => "query-archive-page",
         Operation::ExportArchiveFile => "export-archive-file",
         Operation::ExportKit => "export-kit",
+        Operation::ConfirmKitSaved => "confirm-kit-saved",
         Operation::RestoreKit => "restore-kit",
         Operation::ResumeRecovery => "resume-recovery",
         Operation::QueryContacts => "query-contacts",
@@ -1385,6 +1422,7 @@ mod tests {
             sender_identity: None,
             sender_label: Some("Lucía".into()),
             own: false,
+            notice: None,
         }
     }
 
@@ -1455,6 +1493,7 @@ mod tests {
                 sender_identity: None,
                 sender_label: None,
                 own: false,
+                notice: None,
             });
             assert!(view.body.is_empty());
         }
@@ -1469,6 +1508,7 @@ mod tests {
             sender_identity: Some(vec![0xab, 0xcd]),
             sender_label: Some("Lucía".into()),
             own: false,
+            notice: None,
         });
         assert_eq!(view.body, b"message");
         assert_eq!(view.created_at, 1_790_000_000);

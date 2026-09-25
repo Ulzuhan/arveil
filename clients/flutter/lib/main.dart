@@ -49,6 +49,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   late final ProfileSession _session = widget.session ?? ProfileSession();
   final _form = GlobalKey<FormState>();
+  final _kitPanel = GlobalKey();
   String _entry = 'enroll';
   final _bootstrap = TextEditingController();
   final _invite = TextEditingController();
@@ -320,6 +321,19 @@ class _ProfilePageState extends State<ProfilePage> {
     ];
   }
 
+  /// Why the administration device should save a kit now, or nothing.
+  String? get _kitReminder {
+    final setup = _session.setup!;
+    if (!setup.administrator || _session.kitReminderDismissed) return null;
+    if (setup.kitSavedAt == null) {
+      return 'Guarda tu kit de identidad. Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.';
+    }
+    if (setup.kitStale) {
+      return 'Tus dispositivos cambiaron después de guardar el kit. Guarda uno nuevo para que una recuperación los conozca.';
+    }
+    return null;
+  }
+
   List<Widget> _ready(BuildContext context) => [
     const Icon(Icons.check_circle_outline, size: 48),
     const SizedBox(height: 20),
@@ -330,6 +344,41 @@ class _ProfilePageState extends State<ProfilePage> {
     const SizedBox(height: 16),
     const Text('Identidad registrada y buzón preparado.'),
     const SizedBox(height: 24),
+    if (_kitReminder case final message?) ...[
+      Card(
+        key: const Key('kit-reminder'),
+        color: Theme.of(context).colorScheme.tertiaryContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(message),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton(
+                    onPressed: () {
+                      final panel = _kitPanel.currentContext;
+                      if (panel != null) Scrollable.ensureVisible(panel);
+                    },
+                    child: const Text('Guardar kit'),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => _session.kitReminderDismissed = true),
+                    child: const Text('Más tarde'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 24),
+    ],
     if (_session.setup!.recoveryWarning) ...[
       const Text(
         'El relay conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.',
@@ -387,11 +436,14 @@ class _ProfilePageState extends State<ProfilePage> {
     KeyPackagesPanel(session: _session),
     const Divider(height: 48),
     if (_session.setup!.administrator) ...[
-      RecoveryPanel(
-        key: const Key('export-panel'),
-        session: _session,
-        files: widget.kitFiles,
-        export: true,
+      KeyedSubtree(
+        key: _kitPanel,
+        child: RecoveryPanel(
+          key: const Key('export-panel'),
+          session: _session,
+          files: widget.kitFiles,
+          export: true,
+        ),
       ),
       const Divider(height: 48),
       PairingPanel(

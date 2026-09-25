@@ -263,6 +263,43 @@ pub enum ClientError {
     ContactRootMismatch { identity: String },
     #[error("client: no contact {0} to verify; you have to meet them in a conversation first")]
     NoSuchContact(String),
+    #[error("client: no identity kit is waiting for confirmation; export one first")]
+    NoKitExport,
+}
+
+/// Devices an accepted manifest added to or removed from an identity's
+/// active set, compared with the manifest this profile accepted before.
+/// Empty for the first manifest it learns, which is a baseline.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DeviceChange {
+    pub added: u32,
+    pub removed: u32,
+}
+
+impl DeviceChange {
+    pub fn is_empty(&self) -> bool {
+        self.added == 0 && self.removed == 0
+    }
+
+    /// The body of a device-change notice: counts only, never a device.
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        ciborium::into_writer(self, &mut out).expect("two integers always encode");
+        out
+    }
+
+    pub fn decode(body: &[u8]) -> Option<Self> {
+        ciborium::from_reader(body).ok()
+    }
+}
+
+/// An identity kit the user confirmed saving together with its key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SavedKit {
+    /// The manifest sequence the kit carries. A later sequence means the
+    /// devices changed after it was saved.
+    pub manifest_sequence: u64,
+    pub saved_at: u64,
 }
 
 fn hex_of(b: &[u8]) -> String {
@@ -1773,7 +1810,7 @@ impl Client {
         &self,
         identity: &[u8],
         signed: &[u8],
-    ) -> Result<(identity::DeviceManifest, bool), ClientError> {
+    ) -> Result<(identity::DeviceManifest, bool, DeviceChange), ClientError> {
         let root_bytes: Option<Vec<u8>> = self
             .conn
             .lock()
@@ -1792,11 +1829,41 @@ impl Client {
         let known = self.peer_manifest_state(identity)?;
         let (body, state) = identity::accept_manifest(signed, &root, known.as_ref())?;
         let new = known.as_ref().map(|k| k.sequence) != Some(state.sequence);
+        let mut change = DeviceChange::default();
         if new {
+            let active: std::collections::BTreeSet<Vec<u8>> = body
+                .active_credential_hashes
+                .iter()
+                .map(|h| h.to_vec())
+                .collect();
+            let previous: Option<Vec<u8>> = self
+                .conn
+                .lock()
+                .query_row(
+                    "SELECT active FROM peer_manifests WHERE identity_id = ?1",
+                    params![identity],
+                    |r| r.get(0),
+                )
+                .optional()?
+                .flatten();
+            if let Some(previous) = previous.and_then(|bytes| {
+                ciborium::from_reader::<Vec<serde_bytes::ByteBuf>, _>(bytes.as_slice()).ok()
+            }) {
+                let previous: std::collections::BTreeSet<Vec<u8>> =
+                    previous.into_iter().map(|h| h.into_vec()).collect();
+                change = DeviceChange {
+                    added: active.difference(&previous).count() as u32,
+                    removed: previous.difference(&active).count() as u32,
+                };
+            }
+            let mut stored = Vec::new();
+            ciborium::into_writer(&body.active_credential_hashes, &mut stored)
+                .expect("byte strings always encode");
             self.conn.lock().execute(
-                "INSERT INTO peer_manifests (identity_id, sequence, hash) VALUES (?1, ?2, ?3)
-                 ON CONFLICT(identity_id) DO UPDATE SET sequence = excluded.sequence, hash = excluded.hash",
-                params![identity, state.sequence as i64, state.hash],
+                "INSERT INTO peer_manifests (identity_id, sequence, hash, active) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(identity_id) DO UPDATE SET
+                   sequence = excluded.sequence, hash = excluded.hash, active = excluded.active",
+                params![identity, state.sequence as i64, state.hash, stored],
             )?;
         }
         let revoked: Vec<Vec<u8>> = body
@@ -1805,7 +1872,17 @@ impl Client {
             .map(|h| h.to_vec())
             .collect();
         self.peers_mark_revoked(&revoked)?;
-        Ok((body, new))
+        Ok((body, new, change))
+    }
+
+    /// Conversations in which `identity` holds a device.
+    pub fn groups_with_identity(&self, identity: &[u8]) -> Result<Vec<Vec<u8>>, ClientError> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT group_id FROM peers WHERE peer_identity = ?1 ORDER BY group_id",
+        )?;
+        let rows = stmt.query_map(params![identity], |r| r.get(0))?;
+        Ok(rows.collect::<Result<_, _>>()?)
     }
 
     /// New device: accept a grant only if the credential names exactly this
@@ -2087,6 +2164,55 @@ impl Client {
             creator: creator != 0,
             peers: self.peers_of(group_id)?,
         }))
+    }
+
+    /// A kit covering manifest `sequence` was handed to the user to save.
+    /// It counts only once they confirm; a previously saved kit stays
+    /// recorded until then.
+    pub fn kit_exported(&self, sequence: u64, at: u64) -> Result<(), ClientError> {
+        self.conn.lock().execute(
+            "INSERT INTO kit_exports (id, pending_sequence, pending_at) VALUES (1, ?1, ?2)
+             ON CONFLICT(id) DO UPDATE SET
+               pending_sequence = excluded.pending_sequence,
+               pending_at = excluded.pending_at",
+            params![sequence as i64, at as i64],
+        )?;
+        Ok(())
+    }
+
+    /// The user confirmed that the last exported kit and its key are saved.
+    pub fn kit_confirm_saved(&self, at: u64) -> Result<SavedKit, ClientError> {
+        let changed = self.conn.lock().execute(
+            "UPDATE kit_exports
+                SET saved_sequence = pending_sequence, saved_at = ?1,
+                    pending_sequence = NULL, pending_at = NULL
+              WHERE id = 1 AND pending_sequence IS NOT NULL",
+            params![at as i64],
+        )?;
+        if changed == 0 {
+            return Err(ClientError::NoKitExport);
+        }
+        self.saved_kit()?.ok_or(ClientError::NoKitExport)
+    }
+
+    /// The kit the user last confirmed saving, if any.
+    pub fn saved_kit(&self) -> Result<Option<SavedKit>, ClientError> {
+        let row: Option<(Option<i64>, Option<i64>)> = self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT saved_sequence, saved_at FROM kit_exports WHERE id = 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        Ok(match row {
+            Some((Some(sequence), Some(at))) => Some(SavedKit {
+                manifest_sequence: sequence as u64,
+                saved_at: at as u64,
+            }),
+            _ => None,
+        })
     }
 
     /// When this device started keeping `group`, in Unix seconds.
@@ -2442,6 +2568,78 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_contacts_manifests_count_the_devices_they_add_and_remove() {
+        let me = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        me.identity_new().unwrap();
+        me.device_new(1_800_000_000).unwrap();
+        let them = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        let root = them.identity_new().unwrap();
+        let (device, _) = them.device_new(1_800_000_000).unwrap();
+        let identity = root.identity_id();
+        for group in [vec![1u8; 32], vec![2u8; 32]] {
+            me.conversation_save(&Conversation {
+                group_id: group,
+                creator: true,
+                peers: vec![Peer {
+                    identity: identity.clone(),
+                    device_id: device.keys.device_id.to_vec(),
+                    credential_hash: device.credential_hash.clone(),
+                    root_public: root.public().as_bytes().to_vec(),
+                    mailbox: None,
+                    write_cap: None,
+                    hpke: None,
+                    revoked: false,
+                }],
+            })
+            .unwrap();
+        }
+        assert_eq!(
+            me.groups_with_identity(&identity).unwrap(),
+            vec![vec![1u8; 32], vec![2u8; 32]]
+        );
+
+        let first = them.latest_manifest().unwrap().unwrap();
+        let (_, new, change) = me.peer_manifest_accept(&identity, &first).unwrap();
+        assert!(new);
+        assert!(change.is_empty(), "the first manifest is a baseline");
+        let (_, new, change) = me.peer_manifest_accept(&identity, &first).unwrap();
+        assert!(
+            !new && change.is_empty(),
+            "the same manifest again changes nothing"
+        );
+
+        let second_device = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        let pending = second_device.device_pending_new().unwrap();
+        them.device_authorize(&pending.keys.public(), 1_800_000_001)
+            .unwrap();
+        let added = them.latest_manifest().unwrap().unwrap();
+        let (_, new, change) = me.peer_manifest_accept(&identity, &added).unwrap();
+        assert!(new);
+        assert_eq!(
+            change,
+            DeviceChange {
+                added: 1,
+                removed: 0
+            }
+        );
+
+        them.device_revoke(&pending.keys.device_id).unwrap();
+        let removed = them.latest_manifest().unwrap().unwrap();
+        let (_, _, change) = me.peer_manifest_accept(&identity, &removed).unwrap();
+        assert_eq!(
+            change,
+            DeviceChange {
+                added: 0,
+                removed: 1
+            }
+        );
+
+        // A notice body carries counts and round-trips.
+        assert_eq!(DeviceChange::decode(&change.encode()), Some(change));
+        assert_eq!(DeviceChange::decode(b"not cbor"), None);
+    }
 
     #[test]
     fn a_device_belongs_to_its_own_identity_or_to_the_peer_that_holds_it() {

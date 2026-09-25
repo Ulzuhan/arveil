@@ -470,3 +470,57 @@ Evidence:
 - An upgrade run from `main` binaries adopted a CLI profile to version 3. What
   it held before counted as read, the first message after the update was
   unread, and the old CLI still read the profile.
+
+## Kit reminder, device notices and sync status (September 25, 2026)
+
+- **Identity kit state.**
+  - Migration 4 adds `kit_exports`. Exporting a kit records it as pending,
+    together with the manifest sequence it carries. Only `confirm_kit_saved`,
+    which the GUI calls when the user states that the file and its key are
+    stored, makes it the saved kit.
+  - The setup status reports `kit_saved_at` and `kit_stale` on the
+    administration device. A kit is stale when the device manifest advanced
+    after it was saved.
+  - The ready screen reminds the user when no kit was saved or the kit is
+    stale. "Más tarde" hides the reminder until the profile is opened again.
+  - The CLI export does not confirm anything.
+- **Device-change notices.**
+  - Migration 5 keeps the active device set of each contact manifest this
+    profile accepted. The next accepted manifest yields how many devices it
+    added and removed. The first manifest learned is a baseline and
+    announces nothing.
+  - A changed manifest, whether it arrived through a group or from the relay,
+    records a local `devices-changed` notice in every conversation shared
+    with that identity. The notice commits in the same transaction as the
+    manifest.
+  - Notices carry counts, never device identifiers. They have one stable
+    identifier per conversation and manifest sequence, never count as unread
+    and are left out of history archives.
+  - The GUI shows a centred note. It points to the verified identity's
+    signature when the contact is verified, and suggests comparing safety
+    numbers otherwise. `chat history` in the CLI prints notices on one line.
+- **Sync status.** The conversation controller keeps a presentation-only
+  projection: never synced, syncing, synced (with the time of the last
+  success), offline or refused. Only a typed transport error counts as
+  offline; any other failure comes from a server that answered. The screen
+  shows one line about the last successful sync and never claims delivery.
+
+Evidence:
+
+- An application test goes through the executor. It covers pending and
+  confirmed kits, a device authorization that makes the kit stale, and a new
+  confirmation that clears it.
+- Core tests cover device changes from real contact manifests (baseline, a
+  repeated manifest, a linked device, a revoked device), notices never
+  counting as unread and stable notice identifiers.
+- An application test with a real in-process MLS group covers a baseline
+  manifest with no notice and a linked device announced in both shared
+  conversations, with no unread count and no duplicate on repetition.
+- Flutter tests cover the kit reminder and its confirmation, notice wording
+  and the verified and unverified variants, and the sync projection
+  distinguishing offline from refused without exposing diagnostics.
+- A CLI run against a real relay: bob learned alice's baseline manifest with
+  no notice. After alice linked a laptop, bob's history showed one notice for
+  one added device, and a further sync did not repeat it. An upgrade run from
+  `main` binaries adopted profiles to version 5, and the old CLI still read
+  them.

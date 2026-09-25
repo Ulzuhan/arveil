@@ -47,6 +47,10 @@ class ProfileSession extends ChangeNotifier {
   bool _disposed = false;
   String? error;
   bool waitingForPairing = false;
+
+  /// "Más tarde" on the kit reminder hides it until this profile is opened
+  /// again; nothing about it is stored.
+  bool kitReminderDismissed = false;
   bool cancellingPairing = false;
   bool _cancelledWait = false;
   String? approvalCode;
@@ -249,6 +253,11 @@ class ProfileSession extends ChangeNotifier {
     });
     return secret;
   }
+
+  /// Record that the user saved the last kit and keeps its key apart, then
+  /// read the setup again so the kit reminder reflects it.
+  Future<bool> confirmKitSaved() =>
+      _run(() => _reloadAfter((p) => p.confirmKitSaved()));
 
   Future<bool> restoreKit(
     String bootstrap,

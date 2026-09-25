@@ -90,11 +90,34 @@ pub type EventRow = (Vec<u8>, String, Vec<u8>);
 /// Kinds of event this device writes itself. Everything else arrived.
 pub const OWN_KINDS: &[&str] = &["sent", "sent-file", "file-outgoing"];
 
+/// A contact's accepted manifest added or removed devices.
+pub const DEVICES_CHANGED: &str = "devices-changed";
+
+/// Local notices about a conversation, not messages anybody wrote to it.
+/// They never count as unread.
+pub const NOTICE_KINDS: &[&str] = &[DEVICES_CHANGED];
+
+/// The event identifier of a device-change notice: one per conversation for
+/// each manifest sequence of an identity, so accepting the same manifest
+/// again cannot announce it twice.
+pub fn notice_event_id(identity: &[u8], sequence: u64, group: &[u8]) -> Vec<u8> {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(b"arveil/devices-changed/v1");
+    h.update((identity.len() as u32).to_be_bytes());
+    h.update(identity);
+    h.update(sequence.to_be_bytes());
+    h.update(group);
+    h.finalize()[..16].to_vec()
+}
+
 /// The device that wrote an event, as MLS authenticated it, and the
 /// identity this profile knows for that device, if any yet.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventSender {
-    pub device_id: Vec<u8>,
+    /// Absent when no device stands behind the event, as for a notice
+    /// about a manifest the relay served.
+    pub device_id: Option<Vec<u8>>,
     pub identity_id: Option<Vec<u8>>,
 }
 
@@ -223,7 +246,7 @@ impl Delivery {
                 event_id,
                 kind,
                 body,
-                sender.map(|s| &s.device_id),
+                sender.and_then(|s| s.device_id.as_ref()),
                 sender.and_then(|s| s.identity_id.as_ref()),
             ],
         )?;
@@ -462,14 +485,16 @@ impl Delivery {
     }
 
     /// Events after the read marker that another identity wrote. What this
-    /// device or another device of `own_identity` wrote is never unread.
+    /// device or another device of `own_identity` wrote is never unread,
+    /// and neither are local notices.
     pub fn unread_count(
         &self,
         group_id: &[u8],
         own_identity: Option<&[u8]>,
     ) -> Result<u32, rusqlite::Error> {
-        let own_kinds = OWN_KINDS
+        let not_unread = OWN_KINDS
             .iter()
+            .chain(NOTICE_KINDS)
             .map(|kind| format!("'{kind}'"))
             .collect::<Vec<_>>()
             .join(", ");
@@ -478,7 +503,7 @@ impl Delivery {
                 "SELECT count(*) FROM events
                   WHERE group_id = ?1
                     AND id > COALESCE((SELECT cursor FROM read_markers WHERE group_id = ?1), 0)
-                    AND kind NOT IN ({own_kinds})
+                    AND kind NOT IN ({not_unread})
                     AND (?2 IS NULL OR sender_identity IS NULL OR sender_identity != ?2)"
             ),
             params![group_id, own_identity],

@@ -510,3 +510,62 @@ Evidencia:
 - Una actualización desde binarios de `main` adoptó un perfil CLI a la versión
   3. Lo que contenía antes contó como leído, el primer mensaje posterior quedó
   sin leer y la CLI antigua siguió leyendo el perfil.
+
+## Recordatorio del kit, avisos de dispositivos y estado de sincronización (25 de septiembre de 2026)
+
+- **Estado del kit de identidad.**
+  - La migración 4 añade `kit_exports`. Exportar un kit lo registra como
+    pendiente, junto con la secuencia de manifiesto que contiene. Solo
+    `confirm_kit_saved`, que la GUI llama cuando el usuario afirma haber
+    guardado el archivo y su clave, lo convierte en el kit guardado.
+  - El estado de alta informa de `kit_saved_at` y `kit_stale` en el
+    dispositivo administrador. Un kit está desactualizado cuando el manifiesto
+    de dispositivos avanzó después de guardarlo.
+  - La pantalla de perfil listo recuerda guardarlo si no hay kit o si está
+    desactualizado. «Más tarde» oculta el recordatorio hasta volver a abrir el
+    perfil.
+  - La exportación de la CLI no confirma nada.
+- **Avisos de cambios de dispositivos.**
+  - La migración 5 guarda el conjunto de dispositivos activos de cada
+    manifiesto de contacto que este perfil aceptó. El siguiente manifiesto
+    aceptado indica cuántos dispositivos añadió y retiró. El primero que se
+    conoce es la referencia y no anuncia nada.
+  - Un manifiesto que cambia, llegue por un grupo o desde el relay, registra un
+    aviso local `devices-changed` en todas las conversaciones compartidas con
+    esa identidad. El aviso se confirma en la misma transacción que el
+    manifiesto.
+  - Los avisos llevan recuentos, nunca identificadores de dispositivo. Tienen
+    un identificador estable por conversación y secuencia, nunca cuentan como
+    no leídos y quedan fuera de los archivos de historial.
+  - La GUI los muestra como una nota centrada. Si el contacto está verificado,
+    señala la firma de su identidad verificada; si no, propone comparar el
+    número de seguridad. `chat history` en la CLI los imprime en una línea.
+- **Estado de sincronización.** El controlador de conversaciones mantiene una
+  proyección solo de presentación: nunca sincronizado, sincronizando,
+  sincronizado (con la hora del último éxito), sin conexión o rechazado. Solo
+  un error de transporte tipado cuenta como sin conexión; cualquier otro fallo
+  viene de un servidor que respondió. La pantalla muestra una línea sobre la
+  última sincronización correcta y nunca afirma que algo se haya entregado.
+
+Evidencia:
+
+- Una prueba de aplicación pasa por el ejecutor. Cubre kits pendientes y
+  confirmados, una autorización de dispositivo que desactualiza el kit y una
+  confirmación nueva que lo resuelve.
+- Las pruebas del core cubren cambios de dispositivos con manifiestos reales
+  de contacto (referencia, manifiesto repetido, dispositivo vinculado y
+  dispositivo revocado), que los avisos nunca cuentan como no leídos y que sus
+  identificadores son estables.
+- Una prueba de aplicación con un grupo MLS real en proceso cubre un
+  manifiesto de referencia sin aviso y un dispositivo vinculado anunciado en
+  las dos conversaciones compartidas, sin no leídos y sin duplicado al
+  repetirse.
+- Las pruebas de Flutter cubren el recordatorio del kit y su confirmación, el
+  texto de los avisos con sus variantes verificada y sin verificar, y la
+  proyección de sincronización, que distingue sin conexión de rechazado sin
+  exponer diagnósticos.
+- Una ejecución de la CLI contra un relay real: bob aprendió el manifiesto de
+  referencia de alice sin aviso. Después de que alice vinculara un portátil, el
+  historial de bob mostró un aviso de un dispositivo añadido, y otra
+  sincronización no lo repitió. Una actualización desde binarios de `main`
+  adoptó perfiles a la versión 5, y la CLI antigua siguió leyéndolos.

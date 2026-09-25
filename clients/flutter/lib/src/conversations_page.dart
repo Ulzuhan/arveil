@@ -17,8 +17,23 @@ String shortId(String id) => id.length <= 12 ? id : id.substring(0, 12);
 bool isGroup(ConversationView row) =>
     row.peers.where((p) => !p.own).map((p) => p.identityId).toSet().length > 1;
 
+/// What a device-change notice says: who changed which devices. Counts
+/// only; Rust never names the devices.
+String noticeText(String? who, NoticeView notice) {
+  String devices(int n, String verb) =>
+      n == 1 ? 'ha $verb un dispositivo' : 'ha $verb $n dispositivos';
+  final parts = [
+    if (notice.added > 0) devices(notice.added, 'añadido'),
+    if (notice.removed > 0) devices(notice.removed, 'retirado'),
+  ];
+  return '${who ?? 'Un contacto'} ${parts.join(' y ')}.';
+}
+
 /// One line about a conversation's newest event, for its row in the list.
 String rowPreview(ConversationView row, LastEventView last) {
+  if (last.notice case final notice?) {
+    return noticeText(last.senderLabel, notice);
+  }
   final text = last.preview.isNotEmpty
       ? last.preview
       : last.attachmentName != null
@@ -359,6 +374,18 @@ class _ConversationsPageState extends State<ConversationsPage>
                     const LinearProgressIndicator(
                       semanticsLabel: 'Sincronizando',
                     ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+                    child: Text(
+                      syncStatusText(
+                        chat.syncState,
+                        chat.lastSynced,
+                        DateTime.now(),
+                      ),
+                      key: const Key('sync-status'),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
                   if (chat.networkError case final message?) _banner(message),
                   if (chat.error case final message?)
                     _banner(message, error: true),
@@ -480,6 +507,14 @@ class _ConversationsPageState extends State<ConversationsPage>
   bool get _group =>
       chat.conversations.where((c) => c.groupId == chat.selected).any(isGroup);
 
+  /// Whether the user verified the identity that wrote an event.
+  bool _verified(String? identity) =>
+      identity != null &&
+      chat.conversations
+          .where((c) => c.groupId == chat.selected)
+          .expand((c) => c.peers)
+          .any((p) => p.identityId == identity && p.verified);
+
   Widget _history() => Column(
     children: [
       if (chat.sending)
@@ -530,7 +565,11 @@ class _ConversationsPageState extends State<ConversationsPage>
                       export: () => _export(group, event),
                     );
                   }
-                  return MessageBubble(event: event, showSender: _group);
+                  return MessageBubble(
+                    event: event,
+                    showSender: _group,
+                    senderVerified: _verified(event.senderIdentity),
+                  );
                 },
               ),
       ),
@@ -580,14 +619,58 @@ class MessageBubble extends StatelessWidget {
     super.key,
     required this.event,
     this.showSender = false,
+    this.senderVerified = false,
   });
   final HistoryEventView event;
 
   /// Name who wrote a received message, for conversations where more than
   /// one other person writes.
   final bool showSender;
+
+  /// The user verified the identity that wrote this event.
+  final bool senderVerified;
+
+  Widget _notice(BuildContext context, NoticeView notice) {
+    final theme = Theme.of(context);
+    return Align(
+      child: Container(
+        key: Key('notice-${event.eventId}'),
+        constraints: const BoxConstraints(maxWidth: 420),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(
+              noticeText(event.senderLabel, notice),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              senderVerified
+                  ? 'El cambio está firmado por su identidad verificada.'
+                  : 'Compara su número de seguridad si no esperabas este cambio.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelSmall,
+            ),
+            if (event.createdAt > 0)
+              Text(
+                recordedTime(event.createdAt),
+                style: theme.textTheme.labelSmall,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (event.notice case final notice?) return _notice(context, notice);
     final sent = event.kind == 'sent';
     final mine = event.own;
     final text = event.kind == 'received' || sent
