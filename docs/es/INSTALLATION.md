@@ -227,3 +227,7 @@ seguir conectándose; las conversaciones también deben retirar su pertenencia
 MLS. La pantalla informa de estas etapas por separado. Revocar no borra copias
 ni historial ni confirma que otros participantes recibieran el aviso. Consulta
 [la implementación y sus límites](CLIENT_FOUNDATION.md#dispositivos-propios-y-revocación-reanudable-tercera-entrega-de-m3b4).
+
+Actualiza el relay desde la misma revisión del código al probar esta función.
+Los relays anteriores devuelven 409 al repetir un manifiesto; esta versión
+acepta el reintento idéntico y guarda la revocación y el manifiesto juntos.

@@ -342,3 +342,10 @@ pending. Reproduction commands are in the
 This is source acceptance with multiple profiles inside each native test app;
 it does not establish physical-phone or separate release-app acceptance. The
 existing `0.1.0+5` installer candidates and release draft remain unchanged.
+
+After that native run, the stale-link-request guard and atomic, repeatable relay
+publication were verified by 103 Rust tests, the Go suite and phase 2 acceptance.
+The real-relay scenario clears only the disposable client publication receipt
+to simulate a lost ACK, then confirms retry success without a new manifest.
+These follow-up checks require the updated relay; native revision above is
+kept explicit rather than claiming another native run.

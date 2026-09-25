@@ -359,3 +359,10 @@ mientras queda revocación pendiente. Los comandos están en el
 Es aceptación del código con varios perfiles dentro de cada app de pruebas;
 no acredita un teléfono físico ni apps de release independientes. Los
 candidatos de instalador `0.1.0+5` y el borrador de release siguen iguales.
+
+Después de esa prueba nativa, el rechazo de solicitudes antiguas y la publicación
+atómica y repetible del relay se verificaron con 103 tests Rust, la suite Go y
+la aceptación de fase 2. El escenario con relay real borra solo el recibo de
+publicación del cliente desechable para simular un acuse perdido y comprueba
+el reintento sin otro manifiesto. Estas comprobaciones requieren el relay
+actualizado; se conserva explícita la revisión nativa anterior.

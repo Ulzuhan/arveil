@@ -279,3 +279,11 @@ The native `devices` scenario pairs disposable profiles, revokes offline from
 the UI, reopens, synchronizes, checks the revoked handshake is refused and
 exchanges text with a remaining peer after MLS removal. Platform results are
 recorded separately in [PLATFORMS](PLATFORMS.md).
+
+The relay in this change atomically stores the signed manifest and revokes its
+credentials/capabilities. An identical latest manifest is acknowledged again
+after a lost reply; a different manifest at the same version or an older
+version remains rejected. Store regressions cover restart, rollback and an
+interrupted publication left by an older relay. Update the relay together with
+this client: earlier relays reject duplicate manifest publication with 409, so
+they cannot complete this lost-ACK retry path.

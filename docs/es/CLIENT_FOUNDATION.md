@@ -308,3 +308,11 @@ reintento mediante sincronización y cierre durante la espera. El escenario nati
 reabre, sincroniza, comprueba el rechazo del dispositivo revocado e intercambia
 texto con otro participante tras la retirada MLS. Los resultados por plataforma
 se registran aparte en [PLATFORMS](PLATFORMS.md).
+
+El relay de esta entrega guarda el manifiesto firmado y revoca credenciales y
+capabilities en una sola transacción. Acepta de nuevo el último manifiesto
+idéntico tras perderse una respuesta; sigue rechazando otro contenido en la
+misma versión o una versión anterior. Las regresiones cubren reinicio, rollback
+y publicación parcial de un relay antiguo. Actualiza el relay junto con este
+cliente: versiones anteriores rechazan el manifiesto repetido con 409 y no
+completan este camino de reintento tras una respuesta perdida.

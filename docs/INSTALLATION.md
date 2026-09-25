@@ -214,3 +214,7 @@ connect; conversations also need to remove its MLS membership. The screen
 reports those stages separately. Revocation does not erase copies/history or
 prove that other participants received the notice. See the
 [implementation and limits](CLIENT_FOUNDATION.md#own-devices-and-resumable-revocation-third-m3b4-slice).
+
+Update the relay from the same source revision when trying this feature. Older
+relays return 409 on repeated manifest publication; this relay accepts an
+identical retry and commits revocation with the manifest atomically.

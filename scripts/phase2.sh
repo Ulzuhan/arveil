@@ -120,6 +120,29 @@ grep -q "the realm refuses that device from now on" "$DATA/p2.revoke" || fail "m
 grep -q "removal left to the committer" "$DATA/p2.revoke" || fail "the non-committer should not remove the leaf"
 grep -q "1 revoked" "$DATA/relay.err" || fail "relay did not record the revocation"
 
+step "M2.3 lost publication acknowledgement: retry the exact manifest against the real relay"
+# Simulate a stop after the relay committed but before the client saved the ACK.
+# Only this disposable plaintext fixture is edited; keys/MLS/outbox stay intact.
+python3 - "$DATA/alice2-phone/client.db" <<'PY'
+import sqlite3
+import sys
+with sqlite3.connect(sys.argv[1]) as db:
+    db.execute("CREATE TABLE acceptance_manifest_sequence AS SELECT MAX(sequence) AS sequence FROM manifest")
+    db.execute("UPDATE device_revocations SET relay_published = 0")
+PY
+"$CLI" device revoke --data-dir "$DATA/alice2-phone" "$BOOTSTRAP" "$LAPTOP2" > "$DATA/p2.revoke-retry"
+grep -q "the realm refuses that device from now on" "$DATA/p2.revoke-retry" || fail "identical manifest retry was not acknowledged"
+python3 - "$DATA/alice2-phone/client.db" <<'PY'
+import sqlite3
+import sys
+with sqlite3.connect(sys.argv[1]) as db:
+    before = db.execute("SELECT sequence FROM acceptance_manifest_sequence").fetchone()[0]
+    after = db.execute("SELECT MAX(sequence) FROM manifest").fetchone()[0]
+    assert before == after, "retry signed a new manifest"
+    assert db.execute("SELECT MIN(relay_published) FROM device_revocations").fetchone()[0] == 1
+    db.execute("DROP TABLE acceptance_manifest_sequence")
+PY
+
 expect_fail "$DATA/l2.sync2" "$CLI" chat sync --data-dir "$DATA/alice2-laptop" "$BOOTSTRAP" || fail "the revoked laptop still reached the relay"
 grep -q "handshake" "$DATA/l2.sync2" || fail "unexpected error for the revoked device: $(cat "$DATA/l2.sync2")"
 

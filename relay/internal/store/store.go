@@ -418,6 +418,36 @@ func (s *Store) PutManifest(ctx context.Context, identityID []byte, seq uint64, 
 	return tx.Commit()
 }
 
+// PublishManifest applies a verified manifest and its revocations atomically.
+// Retrying the exact latest signed bytes is safe after a lost response or a
+// legacy interruption between storing the manifest and revoking capabilities.
+func (s *Store) PublishManifest(ctx context.Context, identityID []byte, seq uint64, signed []byte, revoked [][]byte) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	var previous uint64
+	var saved []byte
+	err = tx.QueryRowContext(ctx, `SELECT sequence, signed FROM device_manifests WHERE identity_id = ? ORDER BY sequence DESC LIMIT 1`, identityID).Scan(&previous, &saved)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, err
+	}
+	if err == nil && (seq < previous || (seq == previous && !bytes.Equal(saved, signed))) {
+		return 0, ErrManifestOrder
+	}
+	if errors.Is(err, sql.ErrNoRows) || seq > previous {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO device_manifests (identity_id, sequence, signed) VALUES (?, ?, ?)`, identityID, seq, signed); err != nil {
+			return 0, err
+		}
+	}
+	n, err := revokeCredentials(ctx, tx, identityID, revoked)
+	if err != nil {
+		return 0, err
+	}
+	return n, tx.Commit()
+}
+
 // LatestManifest returns the newest stored manifest for an identity (nil if none).
 func (s *Store) LatestManifest(ctx context.Context, identityID []byte) (uint64, []byte, error) {
 	var seq uint64
@@ -533,6 +563,14 @@ func (s *Store) RevokeCredentials(ctx context.Context, identityID []byte, hashes
 		return 0, err
 	}
 	defer tx.Rollback()
+	n, err := revokeCredentials(ctx, tx, identityID, hashes)
+	if err != nil {
+		return 0, err
+	}
+	return n, tx.Commit()
+}
+
+func revokeCredentials(ctx context.Context, tx *sql.Tx, identityID []byte, hashes [][]byte) (int64, error) {
 	var n int64
 	for _, h := range hashes {
 		var deviceID []byte
@@ -553,7 +591,7 @@ func (s *Store) RevokeCredentials(ctx context.Context, identityID []byte, hashes
 		}
 		n++
 	}
-	return n, tx.Commit()
+	return n, nil
 }
 
 // PutCredential registers an additional credential for a member.
