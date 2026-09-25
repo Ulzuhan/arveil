@@ -349,3 +349,30 @@ The real-relay scenario clears only the disposable client publication receipt
 to simulate a lost ACK, then confirms retry success without a new manifest.
 These follow-up checks require the updated relay; native revision above is
 kept explicit rather than claiming another native run.
+
+## History and loss recovery acceptance (September 25, 2026)
+
+Source `0.1.0+9` passed the native `archives` scenario on macOS 26.6.2 Apple
+silicon / Xcode 27.0 and the Android 15 / API 35 ARM64 emulator. Each app used
+three disposable profiles, SQLCipher, its native Keychain/Keystore and a local
+relay. The scenario exported text and an available attachment, deleted the source
+profile and its local key, restored the identity using its test kit, and imported
+history under a newly generated profile key through the GUI.
+
+The imported attachment matched the original bytes. Repeated import and reopen
+preserved exactly two records. Sync produced neither duplicate messages nor an
+old MLS group; a new conversation was explicitly created with the recovered
+route and successfully exchanged text. Kits, history archives and attachment
+exports stayed in memory; selectors were test substitutes, so this does not
+verify the native archive dialogs. No real profile or identity kit was exported.
+
+The final bounded-parser, transactional-snapshot and shared attachment-reader
+changes have Rust regression coverage; the shared-reader refactor followed the
+native runs and additionally checks CLI configuration on a GUI-created profile.
+The suite has 108 passing Rust tests (one ignored), 51 Flutter tests, Clippy,
+Flutter analysis, strict documentation and the phase-2 CLI recovery acceptance.
+Reproduction commands are in the [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md#encrypted-history-acceptance).
+
+Physical Android, native archive dialogs, clean installation and this recovery
+flow between separate release apps remain unverified. Existing `0.1.0+5`
+installer candidates and the release draft have not been replaced.

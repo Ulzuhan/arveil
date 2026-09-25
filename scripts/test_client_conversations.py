@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="macos")
-    parser.add_argument("--scenario", choices=("conversations", "attachments", "devices"), default="conversations")
+    parser.add_argument("--scenario", choices=("conversations", "attachments", "devices", "archives"), default="conversations")
     args = parser.parse_args()
     flutter = shutil.which("flutter")
     adb = shutil.which("adb") if args.device != "macos" else None
@@ -111,7 +111,7 @@ def main():
                     for number in (port, control_port):
                         subprocess.run([adb, "-s", args.device, "reverse", f"tcp:{number}", f"tcp:{number}"], check=True, stdout=subprocess.DEVNULL)
                         reversed_ports.append(number)
-                print("Running native conversation acceptance with a disposable relay.", flush=True)
+                print(f"Running native {args.scenario} acceptance with a disposable relay.", flush=True)
                 # flutter test's golden-file proxy needs a DDS custom stream,
                 # even though this scenario has no golden comparisons. Android
                 # uses the official integration driver over the VM service.
@@ -135,7 +135,13 @@ def main():
                     shutil.copyfile(directory / "flutter.log", destination)
                     destination.chmod(0o600)
                     raise RuntimeError("Native conversation acceptance failed. Private diagnostics retained in .local/client-acceptance/.")
-                print("PASS: " + ("device inventory, pairing, offline revocation, encrypted reopen, relay refusal, MLS removal and remaining-peer text." if args.scenario == "devices" else "explicit attachments, offline queue, encrypted reopen, download, export boundary, duplicate names, cancellation and reconnect without duplicates." if args.scenario == "attachments" else "saved contacts, explicit verification, rename, verified group, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates."))
+                summaries = {
+                    "archives": "encrypted export, profile loss, identity recovery, read-only import, archived attachment bytes, duplicates, reopen, no resend/rejoin and a new conversation.",
+                    "devices": "device inventory, pairing, offline revocation, encrypted reopen, relay refusal, MLS removal and remaining-peer text.",
+                    "attachments": "explicit attachments, offline queue, encrypted reopen, download, export boundary, duplicate names, cancellation and reconnect without duplicates.",
+                    "conversations": "saved contacts, explicit verification, rename, verified group, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates.",
+                }
+                print("PASS: " + summaries[args.scenario])
             finally:
                 if control:
                     control.shutdown()

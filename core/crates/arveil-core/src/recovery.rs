@@ -14,6 +14,9 @@ use serde::{Deserialize, Serialize};
 
 pub const KIT_VERSION: u8 = 1;
 pub const ARCHIVE_VERSION: u8 = 1;
+pub const MAX_ARCHIVE_BYTES: usize = 64 * 1024 * 1024;
+pub const MAX_ARCHIVE_RECORDS: usize = 10_000;
+pub const MAX_ARCHIVE_PAYLOAD_BYTES: usize = 48 * 1024 * 1024;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RecoveryError {
@@ -62,6 +65,9 @@ pub struct ArchiveRecord {
     pub file_name: Option<String>,
     #[serde(with = "serde_bytes")]
     pub file: Vec<u8>,
+    /// Distinguishes an available empty file from a missing copy. Older v1 files omit it.
+    #[serde(default)]
+    pub file_present: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,7 +76,36 @@ pub struct HistoryArchive {
     #[serde(with = "serde_bytes")]
     pub identity_id: Vec<u8>,
     pub exported_at: u64,
+    #[serde(deserialize_with = "bounded_records")]
     pub records: Vec<ArchiveRecord>,
+}
+
+// Enforce the record ceiling during decoding, before allocating a collection
+// based on an untrusted CBOR array length. Ciphertext size is bounded separately.
+fn bounded_records<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<ArchiveRecord>, D::Error> {
+    struct Records;
+    impl<'de> serde::de::Visitor<'de> for Records {
+        type Value = Vec<ArchiveRecord>;
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("a bounded history archive")
+        }
+        fn visit_seq<A: serde::de::SeqAccess<'de>>(
+            self,
+            mut seq: A,
+        ) -> Result<Self::Value, A::Error> {
+            let mut records = Vec::new();
+            while let Some(record) = seq.next_element()? {
+                if records.len() == MAX_ARCHIVE_RECORDS {
+                    return Err(serde::de::Error::custom("too many archived records"));
+                }
+                records.push(record);
+            }
+            Ok(records)
+        }
+    }
+    deserializer.deserialize_seq(Records)
 }
 
 /// A fresh age secret and the recipient it encrypts to. The secret is shown
@@ -135,6 +170,9 @@ pub fn archive_seal(a: &HistoryArchive, secret: &Secret) -> Result<Vec<u8>, Reco
 }
 
 pub fn archive_open(bytes: &[u8], secret: &Secret) -> Result<HistoryArchive, RecoveryError> {
+    if bytes.len() > MAX_ARCHIVE_BYTES {
+        return Err(RecoveryError::Decrypt("history archive"));
+    }
     let a: HistoryArchive = open(bytes, secret, "history archive")?;
     if a.version != ARCHIVE_VERSION {
         return Err(RecoveryError::Version("history archive", a.version));
@@ -194,6 +232,7 @@ mod tests {
                 created_at: 1_756_000_000,
                 file_name: None,
                 file: Vec::new(),
+                file_present: false,
             }],
         };
         let sealed = archive_seal(&a, &secret).unwrap();

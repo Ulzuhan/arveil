@@ -366,3 +366,30 @@ la aceptación de fase 2. El escenario con relay real borra solo el recibo de
 publicación del cliente desechable para simular un acuse perdido y comprueba
 el reintento sin otro manifiesto. Estas comprobaciones requieren el relay
 actualizado; se conserva explícita la revisión nativa anterior.
+
+## Aceptación de historial y recuperación (25 de septiembre de 2026)
+
+El código `0.1.0+9` pasó el escenario nativo `archives` en macOS 26.6.2 Apple
+silicon / Xcode 27.0 y el emulador Android 15 / API 35 ARM64. Cada app utilizó
+tres perfiles desechables, SQLCipher, su Keychain/Keystore nativo y un relay local.
+Se exportaron texto y un adjunto disponible, se borraron el perfil original y su
+clave local, se restauró la identidad con su kit de prueba y se importó el
+historial desde la interfaz bajo una clave local nueva.
+
+El adjunto importado coincidió con los bytes originales. Importar de nuevo y
+reabrir conservó exactamente dos registros. Sincronizar no duplicó mensajes ni
+recuperó el grupo MLS antiguo; se creó expresamente una conversación nueva con
+la ruta recuperada y se intercambió texto. Kits, archivos y copias de adjuntos
+permanecieron en memoria. Los selectores eran sustitutos de prueba: esto no
+verifica los diálogos nativos de archivos. No se exportó ningún perfil ni kit real.
+
+Los cambios finales de límites al decodificar, instantánea transaccional y lector
+compartido de adjuntos tienen regresiones Rust. La extracción del lector siguió
+a las pruebas nativas y comprueba además la configuración CLI sobre un perfil
+creado por la GUI. Pasan 108 tests Rust (uno ignorado), 51 Flutter, Clippy,
+análisis Flutter, documentación estricta y la aceptación CLI de recuperación de
+fase 2. Los comandos están en el [README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md#encrypted-history-acceptance).
+
+Siguen sin verificar Android físico, diálogos nativos de archivos de historial,
+instalación limpia y este flujo entre apps de release independientes. No se han
+reemplazado los candidatos `0.1.0+5` ni el borrador de release.

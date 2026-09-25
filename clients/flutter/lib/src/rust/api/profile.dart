@@ -41,6 +41,16 @@ abstract class Profile implements RustOpaqueInterface {
     required String code,
   });
 
+  Future<Uint8List> archiveFile({
+    required String groupId,
+    required String eventId,
+  });
+
+  Future<ArchivePageView> archivePage({
+    PlatformInt64? before,
+    required int limit,
+  });
+
   Future<void> awaitPairing({
     required String bootstrap,
     required PairingView session,
@@ -95,6 +105,8 @@ abstract class Profile implements RustOpaqueInterface {
   /// The invitation is hashed by Rust and is never persisted by Flutter.
   Future<void> enroll({required String bootstrap, required String invite});
 
+  Future<ArchiveView> exportArchive();
+
   Future<Uint8List> exportAttachment({
     required String groupId,
     required String eventId,
@@ -109,6 +121,11 @@ abstract class Profile implements RustOpaqueInterface {
     required String groupId,
     PlatformInt64? before,
     required int limit,
+  });
+
+  Future<ArchiveReceiptView> importArchive({
+    required List<int> encrypted,
+    required String secret,
   });
 
   /// Local snapshot only: its timestamp identifies an earlier relay report.
@@ -187,6 +204,120 @@ abstract class Profile implements RustOpaqueInterface {
   /// profile closes or when `stop_watching` is called; a listener should
   /// stop before cancelling, since the stream is closed from this side.
   Stream<ProgressView> watch({required BigInt generation});
+}
+
+class ArchiveEntryView {
+  final String groupId;
+  final String eventId;
+  final String kind;
+  final String text;
+  final PlatformInt64 createdAt;
+  final String? fileName;
+  final BigInt? fileSize;
+
+  const ArchiveEntryView({
+    required this.groupId,
+    required this.eventId,
+    required this.kind,
+    required this.text,
+    required this.createdAt,
+    this.fileName,
+    this.fileSize,
+  });
+
+  @override
+  int get hashCode =>
+      groupId.hashCode ^
+      eventId.hashCode ^
+      kind.hashCode ^
+      text.hashCode ^
+      createdAt.hashCode ^
+      fileName.hashCode ^
+      fileSize.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArchiveEntryView &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          eventId == other.eventId &&
+          kind == other.kind &&
+          text == other.text &&
+          createdAt == other.createdAt &&
+          fileName == other.fileName &&
+          fileSize == other.fileSize;
+}
+
+class ArchivePageView {
+  final List<ArchiveEntryView> entries;
+  final PlatformInt64? next;
+
+  const ArchivePageView({required this.entries, this.next});
+
+  @override
+  int get hashCode => entries.hashCode ^ next.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArchivePageView &&
+          runtimeType == other.runtimeType &&
+          entries == other.entries &&
+          next == other.next;
+}
+
+class ArchiveReceiptView {
+  final int imported;
+  final int duplicates;
+
+  const ArchiveReceiptView({required this.imported, required this.duplicates});
+
+  @override
+  int get hashCode => imported.hashCode ^ duplicates.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArchiveReceiptView &&
+          runtimeType == other.runtimeType &&
+          imported == other.imported &&
+          duplicates == other.duplicates;
+}
+
+class ArchiveView {
+  final Uint8List encrypted;
+  final String secret;
+  final int records;
+  final int files;
+  final int unavailableFiles;
+
+  const ArchiveView({
+    required this.encrypted,
+    required this.secret,
+    required this.records,
+    required this.files,
+    required this.unavailableFiles,
+  });
+
+  @override
+  int get hashCode =>
+      encrypted.hashCode ^
+      secret.hashCode ^
+      records.hashCode ^
+      files.hashCode ^
+      unavailableFiles.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArchiveView &&
+          runtimeType == other.runtimeType &&
+          encrypted == other.encrypted &&
+          secret == other.secret &&
+          records == other.records &&
+          files == other.files &&
+          unavailableFiles == other.unavailableFiles;
 }
 
 /// One event of a conversation, as a screen shows it.

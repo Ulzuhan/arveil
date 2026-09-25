@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'src/devices_page.dart';
+import 'src/archives_page.dart';
 import 'src/profile_session.dart';
 import 'src/conversation_controller.dart';
 import 'src/conversations_page.dart';
@@ -368,6 +369,19 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
       icon: const Icon(Icons.devices),
       label: const Text('Gestionar dispositivos'),
+    ),
+    const SizedBox(height: 24),
+    OutlinedButton.icon(
+      key: const Key('open-archives'),
+      onPressed: _session.busy
+          ? null
+          : () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => ArchivesPage(profile: _session.profile!),
+              ),
+            ),
+      icon: const Icon(Icons.history),
+      label: const Text('Historial cifrado'),
     ),
     const SizedBox(height: 24),
     KeyPackagesPanel(session: _session),

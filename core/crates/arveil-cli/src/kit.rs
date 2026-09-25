@@ -8,17 +8,11 @@
 
 use std::path::Path;
 
-use arveil_core::recovery::{self, ARCHIVE_VERSION, ArchiveRecord, HistoryArchive, Secret};
-
 use crate::carrier::{CliError, err};
 use crate::chat::cli_error;
 use arveil_app::RecoveryRequest;
 
-use crate::commands::{now, open_client, open_session};
-
-fn read(path: &Path) -> Result<Vec<u8>, CliError> {
-    std::fs::read(path).map_err(err("read file"))
-}
+use crate::commands::open_session;
 
 fn write(path: &Path, bytes: &[u8]) -> Result<(), CliError> {
     std::fs::write(path, bytes).map_err(err("write file"))
@@ -72,88 +66,47 @@ pub fn kit_restore(
     Ok(())
 }
 
-/// `arveil archive export --data-dir D <path>`
+/// Export through the same bounded service as the GUI.
 pub fn archive_export(data_dir: &Path, path: &Path) -> Result<(), CliError> {
-    let c = open_client(data_dir)?;
-    let identity_id = c
-        .identity_id()
-        .map_err(err("identity"))?
-        .ok_or_else(|| CliError("no identity".into()))?;
-    let delivery = c.delivery().map_err(err("delivery"))?;
-    let downloads = data_dir.join("downloads");
-    let mut records = Vec::new();
-    let mut files = 0;
-    for e in delivery.all_events().map_err(err("events"))? {
-        // A received file is archived with its bytes when this device still
-        // has them; the relay's copy expires and is not the archive.
-        let (file_name, file) = match e.kind.as_str() {
-            "received-file" => {
-                let name = String::from_utf8_lossy(&e.body).to_string();
-                match std::fs::read(downloads.join(&name)) {
-                    Ok(bytes) => {
-                        files += 1;
-                        (Some(name), bytes)
-                    }
-                    Err(_) => (Some(name), Vec::new()),
-                }
-            }
-            _ => (None, Vec::new()),
-        };
-        records.push(ArchiveRecord {
-            group_id: e.group_id,
-            event_id: e.event_id,
-            kind: e.kind,
-            body: e.body,
-            created_at: e.created_at,
-            file_name,
-            file,
-        });
-    }
-    let archive = HistoryArchive {
-        version: ARCHIVE_VERSION,
-        identity_id,
-        exported_at: now(),
-        records,
-    };
-    let secret = Secret::generate();
-    write(
-        path,
-        &recovery::archive_seal(&archive, &secret).map_err(err("archive"))?,
-    )?;
+    let archive = open_session(data_dir)?
+        .export_archive()
+        .map_err(cli_error)?;
+    write(path, &archive.encrypted)?;
     println!(
-        "archive: {} record(s), {files} file(s) written to {}",
-        archive.records.len(),
+        "archive: {} record(s), {} file(s), {} unavailable file(s) written to {}",
+        archive.records,
+        archive.files,
+        archive.unavailable_files,
         path.display()
     );
-    println!("secret: {}", secret.to_string_once());
+    println!("secret: {}", archive.secret);
     println!(
-        "This copy is plaintext history under its own key: storing it widens where the past can be read."
+        "Store the encrypted archive and its secret separately. This copy widens where past history can be read."
     );
     Ok(())
 }
 
-/// `arveil archive import --data-dir D <path> <secret>`
+/// Import into the matching identity, without creating files or live events.
 pub fn archive_import(data_dir: &Path, path: &Path, secret: &str) -> Result<(), CliError> {
-    let secret = Secret::parse(secret).map_err(err("secret"))?;
-    let archive = recovery::archive_open(&read(path)?, &secret).map_err(err("archive"))?;
-    let c = open_client(data_dir)?;
-    let (imported, duplicates) = c.archive_import(&archive.records).map_err(err("archive"))?;
-    let downloads = data_dir.join("downloads");
-    let mut files = 0;
-    for r in &archive.records {
-        if let (Some(name), false) = (&r.file_name, r.file.is_empty()) {
-            std::fs::create_dir_all(&downloads).map_err(err("downloads"))?;
-            std::fs::write(downloads.join(name), &r.file).map_err(err("write file"))?;
-            files += 1;
-        }
-    }
+    use std::io::Read;
+    let mut encrypted = Vec::new();
+    std::fs::File::open(path)
+        .map_err(err("read archive"))?
+        .take(arveil_app::MAX_ARCHIVE_BYTES as u64 + 1)
+        .read_to_end(&mut encrypted)
+        .map_err(err("read archive"))?;
+    let result = open_session(data_dir)?
+        .import_archive(arveil_app::ArchiveImport {
+            encrypted,
+            secret: secret.to_owned(),
+        })
+        .map_err(cli_error)?;
     println!(
-        "imported: {imported} archived record(s), {duplicates} already present, {files} file(s)"
+        "imported: {} archived record(s), {} already present",
+        result.imported, result.duplicates
     );
     println!(
-        "These are historical records of identity {}. They are not new events, they were not \
-         re-sent, and they carry no MLS state.",
-        hex::encode(&archive.identity_id)
+        "Historical records only: no messages re-sent, no MLS state restored. Files remain in the profile database; export them explicitly in the app."
     );
     Ok(())
 }
