@@ -223,14 +223,10 @@ func (srv *Server) manifestPut(ctx context.Context, s *session, f channel.Frame)
 	if err != nil {
 		return errFrame(f.ID, channel.CodeUnauthorized, "manifest rejected")
 	}
-	err = srv.Store.PutManifest(ctx, s.device.IdentityID, m.ManifestSequence, f.Payload.Manifest)
+	revoked, err := srv.Store.PublishManifest(ctx, s.device.IdentityID, m.ManifestSequence, f.Payload.Manifest, m.RevokedCredentialHashes)
 	if errors.Is(err, store.ErrManifestOrder) {
 		return errFrame(f.ID, channel.CodeConflict, "manifest sequence not increasing")
 	}
-	if err != nil {
-		return errFrame(f.ID, channel.CodeInternal, "store error")
-	}
-	revoked, err := srv.Store.RevokeCredentials(ctx, s.device.IdentityID, m.RevokedCredentialHashes)
 	if err != nil {
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}

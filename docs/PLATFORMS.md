@@ -312,3 +312,40 @@ as did static analysis and privacy checks. Reproduction commands are in the
 This is source acceptance: macOS native attachment dialogs, physical Android,
 fresh-download acceptance and attachments between separate release apps remain
 unverified. The `0.1.0+5` candidate packages and release draft are unchanged.
+
+
+## Device management acceptance (September 25, 2026)
+
+Source client `0.1.0+8`, implementation commit
+`a17ba9d392616e74f92f039c96fcda56c1e54ef8`, passed the native `devices` scenario on:
+
+| Platform | Storage and transport |
+|---|---|
+| macOS 26.6.2 Apple silicon, Xcode 27.0 | Login Keychain, SQLCipher, disposable local relay |
+| Android 15/API 35 ARM64 emulator | Keystore, SQLCipher, disposable local relay |
+
+Three disposable profiles exercise administrator/linked-device inventory,
+partial-inventory warnings, pairing, explicit confirmation and cancellation,
+offline revocation, encrypted reopen and resumption through the UI. The relay
+then refuses the revoked device's handshake; the administrator removes its MLS
+leaf and exchanges text with a remaining participant. Repeated sync preserves
+the manifest version and produces no duplicate text. No identity kit or history
+archive is exported. Fixtures and the emulator are cleaned up afterwards.
+
+All 102 Rust tests and 47 Flutter tests passed (one Rust test remains ignored),
+as did Clippy, Flutter analysis, CLI phase 2 acceptance, strict documentation
+and publication-hygiene checks. Rust additionally simulates lost manifest and
+envelope ACKs, failed local transactions and a newer link while revocation is
+pending. Reproduction commands are in the
+[Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md#device-management-acceptance).
+
+This is source acceptance with multiple profiles inside each native test app;
+it does not establish physical-phone or separate release-app acceptance. The
+existing `0.1.0+5` installer candidates and release draft remain unchanged.
+
+After that native run, the stale-link-request guard and atomic, repeatable relay
+publication were verified by 103 Rust tests, the Go suite and phase 2 acceptance.
+The real-relay scenario clears only the disposable client publication receipt
+to simulate a lost ACK, then confirms retry success without a new manifest.
+These follow-up checks require the updated relay; native revision above is
+kept explicit rather than claiming another native run.

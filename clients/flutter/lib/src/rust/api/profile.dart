@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -89,6 +89,8 @@ abstract class Profile implements RustOpaqueInterface {
   /// the one that makes a profile more than a directory.
   Future<void> createIdentity();
 
+  Future<DeviceInventoryView> devices();
+
   /// Creates an identity if needed, then resumes the existing enrollment.
   /// The invitation is hashed by Rust and is never persisted by Flutter.
   Future<void> enroll({required String bootstrap, required String invite});
@@ -147,6 +149,13 @@ abstract class Profile implements RustOpaqueInterface {
   });
 
   Future<void> resumeRecovery();
+
+  /// A later network failure can follow a durable local revocation. Always
+  /// query devices again, and resume with sync rather than creating new state.
+  Future<void> revokeDevice({
+    required String bootstrap,
+    required String deviceId,
+  });
 
   Future<ContactView> saveContact({
     required String route,
@@ -390,6 +399,41 @@ class ConversationView {
           eventCount == other.eventCount;
 }
 
+class DeviceInventoryView {
+  final bool administrator;
+  final BigInt manifestSequence;
+  final int unknownActive;
+  final int unknownRevoked;
+  final List<ManagedDeviceView> devices;
+
+  const DeviceInventoryView({
+    required this.administrator,
+    required this.manifestSequence,
+    required this.unknownActive,
+    required this.unknownRevoked,
+    required this.devices,
+  });
+
+  @override
+  int get hashCode =>
+      administrator.hashCode ^
+      manifestSequence.hashCode ^
+      unknownActive.hashCode ^
+      unknownRevoked.hashCode ^
+      devices.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeviceInventoryView &&
+          runtimeType == other.runtimeType &&
+          administrator == other.administrator &&
+          manifestSequence == other.manifestSequence &&
+          unknownActive == other.unknownActive &&
+          unknownRevoked == other.unknownRevoked &&
+          devices == other.devices;
+}
+
 class HistoryEventView {
   /// Position in the conversation. Pass the oldest one back as `before`
   /// to read the page before this one.
@@ -508,6 +552,37 @@ class KitView {
           runtimeType == other.runtimeType &&
           encrypted == other.encrypted &&
           secret == other.secret;
+}
+
+class ManagedDeviceView {
+  final String deviceId;
+  final bool current;
+  final bool revoked;
+  final RevocationProgressView? revocation;
+
+  const ManagedDeviceView({
+    required this.deviceId,
+    required this.current,
+    required this.revoked,
+    this.revocation,
+  });
+
+  @override
+  int get hashCode =>
+      deviceId.hashCode ^
+      current.hashCode ^
+      revoked.hashCode ^
+      revocation.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ManagedDeviceView &&
+          runtimeType == other.runtimeType &&
+          deviceId == other.deviceId &&
+          current == other.current &&
+          revoked == other.revoked &&
+          revocation == other.revocation;
 }
 
 class PairingView {
@@ -699,6 +774,41 @@ class ProgressView {
           sequence == other.sequence &&
           operation == other.operation &&
           kind == other.kind;
+}
+
+class RevocationProgressView {
+  final bool relayPublished;
+  final int groupsWaiting;
+  final int notificationsPending;
+  final int notificationsUnconfirmed;
+  final int withoutRoute;
+
+  const RevocationProgressView({
+    required this.relayPublished,
+    required this.groupsWaiting,
+    required this.notificationsPending,
+    required this.notificationsUnconfirmed,
+    required this.withoutRoute,
+  });
+
+  @override
+  int get hashCode =>
+      relayPublished.hashCode ^
+      groupsWaiting.hashCode ^
+      notificationsPending.hashCode ^
+      notificationsUnconfirmed.hashCode ^
+      withoutRoute.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RevocationProgressView &&
+          runtimeType == other.runtimeType &&
+          relayPublished == other.relayPublished &&
+          groupsWaiting == other.groupsWaiting &&
+          notificationsPending == other.notificationsPending &&
+          notificationsUnconfirmed == other.notificationsUnconfirmed &&
+          withoutRoute == other.withoutRoute;
 }
 
 class RoutePreviewView {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'src/devices_page.dart';
 import 'src/profile_session.dart';
 import 'src/conversation_controller.dart';
 import 'src/conversations_page.dart';
@@ -352,6 +353,22 @@ class _ProfilePageState extends State<ProfilePage> {
       label: const Text('Abrir conversaciones'),
     ),
 
+    const SizedBox(height: 24),
+    OutlinedButton.icon(
+      key: const Key('open-devices'),
+      onPressed: _session.busy
+          ? null
+          : () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => DevicesPage(
+                  profile: _session.profile!,
+                  bootstrap: _session.setup!.bootstrap!,
+                ),
+              ),
+            ),
+      icon: const Icon(Icons.devices),
+      label: const Text('Gestionar dispositivos'),
+    ),
     const SizedBox(height: 24),
     KeyPackagesPanel(session: _session),
     const Divider(height: 48),

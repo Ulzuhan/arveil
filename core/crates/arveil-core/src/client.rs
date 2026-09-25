@@ -16,6 +16,10 @@ use crate::identity::{
 use crate::mls::MlsIdentity;
 use crate::storage::SharedConn;
 
+#[path = "device_store.rs"]
+mod device_store;
+pub use device_store::Revocation;
+
 pub const CLIENT_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS identity (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
@@ -110,6 +114,18 @@ CREATE TABLE IF NOT EXISTS identity_devices (
     device_id       BLOB PRIMARY KEY,
     credential_hash BLOB NOT NULL,
     revoked         INTEGER NOT NULL DEFAULT 0
+);
+-- A confirmed local revocation survives offline operation and lost ACKs.
+CREATE TABLE IF NOT EXISTS device_revocations (
+    device_id BLOB PRIMARY KEY,
+    notification_id BLOB NOT NULL UNIQUE,
+    relay_published INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS revocation_groups (
+    device_id BLOB NOT NULL REFERENCES device_revocations(device_id),
+    group_id BLOB NOT NULL,
+    without_route INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (device_id, group_id)
 );
 CREATE TABLE IF NOT EXISTS outgoing_files (
     path            TEXT PRIMARY KEY,
@@ -227,6 +243,8 @@ pub enum ClientError {
     UnknownDevice(String),
     #[error("client: refusing to revoke the device in use; do it from another device")]
     RevokeSelf,
+    #[error("client: this device was revoked; link a fresh profile with new device keys")]
+    RevokedDevice,
     #[error("client: manifest for an identity with no known root key")]
     UnknownIdentity,
     #[error(
@@ -820,6 +838,15 @@ impl Client {
         now: u64,
     ) -> Result<(Vec<u8>, Vec<u8>), ClientError> {
         let root = self.root()?.ok_or(ClientError::NoRoot)?;
+        // Replaying an old link request must not replace a revoked device's
+        // credential or reuse the acknowledgement of its earlier revocation.
+        if self
+            .own_devices()?
+            .iter()
+            .any(|d| d.device_id == public.device_id && d.revoked)
+        {
+            return Err(ClientError::RevokedDevice);
+        }
         let credential = identity::issue_credential(
             &root,
             public,
@@ -1581,6 +1608,10 @@ impl Client {
     /// this identity's devices. Returns the signed manifest and the revoked
     /// credential hash. Refuses to revoke the device in use.
     pub fn device_revoke(&self, device_id: &[u8]) -> Result<(Vec<u8>, Vec<u8>), ClientError> {
+        self.unit_of_work(|| self.device_revoke_in_unit(device_id))
+    }
+
+    fn device_revoke_in_unit(&self, device_id: &[u8]) -> Result<(Vec<u8>, Vec<u8>), ClientError> {
         let root = self.root()?.ok_or(ClientError::NoRoot)?;
         let me = self.device()?.ok_or(ClientError::NoDevice)?;
         if me.keys.device_id.as_slice() == device_id {
@@ -1596,6 +1627,21 @@ impl Client {
         let body = self
             .latest_manifest_body()?
             .ok_or(ClientError::NoIdentity)?;
+        // Retrying an already committed revocation must not sign another version.
+        let mut marker = b"revocation:".to_vec();
+        marker.extend_from_slice(&hash);
+        if body
+            .revoked_credential_hashes
+            .iter()
+            .any(|h| h.as_slice() == hash)
+        {
+            self.peers_mark_revoked(std::slice::from_ref(&hash))?;
+            self.revocation_start(device_id, &marker)?;
+            return Ok((
+                self.latest_manifest()?.ok_or(ClientError::NoIdentity)?,
+                hash,
+            ));
+        }
         let active: Vec<Vec<u8>> = body
             .active_credential_hashes
             .iter()
@@ -1613,19 +1659,17 @@ impl Client {
         let manifest = identity::issue_manifest(&root, previous.as_ref(), &active, &revoked)?;
         let (mbody, state) =
             identity::accept_manifest(&manifest, &root.public(), previous.as_ref())?;
-        self.conn.unit_of_work(|c| {
-            c.lock().execute(
-                "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
-                params![
-                    mbody.identity_id,
-                    state.sequence as i64,
-                    manifest,
-                    state.hash
-                ],
-            )?;
-            Ok::<_, rusqlite::Error>(())
-        })?;
+        self.conn.lock().execute(
+            "INSERT INTO manifest (identity_id, sequence, signed, hash) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                mbody.identity_id,
+                state.sequence as i64,
+                manifest,
+                state.hash
+            ],
+        )?;
         self.peers_mark_revoked(std::slice::from_ref(&hash))?;
+        self.revocation_start(device_id, &marker)?;
         Ok((manifest, hash))
     }
 

@@ -106,6 +106,16 @@ pub struct Delivery {
 }
 
 impl Delivery {
+    /// Pending and failed/expired notifications; acceptance is not delivery.
+    pub fn notification_counts(&self, event: &[u8], now: i64) -> rusqlite::Result<(u32, u32)> {
+        self.conn.lock().query_row(
+            "SELECT COALESCE(SUM(state = 'sealed'), 0),
+                    COALESCE(SUM(state = 'undeliverable' OR (state = 'accepted' AND expires_at <= ?2)), 0)
+             FROM outbox WHERE event_id = ?1",
+            params![event, now], |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+    }
+
     pub fn open(conn: SharedConn) -> Result<Self, rusqlite::Error> {
         conn.lock().execute_batch(DELIVERY_SCHEMA)?;
         Ok(Self { conn })

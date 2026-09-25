@@ -212,3 +212,22 @@ Los artefactos deben incluir versión, checksums y notas de release. CI debe
 verificar lo que empaqueta. La configuración privada queda fuera del
 repositorio. Son criterios de entrega, no una afirmación de que los paquetes
 o todas esas pruebas existan ya; véase la [fase 3b](PHASE3B.md).
+
+
+## Gestionar tus dispositivos (código fuente `0.1.0+8`)
+
+Abre **Gestionar dispositivos** desde el perfil. Compara el identificador
+completo con el del otro dispositivo antes de revocarlo. Solo el administrador
+puede revocar otro dispositivo; el actual no puede revocarse a sí mismo. Un
+perfil vinculado puede mostrar un inventario parcial al desconocer otros IDs.
+
+**Sincronizar dispositivos** reanuda revocaciones confirmadas tras un fallo de
+red o reinicio. Hasta que el relay acepte el manifiesto, el dispositivo puede
+seguir conectándose; las conversaciones también deben retirar su pertenencia
+MLS. La pantalla informa de estas etapas por separado. Revocar no borra copias
+ni historial ni confirma que otros participantes recibieran el aviso. Consulta
+[la implementación y sus límites](CLIENT_FOUNDATION.md#dispositivos-propios-y-revocación-reanudable-tercera-entrega-de-m3b4).
+
+Actualiza el relay desde la misma revisión del código al probar esta función.
+Los relays anteriores devuelven 409 al repetir un manifiesto; esta versión
+acepta el reintento idéntico y guarda la revocación y el manifiesto juntos.

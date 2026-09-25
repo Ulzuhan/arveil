@@ -199,3 +199,22 @@ Publish version identifiers, checksums and release notes with those artifacts.
 CI must verify what it packages. Private configuration stays outside the
 repository. These are delivery requirements, not claims that the packages or
 all acceptance runs already exist; see [phase 3b](PHASE3B.md).
+
+
+## Manage your devices (source `0.1.0+8`)
+
+Open **Gestionar dispositivos** from the profile. Compare the full device ID
+with the other device before revoking it. Only the administrator can revoke
+another device; the current device cannot revoke itself. A linked profile may
+show a partial inventory because it has not learned the other device IDs.
+
+**Sincronizar dispositivos** resumes confirmed revocations after a network
+failure or restart. Until the relay accepts the manifest, the device may still
+connect; conversations also need to remove its MLS membership. The screen
+reports those stages separately. Revocation does not erase copies/history or
+prove that other participants received the notice. See the
+[implementation and limits](CLIENT_FOUNDATION.md#own-devices-and-resumable-revocation-third-m3b4-slice).
+
+Update the relay from the same source revision when trying this feature. Older
+relays return 409 on repeated manifest publication; this relay accepts an
+identical retry and commits revocation with the manifest atomically.

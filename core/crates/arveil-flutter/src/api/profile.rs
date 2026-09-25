@@ -93,6 +93,32 @@ pub struct ContactDeviceView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeviceInventoryView {
+    pub administrator: bool,
+    pub manifest_sequence: u64,
+    pub unknown_active: u32,
+    pub unknown_revoked: u32,
+    pub devices: Vec<ManagedDeviceView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManagedDeviceView {
+    pub device_id: String,
+    pub current: bool,
+    pub revoked: bool,
+    pub revocation: Option<RevocationProgressView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RevocationProgressView {
+    pub relay_published: bool,
+    pub groups_waiting: u32,
+    pub notifications_pending: u32,
+    pub notifications_unconfirmed: u32,
+    pub without_route: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContactView {
     pub identity_id: String,
     pub name: Option<String>,
@@ -522,6 +548,41 @@ impl Profile {
             .into_iter()
             .map(contact_view)
             .collect())
+    }
+
+    pub fn devices(&self) -> Result<DeviceInventoryView, CommandError> {
+        let value = self.inner.devices().map_err(command_error)?;
+        Ok(DeviceInventoryView {
+            administrator: value.administrator,
+            manifest_sequence: value.manifest_sequence,
+            unknown_active: value.unknown_active,
+            unknown_revoked: value.unknown_revoked,
+            devices: value
+                .devices
+                .into_iter()
+                .map(|d| ManagedDeviceView {
+                    device_id: hex(&d.device_id),
+                    current: d.current,
+                    revoked: d.revoked,
+                    revocation: d.revocation.map(|r| RevocationProgressView {
+                        relay_published: r.relay_published,
+                        groups_waiting: r.groups_waiting,
+                        notifications_pending: r.notifications_pending,
+                        notifications_unconfirmed: r.notifications_unconfirmed,
+                        without_route: r.without_route,
+                    }),
+                })
+                .collect(),
+        })
+    }
+
+    /// A later network failure can follow a durable local revocation. Always
+    /// query devices again, and resume with sync rather than creating new state.
+    pub fn revoke_device(&self, bootstrap: String, device_id: String) -> Result<(), CommandError> {
+        self.inner
+            .revoke_device(&bootstrap, &device_id)
+            .map_err(command_error)?;
+        Ok(())
     }
 
     pub fn save_contact(
@@ -1065,6 +1126,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::RestoreKit => "restore-kit",
         Operation::ResumeRecovery => "resume-recovery",
         Operation::QueryContacts => "query-contacts",
+        Operation::QueryDevices => "query-devices",
         Operation::SaveContact => "save-contact",
         Operation::RenameContact => "rename-contact",
         Operation::VerifyContact => "verify-contact",

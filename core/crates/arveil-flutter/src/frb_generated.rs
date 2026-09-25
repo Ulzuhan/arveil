@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1029958820;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 114774087;
 
 // Section: executor
 
@@ -732,6 +732,55 @@ fn wire__crate__api__profile__Profile_create_identity_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok =
                         crate::api::profile::Profile::create_identity(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__profile__Profile_devices_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Profile_devices",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::profile::CommandError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::profile::Profile::devices(&*api_that_guard)?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -1485,6 +1534,61 @@ fn wire__crate__api__profile__Profile_resume_recovery_impl(
         },
     )
 }
+fn wire__crate__api__profile__Profile_revoke_device_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Profile_revoke_device",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>,
+            >>::sse_decode(&mut deserializer);
+            let api_bootstrap = <String>::sse_decode(&mut deserializer);
+            let api_device_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::profile::CommandError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::profile::Profile::revoke_device(
+                        &*api_that_guard,
+                        api_bootstrap,
+                        api_device_id,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__profile__Profile_save_contact_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2228,6 +2332,25 @@ impl SseDecode for crate::api::profile::ConversationView {
     }
 }
 
+impl SseDecode for crate::api::profile::DeviceInventoryView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_administrator = <bool>::sse_decode(deserializer);
+        let mut var_manifestSequence = <u64>::sse_decode(deserializer);
+        let mut var_unknownActive = <u32>::sse_decode(deserializer);
+        let mut var_unknownRevoked = <u32>::sse_decode(deserializer);
+        let mut var_devices =
+            <Vec<crate::api::profile::ManagedDeviceView>>::sse_decode(deserializer);
+        return crate::api::profile::DeviceInventoryView {
+            administrator: var_administrator,
+            manifest_sequence: var_manifestSequence,
+            unknown_active: var_unknownActive,
+            unknown_revoked: var_unknownRevoked,
+            devices: var_devices,
+        };
+    }
+}
+
 impl SseDecode for crate::api::profile::HistoryEventView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2385,6 +2508,20 @@ impl SseDecode for Vec<crate::api::profile::HistoryEventView> {
     }
 }
 
+impl SseDecode for Vec<crate::api::profile::ManagedDeviceView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::profile::ManagedDeviceView>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::profile::PeerView> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2434,6 +2571,23 @@ impl SseDecode for Vec<crate::api::profile::SavedRecipientView> {
             ));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for crate::api::profile::ManagedDeviceView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deviceId = <String>::sse_decode(deserializer);
+        let mut var_current = <bool>::sse_decode(deserializer);
+        let mut var_revoked = <bool>::sse_decode(deserializer);
+        let mut var_revocation =
+            <Option<crate::api::profile::RevocationProgressView>>::sse_decode(deserializer);
+        return crate::api::profile::ManagedDeviceView {
+            device_id: var_deviceId,
+            current: var_current,
+            revoked: var_revoked,
+            revocation: var_revocation,
+        };
     }
 }
 
@@ -2490,6 +2644,19 @@ impl SseDecode for Option<crate::api::profile::PairingView> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::profile::PairingView>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::profile::RevocationProgressView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::profile::RevocationProgressView>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -2722,6 +2889,24 @@ impl SseDecode for crate::api::profile::ProgressView {
     }
 }
 
+impl SseDecode for crate::api::profile::RevocationProgressView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_relayPublished = <bool>::sse_decode(deserializer);
+        let mut var_groupsWaiting = <u32>::sse_decode(deserializer);
+        let mut var_notificationsPending = <u32>::sse_decode(deserializer);
+        let mut var_notificationsUnconfirmed = <u32>::sse_decode(deserializer);
+        let mut var_withoutRoute = <u32>::sse_decode(deserializer);
+        return crate::api::profile::RevocationProgressView {
+            relay_published: var_relayPublished,
+            groups_waiting: var_groupsWaiting,
+            notifications_pending: var_notificationsPending,
+            notifications_unconfirmed: var_notificationsUnconfirmed,
+            without_route: var_withoutRoute,
+        };
+    }
+}
+
 impl SseDecode for crate::api::profile::RoutePreviewView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2897,84 +3082,88 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        14 => wire__crate__api__profile__Profile_enroll_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__profile__Profile_export_attachment_impl(
+        14 => wire__crate__api__profile__Profile_devices_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__profile__Profile_enroll_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__profile__Profile_export_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        16 => wire__crate__api__profile__Profile_export_kit_impl(port, ptr, rust_vec_len, data_len),
-        17 => {
+        17 => wire__crate__api__profile__Profile_export_kit_impl(port, ptr, rust_vec_len, data_len),
+        18 => {
             wire__crate__api__profile__Profile_history_page_impl(port, ptr, rust_vec_len, data_len)
         }
-        18 => wire__crate__api__profile__Profile_key_package_supply_impl(
+        19 => wire__crate__api__profile__Profile_key_package_supply_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => wire__crate__api__profile__Profile_own_route_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__profile__Profile_preview_routes_impl(
+        20 => wire__crate__api__profile__Profile_own_route_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__profile__Profile_preview_routes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__profile__Profile_queue_attachment_impl(
+        22 => wire__crate__api__profile__Profile_queue_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        22 => {
+        23 => {
             wire__crate__api__profile__Profile_queue_message_impl(port, ptr, rust_vec_len, data_len)
         }
-        23 => wire__crate__api__profile__Profile_rename_contact_impl(
+        24 => wire__crate__api__profile__Profile_rename_contact_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => wire__crate__api__profile__Profile_replenish_key_packages_impl(
+        25 => wire__crate__api__profile__Profile_replenish_key_packages_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => {
+        26 => {
             wire__crate__api__profile__Profile_restore_kit_impl(port, ptr, rust_vec_len, data_len)
         }
-        26 => wire__crate__api__profile__Profile_resume_attachment_impl(
+        27 => wire__crate__api__profile__Profile_resume_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__profile__Profile_resume_recovery_impl(
+        28 => wire__crate__api__profile__Profile_resume_recovery_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => {
+        29 => {
+            wire__crate__api__profile__Profile_revoke_device_impl(port, ptr, rust_vec_len, data_len)
+        }
+        30 => {
             wire__crate__api__profile__Profile_save_contact_impl(port, ptr, rust_vec_len, data_len)
         }
-        29 => wire__crate__api__profile__Profile_setup_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__profile__Profile_sync_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__profile__Profile_verify_contact_impl(
+        31 => wire__crate__api__profile__Profile_setup_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__profile__Profile_sync_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__profile__Profile_verify_contact_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__profile__Profile_watch_impl(port, ptr, rust_vec_len, data_len),
-        35 => {
+        36 => wire__crate__api__profile__Profile_watch_impl(port, ptr, rust_vec_len, data_len),
+        37 => {
             wire__crate__api__profile__generate_profile_key_impl(port, ptr, rust_vec_len, data_len)
         }
-        36 => wire__crate__api__profile__has_profile_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__profile__open_profile_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__profile__open_unencrypted_profile_impl(
+        38 => wire__crate__api__profile__has_profile_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__profile__open_profile_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__profile__open_unencrypted_profile_impl(
             port,
             ptr,
             rust_vec_len,
@@ -2992,8 +3181,8 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        30 => wire__crate__api__profile__Profile_start_watching_impl(ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__profile__Profile_stop_watching_impl(ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__profile__Profile_start_watching_impl(ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__profile__Profile_stop_watching_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -3230,6 +3419,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::ConversationView>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::profile::DeviceInventoryView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.administrator.into_into_dart().into_dart(),
+            self.manifest_sequence.into_into_dart().into_dart(),
+            self.unknown_active.into_into_dart().into_dart(),
+            self.unknown_revoked.into_into_dart().into_dart(),
+            self.devices.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::profile::DeviceInventoryView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::DeviceInventoryView>
+    for crate::api::profile::DeviceInventoryView
+{
+    fn into_into_dart(self) -> crate::api::profile::DeviceInventoryView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::profile::HistoryEventView {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3337,6 +3550,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::KitView>
     for crate::api::profile::KitView
 {
     fn into_into_dart(self) -> crate::api::profile::KitView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::profile::ManagedDeviceView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.device_id.into_into_dart().into_dart(),
+            self.current.into_into_dart().into_dart(),
+            self.revoked.into_into_dart().into_dart(),
+            self.revocation.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::profile::ManagedDeviceView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::ManagedDeviceView>
+    for crate::api::profile::ManagedDeviceView
+{
+    fn into_into_dart(self) -> crate::api::profile::ManagedDeviceView {
         self
     }
 }
@@ -3548,6 +3784,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::ProgressView>
     for crate::api::profile::ProgressView
 {
     fn into_into_dart(self) -> crate::api::profile::ProgressView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::profile::RevocationProgressView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.relay_published.into_into_dart().into_dart(),
+            self.groups_waiting.into_into_dart().into_dart(),
+            self.notifications_pending.into_into_dart().into_dart(),
+            self.notifications_unconfirmed.into_into_dart().into_dart(),
+            self.without_route.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::profile::RevocationProgressView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::profile::RevocationProgressView>
+    for crate::api::profile::RevocationProgressView
+{
+    fn into_into_dart(self) -> crate::api::profile::RevocationProgressView {
         self
     }
 }
@@ -3836,6 +4096,17 @@ impl SseEncode for crate::api::profile::ConversationView {
     }
 }
 
+impl SseEncode for crate::api::profile::DeviceInventoryView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.administrator, serializer);
+        <u64>::sse_encode(self.manifest_sequence, serializer);
+        <u32>::sse_encode(self.unknown_active, serializer);
+        <u32>::sse_encode(self.unknown_revoked, serializer);
+        <Vec<crate::api::profile::ManagedDeviceView>>::sse_encode(self.devices, serializer);
+    }
+}
+
 impl SseEncode for crate::api::profile::HistoryEventView {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3957,6 +4228,16 @@ impl SseEncode for Vec<crate::api::profile::HistoryEventView> {
     }
 }
 
+impl SseEncode for Vec<crate::api::profile::ManagedDeviceView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::profile::ManagedDeviceView>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::profile::PeerView> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3994,6 +4275,19 @@ impl SseEncode for Vec<crate::api::profile::SavedRecipientView> {
         for item in self {
             <crate::api::profile::SavedRecipientView>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::profile::ManagedDeviceView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.device_id, serializer);
+        <bool>::sse_encode(self.current, serializer);
+        <bool>::sse_encode(self.revoked, serializer);
+        <Option<crate::api::profile::RevocationProgressView>>::sse_encode(
+            self.revocation,
+            serializer,
+        );
     }
 }
 
@@ -4043,6 +4337,16 @@ impl SseEncode for Option<crate::api::profile::PairingView> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::profile::PairingView>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::profile::RevocationProgressView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::profile::RevocationProgressView>::sse_encode(value, serializer);
         }
     }
 }
@@ -4220,6 +4524,17 @@ impl SseEncode for crate::api::profile::ProgressView {
         <u64>::sse_encode(self.sequence, serializer);
         <String>::sse_encode(self.operation, serializer);
         <crate::api::profile::ProgressKindView>::sse_encode(self.kind, serializer);
+    }
+}
+
+impl SseEncode for crate::api::profile::RevocationProgressView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.relay_published, serializer);
+        <u32>::sse_encode(self.groups_waiting, serializer);
+        <u32>::sse_encode(self.notifications_pending, serializer);
+        <u32>::sse_encode(self.notifications_unconfirmed, serializer);
+        <u32>::sse_encode(self.without_route, serializer);
     }
 }
 
