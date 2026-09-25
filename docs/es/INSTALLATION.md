@@ -120,7 +120,8 @@ instalación. Conserva la app actual si Android informa de un conflicto.
 
 ### Primer uso y límites
 
-La interfaz actual está en español. El alta completada muestra el resumen del
+La interfaz sigue el idioma del sistema: inglés si el sistema lo prefiere y
+español en los demás casos. El alta completada muestra el resumen del
 perfil. Si falla la conexión, cierra/reabre y reintenta con el **mismo relay y
 la misma invitación**. Al reabrir un alta completada no necesitas otra
 invitación. El código actual también permite emparejamiento, kits y conversaciones.

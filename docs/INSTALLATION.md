@@ -113,8 +113,10 @@ Android reports a conflict. Check `BUILD.json` for version and certificate detai
 
 ### First use and limits
 
-The current interface is in Spanish. A completed enrollment shows the profile
-summary. On a connection failure, close/reopen and retry with the **same relay
+The interface follows the system language: English when the system prefers
+it, Spanish otherwise; the button names below are the Spanish ones. A
+completed enrollment shows the profile summary. On a connection failure,
+close/reopen and retry with the **same relay
 and invitation**; successful enrollment does not need another invitation on
 reopen. Current source also supports pairing, recovery kits and conversations.
 
