@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos) y A3 (estado del kit, avisos de dispositivos y estado de sincronización); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización) y B1 (tokens, tema y componentes); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -52,7 +52,8 @@ Las maquetas de referencia cubren bienvenida, lista de chats, conversación de g
 | `ink` | `#16211F` | `#E6ECEA` | Texto principal |
 | `inkMuted` | `#56625F` | `#9DAAA6` | Texto secundario, horas, iconos inactivos |
 | `inkSoft` | `#3F4B48` | `#C4CFCC` | Avisos de sistema e iconos de acción |
-| `line` | `#E3DED3` | `#25302E` | Bordes |
+| `line` | `#E3DED3` | `#25302E` | Bordes decorativos |
+| `lineStrong` | `#7A8480` | `#6C7A76` | Bordes de controles, con 3:1 frente a su fondo |
 | `divider` | `#ECE7DE` | `#25302E` | Separadores dentro de un grupo |
 | `accent` | `#245B51` | `#8FD0C0` | Acción principal, enlaces, verificado, no leídos |
 | `onAccent` | `#FFFFFF` | `#0E1413` | Texto e iconos sobre `accent` |
@@ -60,7 +61,8 @@ Las maquetas de referencia cubren bienvenida, lista de chats, conversación de g
 | `ownMeta` | `#3D5A53` | `#A9CFC5` | Hora y estado dentro de la burbuja propia |
 | `chip` | `#EAE5DA` | `#1B2524` | Separadores de fecha y avisos de sistema |
 | `attention` / `onAttention` | `#F6E7CC` / `#6B4108` | `#3A2A12` / `#F2C98A` | Kit sin guardar, contacto sin verificar, sin conexión |
-| `danger` | `#A2382B` | `#F2A59B` | Acciones destructivas y fallos |
+| `danger` / `onDanger` | `#A2382B` / `#FFFFFF` | `#F2A59B` / `#0E1413` | Acciones destructivas y fallos |
+| `dangerSoft` / `onDangerSoft` | `#F7DEDA` / `#6E2016` | `#4A1D17` / `#F2A59B` | Avisos de error |
 | `online` | `#2E7D6B` | `#6FB3A3` | Indicador de conexión |
 
 Avatares (fondo / texto), asignados de forma determinista a partir del identificador de identidad para que un contacto tenga el mismo color en todos los dispositivos:
@@ -97,7 +99,7 @@ Las tres familias tienen licencia SIL OFL 1.1. Se empaquetan en `clients/flutter
 
 - Radios: burbujas 18, con 6 en la esquina de la cola; tarjetas y grupos 20; botones principales 16 con 52 de alto; botones pequeños 12; etiquetas totalmente redondeadas; avatares circulares.
 - Espaciado en múltiplos de 4 (8, 12, 16, 20, 24); márgenes laterales de 16 a 20 en móvil.
-- Iconos de trazo 1,8 sobre rejilla de 24 con extremos redondeados, de un conjunto con licencia permisiva empaquetado en la app (candidato: Lucide, licencia ISC). B1 registra la decisión y la licencia.
+- Iconos de trazo de Material (contorno), que Flutter ya incluye con licencia Apache-2.0: sin descargas ni dependencias nuevas. B1 los eligió en lugar del candidato Lucide.
 - Movimiento breve (hasta 200 ms), desactivado si el sistema pide reducir movimiento.
 - Marca: la A de cinta marfil (`#F6EFDF`) sobre verde pino `#245B51` de `assets/brand/`, que es el icono de macOS y Android desde `0.1.0+11`. Dentro de la app se usa su versión vectorial `mark.svg` (bienvenida, cabecera de escritorio y pantalla de carga). El arco de las maquetas queda solo como motivo decorativo de fondo.
 
@@ -203,7 +205,7 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 
 ### B. Base visual (Dart)
 
-**B1 — Tokens, tema y componentes (L).** Puede empezar en paralelo con A.
+**B1 — Tokens, tema y componentes (L).** Puede empezar en paralelo con A. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md). El token `line` no alcanzaba 3:1 como borde de controles, así que se añadió `lineStrong`.
 
 - `lib/src/design/` contiene los tokens como `ThemeExtension`, los temas claro y oscuro, la tipografía y las formas. Fuentes e iconos se empaquetan con sus licencias.
 - Componentes: avatar, fila de conversación, burbuja (propia o ajena; primera, intermedia o última de un grupo; texto o adjunto), indicador de entrega, separador de fecha, aviso de sistema, banner de estado (información, atención, error y sin conexión), indicador de sincronización, grupo y fila de ajustes, etiqueta de verificación, rejilla del número de seguridad, botones, compositor y estado vacío.

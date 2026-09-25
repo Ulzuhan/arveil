@@ -2,7 +2,7 @@
 
 [Versión española](es/CLIENT_DESIGN.md). The Spanish document is the normative source; this condensed English translation must be updated in the same review, and the Spanish text prevails if they diverge.
 
-Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history), A1b (sender in the encrypted history), A2 (conversation summary and unread counts) and A3 (kit state, device notices and sync status); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
+Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history), A1b (sender in the encrypted history), A2 (conversation summary and unread counts), A3 (kit state, device notices and sync status) and B1 (tokens, theme and components); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
 
 ## Why, and what not
 
@@ -28,7 +28,7 @@ Reference mockups cover welcome, chat list, group conversation, contact verifica
 
 - **Color:** warm paper ground `#F4F1EA` / `#0E1413`, ink `#16211F` / `#E6ECEA`, brand accent `#245B51` / `#8FD0C0`, own bubble `#DDEAE4` / `#1D4740`, amber attention `#F6E7CC`+`#6B4108` / `#3A2A12`+`#F2C98A`, danger `#A2382B` / `#F2A59B`. Five avatar tones and four sender-name colors per theme, assigned deterministically from the identity ID. On September 25, 2026 every text/background pair measured at least 5.05:1; B1 turns this into an automated test.
 - **Type:** Newsreader for screen titles, Instrument Sans for the UI, IBM Plex Mono for safety numbers and identifiers. All SIL OFL 1.1, bundled under `clients/flutter/assets/fonts/` with licenses registered.
-- **Shape and icons:** bubbles radius 18 with 6 at the tail, cards 20, primary buttons 16 and 52 high; spacing in multiples of 4; 1.8 stroke icons from a permissively licensed bundled set (candidate: Lucide, ISC); motion up to 200 ms, disabled when the system asks for reduced motion.
+- **Shape and icons:** bubbles radius 18 with 6 at the tail, cards 20, primary buttons 16 and 52 high; spacing in multiples of 4; Material outlined icons already bundled with Flutter (Apache-2.0), chosen in B1 over the Lucide candidate to avoid a download and a dependency; motion up to 200 ms, disabled when the system asks for reduced motion. B1 also added a `lineStrong` token, because the decorative `line` colour lacked 3:1 as a control border.
 - **Brand:** the ivory ribbon A (`#F6EFDF`) on pine green `#245B51` from `assets/brand/`, the macOS and Android app icon since `0.1.0+11`. The app uses its vector `mark.svg` on the welcome screen, desktop header and splash; the mockups' arch is only a decorative background motif.
 
 ## Screens and navigation
@@ -62,7 +62,7 @@ One small PR per package with its own tests. Relative size: S (up to a day), M (
 | A1b Sender in the encrypted history (implemented) | S | A1 | Optional sender field inside archive format v1, like `file_present`, so older builds keep importing; `archived_events` gains the column; imported records stay imported history, not proof of authorship |
 | A2 Conversation summary and unread (implemented) | M | A1 | Last event, unread count and last activity in `ConversationView`; monotonic local read marker with `mark_read`; Rust orders by activity |
 | A3 Recovery state and system notices (implemented) | S | A0 | Persist last successful kit export; record a local notice when an accepted manifest changes a contact's active devices; Dart sync-status projection from typed errors |
-| B1 Tokens, theme and components | L | — | `ThemeExtension` tokens, light and dark themes, bundled fonts and icons, component set, splash from the brand mark (the app icon exists since `0.1.0+11`); contrast unit test and component goldens on the macOS CI job |
+| B1 Tokens, theme and components (implemented) | L | — | `ThemeExtension` tokens, light and dark themes, bundled fonts and icons, component set, splash from the brand mark (the app icon exists since `0.1.0+11`); contrast unit test and component goldens on the macOS CI job |
 | B2 Spanish/English localization | M | — | `gen-l10n` ARB files with Spanish as template; extract every visible string and move about 125 literal-text test finders to keys or localized strings |
 | C1 Adaptive navigation and shortcuts | M | B1 | Three size classes, separate enrollment route, desktop shortcuts with tested focus order |
 | C2 Chat list | S | A2, A3, C1 | Full rows, persistent kit notice, sync indicator, name search, empty state |

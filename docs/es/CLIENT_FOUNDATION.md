@@ -603,3 +603,45 @@ un autor posterior en conflicto y rechaza un autor malformado. Una prueba de
 Flutter cubre la etiqueta. Los flujos de archivo de la fase 2 pasan con la
 CLI, y una actualización desde binarios de `main` adoptó perfiles a la
 versión 6.
+
+## Base de diseño (25 de septiembre de 2026)
+
+El cliente dibuja ya con su propio sistema de diseño, en lugar de un esquema
+Material derivado de un color y las fuentes del sistema.
+
+- **Fuentes.** Newsreader, Instrument Sans e IBM Plex Mono van empaquetadas
+  sin modificar (SIL OFL 1.1), desde `google/fonts` en un commit registrado y
+  con su SHA-256 en `clients/flutter/assets/fonts/README.md`. Sus licencias se
+  registran en la página de licencias de Flutter. No se descarga nada en
+  tiempo de ejecución. El peso de las fuentes variables se fija mediante sus
+  ejes.
+- **Tokens.** `ArveilColors` contiene los tokens claros y oscuros del plan,
+  además de los colores de avatar y de remitente, elegidos de forma estable
+  por identidad. Se añadió `lineStrong` para los bordes de controles, y
+  `onDanger`, `dangerSoft` y `onDangerSoft` para los estados de error.
+  `ArveilTheme` traslada los tokens a Material, y la app sigue el modo claro u
+  oscuro del sistema.
+- **Componentes.** Marca (a partir del trazado del propio icono), avatar,
+  marca de verificado, etiqueta sin verificar, contador de no leídos, icono
+  de entrega, separador de fecha, nota, aviso, línea de sincronización,
+  rejilla del número de seguridad, estado vacío, grupo y fila de ajustes,
+  burbuja con agrupación, fila de conversación y compositor. Los iconos son
+  el conjunto de contorno de Material que Flutter ya incluye.
+- **Pantalla de carga.** En Android se muestra el verde pino del icono con
+  la marca, mediante la API de splash del sistema a partir de Android 12.
+  Detrás del primer frame de Flutter la ventana usa el color de fondo, así
+  que no hay destello blanco. macOS no tiene pantalla de carga.
+
+Evidencia:
+
+- Una prueba unitaria comprueba el contraste WCAG AA de cada par de texto y
+  fondo, y 3:1 en los bordes de controles, en ambos temas.
+- Los goldens de una lámina de conversación y otra de identidad, en claro y
+  oscuro, muestran las fuentes y los iconos empaquetados. El comparador
+  tolera como mucho un 0,5 % de píxeles distintos.
+- Las pruebas de comportamiento cubren la traducción de estados de entrega
+  (nunca «leído»), las iniciales, las etiquetas habladas y que los
+  componentes caben en un móvil de 390 px con el texto al 200 %.
+
+Las pantallas actuales solo adoptan los colores y la tipografía nuevos; las
+pantallas rediseñadas son los paquetes C del [plan del cliente](PHASE3B.md).

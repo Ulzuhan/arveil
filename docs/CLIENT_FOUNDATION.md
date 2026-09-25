@@ -553,3 +553,42 @@ imported conversations, confirms that a later conflicting author is ignored,
 and refuses a malformed author. A Flutter test covers the label. The Phase 2
 archive flows pass with the CLI, and an upgrade run from `main` binaries
 adopted profiles to version 6.
+
+## Design foundation (September 25, 2026)
+
+The client now draws with its own design system instead of a seeded Material
+scheme and system fonts.
+
+- **Fonts.** Newsreader, Instrument Sans and IBM Plex Mono are bundled
+  unmodified (SIL OFL 1.1) from `google/fonts` at a recorded commit, with
+  their SHA-256 in `clients/flutter/assets/fonts/README.md`. Their licenses
+  are registered on Flutter's license page. Nothing is fetched at runtime.
+  Weights of the variable fonts are set through their axes.
+- **Tokens.** `ArveilColors` carries the plan's light and dark tokens, plus
+  avatar and sender colours chosen stably by identity. `lineStrong` was
+  added for control borders, and `onDanger`, `dangerSoft` and
+  `onDangerSoft` for error states. `ArveilTheme` maps the tokens onto
+  Material, and the app follows the system light or dark setting.
+- **Components.** Brand mark (from the icon's own path), avatar, verified
+  mark, unverified chip, unread badge, delivery icon, date separator,
+  notice chip, status banner, sync line, safety-number grid, empty state,
+  settings group and row, chat bubble with runs, conversation tile and
+  composer. Icons are Material's outlined set, already bundled with
+  Flutter.
+- **Launch screen.** On Android, the icon's pine green shows with the
+  ribbon mark, through the system splash API from Android 12. Behind the
+  first Flutter frame the window uses the ground colour, so nothing
+  flashes white. macOS has no launch screen.
+
+Evidence:
+
+- A unit test checks WCAG AA contrast for every text/background pair and
+  3:1 for control borders, in both themes.
+- Goldens of a conversation sheet and an identity sheet, in light and
+  dark, render the bundled fonts and icons. The comparator tolerates at
+  most 0.5 % differing pixels.
+- Behaviour tests cover the delivery mapping (never "read"), initials,
+  spoken labels, and components fitting a 390 px phone at 200 % text.
+
+The existing screens only pick up the new colours and type; the redesigned
+screens are the C packages of the [client plan](PHASE3B.md).
