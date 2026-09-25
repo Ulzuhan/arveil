@@ -68,6 +68,12 @@ pub struct ArchiveRecord {
     /// Distinguishes an available empty file from a missing copy. Older v1 files omit it.
     #[serde(default)]
     pub file_present: bool,
+    /// The identity that wrote the record, as the exporting device knew it.
+    /// An archive is user-supplied history: this names an author, it does
+    /// not prove one. Older v1 files omit it, and builds that predate it
+    /// ignore it; a record without an author does not write the field.
+    #[serde(default, with = "serde_bytes", skip_serializing_if = "Option::is_none")]
+    pub sender_identity: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -217,6 +223,58 @@ mod tests {
         assert_eq!(kit_open(&sealed, &same).unwrap(), kit());
     }
 
+    /// Archives stay version 1 in both directions: a record without an
+    /// author writes exactly what builds before authors wrote, a record from
+    /// before reads without one, and a build from before reads a record
+    /// that names one.
+    #[test]
+    fn the_author_is_optional_in_both_directions() {
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        struct Before {
+            #[serde(with = "serde_bytes")]
+            group_id: Vec<u8>,
+            #[serde(with = "serde_bytes")]
+            event_id: Vec<u8>,
+            kind: String,
+            #[serde(with = "serde_bytes")]
+            body: Vec<u8>,
+            created_at: i64,
+            file_name: Option<String>,
+            #[serde(with = "serde_bytes")]
+            file: Vec<u8>,
+            #[serde(default)]
+            file_present: bool,
+        }
+        let before = Before {
+            group_id: vec![2; 32],
+            event_id: vec![3; 16],
+            kind: "received".into(),
+            body: b"hola".to_vec(),
+            created_at: 1_756_000_000,
+            file_name: None,
+            file: Vec::new(),
+            file_present: false,
+        };
+        let mut old_bytes = Vec::new();
+        ciborium::into_writer(&before, &mut old_bytes).unwrap();
+        let read: ArchiveRecord = ciborium::from_reader(old_bytes.as_slice()).unwrap();
+        assert_eq!(read.sender_identity, None);
+        let mut rewritten = Vec::new();
+        ciborium::into_writer(&read, &mut rewritten).unwrap();
+        assert_eq!(rewritten, old_bytes, "no author, no new field");
+
+        let named = ArchiveRecord {
+            sender_identity: Some(vec![5; 32]),
+            ..read
+        };
+        let mut new_bytes = Vec::new();
+        ciborium::into_writer(&named, &mut new_bytes).unwrap();
+        let old_reader: Before = ciborium::from_reader(new_bytes.as_slice()).unwrap();
+        assert_eq!(old_reader, before, "an older build ignores the author");
+        let again: ArchiveRecord = ciborium::from_reader(new_bytes.as_slice()).unwrap();
+        assert_eq!(again.sender_identity, Some(vec![5; 32]));
+    }
+
     #[test]
     fn archive_round_trips_and_hides_message_text() {
         let secret = Secret::generate();
@@ -233,6 +291,7 @@ mod tests {
                 file_name: None,
                 file: Vec::new(),
                 file_present: false,
+                sender_identity: None,
             }],
         };
         let sealed = archive_seal(&a, &secret).unwrap();

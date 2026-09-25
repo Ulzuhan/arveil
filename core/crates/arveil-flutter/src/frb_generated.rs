@@ -2472,6 +2472,8 @@ impl SseDecode for crate::api::profile::ArchiveEntryView {
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_fileName = <Option<String>>::sse_decode(deserializer);
         let mut var_fileSize = <Option<u64>>::sse_decode(deserializer);
+        let mut var_senderLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_own = <bool>::sse_decode(deserializer);
         return crate::api::profile::ArchiveEntryView {
             group_id: var_groupId,
             event_id: var_eventId,
@@ -2480,6 +2482,8 @@ impl SseDecode for crate::api::profile::ArchiveEntryView {
             created_at: var_createdAt,
             file_name: var_fileName,
             file_size: var_fileSize,
+            sender_label: var_senderLabel,
+            own: var_own,
         };
     }
 }
@@ -3743,6 +3747,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::ArchiveEntryView {
             self.created_at.into_into_dart().into_dart(),
             self.file_name.into_into_dart().into_dart(),
             self.file_size.into_into_dart().into_dart(),
+            self.sender_label.into_into_dart().into_dart(),
+            self.own.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4681,6 +4687,8 @@ impl SseEncode for crate::api::profile::ArchiveEntryView {
         <i64>::sse_encode(self.created_at, serializer);
         <Option<String>>::sse_encode(self.file_name, serializer);
         <Option<u64>>::sse_encode(self.file_size, serializer);
+        <Option<String>>::sse_encode(self.sender_label, serializer);
+        <bool>::sse_encode(self.own, serializer);
     }
 }
 

@@ -50,6 +50,8 @@ class ArchiveProfile extends ChatProfile {
               kind: 'received',
               text: 'Archived text',
               createdAt: 1,
+              senderLabel: 'Lucía',
+              own: false,
             ),
           ],
   );
@@ -158,6 +160,11 @@ void main() {
       await press(t, find.byKey(const Key('import-archive')));
       expect(p.imports, 1);
       expect(find.text('Archived text'), findsOneWidget);
+      // The author is the archive's claim, and says so.
+      expect(
+        find.text('Grupo aabbcc · Entrante · Lucía, según el archivo'),
+        findsOneWidget,
+      );
       expect(
         t
             .widget<TextField>(find.byKey(const Key('archive-import-secret')))

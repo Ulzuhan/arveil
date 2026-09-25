@@ -293,6 +293,16 @@ impl DeviceChange {
     }
 }
 
+/// One imported history record as a conversation reads it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ArchivedRow {
+    pub kind: String,
+    pub body: Vec<u8>,
+    pub created_at: i64,
+    /// The author the archive named, if any: a claim, not a proof.
+    pub sender_identity: Option<Vec<u8>>,
+}
+
 /// An identity kit the user confirmed saving together with its key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SavedKit {
@@ -1108,13 +1118,25 @@ impl Client {
             let mut dup = 0;
             for r in records {
                 let n = conn.execute(
-                    "INSERT OR IGNORE INTO archived_events (group_id, event_id, kind, body, created_at, file_name)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    params![r.group_id, r.event_id, r.kind, r.body, r.created_at, r.file_name],
+                    "INSERT OR IGNORE INTO archived_events
+                       (group_id, event_id, kind, body, created_at, file_name, sender_identity)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![
+                        r.group_id,
+                        r.event_id,
+                        r.kind,
+                        r.body,
+                        r.created_at,
+                        r.file_name,
+                        r.sender_identity
+                    ],
                 )?;
                 if n == 1 {
                     if r.file_present || !r.file.is_empty() {
-                        conn.execute("INSERT INTO archived_files VALUES (?1, ?2, ?3)", params![r.group_id, r.event_id, r.file])?;
+                        conn.execute(
+                            "INSERT INTO archived_files VALUES (?1, ?2, ?3)",
+                            params![r.group_id, r.event_id, r.file],
+                        )?;
                     }
                     new += 1;
                 } else {
@@ -1127,15 +1149,21 @@ impl Client {
         })
     }
 
-    /// Archived records of one conversation, oldest first, as
-    /// `(kind, body, created_at)`.
-    pub fn archived(&self, group_id: &[u8]) -> Result<Vec<(String, Vec<u8>, i64)>, ClientError> {
+    /// Archived records of one conversation, oldest first.
+    pub fn archived(&self, group_id: &[u8]) -> Result<Vec<ArchivedRow>, ClientError> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT kind, body, created_at FROM archived_events
+            "SELECT kind, body, created_at, sender_identity FROM archived_events
              WHERE group_id = ?1 ORDER BY created_at, event_id",
         )?;
-        let rows = stmt.query_map(params![group_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+        let rows = stmt.query_map(params![group_id], |r| {
+            Ok(ArchivedRow {
+                kind: r.get(0)?,
+                body: r.get(1)?,
+                created_at: r.get(2)?,
+                sender_identity: r.get(3)?,
+            })
+        })?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 

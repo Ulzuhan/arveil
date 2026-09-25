@@ -227,6 +227,14 @@ class ArchiveEntryView {
   final String? fileName;
   final BigInt? fileSize;
 
+  /// The author the archive names, as a local name or short identifier:
+  /// the exporting device's claim, not proof. Absent for own records and
+  /// for records without an author.
+  final String? senderLabel;
+
+  /// Written by this identity, by the archive's account.
+  final bool own;
+
   const ArchiveEntryView({
     required this.groupId,
     required this.eventId,
@@ -235,6 +243,8 @@ class ArchiveEntryView {
     required this.createdAt,
     this.fileName,
     this.fileSize,
+    this.senderLabel,
+    required this.own,
   });
 
   @override
@@ -245,7 +255,9 @@ class ArchiveEntryView {
       text.hashCode ^
       createdAt.hashCode ^
       fileName.hashCode ^
-      fileSize.hashCode;
+      fileSize.hashCode ^
+      senderLabel.hashCode ^
+      own.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -258,7 +270,9 @@ class ArchiveEntryView {
           text == other.text &&
           createdAt == other.createdAt &&
           fileName == other.fileName &&
-          fileSize == other.fileSize;
+          fileSize == other.fileSize &&
+          senderLabel == other.senderLabel &&
+          own == other.own;
 }
 
 class ArchivePageView {

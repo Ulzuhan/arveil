@@ -99,6 +99,12 @@ pub struct ArchiveEntryView {
     pub created_at: i64,
     pub file_name: Option<String>,
     pub file_size: Option<u64>,
+    /// The author the archive names, as a local name or short identifier:
+    /// the exporting device's claim, not proof. Absent for own records and
+    /// for records without an author.
+    pub sender_label: Option<String>,
+    /// Written by this identity, by the archive's account.
+    pub own: bool,
 }
 pub struct ArchivePageView {
     pub entries: Vec<ArchiveEntryView>,
@@ -647,6 +653,8 @@ impl Profile {
                     created_at: e.created_at,
                     file_name: e.file_name,
                     file_size: e.file_size,
+                    sender_label: e.sender_label,
+                    own: e.own,
                 })
                 .collect(),
             next: page.next,

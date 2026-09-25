@@ -524,3 +524,32 @@ Evidence:
   one added device, and a further sync did not repeat it. An upgrade run from
   `main` binaries adopted profiles to version 5, and the old CLI still read
   them.
+
+## Authors in the encrypted history (September 25, 2026)
+
+Exported history records now name their author when the exporting device
+knew it, as it does for live history: the identity stored with the event,
+the roster identity for its device, or this identity for what it sent.
+
+- The author is an optional `sender_identity` inside archive format version
+  1, following the `file_present` precedent, instead of a new format version.
+  A record without an author writes exactly the bytes it wrote before.
+  Earlier archives import without authors, and builds that predate the field
+  ignore it.
+- Migration 6 adds `sender_identity` to `archived_events`. Importing keeps the
+  first copy of a record, so a later archive naming another author for the
+  same record is a duplicate and changes nothing. An author that is not a
+  32-byte identity is refused, and nothing from that archive is imported.
+- The encrypted-history page and imported conversations show the author by
+  local name or short identifier, marked as the archive's account ("según el
+  archivo"): an archive is user-supplied history, not proof of authorship.
+- Device-change notices never enter an export. The exporter refuses unknown
+  kinds, so leaving notices out also keeps exports working after a notice.
+
+Evidence: a core test reads and writes the format in both directions. An
+application test exports authored, own, unattributed and notice rows,
+imports them into a restored profile, checks labels in the archive page and
+imported conversations, confirms that a later conflicting author is ignored,
+and refuses a malformed author. A Flutter test covers the label. The Phase 2
+archive flows pass with the CLI, and an upgrade run from `main` binaries
+adopted profiles to version 6.

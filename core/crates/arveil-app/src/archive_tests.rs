@@ -1,4 +1,5 @@
 use super::*;
+use arveil_core::delivery::{DEVICES_CHANGED, EventSender};
 use rusqlite::params;
 
 struct Fixture {
@@ -63,6 +64,7 @@ fn record(n: u8, kind: &str, body: &[u8]) -> ArchiveRecord {
         file_name: None,
         file: vec![],
         file_present: false,
+        sender_identity: None,
     }
 }
 fn request(f: &Fixture, records: Vec<ArchiveRecord>) -> ArchiveImport {
@@ -284,4 +286,106 @@ fn archive_limits_reject_the_whole_request() {
          INSERT INTO events(group_id,event_id,kind,body) SELECT X'01',randomblob(16),'received',X'78' FROM n;"
     ).unwrap();
     assert!(f.app.export_archive().is_err());
+}
+
+#[test]
+fn archives_name_authors_without_overwriting_them_or_carrying_notices() {
+    let source = Fixture::new();
+    source.identity();
+    let client = source.client();
+    let me = client.identity_id().unwrap().unwrap();
+    let them = vec![7u8; 32];
+    let delivery = client.delivery().unwrap();
+    let group = vec![3u8; 32];
+    let lucia = EventSender {
+        device_id: Some(vec![8; 16]),
+        identity_id: Some(them.clone()),
+    };
+    delivery
+        .record_event_by(&group, &[1; 16], "received", b"de Lucia", Some(&lucia))
+        .unwrap();
+    // An own row recorded before senders were kept.
+    delivery
+        .record_event(&group, &[2; 16], "sent", b"mio")
+        .unwrap();
+    delivery
+        .record_event(&group, &[3; 16], "received", b"sin autor")
+        .unwrap();
+    // A device notice is local state: it neither breaks nor enters the export.
+    delivery
+        .record_event_by(
+            &group,
+            &[4; 16],
+            DEVICES_CHANGED,
+            &DeviceChange {
+                added: 1,
+                removed: 0,
+            }
+            .encode(),
+            Some(&lucia),
+        )
+        .unwrap();
+    let exported = source.app.export_archive().unwrap();
+    assert_eq!(exported.records, 3);
+
+    let target = source.restored();
+    let req = ArchiveImport {
+        encrypted: exported.encrypted,
+        secret: exported.secret,
+    };
+    assert_eq!(target.app.import_archive(req).unwrap().imported, 3);
+    let entry = |text: &str| {
+        target
+            .app
+            .archive_page(None, 25)
+            .unwrap()
+            .entries
+            .into_iter()
+            .find(|e| e.text == text)
+            .unwrap()
+    };
+    let theirs = entry("de Lucia");
+    assert_eq!(theirs.sender_identity, Some(them.clone()));
+    assert_eq!(
+        theirs.sender_label.as_deref(),
+        Some(hex::encode(&them[..4]).as_str())
+    );
+    assert!(!theirs.own);
+    let mine = entry("mio");
+    assert!(mine.own);
+    assert_eq!((mine.sender_identity, mine.sender_label), (Some(me), None));
+    let unknown = entry("sin autor");
+    assert_eq!(
+        (unknown.sender_identity, unknown.sender_label, unknown.own),
+        (None, None, false)
+    );
+    // Imported conversations name the author the same way.
+    let archived = target.app.archived(None).unwrap();
+    let event = archived[0]
+        .events
+        .iter()
+        .find(|e| e.body == b"de Lucia")
+        .unwrap();
+    assert_eq!(event.sender_identity, Some(them.clone()));
+    assert!(event.sender_label.is_some());
+
+    // A later archive naming another author for the same record is a
+    // duplicate: the first import stands.
+    let mut forged = record(1, "received", b"de Lucia");
+    forged.sender_identity = Some(vec![9; 32]);
+    let receipt = target
+        .app
+        .import_archive(request(&target, vec![forged]))
+        .unwrap();
+    assert_eq!((receipt.imported, receipt.duplicates), (0, 1));
+    assert_eq!(entry("de Lucia").sender_identity, Some(them));
+    // An author that is not an identity is refused, with nothing imported.
+    let mut bad = record(5, "received", b"x");
+    bad.sender_identity = Some(vec![1; 3]);
+    assert!(
+        target
+            .app
+            .import_archive(request(&target, vec![bad]))
+            .is_err()
+    );
 }

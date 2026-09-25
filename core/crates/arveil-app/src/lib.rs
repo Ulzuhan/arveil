@@ -3147,6 +3147,17 @@ fn mark_read(config: &ProfileConfig, group: &[u8], cursor: i64) -> Result<ReadMa
     Ok(ReadMarker { cursor, unread })
 }
 
+/// What to call an identity: its local contact name, or a short identifier.
+fn identity_label(client: &Client, identity: &[u8]) -> Result<String, CliError> {
+    Ok(client
+        .contact(identity)
+        .map_err(storage_error("contact"))?
+        .map_or_else(
+            || hex::encode(&identity[..4.min(identity.len())]),
+            |c| c.label(),
+        ))
+}
+
 /// Kinds of event this device wrote itself.
 fn sent_here(kind: &str) -> bool {
     arveil_core::delivery::OWN_KINDS.contains(&kind)
@@ -3223,16 +3234,7 @@ fn attribution(
     };
     let own = sent_here(&row.kind) || (identity.is_some() && identity == session.identity_id);
     let label = match &identity {
-        Some(identity) if !own => Some(
-            session
-                .client
-                .contact(identity)
-                .map_err(storage_error("contact"))?
-                .map_or_else(
-                    || hex::encode(&identity[..4.min(identity.len())]),
-                    |c| c.label(),
-                ),
-        ),
+        Some(identity) if !own => Some(identity_label(&session.client, identity)?),
         _ => None,
     };
     Ok(Attribution {
@@ -3266,21 +3268,31 @@ fn archived_conversations(
                 .archived(&group_id)
                 .map_err(storage_error("archived"))?
                 .into_iter()
-                .map(|(kind, body, created_at)| HistoryEvent {
-                    attachment: None,
-                    cursor: 0,
-                    event_id: Vec::new(),
-                    own: sent_here(&kind),
-                    kind: format!("archived-{kind}"),
-                    body,
-                    delivery_states: Vec::new(),
-                    created_at,
-                    // Imported records carry no sender yet.
-                    sender_identity: None,
-                    sender_label: None,
-                    notice: None,
+                .map(|row| {
+                    // The author an archive names is the exporter's claim,
+                    // shown as such: imported history, not proof.
+                    let own = sent_here(&row.kind)
+                        || (row.sender_identity.is_some()
+                            && row.sender_identity == session.identity_id);
+                    let sender_label = match &row.sender_identity {
+                        Some(identity) if !own => Some(identity_label(&session.client, identity)?),
+                        _ => None,
+                    };
+                    Ok(HistoryEvent {
+                        attachment: None,
+                        cursor: 0,
+                        event_id: Vec::new(),
+                        own,
+                        kind: format!("archived-{}", row.kind),
+                        body: row.body,
+                        delivery_states: Vec::new(),
+                        created_at: row.created_at,
+                        sender_identity: row.sender_identity,
+                        sender_label,
+                        notice: None,
+                    })
                 })
-                .collect();
+                .collect::<Result<_, CliError>>()?;
             Ok(ConversationHistory {
                 group_id,
                 creator: None,
