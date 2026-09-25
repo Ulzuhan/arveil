@@ -58,7 +58,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 
 ## Límites que permanecen
 
-- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. Conversaciones, contactos, adjuntos y gestión de dispositivos están implementados; sigue pendiente la interfaz de archivos de historial. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
+- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. Conversaciones, contactos, adjuntos y gestión de dispositivos están implementados; la exportación/importación del historial cifrado también está implementada. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
 - Solo la CLI lee ya variables de entorno, y sigue eligiendo perfil sin cifrar cuando no hay clave. El almacén seguro se ha probado en emulador Android y en macOS con firma ad hoc y llavero clásico. Quedan pendientes teléfono físico y una instalación nueva descargada.
 - El puente Rust ejecuta las llamadas bloqueantes fuera del hilo de interfaz y expone un flujo incremental de eventos. Siguen pendientes la cancelación general de operaciones y la aceptación completa del ciclo de vida de cada plataforma.
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. El progreso es una proyección: los cambios que no modela solo llegan en el resultado durable.
@@ -206,7 +206,7 @@ Los contactos aprendidos en conversaciones se pueden nombrar y verificar; si
 no tienen una ruta guardada hay que importar una antes de seleccionarlos. Alias
 y verificación sobreviven a la reapertura. El asistente de aceptación de
 conversaciones recorre ahora este flujo antes de texto bidireccional, modo sin
-red, reconexión y paginación. Quedan pendientes de M3b.4 la interfaz de archivos de historial y la demostración completa de pérdida/recuperación.
+red, reconexión y paginación. La entrega de historial y pérdida/recuperación se describe más abajo; sigue abierta la aceptación en dispositivo físico.
 
 
 ## Adjuntos explícitos (segunda entrega de M3b.4)
@@ -316,3 +316,43 @@ misma versión o una versión anterior. Las regresiones cubren reinicio, rollbac
 y publicación parcial de un relay antiguo. Actualiza el relay junto con este
 cliente: versiones anteriores rechazan el manifiesto repetido con 409 y no
 completan este camino de reintento tras una respuesta perdida.
+
+## Historial cifrado y recuperación tras pérdida (cuarta entrega de M3b.4)
+
+El código `0.1.0+9` añade **Historial cifrado** al perfil. CLI y GUI comparten
+`Application::export_archive` / `import_archive`; el bridge expone páginas
+acotadas de solo lectura y la exportación explícita de adjuntos. Cada archivo
+age tiene una clave nueva e independiente. No contiene claves privadas de
+identidad/dispositivo ni estado MLS activo. La pantalla muestra la clave tras
+guardar el archivo y la oculta al salir o pasar a segundo plano, sin copiarla
+automáticamente al portapapeles.
+
+Se exportan registros activos e importados. Se comprueba la autenticidad de los
+adjuntos gestionados disponibles antes de incluirlos. Los pendientes, cancelados,
+caducados y las descargas antiguas de la CLI solo llevan metadatos: no se descarga
+del relay ni se lee una ruta guardada en un mensaje. La importación sanea nombres
+y descarta descriptores/rutas antiguos. Los adjuntos importados, incluidos archivos
+vacíos, permanecen en SQLCipher hasta guardar explícitamente una copia fuera.
+
+El archivo debe pertenecer a la misma identidad: tras una pérdida, restaura antes
+su kit. Se valida entero antes de guardar registros y archivos en una transacción.
+Los registros existentes con el mismo `(group_id, event_id)` se conservan sin
+cambios y cuentan como duplicados. No se crean mensajes activos, outbox ni estado
+MLS. La pantalla paginada no permite enviar; un archivo importado no demuestra la
+autoría del texto. La reexportación conserva registros y adjuntos importados.
+
+Límites: entrada cifrada de 64 MiB, 10.000 registros por archivo, texto de 1 MiB,
+adjuntos por debajo de 25 MiB y presupuesto conservador de 48 MiB para exportar.
+Una exportación demasiado grande falla completa; no se recorta ni divide sola.
+Se leen archivos v1; el campo opcional `file_present` distingue los archivos
+vacíos disponibles en exportaciones nuevas. Un archivo antiguo con bytes vacíos
+no permite saber si faltaba la copia o si existía un archivo vacío.
+
+Las pruebas Rust cubren otra clave local, identidad/clave incorrectas, alteración,
+rollback, duplicados, paginación, reexportación y rechazo de adjuntos corruptos.
+Los widgets cubren consentimiento, cancelación, ocultación de secretos, lecturas
+acotadas y errores sin datos privados. El escenario nativo `archives` destruye un
+perfil desechable, recupera su identidad con una nueva clave del almacén nativo,
+importa desde memoria, reabre, comprueba que no reenvía ni reincorpora al grupo y
+envía texto por una conversación nueva creada expresamente. No exporta datos
+reales. Consulta [la evidencia de plataformas](PLATFORMS.md) para las ejecuciones.

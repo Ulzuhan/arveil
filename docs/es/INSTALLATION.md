@@ -231,3 +231,25 @@ ni historial ni confirma que otros participantes recibieran el aviso. Consulta
 Actualiza el relay desde la misma revisión del código al probar esta función.
 Los relays anteriores devuelven 409 al repetir un manifiesto; esta versión
 acepta el reintento idéntico y guarda la revocación y el manifiesto juntos.
+
+## Guardar y recuperar el historial (código fuente `0.1.0+9`)
+
+1. En el perfil, abre **Historial cifrado**, confirma que la copia permite leer
+   mensajes antiguos y pulsa **Guardar historial cifrado**. Guarda su clave por
+   separado, por ejemplo en un gestor de contraseñas. Desaparece al salir o
+   cambiar de app; exporta otra copia si la pierdes. Revisa los adjuntos sin
+   copia: no se descargan pendientes ni se buscan archivos antiguos de la CLI.
+2. Tras perder un dispositivo, recupera primero la misma identidad con su kit
+   más reciente y la clave de ese kit. El archivo de historial no recupera la
+   identidad.
+3. Abre **Historial cifrado**, elige el archivo, introduce su propia clave y pulsa
+   **Importar como historial**. Los registros existentes se conservan sin cambios.
+   Los adjuntos siguen cifrados en el perfil hasta **Guardar copia del adjunto**;
+   el destino elegido puede conservar o respaldar esa copia legible.
+4. Consulta los registros en esta pantalla separada. Importar no reenvía mensajes
+   ni reincorpora a grupos antiguos. Comparte la ruta del dispositivo recuperado
+   con un contacto y cread expresamente una conversación nueva para hablar.
+
+Disponible desde el código fuente; los candidatos `0.1.0+5` existentes no incluyen
+esta pantalla. Límite de 64 MiB y 10.000 registros por archivo; consulta
+[los límites de implementación](CLIENT_FOUNDATION.md#historial-cifrado-y-recuperación-tras-pérdida-cuarta-entrega-de-m3b4).

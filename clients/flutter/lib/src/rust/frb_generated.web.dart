@@ -54,6 +54,18 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  ArchiveEntryView dco_decode_archive_entry_view(dynamic raw);
+
+  @protected
+  ArchivePageView dco_decode_archive_page_view(dynamic raw);
+
+  @protected
+  ArchiveReceiptView dco_decode_archive_receipt_view(dynamic raw);
+
+  @protected
+  ArchiveView dco_decode_archive_view(dynamic raw);
+
+  @protected
   AttachmentStateView dco_decode_attachment_state_view(dynamic raw);
 
   @protected
@@ -126,6 +138,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<ArchiveEntryView> dco_decode_list_archive_entry_view(dynamic raw);
 
   @protected
   List<ContactDeviceView> dco_decode_list_contact_device_view(dynamic raw);
@@ -264,6 +279,20 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  ArchiveEntryView sse_decode_archive_entry_view(SseDeserializer deserializer);
+
+  @protected
+  ArchivePageView sse_decode_archive_page_view(SseDeserializer deserializer);
+
+  @protected
+  ArchiveReceiptView sse_decode_archive_receipt_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ArchiveView sse_decode_archive_view(SseDeserializer deserializer);
+
+  @protected
   AttachmentStateView sse_decode_attachment_state_view(
     SseDeserializer deserializer,
   );
@@ -350,6 +379,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<ArchiveEntryView> sse_decode_list_archive_entry_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ContactDeviceView> sse_decode_list_contact_device_view(
@@ -519,6 +553,27 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_archive_entry_view(
+    ArchiveEntryView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_archive_page_view(
+    ArchivePageView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_archive_receipt_view(
+    ArchiveReceiptView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_archive_view(ArchiveView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_attachment_state_view(
     AttachmentStateView self,
     SseSerializer serializer,
@@ -634,6 +689,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_archive_entry_view(
+    List<ArchiveEntryView> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_contact_device_view(

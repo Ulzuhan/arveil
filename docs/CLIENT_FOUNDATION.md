@@ -41,7 +41,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 
 ## Remaining limits
 
-- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing and identity-kit interfaces are implemented. Conversation creation, paginated history, text sending and sync are implemented. Contacts, explicit attachments and device management are implemented; history archive UI remains pending. Experimental ZIP/APK packaging exists; physical-mobile acceptance remains pending.
+- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing and identity-kit interfaces are implemented. Conversation creation, paginated history, text sending and sync are implemented. Contacts, explicit attachments and device management are implemented; encrypted history export/import is implemented. Experimental ZIP/APK packaging exists; physical-mobile acceptance remains pending.
 - Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key storage is tested on an Android emulator and the ad-hoc macOS build with its login Keychain. Physical-phone and fresh-download acceptance remain pending.
 - The Rust bridge runs blocking calls off the UI thread and exposes incremental progress streams. General operation cancellation and full platform lifecycle acceptance remain pending.
 - File/membership events need further correlation identifiers. Progress is a projection: changes it does not model reach a caller only in the durable result.
@@ -183,7 +183,7 @@ Existing contacts learned from conversations can be named and verified; if no
 route was saved, import one before selecting that contact. Alias and verification
 survive profile reopen. The conversation acceptance helper now exercises this
 flow before its duplex-text, offline/reconnect and pagination checks. M3b.4
-still owes history archive UI and the complete loss/recovery demonstration.
+now includes the history and loss/recovery slice described below; physical-device acceptance remains open.
 
 
 ## Explicit attachments (second M3b.4 slice)
@@ -287,3 +287,42 @@ version remains rejected. Store regressions cover restart, rollback and an
 interrupted publication left by an older relay. Update the relay together with
 this client: earlier relays reject duplicate manifest publication with 409, so
 they cannot complete this lost-ACK retry path.
+
+## Encrypted history and loss recovery (fourth M3b.4 slice)
+
+Source `0.1.0+9` adds **Historial cifrado** to the profile. CLI and GUI share
+`Application::export_archive` / `import_archive`; the bridge also exposes a
+bounded read-only page and explicit attachment export. The archive is an age
+file with a fresh, separate secret. It contains neither identity/device private
+keys nor active MLS state. The UI reveals the secret only after a successful
+save and hides it on leaving/backgrounding, without copying it to the clipboard.
+
+Exports include live and previously imported history. Available managed files
+are authenticated before inclusion. Pending/cancelled/expired attachments and
+legacy CLI downloads have metadata only; export never fetches from the relay or
+reads a path recorded in a message. Imports sanitize filenames and discard old
+attachment descriptors/paths. Imported file bytes, including empty files, stay
+in SQLCipher until the user explicitly chooses a destination for a copy.
+
+Import requires the same identity (restore its kit first after loss), validates
+the entire archive before writing, and commits records/files in one transaction.
+Existing `(group_id, event_id)` records are retained unchanged and counted as
+duplicates. No outbox, live event or MLS state is created. The paginated archive
+screen has no composer; imported text is historical data, not authenticated
+proof of authorship. Re-export preserves imported records and available files.
+
+Limits: 64 MiB encrypted input, 10,000 records per archive, 1 MiB per text,
+the existing attachment limit below 25 MiB, and a conservative 48 MiB export
+payload budget. Oversized exports fail as a whole; no silent truncation or
+automatic splitting. v1 archives remain readable; the optional `file_present`
+field distinguishes available empty files in new exports. Older archives with
+an empty byte array cannot establish whether an empty file was present.
+
+Rust tests cover a different profile key, wrong identity/secret, tampering,
+transaction rollback, duplicate preservation, pagination, re-export and corrupt
+attachment refusal. Widget tests cover consent, cancellation, hidden secrets,
+bounded reads and sanitized errors. The native `archives` scenario destroys a
+disposable source profile, restores its identity under a new platform-held key,
+imports from memory, reopens, checks no resend or automatic rejoin, and exchanges
+text through an explicitly created new conversation. It never exports real user
+data. See [platform evidence](PLATFORMS.md) for completed native runs.

@@ -14,6 +14,10 @@
 //! Set `ARVEIL_CRASH_AFTER_COMMIT=1` to make `chat send` exit right after
 //! the send unit committed and before anything is published (I-04).
 
+mod archives;
+pub use archives::{
+    ArchiveEntry, ArchiveExport, ArchiveImport, ArchivePage, ArchiveReceipt, MAX_ARCHIVE_BYTES,
+};
 mod attachment_ui;
 pub mod carrier;
 pub use attachment_ui::{AttachmentState, AttachmentSummary, MAX_ATTACHMENT_BYTES};
@@ -93,6 +97,10 @@ pub enum Operation {
     ConfirmPairing,
     CancelPairing,
     QueryPendingPairing,
+    ExportArchive,
+    ImportArchive,
+    QueryArchivePage,
+    ExportArchiveFile,
     ExportKit,
     RestoreKit,
     ResumeRecovery,
@@ -182,6 +190,18 @@ pub enum ClientCommand {
         session_id: Vec<u8>,
     },
     QueryPendingPairing,
+    ExportArchive,
+    ImportArchive {
+        request: ArchiveImport,
+    },
+    QueryArchivePage {
+        before: Option<i64>,
+        limit: u32,
+    },
+    ExportArchiveFile {
+        group: Vec<u8>,
+        event_id: Vec<u8>,
+    },
     ExportKit,
     RestoreKit {
         request: RecoveryRequest,
@@ -293,6 +313,10 @@ impl ClientCommand {
             Self::ResumeAttachment { .. } => Operation::ResumeAttachment,
             Self::CancelAttachment { .. } => Operation::CancelAttachment,
             Self::ExportAttachment { .. } => Operation::ExportAttachment,
+            Self::ExportArchive => Operation::ExportArchive,
+            Self::ImportArchive { .. } => Operation::ImportArchive,
+            Self::QueryArchivePage { .. } => Operation::QueryArchivePage,
+            Self::ExportArchiveFile { .. } => Operation::ExportArchiveFile,
             Self::ExportKit => Operation::ExportKit,
             Self::RestoreKit { .. } => Operation::RestoreKit,
             Self::ResumeRecovery => Operation::ResumeRecovery,
@@ -1138,6 +1162,9 @@ pub enum CommandOutput {
         operation: OperationResult,
     },
     PendingPairing(Option<PairingVerification>),
+    Archive(ArchiveExport),
+    ArchiveReceipt(ArchiveReceipt),
+    ArchivePage(ArchivePage),
     Kit(KitExport),
     KeyPackageSupply(KeyPackageSupply),
     Recovery(RecoveryResult),
@@ -1317,6 +1344,8 @@ impl ClientCommand {
             | Self::QueryPeers { .. }
             | Self::QueryHistoryPage { .. }
             | Self::QueryArchived { .. }
+            | Self::QueryArchivePage { .. }
+            | Self::ExportArchiveFile { .. }
             | Self::QueryOnboarding
             | Self::QueryOwnRoute
             | Self::ExportAttachment { .. }
@@ -1868,6 +1897,42 @@ impl Application {
         match self.execute(ClientCommand::ReplenishKeyPackages)? {
             CommandOutput::KeyPackageSupply(value) => Ok(value),
             _ => unreachable!("key package output"),
+        }
+    }
+
+    pub fn export_archive(&self) -> Result<ArchiveExport, ApplicationError> {
+        match self.execute(ClientCommand::ExportArchive)? {
+            CommandOutput::Archive(value) => Ok(value),
+            _ => unreachable!("archive output"),
+        }
+    }
+    pub fn import_archive(
+        &self,
+        request: ArchiveImport,
+    ) -> Result<ArchiveReceipt, ApplicationError> {
+        match self.execute(ClientCommand::ImportArchive { request })? {
+            CommandOutput::ArchiveReceipt(value) => Ok(value),
+            _ => unreachable!("archive output"),
+        }
+    }
+    pub fn archive_page(
+        &self,
+        before: Option<i64>,
+        limit: u32,
+    ) -> Result<ArchivePage, ApplicationError> {
+        match self.execute(ClientCommand::QueryArchivePage { before, limit })? {
+            CommandOutput::ArchivePage(value) => Ok(value),
+            _ => unreachable!("archive output"),
+        }
+    }
+    pub fn archive_file(
+        &self,
+        group: Vec<u8>,
+        event_id: Vec<u8>,
+    ) -> Result<Vec<u8>, ApplicationError> {
+        match self.execute(ClientCommand::ExportArchiveFile { group, event_id })? {
+            CommandOutput::AttachmentBytes(value) => Ok(value),
+            _ => unreachable!("archive output"),
         }
     }
 
@@ -2495,6 +2560,20 @@ async fn run_command(
             ))
             .await
             .map(|(value, _)| CommandOutput::KeyPackageSupply(value))
+        }
+        ClientCommand::ExportArchive => archives::export(config)
+            .map(CommandOutput::Archive)
+            .map_err(|e| application_error(Operation::ExportArchive, e)),
+        ClientCommand::ImportArchive { request } => archives::import(config, request)
+            .map(CommandOutput::ArchiveReceipt)
+            .map_err(|e| application_error(Operation::ImportArchive, e)),
+        ClientCommand::QueryArchivePage { before, limit } => archives::page(config, before, limit)
+            .map(CommandOutput::ArchivePage)
+            .map_err(|e| application_error(Operation::QueryArchivePage, e)),
+        ClientCommand::ExportArchiveFile { group, event_id } => {
+            archives::file(config, &group, &event_id)
+                .map(CommandOutput::AttachmentBytes)
+                .map_err(|e| application_error(Operation::ExportArchiveFile, e))
         }
         ClientCommand::ExportKit => recovery::export(config)
             .map(CommandOutput::Kit)

@@ -277,3 +277,22 @@ profiles; it exports no identity kit. The scenario checks pairing, offline
 revocation through the UI, encrypted reopen, relay refusal of the revoked device,
 MLS removal and text with a surviving participant. No private diagnostics are
 committed. Use [the platform record](../../docs/PLATFORMS.md) for actual coverage.
+
+## Encrypted history acceptance
+
+Source `0.1.0+9` adds encrypted history export/import, read-only imported records
+and explicit copies of available archived attachments. Restore the matching
+identity first after device loss. The archive and its key are separate from the
+identity kit and its key; importing never restores MLS sessions or resends text.
+See [installation steps](../../docs/INSTALLATION.md#save-and-recover-history-source-0109).
+
+```sh
+python3 scripts/test_client_conversations.py --device macos --scenario archives
+python3 scripts/test_client_conversations.py --device emulator-5554 --scenario archives
+```
+
+Run from the repository root. This scenario exports only disposable identity
+kits/history into memory, deletes its source profile, restores into a new
+platform-held key, imports/reopens, verifies attachment bytes and duplicate
+handling, and exchanges text in a newly created conversation. It does not test
+the native save/open dialogs or export any real user's identity/history.

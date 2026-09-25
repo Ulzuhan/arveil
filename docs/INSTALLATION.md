@@ -218,3 +218,24 @@ prove that other participants received the notice. See the
 Update the relay from the same source revision when trying this feature. Older
 relays return 409 on repeated manifest publication; this relay accepts an
 identical retry and commits revocation with the manifest atomically.
+
+## Save and recover history (source `0.1.0+9`)
+
+1. In the profile, open **Historial cifrado**, acknowledge that this copy can
+   reveal past messages and select **Guardar historial cifrado**. Save its key
+   separately, for example in a password manager. The key disappears when you
+   leave or switch apps; export again if you lose it. Review the count of files
+   without a copy: pending downloads and legacy CLI files are not fetched.
+2. After losing a device, first restore the same identity with its latest kit
+   and that kit's separate key. A history archive cannot recover your identity.
+3. Open **Historial cifrado**, choose the encrypted history file, enter its own
+   key and select **Importar como historial**. Existing records stay unchanged.
+   Imported attachments stay encrypted in the profile until **Guardar copia del
+   adjunto**; the chosen destination may keep or back up that readable copy.
+4. Read the imported history on this separate screen. Importing neither resends
+   messages nor rejoins old groups. Exchange the recovered device's route with a
+   contact and explicitly start a new conversation for new messages.
+
+These steps are available from source; existing `0.1.0+5` package candidates do
+not contain this screen. Files are limited to 64 MiB and 10,000 records; see
+[implementation limits](CLIENT_FOUNDATION.md#encrypted-history-and-loss-recovery-fourth-m3b4-slice).

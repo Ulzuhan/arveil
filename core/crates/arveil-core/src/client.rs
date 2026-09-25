@@ -16,6 +16,9 @@ use crate::identity::{
 use crate::mls::MlsIdentity;
 use crate::storage::SharedConn;
 
+#[cfg(feature = "recovery")]
+#[path = "archive_store.rs"]
+mod archive_store;
 #[path = "device_store.rs"]
 mod device_store;
 pub use device_store::Revocation;
@@ -194,6 +197,11 @@ CREATE TABLE IF NOT EXISTS archived_events (
     created_at INTEGER NOT NULL,
     file_name  TEXT,
     PRIMARY KEY (group_id, event_id)
+);
+CREATE TABLE IF NOT EXISTS archived_files (
+    group_id BLOB NOT NULL, event_id BLOB NOT NULL, bytes BLOB NOT NULL,
+    PRIMARY KEY(group_id, event_id),
+    FOREIGN KEY(group_id, event_id) REFERENCES archived_events(group_id, event_id)
 );
 CREATE TABLE IF NOT EXISTS peer_manifests (
     identity_id BLOB PRIMARY KEY,
@@ -1028,22 +1036,29 @@ impl Client {
         &self,
         records: &[crate::recovery::ArchiveRecord],
     ) -> Result<(usize, usize), ClientError> {
-        let conn = self.conn.lock();
-        let mut new = 0;
-        let mut dup = 0;
-        for r in records {
-            let n = conn.execute(
-                "INSERT OR IGNORE INTO archived_events (group_id, event_id, kind, body, created_at, file_name)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![r.group_id, r.event_id, r.kind, r.body, r.created_at, r.file_name],
-            )?;
-            if n == 1 {
-                new += 1;
-            } else {
-                dup += 1;
+        self.unit_of_work(|| {
+            let conn = self.conn.lock();
+            let mut new = 0;
+            let mut dup = 0;
+            for r in records {
+                let n = conn.execute(
+                    "INSERT OR IGNORE INTO archived_events (group_id, event_id, kind, body, created_at, file_name)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![r.group_id, r.event_id, r.kind, r.body, r.created_at, r.file_name],
+                )?;
+                if n == 1 {
+                    if r.file_present || !r.file.is_empty() {
+                        conn.execute("INSERT INTO archived_files VALUES (?1, ?2, ?3)", params![r.group_id, r.event_id, r.file])?;
+                    }
+                    new += 1;
+                } else {
+                    // An archive is user-supplied history, not proof of authorship.
+                    // Never let a later import overwrite an earlier record or file.
+                    dup += 1;
+                }
             }
-        }
-        Ok((new, dup))
+            Ok((new, dup))
+        })
     }
 
     /// Archived records of one conversation, oldest first.

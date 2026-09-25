@@ -74,6 +74,31 @@ pub struct KeyPackageSupplyView {
     pub target: u32,
 }
 
+pub struct ArchiveView {
+    pub encrypted: Vec<u8>,
+    pub secret: String,
+    pub records: u32,
+    pub files: u32,
+    pub unavailable_files: u32,
+}
+pub struct ArchiveReceiptView {
+    pub imported: u32,
+    pub duplicates: u32,
+}
+pub struct ArchiveEntryView {
+    pub group_id: String,
+    pub event_id: String,
+    pub kind: String,
+    pub text: String,
+    pub created_at: i64,
+    pub file_name: Option<String>,
+    pub file_size: Option<u64>,
+}
+pub struct ArchivePageView {
+    pub entries: Vec<ArchiveEntryView>,
+    pub next: Option<i64>,
+}
+
 pub struct KitView {
     pub encrypted: Vec<u8>,
     pub secret: String,
@@ -508,6 +533,66 @@ impl Profile {
         self.inner
             .replenish_key_packages()
             .map(key_package_view)
+            .map_err(command_error)
+    }
+
+    pub fn export_archive(&self) -> Result<ArchiveView, CommandError> {
+        let a = self.inner.export_archive().map_err(command_error)?;
+        Ok(ArchiveView {
+            encrypted: a.encrypted,
+            secret: a.secret,
+            records: a.records,
+            files: a.files,
+            unavailable_files: a.unavailable_files,
+        })
+    }
+    pub fn import_archive(
+        &self,
+        encrypted: Vec<u8>,
+        secret: String,
+    ) -> Result<ArchiveReceiptView, CommandError> {
+        let r = self
+            .inner
+            .import_archive(arveil_app::ArchiveImport { encrypted, secret })
+            .map_err(command_error)?;
+        Ok(ArchiveReceiptView {
+            imported: r.imported,
+            duplicates: r.duplicates,
+        })
+    }
+    pub fn archive_page(
+        &self,
+        before: Option<i64>,
+        limit: u32,
+    ) -> Result<ArchivePageView, CommandError> {
+        let page = self
+            .inner
+            .archive_page(before, limit)
+            .map_err(command_error)?;
+        Ok(ArchivePageView {
+            entries: page
+                .entries
+                .into_iter()
+                .map(|e| ArchiveEntryView {
+                    group_id: hex(&e.group_id),
+                    event_id: hex(&e.event_id),
+                    kind: e.kind,
+                    text: e.text,
+                    created_at: e.created_at,
+                    file_name: e.file_name,
+                    file_size: e.file_size,
+                })
+                .collect(),
+            next: page.next,
+        })
+    }
+    pub fn archive_file(
+        &self,
+        group_id: String,
+        event_id: String,
+    ) -> Result<Vec<u8>, CommandError> {
+        self.inner
+            .archive_file(decode_hex(&group_id)?, decode_hex(&event_id)?)
             .map_err(command_error)
     }
 
@@ -1122,6 +1207,10 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::QueryKeyPackageSupply => "query-key-package-supply",
         Operation::CheckKeyPackages => "check-key-packages",
         Operation::ReplenishKeyPackages => "replenish-key-packages",
+        Operation::ExportArchive => "export-archive",
+        Operation::ImportArchive => "import-archive",
+        Operation::QueryArchivePage => "query-archive-page",
+        Operation::ExportArchiveFile => "export-archive-file",
         Operation::ExportKit => "export-kit",
         Operation::RestoreKit => "restore-kit",
         Operation::ResumeRecovery => "resume-recovery",
