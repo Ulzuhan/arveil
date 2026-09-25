@@ -2089,6 +2089,19 @@ impl Client {
         }))
     }
 
+    /// When this device started keeping `group`, in Unix seconds.
+    pub fn conversation_started_at(&self, group: &[u8]) -> Result<Option<i64>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT created_at FROM conversations WHERE group_id = ?1",
+                params![group],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
     pub fn conversations(&self) -> Result<Vec<Conversation>, ClientError> {
         let ids: Vec<Vec<u8>> = {
             let conn = self.conn.lock();

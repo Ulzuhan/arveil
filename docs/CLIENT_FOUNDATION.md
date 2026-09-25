@@ -419,3 +419,54 @@ Evidence:
   received message carried the peer's device and identity, the next sent
   message was own, earlier rows stayed empty, and the old CLI still read the
   profile.
+
+## Conversation summaries and unread counts (September 25, 2026)
+
+Each conversation row now carries three things: its newest event, how many
+messages are unread, and when the conversation was last active. The bridge
+orders the GUI list by that activity. The application layer keeps the order in
+which conversations were started, because the command line lists them that way
+and the Phase 4 acceptance script picks conversations by position.
+
+- Migration 3 adds `read_markers`, one cursor per conversation. Conversations
+  that existed before it count as read up to their newest event, so an update
+  does not turn old messages into new ones.
+- `mark_read(group, cursor)` only moves a marker forward, and never past the
+  newest event. A stale screen or an overreaching caller therefore cannot hide
+  what arrives later. The call returns the marker in effect and the remaining
+  unread count.
+- Unread counts the events after the marker that another identity wrote. It
+  never counts this device's own kinds or messages from another device of the
+  same identity. Received rows from before sender attribution count when they
+  come after the marker.
+- `ConversationView` gains three fields:
+  - `last_event`: the kind, a one-line text preview of at most 120 characters,
+    the attachment name, the sender label, whether it is own, the time and the
+    delivery states.
+  - `unread`: the number of unread messages.
+  - `last_activity`: the time of the newest event, or when this device started
+    keeping the conversation.
+
+  GUI rows are ordered by activity. Event order breaks ties within a second,
+  and a full tie keeps the start order. As in history, only text bodies cross
+  the bridge.
+- The GUI marks the open conversation read up to the newest event it shows. It
+  does so only in the foreground and once per cursor. A failure leaves the
+  marker where it was, and the next read retries. Rows show the preview (with
+  the author in groups and "Tú:" for own messages), the time and an unread
+  count that screen readers announce as part of the row.
+
+Evidence:
+
+- A bridge test covers ordering by activity and its tie-breaking.
+- Core tests cover markers that only move forward and stop at the newest event,
+  unread counts that exclude own kinds and own devices, and migration 3.
+- An application test goes through the executor. It covers the start order,
+  previews, stale marks, markers after reopening, and new messages becoming
+  unread again.
+- A bridge test checks that the preview cuts multibyte text safely, stays on
+  one line and never exposes a non-text body.
+- Flutter tests cover marking once, row previews and unread counts.
+- An upgrade run from `main` binaries adopted a CLI profile to version 3. What
+  it held before counted as read, the first message after the update was
+  unread, and the old CLI still read the profile.

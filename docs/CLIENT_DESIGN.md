@@ -2,7 +2,7 @@
 
 [Versión española](es/CLIENT_DESIGN.md). The Spanish document is the normative source; this condensed English translation must be updated in the same review, and the Spanish text prevails if they diverge.
 
-Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning) and A1 (sender and time in live history); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
+Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history) and A2 (conversation summary and unread counts); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
 
 ## Why, and what not
 
@@ -49,7 +49,7 @@ Welcome, step-by-step enrollment, chats, conversation, new chat, contacts, conta
 
 ## Data the UI needs
 
-Findings from September 25, 2026: `HistoryEventView` has no sender or time, and the receive path in `arveil-app` records events without the sender that `mls-rs` identifies through `sender_index` (resolved for live history by A1). `ConversationView` has no last message, last activity or unread count, and there is no read marker. The profile database has no schema versioning (`CREATE TABLE IF NOT EXISTS` only; resolved by A0). Kit export or deferral lives only in panel memory. The last sync time exists only in the Dart conversation controller, which syncs every 10 seconds while open; that is acceptable as presentation state.
+Findings from September 25, 2026: `HistoryEventView` has no sender or time, and the receive path in `arveil-app` records events without the sender that `mls-rs` identifies through `sender_index` (resolved for live history by A1). `ConversationView` has no last message, last activity or unread count, and there is no read marker (resolved by A2). The profile database has no schema versioning (`CREATE TABLE IF NOT EXISTS` only; resolved by A0). Kit export or deferral lives only in panel memory. The last sync time exists only in the Dart conversation controller, which syncs every 10 seconds while open; that is acceptable as presentation state.
 
 ## Implementation plan
 
@@ -60,7 +60,7 @@ One small PR per package with its own tests. Relative size: S (up to a day), M (
 | A0 Profile schema versioning (implemented) | M | — | `PRAGMA user_version`, ordered transactional migrations, typed rejection of a future version without touching data; existing unversioned databases (builds up to `0.1.0+11`) are version 0 |
 | A1 Sender and time in history (implemented) | M | A0 | Store the sender device and identity from the MLS member credential; `HistoryEventView` gains sender, label, own flag and `created_at` (local recording time, not send time) |
 | A1b Sender in the encrypted history | S | A1 | Optional sender field inside archive format v1, like `file_present`, so older builds keep importing; `archived_events` gains the column; imported records stay imported history, not proof of authorship |
-| A2 Conversation summary and unread | M | A1 | Last event, unread count and last activity in `ConversationView`; monotonic local read marker with `mark_read`; Rust orders by activity |
+| A2 Conversation summary and unread (implemented) | M | A1 | Last event, unread count and last activity in `ConversationView`; monotonic local read marker with `mark_read`; Rust orders by activity |
 | A3 Recovery state and system notices | S | A0 | Persist last successful kit export; record a local notice when an accepted manifest changes a contact's active devices; Dart sync-status projection from typed errors |
 | B1 Tokens, theme and components | L | — | `ThemeExtension` tokens, light and dark themes, bundled fonts and icons, component set, splash from the brand mark (the app icon exists since `0.1.0+11`); contrast unit test and component goldens on the macOS CI job |
 | B2 Spanish/English localization | M | — | `gen-l10n` ARB files with Spanish as template; extract every visible string and move about 125 literal-text test finders to keys or localized strings |

@@ -162,29 +162,22 @@ mod contacts {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("client.db");
-        let conn = SharedConn::open_file(&path).unwrap();
-        let client = Client::open(conn.clone()).unwrap();
-        client.identity_new().unwrap();
         let identity = vec![2; 32];
-        client.contact_seen(&identity, &[3; 32]).unwrap();
-        client
-            .contact_rename(&identity, "Existing contact")
-            .unwrap();
-        let number = client.safety_number_with(&identity).unwrap();
-        assert!(client.contact_verify(&identity, &number, 0).unwrap());
-        // A pre-address-book profile has contacts but no route table, and
-        // predates schema versioning, so it also lacks what later migrations
-        // added. Reopening it adds the table.
-        conn.lock()
-            .execute_batch(
-                "DROP TABLE contact_routes;
-                 ALTER TABLE events DROP COLUMN sender_device;
-                 ALTER TABLE events DROP COLUMN sender_identity;
-                 PRAGMA user_version = 0;",
+        {
+            // A pre-address-book profile predates schema versioning: the
+            // baseline tables without the route table, and a named,
+            // verified contact. Opening it adds the table.
+            let old = rusqlite::Connection::open(&path).unwrap();
+            old.execute_batch(&crate::schema::baseline_schema())
+                .unwrap();
+            old.execute_batch("DROP TABLE contact_routes").unwrap();
+            old.execute(
+                "INSERT INTO contacts (identity_id, root_public, name, verified, verified_at)
+                 VALUES (?1, ?2, 'Existing contact', 1, 0)",
+                rusqlite::params![identity, vec![3u8; 32]],
             )
             .unwrap();
-        drop(client);
-        drop(conn);
+        }
         let client = Client::open(SharedConn::open_file(&path).unwrap()).unwrap();
         let contact = client.contact(&identity).unwrap().unwrap();
         assert_eq!(contact.name.as_deref(), Some("Existing contact"));

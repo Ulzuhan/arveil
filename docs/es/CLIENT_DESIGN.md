@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema) y A1 (remitente y hora del historial en vivo); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo) y A2 (resumen de conversaciones y no leídos); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -157,7 +157,7 @@ Estas preferencias son globales y no revelan nada del perfil, y hacen falta ante
 Hallazgos del 25 de septiembre de 2026 que condicionan el orden del plan:
 
 - `HistoryEventView` no incluye remitente ni hora. Al procesar un mensaje de aplicación, `arveil-app` registra el evento sin el remitente, aunque `mls-rs` lo identifica mediante `sender_index`. Resuelto en A1 para el historial en vivo.
-- `ConversationView` no incluye último mensaje, última actividad ni no leídos, y no existe una marca de lectura.
+- `ConversationView` no incluye último mensaje, última actividad ni no leídos, y no existe una marca de lectura. Resuelto en A2.
 - La base del perfil no tiene versionado de esquema: se crea con `CREATE TABLE IF NOT EXISTS`. Añadir columnas exige migraciones. Resuelto en A0.
 - El estado del kit (exportado o pospuesto) solo vive en memoria del panel de recuperación; un aviso persistente necesita estado durable.
 - La hora de la última sincronización solo existe en el controlador de conversaciones de Dart, que sincroniza cada 10 segundos mientras está abierto. Como proyección de presentación es aceptable.
@@ -189,7 +189,7 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 - `archived_events` gana la columna del remitente mediante una migración. Los registros importados muestran el nombre local de esa identidad si existe, pero siguen presentándose como historial importado: un archivo aportado por el usuario no prueba la autoría.
 - Pruebas: exportar e importar con y sin remitente, importar un archivo sin el campo y comprobar que la importación repetida no sobrescribe el remitente de un registro existente.
 
-**A2 — Resumen de conversaciones y no leídos (M).** Depende de A1.
+**A2 — Resumen de conversaciones y no leídos (M).** Depende de A1. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
 - `ConversationView` añade el último evento (tipo, vista previa acotada en Rust, remitente, si es propio, hora y estado de entrega), el número de no leídos y la última actividad. Rust ordena la lista por actividad.
 - Marca de lectura local por conversación, monótona (`max(actual, nueva)`), con una operación `mark_read`. Los registros importados no cuentan como no leídos.

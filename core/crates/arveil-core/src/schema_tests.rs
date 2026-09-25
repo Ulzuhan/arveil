@@ -47,9 +47,14 @@ fn a_new_profile_starts_at_the_current_version_with_every_table() {
     let conn = conn.lock();
     assert_eq!(version_of(&conn), PROFILE_SCHEMA_VERSION);
 
+    // Every baseline table, plus what later migrations added.
     let reference = Connection::open_in_memory().unwrap();
     reference.execute_batch(&baseline_schema()).unwrap();
-    assert_eq!(tables(&conn).unwrap(), tables(&reference).unwrap());
+    let present = tables(&conn).unwrap();
+    for table in tables(&reference).unwrap() {
+        assert!(present.contains(&table), "missing {table}");
+    }
+    assert!(present.contains(&"read_markers".to_string()));
 }
 
 /// What every build before versioning left behind: the baseline tables it
@@ -339,5 +344,36 @@ fn version_two_adds_empty_sender_columns_to_existing_events() {
         .unwrap();
     assert_eq!(row, (b"antes".to_vec(), None, None));
     drop(conn);
+    cleanup(&path);
+}
+
+/// Conversations that existed before read markers count as read, so an
+/// update does not turn old messages into new ones.
+#[test]
+fn version_three_marks_existing_conversations_read() {
+    let path = scratch("markers");
+    {
+        let v2 = Connection::open(&path).unwrap();
+        v2.execute_batch(&baseline_schema()).unwrap();
+        v2.execute_batch(
+            "ALTER TABLE events ADD COLUMN sender_device BLOB;
+             ALTER TABLE events ADD COLUMN sender_identity BLOB;
+             INSERT INTO events (group_id, event_id, kind, body) VALUES (x'01', x'a1', 'received', x'00');
+             INSERT INTO events (group_id, event_id, kind, body) VALUES (x'01', x'a2', 'received', x'00');
+             INSERT INTO events (group_id, event_id, kind, body) VALUES (x'02', x'b1', 'received', x'00');
+             PRAGMA user_version = 2;",
+        )
+        .unwrap();
+    }
+
+    let conn = SharedConn::open_file(&path).unwrap();
+    let delivery = crate::delivery::Delivery::open(conn.clone()).unwrap();
+    assert_eq!(version_of(&conn.lock()), PROFILE_SCHEMA_VERSION);
+    for group in [[1u8], [2u8]] {
+        assert_eq!(delivery.unread_count(&group, None).unwrap(), 0);
+    }
+    assert_eq!(delivery.read_cursor(&[1u8]).unwrap(), 2);
+    assert_eq!(delivery.read_cursor(&[2u8]).unwrap(), 3);
+    drop((delivery, conn));
     cleanup(&path);
 }

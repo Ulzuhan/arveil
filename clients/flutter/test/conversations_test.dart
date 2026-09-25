@@ -24,6 +24,8 @@ const row = ConversationView(
   peerDevices: 1,
   peers: [],
   eventCount: 1,
+  unread: 0,
+  lastActivity: 0,
 );
 
 class ChatProfile extends FakeProfile {
@@ -44,6 +46,16 @@ class ChatProfile extends FakeProfile {
   @override
   Future<List<ConversationView>> conversations() async =>
       initialRows == null ? [row] : await initialRows!.future;
+  final List<(String, int)> marks = [];
+  @override
+  Future<ReadMarkerView> markRead({
+    required String groupId,
+    required int cursor,
+  }) async {
+    marks.add((groupId, cursor));
+    return ReadMarkerView(cursor: cursor, unread: 0);
+  }
+
   @override
   Future<HistoryPageView> historyPage({
     required String groupId,
@@ -498,5 +510,97 @@ void main() {
       recordedTime(seconds, now: DateTime(2026, 9, 26, 9)),
       '25/9/2026 18:04',
     );
+  });
+
+  testWidgets('opening a conversation marks what it shows as read, once', (
+    tester,
+  ) async {
+    final profile = ChatProfile()..messages = [event(1), event(2)];
+    final chat = await open(tester, profile);
+    expect(profile.marks, [('group-a', 2)]);
+    await chat.refresh();
+    await tester.pumpAndSettle();
+    expect(profile.marks, [('group-a', 2)], reason: 'same cursor, no new mark');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('rows show who wrote last, when, and what is unread', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    PeerView peer(String id, String label) => PeerView(
+      identityId: id,
+      deviceId: 'device-$id',
+      label: label,
+      own: false,
+      verified: true,
+      revoked: false,
+    );
+    LastEventView last(String preview, {String? label, bool own = false}) =>
+        LastEventView(
+          cursor: 1,
+          kind: own ? 'sent' : 'received',
+          preview: preview,
+          senderLabel: label,
+          own: own,
+          createdAt: 1790000000,
+          delivery: const [],
+        );
+    ConversationView conversation(
+      String id,
+      List<PeerView> peers,
+      LastEventView event,
+      int unread,
+    ) => ConversationView(
+      groupId: id,
+      creator: true,
+      peerDevices: peers.length,
+      peers: peers,
+      eventCount: 1,
+      lastEvent: event,
+      unread: unread,
+      lastActivity: 1790000000,
+    );
+    final profile = ChatProfile()
+      ..initialRows = Completer<List<ConversationView>>();
+    final chat = ConversationController(profile, relay);
+    await tester.pumpWidget(
+      MaterialApp(home: ConversationsPage(controller: chat)),
+    );
+    profile.initialRows!.complete([
+      conversation(
+        'group-a',
+        [peer('a', 'Lucía'), peer('b', 'Pablo')],
+        last('¿Quién trae el postre?', label: 'Lucía'),
+        3,
+      ),
+      conversation(
+        'group-b',
+        [peer('a', 'Lucía')],
+        last('Llego a las nueve', own: true),
+        0,
+      ),
+      conversation(
+        'group-c',
+        [peer('c', 'Mamá')],
+        last('hola', label: 'Mamá'),
+        1,
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.text('Lucía: ¿Quién trae el postre?'), findsOneWidget);
+    expect(find.text('Tú: Llego a las nueve'), findsOneWidget);
+    // With one other person the author is obvious and not repeated.
+    expect(find.text('hola'), findsOneWidget);
+    expect(find.byKey(const Key('unread-group-a')), findsOneWidget);
+    expect(find.byKey(const Key('unread-group-b')), findsNothing);
+    // The row reads as one node; the count is part of what it says.
+    expect(
+      find.bySemanticsLabel(RegExp('3 mensajes sin leer')),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel(RegExp('1 mensaje sin leer')), findsOneWidget);
+    semantics.dispose();
+    await tester.pumpWidget(const SizedBox());
   });
 }

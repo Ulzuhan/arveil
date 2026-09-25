@@ -130,6 +130,7 @@ pub enum Operation {
     QueryConversations,
     QueryPeers,
     QueryHistoryPage,
+    MarkRead,
     QueryArchived,
     QueueAttachment,
     ResumeAttachment,
@@ -284,6 +285,10 @@ pub enum ClientCommand {
         before: Option<i64>,
         limit: usize,
     },
+    MarkRead {
+        group: Vec<u8>,
+        cursor: i64,
+    },
     QueryArchived {
         group: Option<Vec<u8>>,
     },
@@ -342,6 +347,7 @@ impl ClientCommand {
             Self::QueryConversations => Operation::QueryConversations,
             Self::QueryPeers { .. } => Operation::QueryPeers,
             Self::QueryHistoryPage { .. } => Operation::QueryHistoryPage,
+            Self::MarkRead { .. } => Operation::MarkRead,
             Self::QueryArchived { .. } => Operation::QueryArchived,
             #[cfg(test)]
             Self::PanicProbe => Operation::Sync,
@@ -1050,6 +1056,20 @@ pub struct ConversationSummary {
     pub peers: Vec<PeerSummary>,
     pub event_count: usize,
     pub last_event: Option<HistoryEvent>,
+    /// Events after this device's read marker that another identity wrote.
+    pub unread: u32,
+    /// Unix seconds of the newest event, or of when this device started
+    /// keeping the conversation while it has none. Summaries stay in the
+    /// order conversations were started, which the command line lists and
+    /// its scripts rely on; a screen orders by this instead.
+    pub last_activity: i64,
+}
+
+/// How far a conversation has been read on this device, after marking it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReadMarker {
+    pub cursor: i64,
+    pub unread: u32,
 }
 
 /// A local snapshot, read through the profile executor. No invitation or
@@ -1191,6 +1211,7 @@ pub enum CommandOutput {
     Conversations(Vec<ConversationSummary>),
     Peers(Vec<PeerSummary>),
     HistoryPage(HistoryPage),
+    ReadMarker(ReadMarker),
     Archived(Vec<ConversationHistory>),
 }
 
@@ -2423,6 +2444,19 @@ impl Application {
         }
     }
 
+    /// Mark a conversation read up to `cursor`, usually the newest event a
+    /// screen showed. The marker never moves back and never passes the
+    /// newest event, so marking twice or late is harmless.
+    pub fn mark_read(&self, group: &[u8], cursor: i64) -> Result<ReadMarker, ApplicationError> {
+        match self.execute(ClientCommand::MarkRead {
+            group: group.to_vec(),
+            cursor,
+        })? {
+            CommandOutput::ReadMarker(marker) => Ok(marker),
+            _ => unreachable!("read marker command returned another output type"),
+        }
+    }
+
     /// Imported records. Without a group this is the conversations that
     /// exist only as an import; with one it is that conversation's records,
     /// which may also have a live conversation of its own.
@@ -2804,6 +2838,9 @@ async fn run_command(
         } => history_page(config, &group, before, limit)
             .map(CommandOutput::HistoryPage)
             .map_err(|source| application_error(Operation::QueryHistoryPage, source)),
+        ClientCommand::MarkRead { group, cursor } => mark_read(config, &group, cursor)
+            .map(CommandOutput::ReadMarker)
+            .map_err(|source| application_error(Operation::MarkRead, source)),
         #[cfg(test)]
         ClientCommand::PanicProbe => {
             let conn = SharedConn::open_file_keyed(&config.dir().join("client.db"), config.key())
@@ -2930,6 +2967,7 @@ fn classified_error(
 
 fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSummary>, CliError> {
     let session = local(config)?;
+    let now = unix_now();
     session
         .client
         .conversations()
@@ -2948,22 +2986,20 @@ fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSumm
                 .map_err(storage_error("events"))?
                 .into_iter()
                 .next()
-                .map(|row| {
-                    let by = attribution(&session, &conversation.group_id, &row)?;
-                    Ok::<_, CliError>(HistoryEvent {
-                        attachment: None,
-                        cursor: row.cursor,
-                        event_id: row.event_id,
-                        kind: row.kind,
-                        body: row.body,
-                        delivery_states: Vec::new(),
-                        created_at: row.created_at,
-                        sender_identity: by.identity,
-                        sender_label: by.label,
-                        own: by.own,
-                    })
-                })
+                .map(|row| history_event(&session, &conversation.group_id, row, now))
                 .transpose()?;
+            let unread = session
+                .delivery
+                .unread_count(&conversation.group_id, session.identity_id.as_deref())
+                .map_err(storage_error("unread"))?;
+            let last_activity = match &last_event {
+                Some(event) => event.created_at,
+                None => session
+                    .client
+                    .conversation_started_at(&conversation.group_id)
+                    .map_err(storage_error("conversation"))?
+                    .unwrap_or(0),
+            };
             Ok(ConversationSummary {
                 peers: conversation
                     .peers
@@ -2975,6 +3011,8 @@ fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSumm
                 peer_devices: conversation.peers.len(),
                 event_count,
                 last_event,
+                unread,
+                last_activity,
             })
         })
         .collect()
@@ -3044,10 +3082,7 @@ fn history_page(
     limit: usize,
 ) -> Result<HistoryPage, CliError> {
     let session = local(config)?;
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_secs() as i64)
-        .unwrap_or(0);
+    let now = unix_now();
     let limit = limit.clamp(1, MAX_HISTORY_PAGE);
     // One row beyond the page tells us whether an older one exists without
     // a second query, and without claiming there is more when there is not.
@@ -3062,38 +3097,11 @@ fn history_page(
         None
     };
 
-    let mut events = Vec::with_capacity(rows.len());
-    for row in rows.into_iter().rev() {
-        let delivery_states = if row.kind == "sent" || row.kind == "sent-file" {
-            session
-                .delivery
-                .states_for_event(&row.event_id, now)
-                .map_err(storage_error("states"))?
-                .into_iter()
-                .map(|(mailbox_id, state)| DeliveryState { mailbox_id, state })
-                .collect()
-        } else {
-            Vec::new()
-        };
-        let by = attribution(&session, group, &row)?;
-        events.push(HistoryEvent {
-            attachment: attachment_ui::summary(
-                &session.delivery,
-                &row.event_id,
-                &row.kind,
-                &row.body,
-            )?,
-            cursor: row.cursor,
-            event_id: row.event_id,
-            kind: row.kind,
-            body: row.body,
-            delivery_states,
-            created_at: row.created_at,
-            sender_identity: by.identity,
-            sender_label: by.label,
-            own: by.own,
-        });
-    }
+    let events = rows
+        .into_iter()
+        .rev()
+        .map(|row| history_event(&session, group, row, now))
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(HistoryPage {
         group_id: group.to_vec(),
         events,
@@ -3101,9 +3109,63 @@ fn history_page(
     })
 }
 
+fn mark_read(config: &ProfileConfig, group: &[u8], cursor: i64) -> Result<ReadMarker, CliError> {
+    let session = local(config)?;
+    let cursor = session
+        .delivery
+        .mark_read(group, cursor)
+        .map_err(storage_error("read marker"))?;
+    let unread = session
+        .delivery
+        .unread_count(group, session.identity_id.as_deref())
+        .map_err(storage_error("unread"))?;
+    Ok(ReadMarker { cursor, unread })
+}
+
 /// Kinds of event this device wrote itself.
 fn sent_here(kind: &str) -> bool {
-    matches!(kind, "sent" | "sent-file" | "file-outgoing")
+    arveil_core::delivery::OWN_KINDS.contains(&kind)
+}
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// One stored event as a screen reads it: its delivery states when this
+/// device sent it, its attachment, and who wrote it.
+fn history_event(
+    session: &LocalRead,
+    group: &[u8],
+    row: PagedEvent,
+    now: i64,
+) -> Result<HistoryEvent, CliError> {
+    let delivery_states = if row.kind == "sent" || row.kind == "sent-file" {
+        session
+            .delivery
+            .states_for_event(&row.event_id, now)
+            .map_err(storage_error("states"))?
+            .into_iter()
+            .map(|(mailbox_id, state)| DeliveryState { mailbox_id, state })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let by = attribution(session, group, &row)?;
+    Ok(HistoryEvent {
+        attachment: attachment_ui::summary(&session.delivery, &row.event_id, &row.kind, &row.body)?,
+        cursor: row.cursor,
+        event_id: row.event_id,
+        kind: row.kind,
+        body: row.body,
+        delivery_states,
+        created_at: row.created_at,
+        sender_identity: by.identity,
+        sender_label: by.label,
+        own: by.own,
+    })
 }
 
 /// Who wrote a stored event, as a screen needs it.
