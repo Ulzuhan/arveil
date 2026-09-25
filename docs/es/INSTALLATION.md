@@ -22,7 +22,7 @@ y sus notas. En esta fase, utiliza perfiles de prueba desechables.
 
 | Quiero… | Ruta disponible | Qué falta para una versión descargable |
 |---|---|---|
-| Desplegar un relay | Compilar con Docker Compose o usar el asistente de staging con Podman sin root | Imágenes versionadas para Linux x86-64/ARM64 y guía de instalación/actualización probada |
+| Desplegar un relay | Compilar con Docker Compose o usar el asistente de staging con Podman sin root | La primera versión etiquetada de las imágenes versionadas para Linux x86-64/ARM64 (el flujo ya existe; véase [operación](OPERATIONS.md)) y guía de instalación/actualización probada |
 | Probar la app en macOS | ZIP experimental del mantenedor o compilar desde el código | Release pública y aceptación de una instalación nueva descargada |
 | Probar la app en Android | APK experimental del mantenedor o compilar desde el código | Release pública y aceptación de instalación/actualización en teléfono físico |
 | Usar un iPhone | Hito posterior y separado | Aceptación nativa y una vía compatible de firma/distribución |

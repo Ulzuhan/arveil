@@ -17,6 +17,15 @@ docker build -f relay/Dockerfile -t arveil-relay .
 docker compose -f relay/compose.yaml up -d
 ```
 
+**Imágenes versionadas.** Desde la primera versión `v*` etiquetada después de
+incorporar este flujo, `.github/workflows/relay-image.yml` publica
+`ghcr.io/ulzuhan/arveil-relay:<versión>` para Linux x86-64 y ARM64, etiquetada
+también con el commit completo y con procedencia firmada
+(`gh attestation verify oci://ghcr.io/ulzuhan/arveil-relay:<versión> --owner
+Ulzuhan`). El binario de cada imagen informa de ese commit con `-version`. Los
+pull requests que tocan el relay compilan ambas arquitecturas sin publicar.
+Hasta que haya una versión etiquetada, compila la imagen como arriba.
+
 **systemd.** Copia [`relay/packaging/arveil-relay.service`](https://github.com/Ulzuhan/arveil/blob/main/relay/packaging/arveil-relay.service), que corre con su propio usuario, con una sección de servicio endurecida y sus datos en `/var/lib/arveil`.
 
 **A mano.** `arveil-relay -data-dir ./data -listen 127.0.0.1:8447`. La primera línea que imprime es la cadena de bootstrap; es lo que un dispositivo necesita para encontrar y autenticar el realm.
