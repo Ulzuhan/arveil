@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización), B1 (tokens, tema y componentes), B2 (español e inglés), C1 (navegación adaptativa y atajos), C2 (lista de chats), C3 (conversación), C4 (bienvenida y alta) y C5 (contactos, verificación y ajustes); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización), B1 (tokens, tema y componentes), B2 (español e inglés), C1 (navegación adaptativa y atajos), C2 (lista de chats), C3 (conversación), C4 (bienvenida y alta), C5 (contactos, verificación y ajustes) y D1 (apariencia); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -57,7 +57,7 @@ Las maquetas de referencia cubren bienvenida, lista de chats, conversación de g
 | `divider` | `#ECE7DE` | `#25302E` | Separadores dentro de un grupo |
 | `accent` | `#245B51` | `#8FD0C0` | Acción principal, enlaces, verificado, no leídos |
 | `onAccent` | `#FFFFFF` | `#0E1413` | Texto e iconos sobre `accent` |
-| `accentSoft` | `#DDEAE4` | `#1D4740` | Burbuja propia, selección, pestaña activa |
+| `accentSoft` | `#DDEAE4` | `#1A423B` | Burbuja propia, selección, pestaña activa (en D1 se oscureció desde `#1D4740` para que el texto atenuado de una fila seleccionada mantenga 4,5:1) |
 | `ownMeta` | `#3D5A53` | `#A9CFC5` | Hora y estado dentro de la burbuja propia |
 | `chip` | `#EAE5DA` | `#1B2524` | Separadores de fecha y avisos de sistema |
 | `attention` / `onAttention` | `#F6E7CC` / `#6B4108` | `#3A2A12` / `#F2C98A` | Kit sin guardar, contacto sin verificar, sin conexión |
@@ -232,7 +232,7 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 
 ### D. Personalización
 
-**D1 — Apariencia (M).** Depende de B1 y C1. Pantalla con las opciones de la primera versión y cambios inmediatos sin reiniciar. El JSON de preferencias se escribe de forma atómica y se usan valores por defecto si falta o es inválido. Pruebas: contraste de cada acento en ambos temas; golden de dos fondos; el fondo no se repinta durante el desplazamiento (`RepaintBoundary`).
+**D1 — Apariencia (M).** Depende de B1 y C1. Pantalla con las opciones de la primera versión y cambios inmediatos sin reiniciar. El JSON de preferencias se escribe de forma atómica y se usan valores por defecto si falta o es inválido. Pruebas: contraste de cada acento en ambos temas; golden de dos fondos; el fondo no se repinta durante el desplazamiento (`RepaintBoundary`). Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
 ### E. Accesibilidad, diagnóstico y cierre
 

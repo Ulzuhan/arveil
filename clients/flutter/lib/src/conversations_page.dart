@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../l10n/l10n.dart';
 import 'conversation_controller.dart';
 import 'attachment_card.dart';
+import 'appearance.dart';
 import 'attachment_files.dart';
 import 'chat_list.dart';
 import 'contacts_page.dart';
@@ -568,59 +569,67 @@ class ConversationsPageState extends State<ConversationsPage>
             ),
           ),
         Expanded(
-          child: chat.loading
-              ? const Center(child: CircularProgressIndicator())
-              : chat.events.isEmpty
-              ? SingleChildScrollView(
-                  child: EmptyState(
-                    icon: Icons.chat_bubble_outline,
-                    title: context.l10n.firstMessage,
-                  ),
-                )
-              : ListView.builder(
-                  key: ValueKey('history-$group'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  reverse: true,
-                  itemCount: items.length + (chat.before == null ? 0 : 1),
-                  itemBuilder: (context, index) {
-                    if (index == items.length) {
-                      return Center(
-                        child: TextButton(
-                          onPressed: chat.loadingOlder ? null : chat.older,
-                          child: Text(
-                            chat.loadingOlder
-                                ? context.l10n.reading
-                                : context.l10n.loadOlder,
+          child: ConversationBackground(
+            wallpaper:
+                AppearanceScope.maybeOf(context)?.value.wallpaper ??
+                Wallpaper.plain,
+            child: chat.loading
+                ? const Center(child: CircularProgressIndicator())
+                : chat.events.isEmpty
+                ? SingleChildScrollView(
+                    child: EmptyState(
+                      icon: Icons.chat_bubble_outline,
+                      title: context.l10n.firstMessage,
+                    ),
+                  )
+                : ListView.builder(
+                    key: ValueKey('history-$group'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    reverse: true,
+                    itemCount: items.length + (chat.before == null ? 0 : 1),
+                    itemBuilder: (context, index) {
+                      if (index == items.length) {
+                        return Center(
+                          child: TextButton(
+                            onPressed: chat.loadingOlder ? null : chat.older,
+                            child: Text(
+                              chat.loadingOlder
+                                  ? context.l10n.reading
+                                  : context.l10n.loadOlder,
+                            ),
                           ),
-                        ),
-                      );
-                    }
-                    return switch (items[index]) {
-                      DayItem(:final day) => DateSeparator(dayLabel(day)),
-                      EventItem(:final event, :final position)
-                          when event.attachment != null =>
-                        AttachmentCard(
-                          event: event,
-                          position: position,
-                          active: chat.activeTransfers.contains(event.eventId),
-                          resume: () =>
-                              chat.resumeAttachment(group, event.eventId),
-                          cancel: () =>
-                              chat.cancelAttachment(group, event.eventId),
-                          export: () => _export(group, event),
-                        ),
-                      EventItem(:final event, :final position) => MessageBubble(
-                        event: event,
-                        position: position,
-                        showSender: named,
-                        senderVerified: _verified(event.senderIdentity),
-                      ),
-                    };
-                  },
-                ),
+                        );
+                      }
+                      return switch (items[index]) {
+                        DayItem(:final day) => DateSeparator(dayLabel(day)),
+                        EventItem(:final event, :final position)
+                            when event.attachment != null =>
+                          AttachmentCard(
+                            event: event,
+                            position: position,
+                            active: chat.activeTransfers.contains(
+                              event.eventId,
+                            ),
+                            resume: () =>
+                                chat.resumeAttachment(group, event.eventId),
+                            cancel: () =>
+                                chat.cancelAttachment(group, event.eventId),
+                            export: () => _export(group, event),
+                          ),
+                        EventItem(:final event, :final position) =>
+                          MessageBubble(
+                            event: event,
+                            position: position,
+                            showSender: named,
+                            senderVerified: _verified(event.senderIdentity),
+                          ),
+                      };
+                    },
+                  ),
+          ),
         ),
         Composer(
           controller: _draft,

@@ -57,9 +57,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get enrollTitleRetry => 'Retoma tu alta';
 
   @override
-  String get enrollTitle => 'Únete a tu espacio';
-
-  @override
   String get enrollBodyRetry =>
       'Tu avance está guardado. Usa la misma invitación para continuar con tu identidad.';
 
@@ -1410,4 +1407,85 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kitOfferRiskTitle => 'Si lo dejas para más tarde';
+
+  @override
+  String get appearanceTitle => 'Apariencia';
+
+  @override
+  String get appearanceSummary =>
+      'Tema, color, fondo, tamaño del texto e idioma';
+
+  @override
+  String get themeTitle => 'Tema';
+
+  @override
+  String get themeSystem => 'Sistema';
+
+  @override
+  String get themeLight => 'Claro';
+
+  @override
+  String get themeDark => 'Oscuro';
+
+  @override
+  String get accentTitle => 'Color de acento';
+
+  @override
+  String get accentPine => 'Pino';
+
+  @override
+  String get accentLake => 'Lago';
+
+  @override
+  String get accentPlum => 'Ciruela';
+
+  @override
+  String get accentClay => 'Arcilla';
+
+  @override
+  String get accentMoss => 'Musgo';
+
+  @override
+  String get accentSlate => 'Pizarra';
+
+  @override
+  String get wallpaperTitle => 'Fondo de la conversación';
+
+  @override
+  String get wallpaperPlain => 'Liso';
+
+  @override
+  String get wallpaperArcs => 'Arcos';
+
+  @override
+  String get wallpaperDots => 'Puntos';
+
+  @override
+  String get wallpaperWaves => 'Ondas';
+
+  @override
+  String get wallpaperDiamonds => 'Rombos';
+
+  @override
+  String get textSizeTitle => 'Tamaño del texto';
+
+  @override
+  String textSizeValue(int percent) {
+    return '$percent %';
+  }
+
+  @override
+  String get textSizeHelp => 'Se aplica sobre el tamaño de texto del sistema.';
+
+  @override
+  String get languageTitle => 'Idioma';
+
+  @override
+  String get languageSystem => 'Idioma del sistema';
+
+  @override
+  String get sampleReceived => '¿Quedamos el sábado?';
+
+  @override
+  String get sampleOwn => '¡Perfecto! Llevo el postre.';
 }

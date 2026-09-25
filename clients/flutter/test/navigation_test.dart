@@ -171,7 +171,7 @@ void main() {
       expect(selected(tester), isNull);
 
       await chord(tester, primary, LogicalKeyboardKey.comma);
-      expect(find.text('Cerrar perfil'), findsOneWidget);
+      expect(find.text('Seguridad y recuperación'), findsOneWidget);
 
       // From settings, a new chat brings the chats back first.
       await chord(tester, primary, LogicalKeyboardKey.keyN);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import 'appearance.dart';
+import 'appearance_page.dart';
 import 'archives_page.dart';
 import 'design/design.dart';
 import 'devices_page.dart';
@@ -298,6 +300,21 @@ class SettingsPage extends StatelessWidget {
                         SettingsGroup(
                           title: l10n.settingsApp,
                           children: [
+                            if (AppearanceScope.maybeOf(context)
+                                case final appearance?)
+                              SettingsRow(
+                                key: const Key('open-appearance'),
+                                icon: Icons.palette_outlined,
+                                title: l10n.appearanceTitle,
+                                subtitle: l10n.appearanceSummary,
+                                onTap: () => _push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        AppearancePage(controller: appearance),
+                                  ),
+                                ),
+                              ),
                             SettingsRow(
                               icon: Icons.description_outlined,
                               title: l10n.licenses,

@@ -843,3 +843,37 @@ Evidencia: `test/onboarding_test.dart` cubre la bienvenida con la marca, las
 tres entradas y su vuelta, los dos pasos conservando el servidor, la oferta del
 kit con «Más tarde» y con «Guardar kit», y la reapertura sin oferta. La prueba
 del alta reanudable recorre los pasos y la de restauración pasa por la oferta.
+
+## Apariencia (25 de septiembre de 2026)
+
+Ajustes → Aplicación → Apariencia reúne la personalización de la primera
+versión, con una vista previa que cambia al momento.
+
+- **Tema:** sistema, claro u oscuro.
+- **Acento:** pino (el de la marca), lago, ciruela, arcilla, musgo y pizarra,
+  cada uno con variante clara y oscura. La prueba de contraste recorre todos
+  los pares de la interfaz con cada acento y en ambos temas; no hay selector
+  libre de color porque no podría garantizarlo. La prueba incluye ahora el
+  texto atenuado y el acento sobre una fila seleccionada, y por eso el tinte
+  oscuro del pino pasó de `#1D4740` a `#1A423B`.
+- **Fondo de la conversación:** liso, arcos, puntos, ondas o rombos, dibujados
+  por la app con el color de línea decorativa. Burbujas, fechas y avisos son
+  opacos encima. El motivo va tras un `RepaintBoundary` y no se repinta al
+  desplazar los mensajes.
+- **Tamaño del texto:** del 90 % al 130 %, multiplicado por el del sistema.
+- **Idioma:** el del sistema, español o inglés.
+
+Las preferencias son globales y se leen antes de abrir el perfil, porque la
+bienvenida ya usa el tema. Se guardan como `appearance.json` en el directorio
+de soporte de la app, fuera de `profile/`, escribiendo primero un archivo
+temporal que después sustituye al anterior. Solo contienen esos cinco valores:
+ningún identificador, nombre, ruta ni imagen. Un campo ausente o desconocido
+toma su valor por defecto sin afectar a los demás, y un archivo ilegible deja
+todos los valores por defecto. Si no se puede guardar, el cambio sigue vigente
+hasta cerrar la app.
+
+Evidencia: `test/appearance_test.dart` (contraste de cada acento en ambos
+temas, lectura campo a campo, sustitución atómica y archivo roto, cambios
+inmediatos de tema, acento, tamaño e idioma, y el fondo que no se repinta al
+desplazar) y el golden `test/goldens/wallpapers.png` con dos fondos en claro y
+oscuro.
