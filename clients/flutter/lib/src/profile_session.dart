@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/l10n.dart';
 import 'profile_keys.dart';
 import 'profile_location.dart';
 import 'rust/api/profile.dart';
@@ -19,16 +20,10 @@ Future<Profile> openDeviceProfile() async {
     profileExists: await hasProfile(dir: directory.path),
   );
   if (key.state == KeyState.unavailable) {
-    throw const ProfileAccessException(
-      'El almacén seguro del dispositivo no está disponible. '
-      'Desbloquea el dispositivo y comprueba el permiso de acceso al almacén seguro.',
-    );
+    throw ProfileAccessException(currentStrings.errorSecureStorageUnavailable);
   }
   if (key.state == KeyState.missing) {
-    throw const ProfileAccessException(
-      'Falta la clave de este perfil. No se puede abrir su historial local. '
-      'Conserva el perfil hasta recuperar la clave.',
-    );
+    throw ProfileAccessException(currentStrings.errorProfileKeyMissing);
   }
   return openProfile(dir: directory.path, key: key.value!);
 }
@@ -115,9 +110,7 @@ class ProfileSession extends ChangeNotifier {
       }
     }
     if (setup == null) {
-      throw const ProfileAccessException(
-        'El alta terminó, pero no se pudo leer el perfil. Ciérralo y vuelve a abrirlo.',
-      );
+      throw ProfileAccessException(currentStrings.errorEnrollmentUnreadable);
     }
   });
 
@@ -134,9 +127,7 @@ class ProfileSession extends ChangeNotifier {
       }
     }
     if (setup == null) {
-      throw const ProfileAccessException(
-        'La operación terminó, pero no se pudo leer el perfil. Ciérralo y vuelve a abrirlo.',
-      );
+      throw ProfileAccessException(currentStrings.errorOperationUnreadable);
     }
   }
 
@@ -218,9 +209,7 @@ class ProfileSession extends ChangeNotifier {
       );
       _cancelledWait = cancelled && waitingForPairing;
       setup = await _profile!.setup();
-      error = cancelled
-          ? null
-          : 'La confirmación ya empezó. Reanuda la finalización de la vinculación.';
+      error = cancelled ? null : currentStrings.pairingConfirmationStarted;
       return cancelled;
     } catch (failure) {
       error = describeFailure(failure);
@@ -314,34 +303,24 @@ class ProfileSession extends ChangeNotifier {
 }
 
 // Public-facing messages never interpolate paths, tokens, SQL or remote text.
-String describeFailure(Object failure) => switch (failure) {
-  ProfileAccessException(:final message) => message,
-  ProfileError_BadKey() => 'La clave del perfil no tiene un formato válido.',
-  ProfileError_NoRandomness() => 'El sistema no pudo generar una clave segura.',
-  ProfileError_AlreadyOpen() || ProfileError_InUse() =>
-    'El perfil está abierto en otra sesión. Ciérrala e inténtalo de nuevo.',
-  ProfileError_Closing() =>
-    'El perfil aún se está cerrando. Vuelve a intentarlo.',
-  ProfileError_TooNew() =>
-    'Una versión más reciente de Arveil guardó este perfil. Actualiza la app para abrirlo; el perfil no se ha modificado.',
-  ProfileError_Unusable() =>
-    'No se pudo descifrar el perfil. Conserva los datos y comprueba su clave.',
-  ProfileError_Io() || FileSystemException() =>
-    'No se pudo acceder al perfil. Comprueba el espacio y los permisos del dispositivo.',
-  PlatformException() =>
-    'No se pudo preparar el almacenamiento seguro del perfil. Vuelve a intentarlo.',
-  CommandError_Transport() =>
-    'No se pudo conectar con el relay. Comprueba la conexión y sigue las indicaciones de la operación pendiente.',
-  CommandError_Domain() =>
-    'Revisa los datos y la vigencia de la operación. Conserva el perfil; no empieces un alta diferente para reintentar.',
-  CommandError_Protocol() =>
-    'El relay no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.',
-  CommandError_Busy() =>
-    'Hay otra operación en curso. Espera y vuelve a intentarlo.',
-  CommandError_Storage() || CommandError_FileSystem() =>
-    'No se pudo guardar el avance. Comprueba el almacenamiento y vuelve a intentarlo.',
-  CommandError_Interrupted() =>
-    'La operación se interrumpió. Puedes volver a intentarlo.',
-  _ =>
-    'No se pudo completar la operación. Cierra el perfil y vuelve a abrirlo.',
-};
+String describeFailure(Object failure) {
+  final s = currentStrings;
+  return switch (failure) {
+    ProfileAccessException(:final message) => message,
+    ProfileError_BadKey() => s.errorBadKey,
+    ProfileError_NoRandomness() => s.errorNoRandomness,
+    ProfileError_AlreadyOpen() || ProfileError_InUse() => s.errorProfileInUse,
+    ProfileError_Closing() => s.errorProfileClosing,
+    ProfileError_TooNew() => s.errorProfileTooNew,
+    ProfileError_Unusable() => s.errorProfileUnusable,
+    ProfileError_Io() || FileSystemException() => s.errorProfileIo,
+    PlatformException() => s.errorSecureStoragePrepare,
+    CommandError_Transport() => s.errorTransport,
+    CommandError_Domain() => s.errorDomain,
+    CommandError_Protocol() => s.errorProtocol,
+    CommandError_Busy() => s.errorBusy,
+    CommandError_Storage() || CommandError_FileSystem() => s.errorStorage,
+    CommandError_Interrupted() => s.errorInterrupted,
+    _ => s.errorUnknown,
+  };
+}

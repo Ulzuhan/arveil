@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../l10n/l10n.dart';
 import 'rust/api/profile.dart';
 
 String attachmentSize(BigInt size) {
@@ -39,36 +41,30 @@ class AttachmentCard extends StatelessWidget {
     final status = switch (state) {
       AttachmentStateView.pending =>
         file.outgoing
-            ? 'Guardado en este dispositivo · pendiente de envío'
+            ? context.l10n.attachmentSavedPending
             : file.transferred > BigInt.zero
-            ? 'Descarga interrumpida'
-            : 'Descarga pendiente de tu autorización',
+            ? context.l10n.attachmentDownloadInterrupted
+            : context.l10n.attachmentDownloadAwaiting,
       AttachmentStateView.transferring =>
         active
-            ? 'Transfiriendo…'
-            : 'Transferencia interrumpida · puedes reanudar',
-      AttachmentStateView.ready =>
-        'Descargado y verificado · copia privada cifrada',
+            ? context.l10n.attachmentTransferring
+            : context.l10n.attachmentTransferInterrupted,
+      AttachmentStateView.ready => context.l10n.attachmentDownloaded,
       AttachmentStateView.sent =>
         event.delivery.isEmpty
-            ? 'Guardado localmente · sin destinatarios disponibles'
+            ? context.l10n.deliveryNoRecipients
             : event.delivery.every((s) => s.startsWith('accepted'))
-            ? 'Aceptado por el relay · lectura sin confirmar'
+            ? context.l10n.deliveryAccepted
             : event.delivery.any((s) => s.startsWith('undeliverable'))
-            ? 'Algún buzón rechazó el mensaje'
+            ? context.l10n.deliveryRejected
             : event.delivery.any((s) => s == 'expired/unknown')
-            ? 'Entrega caducada o desconocida'
-            : 'Archivo preparado · envío pendiente de sincronización',
-      AttachmentStateView.cancelled =>
-        'Transferencia cancelada · copia incompleta eliminada',
-      AttachmentStateView.unavailable =>
-        'Archivo no disponible o acceso rechazado. Puedes reintentar o pedir otra copia.',
-      AttachmentStateView.expired =>
-        'Archivo caducado en el relay. Pide que lo envíen de nuevo.',
-      AttachmentStateView.invalid =>
-        'No se pudo verificar el archivo. No se permite guardarlo fuera de Arveil.',
-      AttachmentStateView.legacy =>
-        'Adjunto de una versión anterior; no está disponible en esta pantalla.',
+            ? context.l10n.deliveryExpired
+            : context.l10n.attachmentReady,
+      AttachmentStateView.cancelled => context.l10n.attachmentCancelled,
+      AttachmentStateView.unavailable => context.l10n.attachmentUnavailable,
+      AttachmentStateView.expired => context.l10n.attachmentExpiredOnRelay,
+      AttachmentStateView.invalid => context.l10n.attachmentUnverified,
+      AttachmentStateView.legacy => context.l10n.attachmentLegacy,
     };
     return Align(
       alignment: file.outgoing ? Alignment.centerRight : Alignment.centerLeft,
@@ -117,23 +113,23 @@ class AttachmentCard extends StatelessWidget {
                     onPressed: resume,
                     child: Text(
                       file.outgoing
-                          ? 'Enviar / reanudar'
+                          ? context.l10n.attachmentSendResume
                           : file.transferred > BigInt.zero
-                          ? 'Reanudar descarga'
-                          : 'Descargar',
+                          ? context.l10n.attachmentResumeDownload
+                          : context.l10n.attachmentDownload,
                     ),
                   ),
                 if (cancellable)
                   TextButton(
                     key: Key('cancel-${event.eventId}'),
                     onPressed: cancel,
-                    child: const Text('Cancelar transferencia'),
+                    child: Text(context.l10n.attachmentCancel),
                   ),
                 if (ready)
                   TextButton(
                     key: Key('export-${event.eventId}'),
                     onPressed: export,
-                    child: const Text('Guardar copia…'),
+                    child: Text(context.l10n.attachmentSaveCopy),
                   ),
               ],
             ),

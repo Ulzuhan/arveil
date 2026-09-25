@@ -86,6 +86,13 @@ jobs:
       - name: Resolve packages
         working-directory: clients/flutter
         run: flutter pub get
+      # The generated localizations are committed; they must match the ARBs.
+      - name: Localizations up to date
+        working-directory: clients/flutter
+        run: |
+          flutter gen-l10n
+          git diff --exit-code -- lib/l10n
+          test ! -s build/l10n_untranslated.json || grep -qx '{}' build/l10n_untranslated.json
       - name: Analyze
         working-directory: clients/flutter
         run: flutter analyze

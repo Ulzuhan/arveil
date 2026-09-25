@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import 'components.dart';
 import 'tokens.dart';
 import 'typography.dart';
@@ -256,7 +257,7 @@ class Composer extends StatelessWidget {
     required this.controller,
     required this.onSend,
     this.onAttach,
-    this.hint = 'Mensaje',
+    this.hint,
     this.enabled = true,
     this.fieldKey,
     this.sendKey,
@@ -264,7 +265,9 @@ class Composer extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
   final VoidCallback? onAttach;
-  final String hint;
+
+  /// Defaults to the language's word for a message.
+  final String? hint;
   final bool enabled;
   final Key? fieldKey;
   final Key? sendKey;
@@ -284,7 +287,7 @@ class Composer extends StatelessWidget {
           children: [
             if (onAttach != null)
               IconButton(
-                tooltip: 'Adjuntar archivo',
+                tooltip: context.l10n.attachFile,
                 onPressed: enabled ? onAttach : null,
                 icon: Icon(Icons.attach_file, color: c.inkSoft),
               ),
@@ -298,7 +301,7 @@ class Composer extends StatelessWidget {
                 textCapitalization: TextCapitalization.sentences,
                 style: ArveilType.messageBody.copyWith(color: c.ink),
                 decoration: InputDecoration(
-                  hintText: hint,
+                  hintText: hint ?? context.l10n.messageHint,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -322,7 +325,7 @@ class Composer extends StatelessWidget {
             const SizedBox(width: ArveilShape.s2),
             IconButton.filled(
               key: sendKey,
-              tooltip: 'Enviar',
+              tooltip: context.l10n.send,
               onPressed: enabled ? onSend : null,
               icon: const Icon(Icons.arrow_upward),
             ),

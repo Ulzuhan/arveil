@@ -1,0 +1,674 @@
+{
+  "@@locale": "es",
+  "appTitle": "Arveil",
+  "@appTitle": {
+    "description": "Application name; never translated."
+  },
+  "profileClose": "Cerrar perfil",
+  "profileStateUnreadable": "No se pudo leer el estado del perfil.",
+  "profileReadAgain": "Volver a leer",
+  "enrollBack": "Volver al alta",
+  "operationInProgress": "Operación en curso",
+  "operationInProgressDetail": "Operación en curso. El avance confirmado queda guardado en el perfil.",
+  "welcomeTitle": "Tu identidad, en este dispositivo",
+  "welcomeBody": "Abre tu perfil o prepara uno nuevo para unirte con una invitación.",
+  "welcomeKeyNote": "El perfil se cifra con una clave guardada en el almacén seguro del dispositivo. Si pierdes esa clave, no podrás recuperar el historial local.",
+  "profileOpen": "Abrir perfil",
+  "enrollTitleRetry": "Retoma tu alta",
+  "enrollTitle": "Únete a tu espacio",
+  "enrollBodyRetry": "Tu avance está guardado. Usa la misma invitación para continuar con tu identidad.",
+  "enrollBody": "Pide al administrador los datos del relay y una invitación. Tu identidad se crea en este dispositivo al continuar.",
+  "setupRedeeming": "Pendiente de confirmar la invitación.",
+  "setupRedeemed": "Invitación aceptada. Falta recibir la configuración.",
+  "setupPublishing": "Configuración recibida. Falta terminar el buzón y las claves de mensajería.",
+  "setupIdentityReady": "Tu identidad local ya está creada.",
+  "setupNew": "Listo para crear tu identidad.",
+  "enrollRelayLabel": "Datos del relay",
+  "enrollRelayInvalid": "Pega los datos completos del relay.",
+  "enrollInviteLabel": "Invitación",
+  "enrollInviteHelper": "No se guarda. Consérvala hasta completar el alta.",
+  "enrollInviteInvalid": "La invitación debe contener 64 caracteres hexadecimales.",
+  "enrollRetry": "Reintentar alta",
+  "enrollSubmit": "Crear identidad y unirme",
+  "enrollPair": "Vincular con mi otro dispositivo",
+  "enrollRestore": "Restaurar desde un kit",
+  "kitReminderNever": "Guarda tu kit de identidad. Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.",
+  "kitReminderStale": "Tus dispositivos cambiaron después de guardar el kit. Guarda uno nuevo para que una recuperación los conozca.",
+  "readyTitle": "Tu perfil está listo",
+  "readyBody": "Identidad registrada y buzón preparado.",
+  "kitSave": "Guardar kit",
+  "later": "Más tarde",
+  "recoveryRollbackWarning": "El relay conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.",
+  "openConversations": "Abrir conversaciones",
+  "manageDevices": "Gestionar dispositivos",
+  "encryptedHistory": "Historial cifrado",
+  "linkedDeviceKitNote": "Este dispositivo está vinculado. El kit de recuperación se exporta desde el dispositivo administrador.",
+  "errorSecureStorageUnavailable": "El almacén seguro del dispositivo no está disponible. Desbloquea el dispositivo y comprueba el permiso de acceso al almacén seguro.",
+  "errorProfileKeyMissing": "Falta la clave de este perfil. No se puede abrir su historial local. Conserva el perfil hasta recuperar la clave.",
+  "errorEnrollmentUnreadable": "El alta terminó, pero no se pudo leer el perfil. Ciérralo y vuelve a abrirlo.",
+  "errorOperationUnreadable": "La operación terminó, pero no se pudo leer el perfil. Ciérralo y vuelve a abrirlo.",
+  "pairingConfirmationStarted": "La confirmación ya empezó. Reanuda la finalización de la vinculación.",
+  "errorBadKey": "La clave del perfil no tiene un formato válido.",
+  "errorNoRandomness": "El sistema no pudo generar una clave segura.",
+  "errorProfileInUse": "El perfil está abierto en otra sesión. Ciérrala e inténtalo de nuevo.",
+  "errorProfileClosing": "El perfil aún se está cerrando. Vuelve a intentarlo.",
+  "errorProfileTooNew": "Una versión más reciente de Arveil guardó este perfil. Actualiza la app para abrirlo; el perfil no se ha modificado.",
+  "errorProfileUnusable": "No se pudo descifrar el perfil. Conserva los datos y comprueba su clave.",
+  "errorProfileIo": "No se pudo acceder al perfil. Comprueba el espacio y los permisos del dispositivo.",
+  "errorSecureStoragePrepare": "No se pudo preparar el almacenamiento seguro del perfil. Vuelve a intentarlo.",
+  "errorTransport": "No se pudo conectar con el relay. Comprueba la conexión y sigue las indicaciones de la operación pendiente.",
+  "errorDomain": "Revisa los datos y la vigencia de la operación. Conserva el perfil; no empieces un alta diferente para reintentar.",
+  "errorProtocol": "El relay no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.",
+  "errorBusy": "Hay otra operación en curso. Espera y vuelve a intentarlo.",
+  "errorStorage": "No se pudo guardar el avance. Comprueba el almacenamiento y vuelve a intentarlo.",
+  "errorInterrupted": "La operación se interrumpió. Puedes volver a intentarlo.",
+  "errorUnknown": "No se pudo completar la operación. Cierra el perfil y vuelve a abrirlo.",
+  "syncWhenNow": "ahora",
+  "syncWhenMinutes": "hace {minutes} min",
+  "@syncWhenMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "syncWhenTime": "a las {time}",
+  "@syncWhenTime": {
+    "description": "A time of day such as 16:05.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastSuffix": " · última sincronización {when}",
+  "@syncLastSuffix": {
+    "description": "Appended to offline or refused states; {when} is syncWhen*.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNever": "Aún sin sincronizar",
+  "syncSyncing": "Sincronizando…",
+  "syncSynced": "Sincronizado {when}",
+  "@syncSynced": {
+    "description": "{when} is syncWhenNow, syncWhenMinutes or syncWhenTime.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncOffline": "Sin conexión con tu servidor{last}",
+  "@syncOffline": {
+    "description": "{last} is empty or syncLastSuffix.",
+    "placeholders": {
+      "last": {
+        "type": "String"
+      }
+    }
+  },
+  "syncRefused": "El servidor rechazó la sincronización{last}",
+  "@syncRefused": {
+    "description": "{last} is empty or syncLastSuffix.",
+    "placeholders": {
+      "last": {
+        "type": "String"
+      }
+    }
+  },
+  "chatErrorHistory": "No se pudo leer el historial local. Conserva el perfil y vuelve a abrirlo.",
+  "chatErrorConversation": "No se pudo leer esta conversación. Vuelve a intentarlo.",
+  "chatErrorOlder": "No se pudieron leer los mensajes anteriores. Puedes reintentar.",
+  "chatSyncPending": "Sincronización pendiente. Puedes leer y escribir sin conexión; usa Sincronizar para reintentar.",
+  "chatSyncRefused": "El servidor no aceptó la sincronización. Tus mensajes siguen guardados en este dispositivo; comprueba los datos del servidor con quien lo administra.",
+  "chatMessageTooLong": "Escribe un mensaje de hasta 32 KiB.",
+  "chatSavedRetrySync": "Mensaje guardado. Reintenta la sincronización; no vuelvas a enviarlo.",
+  "chatSaveUnconfirmed": "No se confirmó el guardado. Conserva el borrador y consulta el historial antes de reintentar.",
+  "chatFileSaveUnconfirmed": "No se confirmó el guardado del archivo. Consulta el historial antes de volver a adjuntarlo.",
+  "chatTransferIncomplete": "La operación no se completó. Consulta el estado del archivo: reanuda su transferencia o sincroniza si ya está preparado.",
+  "chatCancelFailed": "No se pudo cancelar. La transferencia puede haber terminado; consulta su estado.",
+  "chatCreatedSyncPending": "Conversación guardada. Sincroniza para completar el envío de la invitación; no la crees de nuevo.",
+  "chatCreateUnconfirmed": "No se confirmó la creación. Comprueba las rutas, la conexión y que tus contactos tengan claves disponibles. Consulta la lista antes de reintentar.",
+  "dialogSaveHistory": "Guardar historial cifrado",
+  "dialogOpenHistory": "Abrir historial cifrado",
+  "dialogSaveKit": "Guardar kit de identidad cifrado",
+  "dialogOpenKit": "Abrir kit de identidad",
+  "kitTooLarge": "El kit supera el tamaño máximo de 4 MiB.",
+  "dialogChooseFile": "Elegir archivo",
+  "dialogSaveFileCopy": "Guardar copia del archivo",
+  "recoveryIncomplete": "Selecciona el kit, introduce su clave y los datos del relay, y confirma las consecuencias de la recuperación.",
+  "kitTitle": "Kit de recuperación",
+  "kitExplanation": "El kit recupera tu identidad, no el historial ni el estado de los grupos. Guarda el archivo cifrado y su clave por separado; juntos permiten tomar el control de la identidad.",
+  "kitRevealSavedKey": "Mostrar clave del kit guardado",
+  "kitSavedKeyNow": "Archivo guardado. Guarda ahora esta clave por separado, por ejemplo en tu gestor de contraseñas. Arveil no la conserva.",
+  "kitKeyDisappears": "La clave desaparece al salir de esta pantalla o cambiar de aplicación. Si la pierdes, crea un kit nuevo.",
+  "kitKeySavedConfirm": "He guardado la clave por separado",
+  "kitSavedByConfirmation": "Kit y clave guardados según tu confirmación. Exporta uno nuevo después de cambiar tus dispositivos.",
+  "kitDeferredWarning": "Kit pospuesto: perder el dispositivo administrador sin un kit puede impedir recuperar tu identidad.",
+  "kitSaveEncrypted": "Guardar kit cifrado",
+  "kitPostpone": "Posponer el kit",
+  "recoveryTitle": "Recuperar mi identidad",
+  "recoveryExplanation": "Usa el kit más reciente y su clave. Esta recuperación crea un dispositivo administrador nuevo y revoca los dispositivos anteriores incluidos en el manifiesto. El historial no se recupera; tendrás que incorporarte de nuevo a los grupos.",
+  "recoveryRelayLabel": "Datos del relay original",
+  "recoveryChooseKit": "Seleccionar kit cifrado",
+  "recoveryKitChosen": "Kit seleccionado: cambiar archivo",
+  "recoveryKitKey": "Clave del kit",
+  "recoveryConsent": "Entiendo que se revocarán los dispositivos anteriores y no se recuperará su historial.",
+  "recoveryRestore": "Restaurar identidad y revocar dispositivos",
+  "recoveryResumeTitle": "Continúa la recuperación",
+  "recoveryResumeBody": "La identidad y las claves del nuevo dispositivo están guardadas. El relay puede haber aceptado ya la revocación de los anteriores. Reanuda esta misma operación; no necesitas volver a abrir el kit ni crear otro perfil.",
+  "recoveryResume": "Reanudar recuperación",
+  "keyPackagesTitle": "Disponibilidad para nuevas conversaciones",
+  "keyPackagesExplanation": "Este dispositivo publica claves de un solo uso (KeyPackages) para que otras personas puedan iniciar conversaciones con él. Las conversaciones existentes conservan sus propias claves.",
+  "keyPackagesUnknown": "Disponibilidad sin comprobar",
+  "keyPackagesEmpty": "Última consulta: sin claves disponibles",
+  "keyPackagesLow": "Última consulta: quedan pocas claves",
+  "keyPackagesReady": "Última consulta: claves disponibles",
+  "keyPackagesCount": "{count, plural, =1{1 clave disponible según el relay.} other{{count} claves disponibles según el relay.}}",
+  "@keyPackagesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "keyPackagesCheckedAt": "Consultado el {date} a las {time}. Puede cambiar cuando otra persona use una clave.",
+  "@keyPackagesCheckedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "keyPackagesNoneWarning": "Otros dispositivos no podrán iniciar nuevas conversaciones con este dispositivo hasta que haya claves disponibles.",
+  "keyPackagesReplenishSoon": "Repón las claves antes de que se agoten.",
+  "keyPackagesPending": "Hay una publicación pendiente de confirmar. Reanudar enviará el mismo lote guardado; no regenerará esas claves.",
+  "keyPackagesUnavailable": "No se pudo actualizar la disponibilidad. El último dato guardado no confirma el estado actual.",
+  "keyPackagesCheck": "Comprobar disponibilidad",
+  "keyPackagesResume": "Reanudar publicación de claves",
+  "keyPackagesReplenish": "Reponer claves",
+  "attachmentSavedPending": "Guardado en este dispositivo · pendiente de envío",
+  "attachmentDownloadInterrupted": "Descarga interrumpida",
+  "attachmentDownloadAwaiting": "Descarga pendiente de tu autorización",
+  "attachmentTransferring": "Transfiriendo…",
+  "attachmentTransferInterrupted": "Transferencia interrumpida · puedes reanudar",
+  "attachmentDownloaded": "Descargado y verificado · copia privada cifrada",
+  "deliveryNoRecipients": "Guardado localmente · sin destinatarios disponibles",
+  "deliveryAccepted": "Aceptado por el relay · lectura sin confirmar",
+  "deliveryRejected": "Algún buzón rechazó el mensaje",
+  "deliveryExpired": "Entrega caducada o desconocida",
+  "attachmentReady": "Archivo preparado · envío pendiente de sincronización",
+  "attachmentCancelled": "Transferencia cancelada · copia incompleta eliminada",
+  "attachmentUnavailable": "Archivo no disponible o acceso rechazado. Puedes reintentar o pedir otra copia.",
+  "attachmentExpiredOnRelay": "Archivo caducado en el relay. Pide que lo envíen de nuevo.",
+  "attachmentUnverified": "No se pudo verificar el archivo. No se permite guardarlo fuera de Arveil.",
+  "attachmentLegacy": "Adjunto de una versión anterior; no está disponible en esta pantalla.",
+  "attachmentSendResume": "Enviar / reanudar",
+  "attachmentResumeDownload": "Reanudar descarga",
+  "attachmentDownload": "Descargar",
+  "attachmentCancel": "Cancelar transferencia",
+  "attachmentSaveCopy": "Guardar copia…",
+  "devicesOperationFailed": "No se pudo completar la operación. Consulta el estado guardado y vuelve a sincronizar.",
+  "devicesReadFailed": "No se pudo leer el estado de los dispositivos. Vuelve a intentarlo.",
+  "devicesRevokeTitle": "¿Revocar este dispositivo?",
+  "devicesRevokeCheckId": "Comprueba el identificador completo en el otro dispositivo antes de continuar.",
+  "devicesRevokeConsequences": "La revocación es permanente. Se guardará aquí y se publicará al conectar. El relay bloqueará el dispositivo cuando acepte el cambio; las conversaciones también necesitan retirarlo de su grupo. No borra las copias ni el historial que ya tenga.",
+  "cancel": "Cancelar",
+  "devicesRevokeConfirm": "Revocar definitivamente",
+  "devicesTitle": "Dispositivos",
+  "devicesKnownState": "Estado conocido por este perfil. Estar autorizado no indica que un dispositivo esté conectado.",
+  "devicesSync": "Sincronizar dispositivos",
+  "devicesReadLocal": "Volver a leer el estado local",
+  "devicesAdministrator": "Este perfil puede administrar sus dispositivos.",
+  "devicesLinked": "Este dispositivo está vinculado. Revoca dispositivos desde el perfil administrador.",
+  "devicesManifestVersion": "Versión local del manifiesto: {sequence}",
+  "@devicesManifestVersion": {
+    "placeholders": {
+      "sequence": {
+        "type": "String"
+      }
+    }
+  },
+  "devicesPartialInventory": "Inventario parcial: el manifiesto incluye {active} credenciales autorizadas y {revoked} revocadas cuyos identificadores de dispositivo no conoce este perfil. Consulta el administrador para gestionarlas.",
+  "@devicesPartialInventory": {
+    "placeholders": {
+      "active": {
+        "type": "int"
+      },
+      "revoked": {
+        "type": "int"
+      }
+    }
+  },
+  "devicesThis": "Este dispositivo",
+  "devicesLinkedDevice": "Dispositivo vinculado",
+  "devicesRevokedLocally": "Revocado según el estado local",
+  "devicesNotRevoked": "No consta revocado en este perfil",
+  "devicesRevocationAccepted": "Revocación aceptada por el relay",
+  "devicesRevocationPending": "Pendiente de publicar la revocación en el relay",
+  "devicesGroupsWaiting": "Conversaciones locales pendientes de retirarlo: {count}",
+  "@devicesGroupsWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devicesGroupsWaitingHelp": "Sincroniza para recibir los cambios. La retirada corresponde al dispositivo que coordina los cambios del grupo; mientras tanto, el envío permanece bloqueado en quienes conocen la revocación.",
+  "devicesNoticesPending": "Avisos pendientes de publicar: {count}",
+  "@devicesNoticesPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devicesNoticesUnconfirmed": "Avisos rechazados o caducados sin confirmación: {count}. Comprueba el estado con los otros participantes.",
+  "@devicesNoticesUnconfirmed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devicesNoticesWithoutRoute": "Avisos que no pudieron prepararse por falta de ruta: {count}. Requieren revisar las rutas; no se reenvían automáticamente.",
+  "@devicesNoticesWithoutRoute": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devicesAcceptanceCaveat": "La aceptación del relay no confirma que los demás dispositivos hayan recibido el aviso.",
+  "devicesRevoke": "Revocar dispositivo",
+  "pairingTitle": "Vincular este dispositivo",
+  "pairingExplanation": "Usa tu dispositivo administrador para autorizar este perfil. La vinculación conserva tu identidad; no copia el historial anterior.",
+  "pairingRelayLabel": "Datos del relay",
+  "pairingRelayInvalid": "Pega los datos completos del relay.",
+  "pairingGenerate": "Generar código de vinculación",
+  "pairingConfirmationSaved": "La confirmación está guardada. Falta terminar la configuración en el relay.",
+  "pairingResumeFinish": "Reanudar finalización",
+  "pairingExpired": "Esta sesión ha caducado. Cancélala y genera un código nuevo.",
+  "pairingComparisonCode": "Código de comparación",
+  "pairingCompareHelp": "Comprueba ambas pantallas. Introduce aquí el código que muestra el dispositivo administrador. Si son distintos, cancela.",
+  "pairingOtherCode": "Código del otro dispositivo",
+  "pairingConfirmComparison": "Confirmar comparación",
+  "pairingShareCode": "En el administrador, abre «Vincular otro dispositivo» y pega este código por un canal privado.",
+  "pairingExpiresIn": "{seconds, plural, =1{Caduca en 1 segundo.} other{Caduca en {seconds} segundos.}}",
+  "@pairingExpiresIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "pairingWaiting": "Esperando al dispositivo administrador…",
+  "pairingWaitInterrupted": "La espera se interrumpió. Cancela esta sesión y genera otro código; la comparación ya recibida se conserva al reabrir.",
+  "pairingCancel": "Cancelar vinculación",
+  "pairingCancelNote": "Cancelar detiene este alta local. Si el administrador ya emitió una autorización, no la revoca.",
+  "pairingOtherTitle": "Vincular otro dispositivo",
+  "pairingAdminCompare": "Compara este código con el del nuevo dispositivo e introdúcelo allí para terminar.",
+  "pairingAuthorizationIssued": "Ya se ha emitido la autorización. Cerrar esta comparación no la revoca. Si no reconoces la solicitud, revoca ese dispositivo desde la CLI.",
+  "pairingCloseComparison": "Cerrar comparación",
+  "pairingPasteOwnCode": "Pega únicamente el código de un dispositivo tuyo que tengas delante. Este paso emite su autorización.",
+  "pairingCodeLabel": "Código de vinculación",
+  "pairingCodeInvalid": "Pega el código de vinculación completo.",
+  "pairingAuthorize": "Autorizar y comparar",
+  "pairingKeepOpen": "Mantén ambos dispositivos abiertos durante la espera, de hasta 90 segundos.",
+  "archiveFailed": "No se pudo completar la operación. Comprueba el archivo, su clave y que pertenece a tu identidad. Máximo 10.000 registros; exportación de hasta 48 MiB de contenido e importación de archivos de hasta 64 MiB.",
+  "archiveSaved": "Archivo guardado: {records} registros, {files} adjuntos con copia, {missing} sin copia.",
+  "@archiveSaved": {
+    "placeholders": {
+      "records": {
+        "type": "int"
+      },
+      "files": {
+        "type": "int"
+      },
+      "missing": {
+        "type": "int"
+      }
+    }
+  },
+  "archiveImported": "{imported} registros importados; {duplicates} ya existentes, conservados sin cambios.",
+  "@archiveImported": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "duplicates": {
+        "type": "int"
+      }
+    }
+  },
+  "archiveFileSaved": "Copia del adjunto guardada en el destino elegido.",
+  "archiveTitle": "Historial cifrado",
+  "archiveExplanation": "El archivo recupera mensajes y adjuntos disponibles, sin recuperar la identidad ni las sesiones de grupo. Restaura primero tu identidad con su kit si has perdido el dispositivo.",
+  "archiveKeepApart": "Guarda el archivo y su clave por separado. Juntos permiten leer esta copia del pasado. No se descargan adjuntos pendientes; los archivos antiguos de la CLI pueden figurar sin copia.",
+  "archiveConsent": "Entiendo que esta copia permite leer el historial",
+  "archiveSave": "Guardar historial cifrado",
+  "archiveRevealKey": "Mostrar clave del archivo guardado",
+  "archiveKeyNote": "Guarda esta clave por separado. Desaparece al salir o cambiar de aplicación; Arveil no la conserva.",
+  "archiveKeySaved": "He guardado la clave",
+  "archiveImportTitle": "Importar historial",
+  "archiveImportNote": "Solo se acepta un archivo de esta identidad. Los registros se añaden como historial de solo lectura: no se reenvían ni dan acceso a los grupos. Un archivo importado no demuestra la autoría de sus mensajes.",
+  "archiveChooseFile": "Elegir archivo cifrado",
+  "archiveFileChosen": "Archivo seleccionado; cambiar",
+  "archiveKeyLabel": "Clave del archivo",
+  "archiveImport": "Importar como historial",
+  "archiveImportedTitle": "Historial importado · solo lectura",
+  "archiveEmpty": "Todavía no hay registros importados.",
+  "archiveEntryOutgoing": "Grupo {group} · Saliente",
+  "@archiveEntryOutgoing": {
+    "placeholders": {
+      "group": {
+        "type": "String"
+      }
+    }
+  },
+  "archiveEntryIncoming": "Grupo {group} · Entrante",
+  "@archiveEntryIncoming": {
+    "placeholders": {
+      "group": {
+        "type": "String"
+      }
+    }
+  },
+  "archiveEntrySender": "{header} · {sender}, según el archivo",
+  "@archiveEntrySender": {
+    "placeholders": {
+      "header": {
+        "type": "String"
+      },
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
+  "archiveNoFileCopy": "Sin copia del adjunto en este archivo",
+  "archiveSaveFileCopy": "Guardar copia del adjunto",
+  "archiveOlder": "Ver registros anteriores",
+  "archiveBackToStart": "Volver al inicio del historial",
+  "contactsReadFailed": "No se pudieron leer los contactos. Vuelve a intentarlo.",
+  "contactsChoose": "Elegir contactos",
+  "contactsTitle": "Contactos",
+  "contactAdd": "Añadir contacto",
+  "retry": "Reintentar",
+  "contactsNamesLocal": "Los nombres son locales. Comprueba la identidad comparando el número de seguridad por otro canal.",
+  "contactsDeviceLimit": "Se incluirán los dispositivos guardados que no consten como revocados. Máximo: 16 dispositivos.",
+  "contactsEmpty": "Todavía no tienes contactos guardados.",
+  "verified": "Verificado",
+  "unverified": "Sin verificar",
+  "contactNeedsRoute": "Añade una ruta para conversar",
+  "contactDevicesAvailable": "{count, plural, =1{1 dispositivo disponible} other{{count} dispositivos disponibles}}",
+  "@contactDevicesAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "contactsTooMany": "Selecciona como máximo 16 dispositivos.",
+  "contactsUse": "Usar contactos ({count})",
+  "@contactsUse": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "contactRouteInvalid": "Revisa la ruta completa del contacto. Debe ser de otro dispositivo.",
+  "contactSaved": "Contacto guardado en este perfil.",
+  "contactSaveFailed": "No se pudo guardar. Revisa el nombre y la comparación; conserva el perfil y vuelve a intentarlo.",
+  "contactVerifiedNotice": "Identidad verificada.",
+  "contactVerifyFailed": "La comparación no se pudo confirmar. Reabre el contacto y compara el número de nuevo.",
+  "contactDetails": "Datos del contacto",
+  "contactNameLabel": "Nombre local (opcional)",
+  "contactNameHelper": "Solo se guarda en este perfil. No verifica la identidad.",
+  "contactRouteLabel": "Ruta de contacto",
+  "contactRouteHelper": "Pide la ruta de este relay a la persona que quieres añadir.",
+  "contactPrepare": "Preparar contacto",
+  "contactIdentity": "Identidad {identity}",
+  "@contactIdentity": {
+    "placeholders": {
+      "identity": {
+        "type": "String"
+      }
+    }
+  },
+  "contactCompareHelp": "Compara este número con la otra persona por otro canal. El nombre local no sustituye esta comprobación.",
+  "contactCompared": "Hemos comparado el número por otro canal y coincide.",
+  "contactVerify": "Verificar contacto",
+  "contactRoutes": "{count, plural, =1{1 ruta guardada} other{{count} rutas guardadas}}",
+  "@contactRoutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "contactDevice": "Dispositivo {id}",
+  "@contactDevice": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "contactDeviceRevoked": "Dispositivo {id} · Revocado",
+  "@contactDeviceRevoked": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "contactUpdateRoute": "Para añadir o actualizar una ruta, vuelve a Añadir contacto. Comprueba que la identidad coincide y conserva el nombre que quieras usar.",
+  "contactSave": "Guardar contacto",
+  "contactSaveName": "Guardar nombre",
+  "numericDate": "{day}/{month}/{year}",
+  "@numericDate": {
+    "description": "A date in digits, in the order the language writes it.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeAdded": "{count, plural, =1{ha añadido un dispositivo} other{ha añadido {count} dispositivos}}",
+  "@noticeAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noticeRemoved": "{count, plural, =1{ha retirado un dispositivo} other{ha retirado {count} dispositivos}}",
+  "@noticeRemoved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noticeBoth": "{first} y {second}",
+  "@noticeBoth": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeSentence": "{who} {change}.",
+  "@noticeSentence": {
+    "description": "Who changed which devices, e.g. «Lucía ha añadido un dispositivo.»",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "change": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeSomeone": "Un contacto",
+  "previewAttachment": "Adjunto: {name}",
+  "@previewAttachment": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "previewOwn": "Tú: {text}",
+  "@previewOwn": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "conversationEvent": "Evento de conversación",
+  "conversationFallback": "Conversación {id}",
+  "@conversationFallback": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "sendFile": "Enviar archivo",
+  "attachConfirm": "{name}\n{size}\n\nConversación: {conversation}\n\nSe guardará una copia privada cifrada para completar o reanudar el envío.",
+  "@attachConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      },
+      "conversation": {
+        "type": "String"
+      }
+    }
+  },
+  "fileReadFailed": "No se pudo leer el archivo. Elige uno accesible que ocupe menos de 25 MiB.",
+  "exportTitle": "Guardar copia fuera de Arveil",
+  "exportWarning": "La copia quedará fuera del perfil cifrado de Arveil y puede entrar en las copias de seguridad del destino. Elige dónde guardarla.",
+  "exportChoose": "Elegir destino",
+  "exportSaved": "Copia guardada en el destino elegido.",
+  "exportFailed": "No se pudo guardar la copia. El archivo privado se conserva; vuelve a intentarlo.",
+  "participants": "Participantes",
+  "participantsYou": "Tu identidad",
+  "identityDevice": "Identidad {identity} · dispositivo {device}",
+  "@identityDevice": {
+    "placeholders": {
+      "identity": {
+        "type": "String"
+      },
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "participantDevice": "{identity} · dispositivo {device}",
+  "@participantDevice": {
+    "placeholders": {
+      "identity": {
+        "type": "String"
+      },
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "revoked": "Revocado",
+  "ownDevice": "Dispositivo propio",
+  "close": "Cerrar",
+  "ownRouteTitle": "Tu ruta de contacto",
+  "ownRouteShare": "Compártela solo con las personas que quieras que puedan escribir a este dispositivo. Comparad después el número de seguridad por otro canal.",
+  "ownRouteCopy": "Copiar ruta",
+  "ownRouteFailed": "No se pudo obtener la ruta de este dispositivo.",
+  "backToConversations": "Volver a conversaciones",
+  "conversationsTitle": "Conversaciones",
+  "myRoute": "Mi ruta",
+  "newConversation": "Nueva conversación",
+  "sync": "Sincronizar",
+  "syncing": "Sincronizando",
+  "chooseConversation": "Elige una conversación para leerla.",
+  "conversationsEmpty": "Todavía no hay conversaciones guardadas.",
+  "conversationsEmptyHelp": "Crea una con una ruta de contacto o sincroniza para recibir una invitación.",
+  "conversationCounts": "{devices, plural, =1{1 dispositivo} other{{devices} dispositivos}} · {messages, plural, =1{1 mensaje} other{{messages} mensajes}}",
+  "@conversationCounts": {
+    "placeholders": {
+      "devices": {
+        "type": "int"
+      },
+      "messages": {
+        "type": "int"
+      }
+    }
+  },
+  "unreadMessages": "{count, plural, =1{1 mensaje sin leer} other{{count} mensajes sin leer}}",
+  "@unreadMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savingMessage": "Guardando mensaje",
+  "localHistory": "Historial local · {id}",
+  "@localHistory": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "firstMessage": "Escribe el primer mensaje.",
+  "reading": "Leyendo…",
+  "loadOlder": "Cargar anteriores",
+  "attachFile": "Adjuntar archivo",
+  "messageHint": "Mensaje",
+  "send": "Enviar",
+  "noticeSigned": "El cambio está firmado por su identidad verificada.",
+  "noticeCompare": "Compara su número de seguridad si no esperabas este cambio.",
+  "legacyAttachment": "Adjunto (consulta disponible desde la CLI)",
+  "sentFromOtherDevice": "Enviado desde otro de tus dispositivos",
+  "receivedHere": "Recibido en este dispositivo",
+  "deliveryPending": "Guardado localmente · envío pendiente",
+  "newConversationRoutesInvalid": "Revisa las rutas completas: entre uno y dieciséis dispositivos distintos, sin incluir este dispositivo.",
+  "newConversationChooseContacts": "Elegir contactos guardados",
+  "newConversationRoutesHelp": "O utiliza una ruta nueva. Pide a tus contactos su ruta de este relay. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.",
+  "newConversationRoutesLabel": "Rutas de contacto",
+  "newConversationPrepare": "Preparar comparación",
+  "newConversationCompared": "Hemos comparado todos los números por otro canal y coinciden.",
+  "newConversationCreate": "Crear conversación",
+  "deliveryNone": "Guardado solo en este dispositivo: no hay destinatarios disponibles",
+  "deliveryWaiting": "Pendiente de envío",
+  "deliveryAcceptedShort": "Aceptado por el servidor",
+  "safetyNumberLabel": "Número de seguridad: {groups}",
+  "@safetyNumberLabel": {
+    "placeholders": {
+      "groups": {
+        "type": "String"
+      }
+    }
+  }
+}

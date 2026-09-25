@@ -1,3 +1,4 @@
+import 'package:arveil/l10n/l10n.dart';
 import 'package:arveil/src/design/design.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,7 +26,10 @@ void main() {
     );
     expect(deliveryStatus(['expired/unknown']), DeliveryStatus.expired);
     for (final status in DeliveryStatus.values) {
-      expect(DeliveryIcon.label(status), isNot(contains('leído')));
+      expect(
+        DeliveryIcon.label(currentStrings, status),
+        isNot(contains('leído')),
+      );
     }
   });
 

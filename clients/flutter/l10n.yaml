@@ -1,0 +1,8 @@
+# Spanish is the template: the product's normative language. English must
+# carry every key; `untranslated-messages-file` lists any that do not.
+arb-dir: lib/l10n
+template-arb-file: app_es.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+untranslated-messages-file: build/l10n_untranslated.json

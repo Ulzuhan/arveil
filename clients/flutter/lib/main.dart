@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'l10n/l10n.dart';
 import 'src/design/theme.dart';
 import 'src/devices_page.dart';
 import 'src/archives_page.dart';
@@ -31,6 +32,13 @@ class ArveilApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     theme: ArveilTheme.light(),
     darkTheme: ArveilTheme.dark(),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    localeListResolutionCallback: resolveLocale,
+    builder: (context, child) {
+      useStrings(context.l10n);
+      return child!;
+    },
     home: ProfilePage(session: session, kitFiles: kitFiles),
   );
 }
@@ -96,7 +104,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ? null
                   : _close,
               icon: const Icon(Icons.lock_outline),
-              label: const Text('Cerrar perfil'),
+              label: Text(context.l10n.profileClose),
             ),
         ],
       ),
@@ -111,11 +119,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (!_session.isOpen)
                   ..._welcome(context)
                 else if (_session.setup == null) ...[
-                  const Text('No se pudo leer el estado del perfil.'),
+                  Text(context.l10n.profileStateUnreadable),
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: _session.busy ? null : _session.refresh,
-                    child: const Text('Volver a leer'),
+                    child: Text(context.l10n.profileReadAgain),
                   ),
                 ] else if (_session.setup!.stage == SetupStage.ready)
                   ..._ready(context)
@@ -134,7 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       onPressed: _session.busy
                           ? null
                           : () => setState(() => _entry = 'enroll'),
-                      child: const Text('Volver al alta'),
+                      child: Text(context.l10n.enrollBack),
                     ),
                 ] else if (_entry == 'restore') ...[
                   RecoveryPanel(
@@ -146,19 +154,17 @@ class _ProfilePageState extends State<ProfilePage> {
                     onPressed: _session.busy
                         ? null
                         : () => setState(() => _entry = 'enroll'),
-                    child: const Text('Volver al alta'),
+                    child: Text(context.l10n.enrollBack),
                   ),
                 ] else
                   ..._onboarding(context),
                 if (_session.busy) ...[
                   const SizedBox(height: 24),
-                  const LinearProgressIndicator(
-                    semanticsLabel: 'Operación en curso',
+                  LinearProgressIndicator(
+                    semanticsLabel: context.l10n.operationInProgress,
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Operación en curso. El avance confirmado queda guardado en el perfil.',
-                  ),
+                  Text(context.l10n.operationInProgressDetail),
                 ],
                 if (_session.error case final message?) ...[
                   const SizedBox(height: 24),
@@ -191,52 +197,41 @@ class _ProfilePageState extends State<ProfilePage> {
     ),
     const SizedBox(height: 24),
     Text(
-      'Tu identidad, en este dispositivo',
+      context.l10n.welcomeTitle,
       style: Theme.of(context).textTheme.headlineLarge,
     ),
     const SizedBox(height: 16),
-    const Text(
-      'Abre tu perfil o prepara uno nuevo para unirte con una invitación.',
-    ),
+    Text(context.l10n.welcomeBody),
     const SizedBox(height: 16),
-    const Text(
-      'El perfil se cifra con una clave guardada en el almacén seguro del dispositivo. '
-      'Si pierdes esa clave, no podrás recuperar el historial local.',
-    ),
+    Text(context.l10n.welcomeKeyNote),
     const SizedBox(height: 28),
     FilledButton.icon(
       onPressed: _session.busy ? null : _open,
       icon: const Icon(Icons.arrow_forward),
-      label: const Text('Abrir perfil'),
+      label: Text(context.l10n.profileOpen),
     ),
   ];
 
   List<Widget> _onboarding(BuildContext context) {
+    final l10n = context.l10n;
     final state = _session.setup!;
     final retry =
         state.stage != SetupStage.new_ &&
         state.stage != SetupStage.identityReady;
     return [
       Text(
-        retry ? 'Retoma tu alta' : 'Únete a tu espacio',
+        retry ? l10n.enrollTitleRetry : l10n.enrollTitle,
         style: Theme.of(context).textTheme.headlineLarge,
       ),
       const SizedBox(height: 16),
-      Text(
-        retry
-            ? 'Tu avance está guardado. Usa la misma invitación para continuar con tu identidad.'
-            : 'Pide al administrador los datos del relay y una invitación. '
-                  'Tu identidad se crea en este dispositivo al continuar.',
-      ),
+      Text(retry ? l10n.enrollBodyRetry : l10n.enrollBody),
       const SizedBox(height: 20),
       Text(switch (state.stage) {
-        SetupStage.redeeming => 'Pendiente de confirmar la invitación.',
-        SetupStage.redeemed =>
-          'Invitación aceptada. Falta recibir la configuración.',
-        SetupStage.publishing =>
-          'Configuración recibida. Falta terminar el buzón y las claves de mensajería.',
-        SetupStage.identityReady => 'Tu identidad local ya está creada.',
-        _ => 'Listo para crear tu identidad.',
+        SetupStage.redeeming => l10n.setupRedeeming,
+        SetupStage.redeemed => l10n.setupRedeemed,
+        SetupStage.publishing => l10n.setupPublishing,
+        SetupStage.identityReady => l10n.setupIdentityReady,
+        _ => l10n.setupNew,
       }, key: const Key('setup-status')),
       const SizedBox(height: 24),
       Form(
@@ -253,14 +248,14 @@ class _ProfilePageState extends State<ProfilePage> {
               enableIMEPersonalizedLearning: false,
               minLines: 2,
               maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Datos del relay',
+              decoration: InputDecoration(
+                labelText: l10n.enrollRelayLabel,
                 hintText: 'arveil-bootstrap:v0:…',
               ),
               validator: (value) =>
                   (value ?? '').trim().startsWith('arveil-bootstrap:v0:')
                   ? null
-                  : 'Pega los datos completos del relay.',
+                  : l10n.enrollRelayInvalid,
             ),
             const SizedBox(height: 20),
             TextFormField(
@@ -271,14 +266,14 @@ class _ProfilePageState extends State<ProfilePage> {
               enableSuggestions: false,
               enableIMEPersonalizedLearning: false,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Invitación',
-                helperText: 'No se guarda. Consérvala hasta completar el alta.',
+              decoration: InputDecoration(
+                labelText: l10n.enrollInviteLabel,
+                helperText: l10n.enrollInviteHelper,
               ),
               validator: (value) =>
                   RegExp(r'^[0-9a-fA-F]{64}$').hasMatch((value ?? '').trim())
                   ? null
-                  : 'La invitación debe contener 64 caracteres hexadecimales.',
+                  : l10n.enrollInviteInvalid,
               onFieldSubmitted: (_) {
                 if (!_session.busy) _enroll();
               },
@@ -287,9 +282,7 @@ class _ProfilePageState extends State<ProfilePage> {
             FilledButton.icon(
               onPressed: _session.busy ? null : _enroll,
               icon: const Icon(Icons.arrow_forward),
-              label: Text(
-                retry ? 'Reintentar alta' : 'Crear identidad y unirme',
-              ),
+              label: Text(retry ? l10n.enrollRetry : l10n.enrollSubmit),
             ),
           ],
         ),
@@ -303,7 +296,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   _invite.clear();
                   setState(() => _entry = 'pair');
                 },
-          child: const Text('Vincular con mi otro dispositivo'),
+          child: Text(l10n.enrollPair),
         ),
         const SizedBox(height: 12),
         TextButton(
@@ -313,21 +306,21 @@ class _ProfilePageState extends State<ProfilePage> {
                   _invite.clear();
                   setState(() => _entry = 'restore');
                 },
-          child: const Text('Restaurar desde un kit'),
+          child: Text(l10n.enrollRestore),
         ),
       ],
     ];
   }
 
   /// Why the administration device should save a kit now, or nothing.
-  String? get _kitReminder {
+  String? _kitReminder(AppLocalizations l10n) {
     final setup = _session.setup!;
     if (!setup.administrator || _session.kitReminderDismissed) return null;
     if (setup.kitSavedAt == null) {
-      return 'Guarda tu kit de identidad. Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.';
+      return l10n.kitReminderNever;
     }
     if (setup.kitStale) {
-      return 'Tus dispositivos cambiaron después de guardar el kit. Guarda uno nuevo para que una recuperación los conozca.';
+      return l10n.kitReminderStale;
     }
     return null;
   }
@@ -336,13 +329,13 @@ class _ProfilePageState extends State<ProfilePage> {
     const Icon(Icons.check_circle_outline, size: 48),
     const SizedBox(height: 20),
     Text(
-      'Tu perfil está listo',
+      context.l10n.readyTitle,
       style: Theme.of(context).textTheme.headlineLarge,
     ),
     const SizedBox(height: 16),
-    const Text('Identidad registrada y buzón preparado.'),
+    Text(context.l10n.readyBody),
     const SizedBox(height: 24),
-    if (_kitReminder case final message?) ...[
+    if (_kitReminder(context.l10n) case final message?) ...[
       Card(
         key: const Key('kit-reminder'),
         color: Theme.of(context).colorScheme.tertiaryContainer,
@@ -362,12 +355,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       final panel = _kitPanel.currentContext;
                       if (panel != null) Scrollable.ensureVisible(panel);
                     },
-                    child: const Text('Guardar kit'),
+                    child: Text(context.l10n.kitSave),
                   ),
                   TextButton(
                     onPressed: () =>
                         setState(() => _session.kitReminderDismissed = true),
-                    child: const Text('Más tarde'),
+                    child: Text(context.l10n.later),
                   ),
                 ],
               ),
@@ -378,9 +371,7 @@ class _ProfilePageState extends State<ProfilePage> {
       const SizedBox(height: 24),
     ],
     if (_session.setup!.recoveryWarning) ...[
-      const Text(
-        'El relay conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.',
-      ),
+      Text(context.l10n.recoveryRollbackWarning),
       const SizedBox(height: 24),
     ],
     FilledButton.icon(
@@ -398,7 +389,7 @@ class _ProfilePageState extends State<ProfilePage> {
               );
             },
       icon: const Icon(Icons.forum_outlined),
-      label: const Text('Abrir conversaciones'),
+      label: Text(context.l10n.openConversations),
     ),
 
     const SizedBox(height: 24),
@@ -415,7 +406,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
       icon: const Icon(Icons.devices),
-      label: const Text('Gestionar dispositivos'),
+      label: Text(context.l10n.manageDevices),
     ),
     const SizedBox(height: 24),
     OutlinedButton.icon(
@@ -428,7 +419,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
       icon: const Icon(Icons.history),
-      label: const Text('Historial cifrado'),
+      label: Text(context.l10n.encryptedHistory),
     ),
     const SizedBox(height: 24),
     KeyPackagesPanel(session: _session),
@@ -451,9 +442,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       const Divider(height: 48),
     ] else ...[
-      const Text(
-        'Este dispositivo está vinculado. El kit de recuperación se exporta desde el dispositivo administrador.',
-      ),
+      Text(context.l10n.linkedDeviceKitNote),
       const SizedBox(height: 24),
     ],
   ];

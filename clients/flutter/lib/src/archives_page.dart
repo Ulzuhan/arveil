@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show PlatformInt64;
+import '../l10n/l10n.dart';
 import 'archive_files.dart';
 import 'attachment_files.dart';
 import 'export_secret.dart';
@@ -58,6 +59,8 @@ class _ArchivesPageState extends State<ArchivesPage>
 
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
+    // Runs from initState too, before the widget may read inherited state.
+    final l10n = currentStrings;
     setState(() {
       _busy = true;
       _error = null;
@@ -66,10 +69,7 @@ class _ArchivesPageState extends State<ArchivesPage>
       await action();
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _error =
-              'No se pudo completar la operación. Comprueba el archivo, su clave y que pertenece a tu identidad. Máximo 10.000 registros; exportación de hasta 48 MiB de contenido e importación de archivos de hasta 64 MiB.',
-        );
+        setState(() => _error = l10n.archiveFailed);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -91,8 +91,11 @@ class _ArchivesPageState extends State<ArchivesPage>
     final saved = await widget.files.save(archive.encrypted);
     if (!mounted || !saved) return;
     setState(() {
-      _message =
-          'Archivo guardado: ${archive.records} registros, ${archive.files} adjuntos con copia, ${archive.unavailableFiles} sin copia.';
+      _message = context.l10n.archiveSaved(
+        archive.records,
+        archive.files,
+        archive.unavailableFiles,
+      );
       _secret.saved(archive.secret, WidgetsBinding.instance.lifecycleState);
     });
   });
@@ -120,8 +123,10 @@ class _ArchivesPageState extends State<ArchivesPage>
     );
     if (!mounted) return;
     setState(
-      () => _message =
-          '${receipt.imported} registros importados; ${receipt.duplicates} ya existentes, conservados sin cambios.',
+      () => _message = context.l10n.archiveImported(
+        receipt.imported,
+        receipt.duplicates,
+      ),
     );
     await _load();
   });
@@ -132,74 +137,62 @@ class _ArchivesPageState extends State<ArchivesPage>
     );
     if (!mounted) return;
     if (await widget.attachments.save(entry.fileName!, bytes) && mounted) {
-      setState(
-        () => _message = 'Copia del adjunto guardada en el destino elegido.',
-      );
+      setState(() => _message = context.l10n.archiveFileSaved);
     }
   });
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Historial cifrado')),
+    appBar: AppBar(title: Text(context.l10n.archiveTitle)),
     body: ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        const Text(
-          'El archivo recupera mensajes y adjuntos disponibles, sin recuperar la identidad ni las sesiones de grupo. Restaura primero tu identidad con su kit si has perdido el dispositivo.',
-        ),
+        Text(context.l10n.archiveExplanation),
         const SizedBox(height: 12),
-        const Text(
-          'Guarda el archivo y su clave por separado. Juntos permiten leer esta copia del pasado. No se descargan adjuntos pendientes; los archivos antiguos de la CLI pueden figurar sin copia.',
-        ),
+        Text(context.l10n.archiveKeepApart),
         CheckboxListTile(
           value: _confirmed,
           onChanged: _busy
               ? null
               : (v) => setState(() => _confirmed = v ?? false),
-          title: const Text(
-            'Entiendo que esta copia permite leer el historial',
-          ),
+          title: Text(context.l10n.archiveConsent),
           controlAffinity: ListTileControlAffinity.leading,
         ),
         FilledButton.icon(
           key: const Key('export-archive'),
           onPressed: !_busy && _confirmed ? _export : null,
           icon: const Icon(Icons.save_alt),
-          label: const Text('Guardar historial cifrado'),
+          label: Text(context.l10n.archiveSave),
         ),
         if (_secret.pending)
           OutlinedButton(
             onPressed: () => setState(
               () => _secret.reveal(WidgetsBinding.instance.lifecycleState),
             ),
-            child: const Text('Mostrar clave del archivo guardado'),
+            child: Text(context.l10n.archiveRevealKey),
           ),
         if (_secret.visible case final secret?) ...[
           const SizedBox(height: 16),
-          const Text(
-            'Guarda esta clave por separado. Desaparece al salir o cambiar de aplicación; Arveil no la conserva.',
-          ),
+          Text(context.l10n.archiveKeyNote),
           SelectableText(secret, key: const Key('archive-export-secret')),
           TextButton(
             onPressed: () => setState(_secret.clear),
-            child: const Text('He guardado la clave'),
+            child: Text(context.l10n.archiveKeySaved),
           ),
         ],
         const Divider(height: 40),
         Text(
-          'Importar historial',
+          context.l10n.archiveImportTitle,
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        const Text(
-          'Solo se acepta un archivo de esta identidad. Los registros se añaden como historial de solo lectura: no se reenvían ni dan acceso a los grupos. Un archivo importado no demuestra la autoría de sus mensajes.',
-        ),
+        Text(context.l10n.archiveImportNote),
         const SizedBox(height: 12),
         OutlinedButton(
           onPressed: _busy ? null : _pick,
           child: Text(
             _encrypted == null
-                ? 'Elegir archivo cifrado'
-                : 'Archivo seleccionado; cambiar',
+                ? context.l10n.archiveChooseFile
+                : context.l10n.archiveFileChosen,
           ),
         ),
         const SizedBox(height: 12),
@@ -212,7 +205,7 @@ class _ArchivesPageState extends State<ArchivesPage>
           enableSuggestions: false,
           enableIMEPersonalizedLearning: false,
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: 'Clave del archivo'),
+          decoration: InputDecoration(labelText: context.l10n.archiveKeyLabel),
         ),
         const SizedBox(height: 12),
         FilledButton(
@@ -223,7 +216,7 @@ class _ArchivesPageState extends State<ArchivesPage>
                   _secretInput.text.trim().isNotEmpty
               ? _import
               : null,
-          child: const Text('Importar como historial'),
+          child: Text(context.l10n.archiveImport),
         ),
         if (_busy) const LinearProgressIndicator(),
         if (_error case final error?)
@@ -238,11 +231,10 @@ class _ArchivesPageState extends State<ArchivesPage>
           ),
         const Divider(height: 40),
         Text(
-          'Historial importado · solo lectura',
+          context.l10n.archiveImportedTitle,
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        if (_page?.entries.isEmpty ?? false)
-          const Text('Todavía no hay registros importados.'),
+        if (_page?.entries.isEmpty ?? false) Text(context.l10n.archiveEmpty),
         for (final e in _page?.entries ?? <ArchiveEntryView>[])
           Card(
             child: Padding(
@@ -251,17 +243,17 @@ class _ArchivesPageState extends State<ArchivesPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Grupo ${e.groupId.substring(0, e.groupId.length < 12 ? e.groupId.length : 12)} · ${e.own ? 'Saliente' : 'Entrante'}${e.senderLabel == null ? '' : ' · ${e.senderLabel}, según el archivo'}',
+                    _entryHeader(context.l10n, e),
                     key: Key('archive-entry-${e.eventId}'),
                   ),
                   SelectableText(e.text),
                   if (e.fileName != null)
                     e.fileSize == null
-                        ? const Text('Sin copia del adjunto en este archivo')
+                        ? Text(context.l10n.archiveNoFileCopy)
                         : TextButton.icon(
                             onPressed: _busy ? null : () => _saveFile(e),
                             icon: const Icon(Icons.download),
-                            label: const Text('Guardar copia del adjunto'),
+                            label: Text(context.l10n.archiveSaveFileCopy),
                           ),
                 ],
               ),
@@ -270,13 +262,28 @@ class _ArchivesPageState extends State<ArchivesPage>
         if (_page?.next case final next?)
           TextButton(
             onPressed: _busy ? null : () => _run(() => _load(next)),
-            child: const Text('Ver registros anteriores'),
+            child: Text(context.l10n.archiveOlder),
           ),
         TextButton(
           onPressed: _busy ? null : () => _run(() => _load()),
-          child: const Text('Volver al inicio del historial'),
+          child: Text(context.l10n.archiveBackToStart),
         ),
       ],
     ),
   );
+}
+
+/// "Group · direction", plus the author the archive names, if any.
+String _entryHeader(AppLocalizations l10n, ArchiveEntryView e) {
+  final group = e.groupId.substring(
+    0,
+    e.groupId.length < 12 ? e.groupId.length : 12,
+  );
+  final header = e.own
+      ? l10n.archiveEntryOutgoing(group)
+      : l10n.archiveEntryIncoming(group);
+  return switch (e.senderLabel) {
+    final sender? => l10n.archiveEntrySender(header, sender),
+    null => header,
+  };
 }

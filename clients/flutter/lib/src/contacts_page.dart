@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import 'rust/api/profile.dart';
 
 String contactId(String id) => id.length <= 12 ? id : id.substring(0, 12);
@@ -50,10 +51,7 @@ class _ContactsPageState extends State<ContactsPage> {
       });
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _error =
-              'No se pudieron leer los contactos. Vuelve a intentarlo.',
-        );
+        setState(() => _error = context.l10n.contactsReadFailed);
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -86,10 +84,14 @@ class _ContactsPageState extends State<ContactsPage> {
     final recipients = _recipients;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.selectRecipients ? 'Elegir contactos' : 'Contactos'),
+        title: Text(
+          widget.selectRecipients
+              ? context.l10n.contactsChoose
+              : context.l10n.contactsTitle,
+        ),
         actions: [
           IconButton(
-            tooltip: 'Añadir contacto',
+            tooltip: context.l10n.contactAdd,
             onPressed: _loading ? null : () => _edit(),
             icon: const Icon(Icons.person_add_outlined),
           ),
@@ -107,7 +109,7 @@ class _ContactsPageState extends State<ContactsPage> {
                     Text(_error!),
                     TextButton(
                       onPressed: _load,
-                      child: const Text('Reintentar'),
+                      child: Text(context.l10n.retry),
                     ),
                   ],
                 ),
@@ -116,26 +118,22 @@ class _ContactsPageState extends State<ContactsPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  const Text(
-                    'Los nombres son locales. Comprueba la identidad comparando el número de seguridad por otro canal.',
-                  ),
+                  Text(context.l10n.contactsNamesLocal),
                   if (widget.selectRecipients)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 12),
-                      child: Text(
-                        'Se incluirán los dispositivos guardados que no consten como revocados. Máximo: 16 dispositivos.',
-                      ),
+                      child: Text(context.l10n.contactsDeviceLimit),
                     ),
                   if (!_loading && _error == null && _contacts.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Column(
                         children: [
-                          const Text('Todavía no tienes contactos guardados.'),
+                          Text(context.l10n.contactsEmpty),
                           const SizedBox(height: 16),
                           FilledButton(
                             onPressed: () => _edit(),
-                            child: const Text('Añadir contacto'),
+                            child: Text(context.l10n.contactAdd),
                           ),
                         ],
                       ),
@@ -165,7 +163,7 @@ class _ContactsPageState extends State<ContactsPage> {
                               ),
                         title: Text(c.label),
                         subtitle: Text(
-                          '${contactId(c.identityId)} · ${c.verified ? "Verificado" : "Sin verificar"}\n${c.devices.isEmpty ? "Añade una ruta para conversar" : "${c.devices.where((d) => !d.revoked).length} dispositivos disponibles"}',
+                          '${contactId(c.identityId)} · ${c.verified ? context.l10n.verified : context.l10n.unverified}\n${c.devices.isEmpty ? context.l10n.contactNeedsRoute : context.l10n.contactDevicesAvailable(c.devices.where((d) => !d.revoked).length)}',
                         ),
                         isThreeLine: true,
                         trailing: const Icon(Icons.chevron_right),
@@ -181,7 +179,7 @@ class _ContactsPageState extends State<ContactsPage> {
                 child: Column(
                   children: [
                     if (recipients.length > 16)
-                      const Text('Selecciona como máximo 16 dispositivos.'),
+                      Text(context.l10n.contactsTooMany),
                     FilledButton(
                       key: const Key('use-contacts'),
                       onPressed:
@@ -191,7 +189,7 @@ class _ContactsPageState extends State<ContactsPage> {
                               recipients.length > 16
                           ? null
                           : () => Navigator.pop(context, recipients),
-                      child: Text('Usar contactos (${_selected.length})'),
+                      child: Text(context.l10n.contactsUse(_selected.length)),
                     ),
                   ],
                 ),
@@ -257,10 +255,7 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
       });
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _error =
-              'Revisa la ruta completa del contacto. Debe ser de otro dispositivo.',
-        );
+        setState(() => _error = context.l10n.contactRouteInvalid);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -292,14 +287,11 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
         _checkedRoute = null;
         _preview = null;
         _compared = false;
-        _notice = 'Contacto guardado en este perfil.';
+        _notice = context.l10n.contactSaved;
       });
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _error =
-              'No se pudo guardar. Revisa el nombre y la comparación; conserva el perfil y vuelve a intentarlo.',
-        );
+        setState(() => _error = context.l10n.contactSaveFailed);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -322,15 +314,12 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
         setState(() {
           _contact = result;
           _compared = false;
-          _notice = 'Identidad verificada.';
+          _notice = context.l10n.contactVerifiedNotice;
         });
       }
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _error =
-              'La comparación no se pudo confirmar. Reabre el contacto y compara el número de nuevo.',
-        );
+        setState(() => _error = context.l10n.contactVerifyFailed);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -347,7 +336,9 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            contact == null ? 'Añadir contacto' : 'Datos del contacto',
+            contact == null
+                ? context.l10n.contactAdd
+                : context.l10n.contactDetails,
           ),
         ),
         body: SafeArea(
@@ -367,10 +358,9 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
                       autocorrect: false,
                       enableSuggestions: false,
                       enableIMEPersonalizedLearning: false,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre local (opcional)',
-                        helperText:
-                            'Solo se guarda en este perfil. No verifica la identidad.',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.contactNameLabel,
+                        helperText: context.l10n.contactNameHelper,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -385,10 +375,9 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
                         autocorrect: false,
                         enableSuggestions: false,
                         enableIMEPersonalizedLearning: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Ruta de contacto',
-                          helperText:
-                              'Pide la ruta de este relay a la persona que quieres añadir.',
+                        decoration: InputDecoration(
+                          labelText: context.l10n.contactRouteLabel,
+                          helperText: context.l10n.contactRouteHelper,
                           counterText: '',
                         ),
                         onChanged: (_) => setState(() {
@@ -402,22 +391,20 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
                       const SizedBox(height: 16),
                       OutlinedButton(
                         onPressed: _busy ? null : _prepare,
-                        child: const Text('Preparar contacto'),
+                        child: Text(context.l10n.contactPrepare),
                       ),
                     ],
                     if (identity != null) ...[
                       const SizedBox(height: 20),
-                      SelectableText('Identidad $identity'),
+                      SelectableText(context.l10n.contactIdentity(identity)),
                       const SizedBox(height: 12),
                       Text(
                         contact?.verified == true
-                            ? 'Verificado'
-                            : 'Sin verificar',
+                            ? context.l10n.verified
+                            : context.l10n.unverified,
                       ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'Compara este número con la otra persona por otro canal. El nombre local no sustituye esta comprobación.',
-                      ),
+                      Text(context.l10n.contactCompareHelp),
                       const SizedBox(height: 12),
                       SelectableText(
                         number!,
@@ -432,28 +419,30 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
                           onChanged: _busy
                               ? null
                               : (v) => setState(() => _compared = v ?? false),
-                          title: const Text(
-                            'Hemos comparado el número por otro canal y coincide.',
-                          ),
+                          title: Text(context.l10n.contactCompared),
                         ),
                       if (contact != null && !contact.verified)
                         OutlinedButton(
                           key: const Key('verify-contact'),
                           onPressed: _busy || !_compared ? null : _verify,
-                          child: const Text('Verificar contacto'),
+                          child: Text(context.l10n.contactVerify),
                         ),
                     ],
                     if (contact != null) ...[
                       const SizedBox(height: 16),
-                      Text('${contact.devices.length} rutas guardadas'),
+                      Text(context.l10n.contactRoutes(contact.devices.length)),
                       for (final device in contact.devices)
                         Text(
-                          'Dispositivo ${contactId(device.deviceId)}${device.revoked ? " · Revocado" : ""}',
+                          device.revoked
+                              ? context.l10n.contactDeviceRevoked(
+                                  contactId(device.deviceId),
+                                )
+                              : context.l10n.contactDevice(
+                                  contactId(device.deviceId),
+                                ),
                         ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'Para añadir o actualizar una ruta, vuelve a Añadir contacto. Comprueba que la identidad coincide y conserva el nombre que quieras usar.',
-                      ),
+                      Text(context.l10n.contactUpdateRoute),
                     ],
                     const SizedBox(height: 20),
                     FilledButton(
@@ -462,7 +451,9 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
                           ? null
                           : _save,
                       child: Text(
-                        contact == null ? 'Guardar contacto' : 'Guardar nombre',
+                        contact == null
+                            ? context.l10n.contactSave
+                            : context.l10n.contactSaveName,
                       ),
                     ),
                     if (_busy)

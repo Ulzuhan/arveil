@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import 'rust/api/profile.dart';
 
 class DevicesPage extends StatefulWidget {
@@ -29,6 +30,8 @@ class _DevicesPageState extends State<DevicesPage> {
   // Always reload the durable snapshot, including after a lost network reply.
   Future<void> _run([Future<void> Function()? action]) async {
     if (_busy) return;
+    // Runs from initState too, before the widget may read inherited state.
+    final l10n = currentStrings;
     setState(() {
       _busy = true;
       _error = null;
@@ -37,15 +40,13 @@ class _DevicesPageState extends State<DevicesPage> {
     try {
       await action?.call();
     } catch (_) {
-      error =
-          'No se pudo completar la operación. Consulta el estado guardado y vuelve a sincronizar.';
+      error = l10n.devicesOperationFailed;
     }
     try {
       final inventory = await widget.profile.devices();
       if (mounted) setState(() => _inventory = inventory);
     } catch (_) {
-      error =
-          'No se pudo leer el estado de los dispositivos. Vuelve a intentarlo.';
+      error = l10n.devicesReadFailed;
     }
     if (mounted) {
       setState(() {
@@ -65,33 +66,29 @@ class _DevicesPageState extends State<DevicesPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('¿Revocar este dispositivo?'),
+        title: Text(context.l10n.devicesRevokeTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Comprueba el identificador completo en el otro dispositivo antes de continuar.',
-              ),
+              Text(context.l10n.devicesRevokeCheckId),
               const SizedBox(height: 12),
               SelectableText(device.deviceId),
               const SizedBox(height: 12),
-              const Text(
-                'La revocación es permanente. Se guardará aquí y se publicará al conectar. El relay bloqueará el dispositivo cuando acepte el cambio; las conversaciones también necesitan retirarlo de su grupo. No borra las copias ni el historial que ya tenga.',
-              ),
+              Text(context.l10n.devicesRevokeConsequences),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             key: const Key('confirm-device-revocation'),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Revocar definitivamente'),
+            child: Text(context.l10n.devicesRevokeConfirm),
           ),
         ],
       ),
@@ -109,15 +106,13 @@ class _DevicesPageState extends State<DevicesPage> {
   Widget build(BuildContext context) {
     final inventory = _inventory;
     return Scaffold(
-      appBar: AppBar(title: const Text('Dispositivos')),
+      appBar: AppBar(title: Text(context.l10n.devicesTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             if (_busy) const LinearProgressIndicator(),
-            const Text(
-              'Estado conocido por este perfil. Estar autorizado no indica que un dispositivo esté conectado.',
-            ),
+            Text(context.l10n.devicesKnownState),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               key: const Key('sync-devices'),
@@ -127,32 +122,37 @@ class _DevicesPageState extends State<DevicesPage> {
                       await widget.profile.sync_(bootstrap: widget.bootstrap);
                     }),
               icon: const Icon(Icons.sync),
-              label: const Text('Sincronizar dispositivos'),
+              label: Text(context.l10n.devicesSync),
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, key: const Key('devices-error')),
               TextButton(
                 onPressed: _busy ? null : () => _run(),
-                child: const Text('Volver a leer el estado local'),
+                child: Text(context.l10n.devicesReadLocal),
               ),
             ],
             if (inventory != null) ...[
               const SizedBox(height: 12),
               Text(
                 inventory.administrator
-                    ? 'Este perfil puede administrar sus dispositivos.'
-                    : 'Este dispositivo está vinculado. Revoca dispositivos desde el perfil administrador.',
+                    ? context.l10n.devicesAdministrator
+                    : context.l10n.devicesLinked,
               ),
               const SizedBox(height: 8),
               Text(
-                'Versión local del manifiesto: ${inventory.manifestSequence}',
+                context.l10n.devicesManifestVersion(
+                  '${inventory.manifestSequence}',
+                ),
               ),
               if (inventory.unknownActive + inventory.unknownRevoked > 0)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text(
-                    'Inventario parcial: el manifiesto incluye ${inventory.unknownActive} credenciales autorizadas y ${inventory.unknownRevoked} revocadas cuyos identificadores de dispositivo no conoce este perfil. Consulta el administrador para gestionarlas.',
+                    context.l10n.devicesPartialInventory(
+                      inventory.unknownActive,
+                      inventory.unknownRevoked,
+                    ),
                     key: const Key('partial-device-inventory'),
                   ),
                 ),
@@ -173,8 +173,8 @@ class _DevicesPageState extends State<DevicesPage> {
                       children: [
                         Text(
                           device.current
-                              ? 'Este dispositivo'
-                              : 'Dispositivo vinculado',
+                              ? context.l10n.devicesThis
+                              : context.l10n.devicesLinkedDevice,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 8),
@@ -182,37 +182,41 @@ class _DevicesPageState extends State<DevicesPage> {
                         const SizedBox(height: 8),
                         Text(
                           device.revoked
-                              ? 'Revocado según el estado local'
-                              : 'No consta revocado en este perfil',
+                              ? context.l10n.devicesRevokedLocally
+                              : context.l10n.devicesNotRevoked,
                         ),
                         if (device.revocation case final progress?) ...[
                           const SizedBox(height: 8),
                           Text(
                             progress.relayPublished
-                                ? 'Revocación aceptada por el relay'
-                                : 'Pendiente de publicar la revocación en el relay',
+                                ? context.l10n.devicesRevocationAccepted
+                                : context.l10n.devicesRevocationPending,
                           ),
                           Text(
-                            'Conversaciones locales pendientes de retirarlo: ${progress.groupsWaiting}',
+                            context.l10n.devicesGroupsWaiting(
+                              progress.groupsWaiting,
+                            ),
                           ),
                           if (progress.groupsWaiting > 0)
-                            const Text(
-                              'Sincroniza para recibir los cambios. La retirada corresponde al dispositivo que coordina los cambios del grupo; mientras tanto, el envío permanece bloqueado en quienes conocen la revocación.',
-                            ),
+                            Text(context.l10n.devicesGroupsWaitingHelp),
                           Text(
-                            'Avisos pendientes de publicar: ${progress.notificationsPending}',
+                            context.l10n.devicesNoticesPending(
+                              progress.notificationsPending,
+                            ),
                           ),
                           if (progress.notificationsUnconfirmed > 0)
                             Text(
-                              'Avisos rechazados o caducados sin confirmación: ${progress.notificationsUnconfirmed}. Comprueba el estado con los otros participantes.',
+                              context.l10n.devicesNoticesUnconfirmed(
+                                progress.notificationsUnconfirmed,
+                              ),
                             ),
                           if (progress.withoutRoute > 0)
                             Text(
-                              'Avisos que no pudieron prepararse por falta de ruta: ${progress.withoutRoute}. Requieren revisar las rutas; no se reenvían automáticamente.',
+                              context.l10n.devicesNoticesWithoutRoute(
+                                progress.withoutRoute,
+                              ),
                             ),
-                          const Text(
-                            'La aceptación del relay no confirma que los demás dispositivos hayan recibido el aviso.',
-                          ),
+                          Text(context.l10n.devicesAcceptanceCaveat),
                         ],
                         if (inventory.administrator &&
                             !device.current &&
@@ -221,7 +225,7 @@ class _DevicesPageState extends State<DevicesPage> {
                           OutlinedButton(
                             key: Key('revoke-${device.deviceId}'),
                             onPressed: _busy ? null : () => _revoke(device),
-                            child: const Text('Revocar dispositivo'),
+                            child: Text(context.l10n.devicesRevoke),
                           ),
                         ],
                       ],
