@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="macos")
+    parser.add_argument("--scenario", choices=("conversations", "attachments"), default="conversations")
     args = parser.parse_args()
     flutter = shutil.which("flutter")
     adb = shutil.which("adb") if args.device != "macos" else None
@@ -119,7 +120,7 @@ def main():
                     command += ["drive", "--no-dds", "--driver", "test_driver/integration_test.dart", "--target"]
                 else:
                     command += ["test"]
-                command += ["integration_test/conversations_test.dart", "-d", args.device, "--dart-define-from-file", str(config)]
+                command += [f"integration_test/{args.scenario}_test.dart", "-d", args.device, "--dart-define-from-file", str(config)]
                 with (directory / "flutter.log").open("w") as log:
                     try:
                         result = subprocess.run(command, cwd=ROOT / "clients/flutter", stdout=log, stderr=log, timeout=1200)
@@ -134,7 +135,7 @@ def main():
                     shutil.copyfile(directory / "flutter.log", destination)
                     destination.chmod(0o600)
                     raise RuntimeError("Native conversation acceptance failed. Private diagnostics retained in .local/client-acceptance/.")
-                print("PASS: saved contacts, explicit verification, rename, verified group, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates.")
+                print("PASS: " + ("explicit attachments, offline queue, encrypted reopen, download, export boundary, duplicate names, cancellation and reconnect without duplicates." if args.scenario == "attachments" else "saved contacts, explicit verification, rename, verified group, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates."))
             finally:
                 if control:
                     control.shutdown()

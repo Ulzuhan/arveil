@@ -52,7 +52,16 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AttachmentStateView dco_decode_attachment_state_view(dynamic raw);
+
+  @protected
+  AttachmentView dco_decode_attachment_view(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  AttachmentView dco_decode_box_autoadd_attachment_view(dynamic raw);
 
   @protected
   CommandError dco_decode_box_autoadd_command_error(dynamic raw);
@@ -137,6 +146,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  AttachmentView? dco_decode_opt_box_autoadd_attachment_view(dynamic raw);
 
   @protected
   CommandError? dco_decode_opt_box_autoadd_command_error(dynamic raw);
@@ -228,7 +240,20 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  AttachmentStateView sse_decode_attachment_state_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AttachmentView sse_decode_attachment_view(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  AttachmentView sse_decode_box_autoadd_attachment_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   CommandError sse_decode_box_autoadd_command_error(
@@ -333,6 +358,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  AttachmentView? sse_decode_opt_box_autoadd_attachment_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   CommandError? sse_decode_opt_box_autoadd_command_error(
     SseDeserializer deserializer,
   );
@@ -435,7 +465,25 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_attachment_state_view(
+    AttachmentStateView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_attachment_view(
+    AttachmentView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_attachment_view(
+    AttachmentView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_command_error(
@@ -571,6 +619,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_attachment_view(
+    AttachmentView? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_command_error(

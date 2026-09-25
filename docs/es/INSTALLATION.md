@@ -142,6 +142,19 @@ plano. Faltan push, recepción en segundo plano, acciones de adjuntos y gestión
 miembros. Los paquetes experimentales anteriores pueden preceder estos cambios:
 comprueba su revisión antes de esperar estas pantallas.
 
+### Adjuntos (cliente fuente `0.1.0+7`)
+
+Dentro de una conversación, pulsa **Adjuntar archivo** (clip), selecciona un
+archivo de menos de 25 MiB y confirma. La copia privada pendiente sobrevive al
+reinicio. Si no hay red, usa **Enviar / reanudar** al recuperar conexión;
+adjuntarlo otra vez crearía otro mensaje. Los recibidos solo se descargan al
+pulsar **Descargar**. **Guardar copia…** permite elegir explícitamente un
+destino externo. Esa copia queda fuera del perfil cifrado de Arveil y puede
+entrar en las copias de seguridad del destino. Cancelar una transferencia
+incompleta elimina sus datos locales; no retira un mensaje enviado. Pide otra
+copia si el relay indica caducidad. Los paquetes candidatos `0.1.0+5` todavía
+no incluyen esta interfaz.
+
 ## Compilar desde el código
 
 El [README de Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)

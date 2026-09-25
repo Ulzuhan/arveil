@@ -135,6 +135,18 @@ background receipt, attachment actions and membership controls are still pending
 The existing experimental packages may precede these source changes; check their
 recorded revision before expecting these screens.
 
+### Attachments (source client `0.1.0+7`)
+
+In a conversation, choose **Attach file** (paperclip), select a file smaller
+than 25 MiB, and confirm. The private queued copy survives restart. If offline,
+use the file's **Send / resume** button when connectivity returns; reattaching
+would create another message. Incoming files download only when you choose
+**Download**. Use **Save copy…** to choose an external destination explicitly.
+That exported copy is outside Arveil's encrypted profile and may be backed up
+by its destination. Cancelling an unfinished transfer discards its local data;
+it does not recall a sent message. Request another copy if the relay reports
+expiry. Existing `0.1.0+5` package candidates do not include this interface.
+
 ## Build from source
 
 The [Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)

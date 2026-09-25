@@ -27,6 +27,10 @@ The [phase 3b plan](../../docs/PHASE3B.md) keeps physical-device acceptance open
 Keychain works with ad-hoc signing; physical Android and fresh downloaded
 macOS acceptance remain open.
 
+Source `0.1.0+7` adds explicit attachments: native file selectors, encrypted
+private storage, per-message upload/download progress, resume/cancel and
+explicit export. See the [installation guide](../../docs/INSTALLATION.md).
+
 ## Installing versus developing
 
 See the [installation entry point](../../docs/INSTALLATION.md)
@@ -198,3 +202,23 @@ Use your disposable emulator's serial. The debug CargoKit build also compiles
 x86/x86-64 bridge libraries, so a clean run can take several minutes even on
 an ARM64 emulator. These test-tool settings do not alter release signing or
 add configuration to the app.
+
+
+## Attachment acceptance
+
+Use the same isolated helper with the attachment scenario:
+
+```sh
+python3 scripts/test_client_conversations.py --device macos --scenario attachments
+# Or the disposable Android emulator:
+python3 scripts/test_client_conversations.py --device emulator-5554 --scenario attachments
+```
+
+This exercises GUI confirmation, offline queue/reopen, send, explicit download,
+export confirmation, identical filenames, cancellation and repeated sync with
+the native bridge and encrypted storage. The two peers run inside the same
+test app. File selectors are replaced by in-memory fixture adapters: this does
+not verify the native open/save/cancel dialogs or write exported test files.
+The Rust suite separately injects lost upload acknowledgements, interrupted
+downloads and cancellation during a network request. Private fixture cleanup
+and the Android tool settings above apply to both scenarios.

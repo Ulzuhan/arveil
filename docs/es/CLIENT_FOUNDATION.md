@@ -58,7 +58,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 
 ## Límites que permanecen
 
-- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. La conversación de texto está implementada; siguen pendientes adjuntos y gestión de dispositivos. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
+- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. La conversación de texto está implementada; sigue pendiente la gestión de dispositivos. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
 - Solo la CLI lee ya variables de entorno, y sigue eligiendo perfil sin cifrar cuando no hay clave. El almacén seguro se ha probado en emulador Android y en macOS con firma ad hoc y llavero clásico. Quedan pendientes teléfono físico y una instalación nueva descargada.
 - El puente Rust ejecuta las llamadas bloqueantes fuera del hilo de interfaz y expone un flujo incremental de eventos. Siguen pendientes la cancelación general de operaciones y la aceptación completa del ciclo de vida de cada plataforma.
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. El progreso es una proyección: los cambios que no modela solo llegan en el resultado durable.
@@ -165,8 +165,8 @@ las páginas anteriores que abrió el usuario y se detiene si cambia de pantalla
 o selección. Se distingue
 almacenamiento local, aceptación del relay, entrega no disponible y recepción en
 este dispositivo. No se afirma lectura humana, autor autenticado ni hora del
-mensaje. Los nombres de contactos se implementan en M3b.4 más abajo; acciones de adjuntos
-y gestión de miembros quedan para entregas posteriores.
+mensaje. Los nombres de contactos y las acciones de adjuntos se implementan en M3b.4 más abajo;
+la gestión de miembros queda para entregas posteriores.
 
 Las regresiones cubren comparación simétrica y confirmación atómica de contactos,
 encolado/reapertura sin relay, resultados del bridge tras commit, historial durante
@@ -206,5 +206,50 @@ Los contactos aprendidos en conversaciones se pueden nombrar y verificar; si
 no tienen una ruta guardada hay que importar una antes de seleccionarlos. Alias
 y verificación sobreviven a la reapertura. El asistente de aceptación de
 conversaciones recorre ahora este flujo antes de texto bidireccional, modo sin
-red, reconexión y paginación. Quedan pendientes de M3b.4 adjuntos, gestión de
-dispositivos e interfaz de archivos de historial.
+red, reconexión y paginación. Quedan pendientes de M3b.4 la gestión de dispositivos y la interfaz de archivos de historial.
+
+
+## Adjuntos explícitos (segunda entrega de M3b.4)
+
+El código fuente `0.1.0+7` añade selección de archivo, confirmación, cola local
+persistente, descarga explícita, progreso, cancelación y exportación explícita.
+El límite son 25 MiB incluido el tag de cifrado de 16 bytes (26.214.384 bytes
+del archivo original). Cada archivo se identifica por conversación y `event_id`:
+los nombres iguales no seleccionan ni sobrescriben otra copia privada. Los
+selectores del sistema conceden acceso al origen/destino elegido; sus rutas y
+URI no se guardan con el mensaje.
+
+La GUI activa la gestión manual de adjuntos. Sincronizar recibe descriptores,
+pero nunca descarga automáticamente sus blobs. Descriptores, estados y bloques
+cifrados viven en tablas nuevas de la misma conexión SQLCipher que los eventos
+y MLS. La GUI no escribe descargas descifradas. Exportar verifica tamaño, hash
+y autenticación AEAD antes de entregar bytes al diálogo del sistema. El puente
+elimina el cuerpo de los eventos de archivo: ni capabilities, claves de archivo
+ni rutas antiguas del equipo llegan a los widgets del historial.
+
+La cola reserva un único evento persistente antes de usar la red. La subida
+reanuda desde el offset del relay; perder un acuse o reabrir la app no crea otro
+mensaje. La transacción final de envío MLS confirma conjuntamente evento,
+outbox y finalización. Después solo se resincroniza el mensaje guardado. Las
+descargas conservan bloques cifrados contiguos y verifican el archivo entero
+antes de permitir exportarlo. Solo corre una transferencia por perfil; consulta
+del historial y cancelación siguen respondiendo mientras espera a la red.
+Los archivos interrumpidos requieren una reanudación explícita.
+
+Cancelar se comprueba después de cada espera de red e impide posteriores
+escrituras locales o confirmar el mensaje. Elimina los datos locales incompletos.
+No retira un mensaje ya confirmado ni borra inmediatamente bytes que llegaron
+al relay: su limpieza sigue la política existente de caducidad. Una descarga
+cancelada se puede solicitar de nuevo. Un 410 se presenta como caducado; un 403
+como no disponible/acceso rechazado, sin atribuirlo a caducidad. Ninguna acción
+renueva capabilities. Los archivos descargados antes por la CLI quedan fuera
+de este flujo gestionado.
+
+Las regresiones Rust cubren pérdida de acuses, descarga interrumpida y reapertura
+cifrada, cancelación durante una petición, nombres iguales, ámbito de conversación,
+tamaños y autenticación inválidos, caducidad y denegación. Los widgets comprueban
+confirmaciones, reintento del mismo evento, cancelación al guardar, cambio de
+conversación durante la selección y presentación móvil. El escenario nativo usa
+dos perfiles y un relay desechable, con sustitutos de selectores en memoria.
+Los diálogos reales del sistema, el teléfono físico y los paquetes de release
+en apps distintas siguen teniendo aceptación separada.

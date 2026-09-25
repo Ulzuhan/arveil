@@ -15,6 +15,10 @@ use rusqlite::{OptionalExtension, params};
 
 use crate::storage::SharedConn;
 
+#[path = "attachment_store.rs"]
+mod attachment_store;
+pub use attachment_store::AttachmentRow;
+
 pub const DELIVERY_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS outbox (
     id          INTEGER PRIMARY KEY,
@@ -48,6 +52,23 @@ CREATE TABLE IF NOT EXISTS events (
     kind       TEXT NOT NULL,
     body       BLOB NOT NULL,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE TABLE IF NOT EXISTS attachment_transfers (
+    event_id BLOB PRIMARY KEY REFERENCES events(event_id),
+    outgoing INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    state TEXT NOT NULL,
+    descriptor BLOB NOT NULL,
+    offset INTEGER NOT NULL DEFAULT 0,
+    committed INTEGER NOT NULL DEFAULT 0,
+    expires_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS attachment_chunks (
+    event_id BLOB NOT NULL REFERENCES attachment_transfers(event_id),
+    offset INTEGER NOT NULL,
+    data BLOB NOT NULL,
+    PRIMARY KEY (event_id, offset)
 );
 ";
 
