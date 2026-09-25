@@ -645,3 +645,35 @@ Evidencia:
 
 Las pantallas actuales solo adoptan los colores y la tipografía nuevos; las
 pantallas rediseñadas son los paquetes C del [plan del cliente](PHASE3B.md).
+
+## Español e inglés (25 de septiembre de 2026)
+
+El cliente muestra su interfaz en español o en inglés según el idioma del
+sistema.
+
+- **Mensajes.** Todas las cadenas visibles están en
+  `clients/flutter/lib/l10n/app_es.arb` y `app_en.arb`. `gen-l10n` genera el
+  código, que se incluye en el repositorio; el español es la plantilla. Los
+  recuentos usan plurales ICU y las fechas siguen el orden de cada idioma.
+- **Elección del idioma.** Solo se usa el inglés si el sistema lo prefiere.
+  En cualquier otro caso, incluido un sistema en catalán, gallego o euskera,
+  la interfaz aparece en español. D1 añadirá la elección manual.
+- **Código fuera de los widgets.** La sesión del perfil, el controlador de
+  conversaciones y los diálogos nativos de archivos leen `currentStrings`,
+  que la app actualiza con el idioma en uso. Un componente montado fuera de
+  la app recurre a esas mismas cadenas.
+- **Glosario.** La interfaz ya no muestra nombres del protocolo: dice
+  servidor en lugar de relay, kit de identidad, claves para grupos nuevos e
+  historial cifrado, como fija el [plan del cliente](CLIENT_DESIGN.md#glosario-de-la-interfaz).
+  Los términos técnicos se mantienen en los diagnósticos y en la
+  documentación de operación.
+
+Evidencia:
+
+- Las pruebas de widgets siguen buscando el texto en español, la lengua
+  normativa, mediante `test/flutter_test_config.dart`.
+- `test/l10n_test.dart` comprueba que ambos ARB tienen los mismos mensajes
+  con los mismos marcadores, la resolución del idioma y la app completa en
+  inglés, incluido el texto que se genera fuera de los widgets.
+- El CI vuelve a generar las localizaciones y falla si difieren de las
+  incluidas en el repositorio o si queda algún mensaje sin traducir.

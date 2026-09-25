@@ -2,7 +2,7 @@
 
 [Versión española](es/CLIENT_DESIGN.md). The Spanish document is the normative source; this condensed English translation must be updated in the same review, and the Spanish text prevails if they diverge.
 
-Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history), A1b (sender in the encrypted history), A2 (conversation summary and unread counts), A3 (kit state, device notices and sync status) and B1 (tokens, theme and components); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
+Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history), A1b (sender in the encrypted history), A2 (conversation summary and unread counts), A3 (kit state, device notices and sync status), B1 (tokens, theme and components) and B2 (Spanish and English); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
 
 ## Why, and what not
 
@@ -63,7 +63,7 @@ One small PR per package with its own tests. Relative size: S (up to a day), M (
 | A2 Conversation summary and unread (implemented) | M | A1 | Last event, unread count and last activity in `ConversationView`; monotonic local read marker with `mark_read`; Rust orders by activity |
 | A3 Recovery state and system notices (implemented) | S | A0 | Persist last successful kit export; record a local notice when an accepted manifest changes a contact's active devices; Dart sync-status projection from typed errors |
 | B1 Tokens, theme and components (implemented) | L | — | `ThemeExtension` tokens, light and dark themes, bundled fonts and icons, component set, splash from the brand mark (the app icon exists since `0.1.0+11`); contrast unit test and component goldens on the macOS CI job |
-| B2 Spanish/English localization | M | — | `gen-l10n` ARB files with Spanish as template; extract every visible string and move about 125 literal-text test finders to keys or localized strings |
+| B2 Spanish/English localization (implemented) | M | — | `gen-l10n` ARB files with Spanish as template; extract every visible string; tests keep finding the Spanish text, the normative language, and a separate test walks the app in English |
 | C1 Adaptive navigation and shortcuts | M | B1 | Three size classes, separate enrollment route, desktop shortcuts with tested focus order |
 | C2 Chat list | S | A2, A3, C1 | Full rows, persistent kit notice, sync indicator, name search, empty state |
 | C3 Conversation | M | A1, A3, C1 | Grouped bubbles, date separators, delivery detail, attachment states, system notices, offline banner, composer, `mark_read`, desktop details pane |

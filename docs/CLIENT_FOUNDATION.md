@@ -592,3 +592,34 @@ Evidence:
 
 The existing screens only pick up the new colours and type; the redesigned
 screens are the C packages of the [client plan](PHASE3B.md).
+
+## Spanish and English (September 25, 2026)
+
+The client shows its interface in Spanish or English, following the system
+language.
+
+- **Messages.** Every visible string lives in
+  `clients/flutter/lib/l10n/app_es.arb` and `app_en.arb`. `gen-l10n`
+  generates the code, which is committed; Spanish is the template. Counts
+  use ICU plurals and dates follow each language's order.
+- **Choosing the language.** English is used only when the system prefers
+  it. Otherwise, including a system set to Catalan, Galician or Basque, the
+  interface is in Spanish. D1 will add a manual choice.
+- **Code outside widgets.** The profile session, the conversation controller
+  and the native file dialogs read `currentStrings`, which the app keeps in
+  step with the language in use. A component pumped outside the app falls
+  back to the same strings.
+- **Glossary.** The interface no longer shows protocol names: it says server
+  instead of relay, identity kit, keys for new groups and encrypted history,
+  as the [client plan](es/CLIENT_DESIGN.md#glosario-de-la-interfaz) sets out.
+  Technical terms stay in diagnostics and operator documentation.
+
+Evidence:
+
+- Widget tests keep finding the Spanish text, the normative language,
+  through `test/flutter_test_config.dart`.
+- `test/l10n_test.dart` checks that both ARBs carry the same messages with
+  the same placeholders, the locale resolution, and the whole app in
+  English, including text produced outside widgets.
+- CI regenerates the localizations and fails if they differ from the
+  committed ones or if any message is left untranslated.
