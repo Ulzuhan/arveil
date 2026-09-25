@@ -220,9 +220,18 @@ pub(super) fn cancel(config: &ProfileConfig, group: &[u8], id: &[u8]) -> Result<
 pub(super) fn export(config: &ProfileConfig, group: &[u8], id: &[u8]) -> Result<Vec<u8>, CliError> {
     require_private(config)?;
     let s = local(config)?;
-    checked_event(&s.delivery, group, id)?;
-    let row = s
-        .delivery
+    available_bytes(&s.delivery, group, id)
+}
+
+/// Verify an existing local copy without downloading or changing transfer policy.
+/// Archive export also uses this when invoked by the CLI on a GUI profile.
+pub(super) fn available_bytes(
+    delivery: &Delivery,
+    group: &[u8],
+    id: &[u8],
+) -> Result<Vec<u8>, CliError> {
+    checked_event(delivery, group, id)?;
+    let row = delivery
         .attachment(id)?
         .ok_or_else(|| CliError::Domain("download the attachment first".into()))?;
     if !matches!(row.state.as_str(), "ready" | "sent") {
@@ -231,9 +240,7 @@ pub(super) fn export(config: &ProfileConfig, group: &[u8], id: &[u8]) -> Result<
         ));
     }
     let d = descriptor(&row.descriptor, true)?;
-    let bytes = s
-        .delivery
-        .attachment_bytes(id, attachments::MAX_FILE_BYTES)?;
+    let bytes = delivery.attachment_bytes(id, attachments::MAX_FILE_BYTES)?;
     verified_plaintext(&d, &bytes)
 }
 

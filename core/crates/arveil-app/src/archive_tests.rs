@@ -250,6 +250,10 @@ fn live_managed_file_is_verified_before_export() {
     d.attachment_chunk(&r.event_id, 0, &encrypted.ciphertext)
         .unwrap();
     assert_eq!(f.app.export_archive().unwrap().files, 1);
+    // CLI configuration must also export managed GUI files without changing
+    // the profile's transfer/download policy.
+    let cli_config = ProfileConfig::encrypted(f.config.dir(), "ab".repeat(32)).unwrap();
+    assert_eq!(export(&cli_config).unwrap().files, 1);
     f.conn()
         .lock()
         .execute(

@@ -123,7 +123,7 @@ pub(super) fn export(config: &ProfileConfig) -> Result<ArchiveExport, CliError> 
                 {
                     return Err(invalid());
                 }
-                r.file = attachment_ui::export(config, &r.group_id, &r.event_id)?;
+                r.file = attachment_ui::available_bytes(&s.delivery, &r.group_id, &r.event_id)?;
                 r.file_present = true;
             }
         }
