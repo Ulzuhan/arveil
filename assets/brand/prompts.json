@@ -1,0 +1,15 @@
+{
+  "mode": "Built-in image_gen tool",
+  "sources": [
+    {
+      "file": "icon-square-source.png",
+      "prompt": "Use case: logo-brand. Create the production master app icon for Arveil, an open-source private messenger for families and small trusted circles. Single square 1024x1024 icon, full-bleed perfectly flat deep pine green background close to hex #245B51. Center one distinctive, beautifully balanced warm ivory emblem: two broad, softly folded veil/ribbon strokes interlocking into an abstract capital A, with a small clear negative-space opening that subtly suggests a private conversation. The symbol should feel calm, welcoming, crafted and memorable, not military or a cybersecurity shield. Bold simple silhouette readable at 24 pixels, generous negative space, gently rounded ends, no hairline details. The mark occupies approximately the central 55 percent of the canvas in both width and height. Precise minimal graphic design, almost flat with only a very subtle fold distinction, no noisy texture. This is a single finished icon, not a presentation sheet or device mockup. No wordmark, no letters other than the implied abstract A, no captions, no keyhole, no lock, no shield, no dots, no chat-bubble outline, no gradients on the background, no watermark, no border, no rounded outer corners. Keep the entire square background opaque."
+    },
+    {
+      "file": "icon-macos-source.png",
+      "reference": "icon-square-source.png",
+      "prompt": "Use case: precise-object-edit. Input image is the authoritative Arveil app icon. Create its macOS app-icon rendition. Preserve exactly the ivory folded-ribbon A emblem shape, all curves and gaps, subtle fold shading, and original pine-green color. Change ONLY the tile and framing: the green background becomes one centered macOS-style rounded square with continuous very rounded corners, approximately 82 percent of the square canvas width and height; there is generous REAL transparent padding outside the tile on all four sides. Keep the emblem on the green tile with the same relative size and placement as the original image. A very subtle soft shadow immediately under the green tile is allowed. Square 1024x1024 RGBA output, actual transparent alpha outside the icon tile. This is a production macOS icon, not a mockup or presentation. No white or black surrounding background, no checkerboard pixels, no extra symbols, no text, no border, no change to the logo."
+    }
+  ],
+  "native_assets": "mark.svg is a simplified vector adaptation of the generated ribbon silhouette. Android foreground and monochrome drawables are exported from this path."
+}

@@ -1,5 +1,7 @@
 # Arveil
 
+<img src="assets/brand/icon-macos-source.png" alt="Arveil app icon" width="96" height="96">
+
 **A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
 
 [![CI](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml)
