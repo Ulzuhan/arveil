@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `chat_mutation`, `command_error`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -64,8 +64,15 @@ abstract class Profile implements RustOpaqueInterface {
     required String verificationCode,
   });
 
+  Future<List<ContactView>> contacts();
+
   /// The conversation list, as a query that answers from local state.
   Future<List<ConversationView>> conversations();
+
+  Future<ChatMutationView> createContactConversation({
+    required String bootstrap,
+    required List<SavedRecipientView> recipients,
+  });
 
   Future<ChatMutationView> createConversation({
     required String bootstrap,
@@ -104,6 +111,11 @@ abstract class Profile implements RustOpaqueInterface {
     required String text,
   });
 
+  Future<ContactView> renameContact({
+    required String identityId,
+    required String name,
+  });
+
   Future<KeyPackageSupplyView> replenishKeyPackages();
 
   Future<void> restoreKit({
@@ -113,6 +125,12 @@ abstract class Profile implements RustOpaqueInterface {
   });
 
   Future<void> resumeRecovery();
+
+  Future<ContactView> saveContact({
+    required String route,
+    required String name,
+    String? safetyNumber,
+  });
 
   /// Read durable setup state after opening, completing or retrying an
   /// enrollment. Progress events are hints; this is the source of truth.
@@ -128,6 +146,11 @@ abstract class Profile implements RustOpaqueInterface {
   void stopWatching({required BigInt generation});
 
   Future<SyncView> sync_({required String bootstrap});
+
+  Future<ContactView> verifyContact({
+    required String identityId,
+    required String safetyNumber,
+  });
 
   /// Watch progress while operations run. The stream ends when the
   /// profile closes or when `stop_watching` is called; a listener should
@@ -200,17 +223,76 @@ sealed class CommandError with _$CommandError implements FrbException {
       CommandError_Interrupted;
 }
 
+class ContactDeviceView {
+  final String deviceId;
+  final bool revoked;
+
+  const ContactDeviceView({required this.deviceId, required this.revoked});
+
+  @override
+  int get hashCode => deviceId.hashCode ^ revoked.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ContactDeviceView &&
+          runtimeType == other.runtimeType &&
+          deviceId == other.deviceId &&
+          revoked == other.revoked;
+}
+
+class ContactView {
+  final String identityId;
+  final String? name;
+  final String label;
+  final bool verified;
+  final String safetyNumber;
+  final List<ContactDeviceView> devices;
+
+  const ContactView({
+    required this.identityId,
+    this.name,
+    required this.label,
+    required this.verified,
+    required this.safetyNumber,
+    required this.devices,
+  });
+
+  @override
+  int get hashCode =>
+      identityId.hashCode ^
+      name.hashCode ^
+      label.hashCode ^
+      verified.hashCode ^
+      safetyNumber.hashCode ^
+      devices.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ContactView &&
+          runtimeType == other.runtimeType &&
+          identityId == other.identityId &&
+          name == other.name &&
+          label == other.label &&
+          verified == other.verified &&
+          safetyNumber == other.safetyNumber &&
+          devices == other.devices;
+}
+
 /// One row of the conversation list.
 class ConversationView {
   final String groupId;
   final bool creator;
   final int peerDevices;
+  final List<PeerView> peers;
   final int eventCount;
 
   const ConversationView({
     required this.groupId,
     required this.creator,
     required this.peerDevices,
+    required this.peers,
     required this.eventCount,
   });
 
@@ -219,6 +301,7 @@ class ConversationView {
       groupId.hashCode ^
       creator.hashCode ^
       peerDevices.hashCode ^
+      peers.hashCode ^
       eventCount.hashCode;
 
   @override
@@ -229,6 +312,7 @@ class ConversationView {
           groupId == other.groupId &&
           creator == other.creator &&
           peerDevices == other.peerDevices &&
+          peers == other.peers &&
           eventCount == other.eventCount;
 }
 
@@ -388,6 +472,45 @@ class PairingView {
           expired == other.expired;
 }
 
+class PeerView {
+  final String identityId;
+  final String deviceId;
+  final String label;
+  final bool own;
+  final bool verified;
+  final bool revoked;
+
+  const PeerView({
+    required this.identityId,
+    required this.deviceId,
+    required this.label,
+    required this.own,
+    required this.verified,
+    required this.revoked,
+  });
+
+  @override
+  int get hashCode =>
+      identityId.hashCode ^
+      deviceId.hashCode ^
+      label.hashCode ^
+      own.hashCode ^
+      verified.hashCode ^
+      revoked.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PeerView &&
+          runtimeType == other.runtimeType &&
+          identityId == other.identityId &&
+          deviceId == other.deviceId &&
+          label == other.label &&
+          own == other.own &&
+          verified == other.verified &&
+          revoked == other.revoked;
+}
+
 @freezed
 sealed class ProfileError with _$ProfileError implements FrbException {
   const ProfileError._();
@@ -524,6 +647,24 @@ class RoutePreviewView {
           identityId == other.identityId &&
           deviceId == other.deviceId &&
           safetyNumber == other.safetyNumber;
+}
+
+class SavedRecipientView {
+  final String identityId;
+  final String deviceId;
+
+  const SavedRecipientView({required this.identityId, required this.deviceId});
+
+  @override
+  int get hashCode => identityId.hashCode ^ deviceId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SavedRecipientView &&
+          runtimeType == other.runtimeType &&
+          identityId == other.identityId &&
+          deviceId == other.deviceId;
 }
 
 enum SetupStage {

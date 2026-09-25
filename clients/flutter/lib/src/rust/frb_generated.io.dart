@@ -76,6 +76,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   CommandError dco_decode_command_error(dynamic raw);
 
   @protected
+  ContactDeviceView dco_decode_contact_device_view(dynamic raw);
+
+  @protected
+  ContactView dco_decode_contact_view(dynamic raw);
+
+  @protected
   ConversationView dco_decode_conversation_view(dynamic raw);
 
   @protected
@@ -103,10 +109,19 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<ContactDeviceView> dco_decode_list_contact_device_view(dynamic raw);
+
+  @protected
+  List<ContactView> dco_decode_list_contact_view(dynamic raw);
+
+  @protected
   List<ConversationView> dco_decode_list_conversation_view(dynamic raw);
 
   @protected
   List<HistoryEventView> dco_decode_list_history_event_view(dynamic raw);
+
+  @protected
+  List<PeerView> dco_decode_list_peer_view(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -116,6 +131,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<RoutePreviewView> dco_decode_list_route_preview_view(dynamic raw);
+
+  @protected
+  List<SavedRecipientView> dco_decode_list_saved_recipient_view(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -139,6 +157,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView dco_decode_pairing_view(dynamic raw);
 
   @protected
+  PeerView dco_decode_peer_view(dynamic raw);
+
+  @protected
   ProfileError dco_decode_profile_error(dynamic raw);
 
   @protected
@@ -149,6 +170,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   RoutePreviewView dco_decode_route_preview_view(dynamic raw);
+
+  @protected
+  SavedRecipientView dco_decode_saved_recipient_view(dynamic raw);
 
   @protected
   SetupStage dco_decode_setup_stage(dynamic raw);
@@ -230,6 +254,14 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   CommandError sse_decode_command_error(SseDeserializer deserializer);
 
   @protected
+  ContactDeviceView sse_decode_contact_device_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ContactView sse_decode_contact_view(SseDeserializer deserializer);
+
+  @protected
   ConversationView sse_decode_conversation_view(SseDeserializer deserializer);
 
   @protected
@@ -261,6 +293,14 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<ContactDeviceView> sse_decode_list_contact_device_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ContactView> sse_decode_list_contact_view(SseDeserializer deserializer);
+
+  @protected
   List<ConversationView> sse_decode_list_conversation_view(
     SseDeserializer deserializer,
   );
@@ -271,6 +311,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  List<PeerView> sse_decode_list_peer_view(SseDeserializer deserializer);
+
+  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
@@ -278,6 +321,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<RoutePreviewView> sse_decode_list_route_preview_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SavedRecipientView> sse_decode_list_saved_recipient_view(
     SseDeserializer deserializer,
   );
 
@@ -307,6 +355,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView sse_decode_pairing_view(SseDeserializer deserializer);
 
   @protected
+  PeerView sse_decode_peer_view(SseDeserializer deserializer);
+
+  @protected
   ProfileError sse_decode_profile_error(SseDeserializer deserializer);
 
   @protected
@@ -317,6 +368,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   RoutePreviewView sse_decode_route_preview_view(SseDeserializer deserializer);
+
+  @protected
+  SavedRecipientView sse_decode_saved_recipient_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SetupStage sse_decode_setup_stage(SseDeserializer deserializer);
@@ -415,6 +471,15 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_command_error(CommandError self, SseSerializer serializer);
 
   @protected
+  void sse_encode_contact_device_view(
+    ContactDeviceView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_contact_view(ContactView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_conversation_view(
     ConversationView self,
     SseSerializer serializer,
@@ -457,6 +522,18 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_contact_device_view(
+    List<ContactDeviceView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_contact_view(
+    List<ContactView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_conversation_view(
     List<ConversationView> self,
     SseSerializer serializer,
@@ -467,6 +544,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
     List<HistoryEventView> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_peer_view(List<PeerView> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
@@ -480,6 +560,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   @protected
   void sse_encode_list_route_preview_view(
     List<RoutePreviewView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_saved_recipient_view(
+    List<SavedRecipientView> self,
     SseSerializer serializer,
   );
 
@@ -514,6 +600,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_pairing_view(PairingView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_peer_view(PeerView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_profile_error(ProfileError self, SseSerializer serializer);
 
   @protected
@@ -528,6 +617,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   @protected
   void sse_encode_route_preview_view(
     RoutePreviewView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_saved_recipient_view(
+    SavedRecipientView self,
     SseSerializer serializer,
   );
 

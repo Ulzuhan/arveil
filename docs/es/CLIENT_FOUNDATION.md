@@ -165,8 +165,8 @@ las páginas anteriores que abrió el usuario y se detiene si cambia de pantalla
 o selección. Se distingue
 almacenamiento local, aceptación del relay, entrega no disponible y recepción en
 este dispositivo. No se afirma lectura humana, autor autenticado ni hora del
-mensaje. Nombres de contactos, acciones de adjuntos y gestión de miembros quedan
-para entregas posteriores.
+mensaje. Los nombres de contactos se implementan en M3b.4 más abajo; acciones de adjuntos
+y gestión de miembros quedan para entregas posteriores.
 
 Las regresiones cubren comparación simétrica y confirmación atómica de contactos,
 encolado/reapertura sin relay, resultados del bridge tras commit, historial durante
@@ -177,3 +177,34 @@ la conservación del controlador y borrador cuando Flutter reconstruye la ruta.
 La [matriz de plataformas](PLATFORMS.md) detalla el alcance nativo y el
 [README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md)
 aporta el comando reproducible con un relay aislado.
+
+## Contactos locales y selección de destinatarios (primera entrega de M3b.4)
+
+El cliente fuente `0.1.0+6` incorpora agenda, alias locales, verificación explícita
+del número de seguridad y creación desde contactos guardados. Las conversaciones
+muestran nombres y una lista de participantes con identidad, dispositivo y estado
+de verificación/revocación. Estos nombres no autentican al autor de cada mensaje
+ni se sincronizan con otros perfiles.
+
+Las rutas, incluidas sus capabilities de buzón, se guardan en la tabla nueva
+`contact_routes` dentro del perfil cifrado de la GUI. Las listas solo exponen
+identificadores y revocación, sin capabilities. Guardar, renombrar y verificar
+pasan por el ejecutor del perfil; contacto, alias, ruta y verificación opcional
+se confirman juntos. Editar una ruta invalida la comparación de la UI. Importar
+el mismo dispositivo actualiza su ruta sin duplicarlo; un nombre vacío al
+importar conserva el alias existente, mientras que renombrar permite borrarlo.
+
+La creación recibe identificadores guardados de identidad/dispositivo. Rust
+relee sus rutas y exige contactos verificados, correspondencia de identidad,
+raíz y dispositivo, dispositivos distintos y ninguna revocación local conocida
+antes de crear por red. Se mantiene el recibo con aviso tras commit para evitar
+que un fallo de publicación invite a crear de nuevo el grupo guardado. Admite
+hasta 16 dispositivos; revocaciones aún desconocidas y rutas caducadas siguen
+dependiendo de la sincronización y validación del relay.
+
+Los contactos aprendidos en conversaciones se pueden nombrar y verificar; si
+no tienen una ruta guardada hay que importar una antes de seleccionarlos. Alias
+y verificación sobreviven a la reapertura. El asistente de aceptación de
+conversaciones recorre ahora este flujo antes de texto bidireccional, modo sin
+red, reconexión y paginación. Quedan pendientes de M3b.4 adjuntos, gestión de
+dispositivos e interfaz de archivos de historial.

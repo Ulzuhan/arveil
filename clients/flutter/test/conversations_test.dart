@@ -20,6 +20,7 @@ const row = ConversationView(
   groupId: 'group-a',
   creator: true,
   peerDevices: 1,
+  peers: [],
   eventCount: 1,
 );
 

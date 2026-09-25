@@ -15,7 +15,9 @@
 //! the send unit committed and before anything is published (I-04).
 
 pub mod carrier;
+mod contacts;
 mod conversation_ui;
+pub use contacts::{ContactDevice, ContactSummary, SavedRecipient};
 pub use conversation_ui::{ConfirmedRoute, RoutePreview};
 mod key_packages;
 mod onboarding;
@@ -92,6 +94,11 @@ pub enum Operation {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    QueryContacts,
+    SaveContact,
+    RenameContact,
+    VerifyContact,
+    CreateContactConversation,
     QueryOwnRoute,
     PreviewRoutes,
     CreateVerifiedConversation,
@@ -155,6 +162,24 @@ pub enum ClientCommand {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    QueryContacts,
+    SaveContact {
+        route: String,
+        name: String,
+        safety_number: Option<String>,
+    },
+    RenameContact {
+        identity: Vec<u8>,
+        name: String,
+    },
+    VerifyContact {
+        identity: Vec<u8>,
+        safety_number: String,
+    },
+    CreateContactConversation {
+        bootstrap: String,
+        recipients: Vec<SavedRecipient>,
+    },
     QueryOwnRoute,
     PreviewRoutes {
         routes: Vec<String>,
@@ -237,6 +262,11 @@ impl ClientCommand {
             Self::ExportKit => Operation::ExportKit,
             Self::RestoreKit { .. } => Operation::RestoreKit,
             Self::ResumeRecovery => Operation::ResumeRecovery,
+            Self::QueryContacts => Operation::QueryContacts,
+            Self::SaveContact { .. } => Operation::SaveContact,
+            Self::RenameContact { .. } => Operation::RenameContact,
+            Self::VerifyContact { .. } => Operation::VerifyContact,
+            Self::CreateContactConversation { .. } => Operation::CreateContactConversation,
             Self::QueryOwnRoute => Operation::QueryOwnRoute,
             Self::PreviewRoutes { .. } => Operation::PreviewRoutes,
             Self::CreateVerifiedConversation { .. } => Operation::CreateVerifiedConversation,
@@ -956,6 +986,7 @@ pub struct ConversationSummary {
     pub group_id: Vec<u8>,
     pub creator: bool,
     pub peer_devices: usize,
+    pub peers: Vec<PeerSummary>,
     pub event_count: usize,
     pub last_event: Option<HistoryEvent>,
 }
@@ -1073,6 +1104,8 @@ pub enum CommandOutput {
     KeyPackageSupply(KeyPackageSupply),
     Recovery(RecoveryResult),
     OnboardingStatus(OnboardingStatus),
+    Contacts(Vec<ContactSummary>),
+    Contact(ContactSummary),
     OwnRoute(String),
     RoutePreviews(Vec<RoutePreview>),
     Conversations(Vec<ConversationSummary>),
@@ -1239,6 +1272,7 @@ impl ClientCommand {
             | Self::QueryArchived { .. }
             | Self::QueryOnboarding
             | Self::QueryOwnRoute
+            | Self::QueryContacts
             | Self::PreviewRoutes { .. }
             | Self::QueryKeyPackageSupply
             | Self::QueryPendingPairing => Admission::Query,
@@ -1963,6 +1997,65 @@ impl Application {
         }
     }
 
+    pub fn contacts(&self) -> Result<Vec<ContactSummary>, ApplicationError> {
+        match self.execute(ClientCommand::QueryContacts)? {
+            CommandOutput::Contacts(value) => Ok(value),
+            _ => unreachable!("contacts output"),
+        }
+    }
+
+    pub fn save_contact(
+        &self,
+        route: String,
+        name: String,
+        safety_number: Option<String>,
+    ) -> Result<ContactSummary, ApplicationError> {
+        match self.execute(ClientCommand::SaveContact {
+            route,
+            name,
+            safety_number,
+        })? {
+            CommandOutput::Contact(value) => Ok(value),
+            _ => unreachable!("contact output"),
+        }
+    }
+
+    pub fn rename_contact(
+        &self,
+        identity: Vec<u8>,
+        name: String,
+    ) -> Result<ContactSummary, ApplicationError> {
+        match self.execute(ClientCommand::RenameContact { identity, name })? {
+            CommandOutput::Contact(value) => Ok(value),
+            _ => unreachable!("contact output"),
+        }
+    }
+
+    pub fn verify_contact(
+        &self,
+        identity: Vec<u8>,
+        safety_number: String,
+    ) -> Result<ContactSummary, ApplicationError> {
+        match self.execute(ClientCommand::VerifyContact {
+            identity,
+            safety_number,
+        })? {
+            CommandOutput::Contact(value) => Ok(value),
+            _ => unreachable!("contact output"),
+        }
+    }
+
+    pub fn create_contact_conversation(
+        &self,
+        bootstrap: &str,
+        recipients: Vec<SavedRecipient>,
+    ) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::CreateContactConversation {
+            bootstrap: bootstrap.into(),
+            recipients,
+        })
+    }
+
     pub fn own_route(&self) -> Result<String, ApplicationError> {
         match self.execute(ClientCommand::QueryOwnRoute)? {
             CommandOutput::OwnRoute(route) => Ok(route),
@@ -2200,6 +2293,37 @@ async fn run_command(
     command: ClientCommand,
 ) -> Result<CommandOutput, ApplicationError> {
     match command {
+        ClientCommand::QueryContacts => contacts::list(config)
+            .map(CommandOutput::Contacts)
+            .map_err(|e| application_error(Operation::QueryContacts, e)),
+        ClientCommand::SaveContact {
+            route,
+            name,
+            safety_number,
+        } => contacts::save(config, &route, &name, safety_number.as_deref())
+            .map(CommandOutput::Contact)
+            .map_err(|e| application_error(Operation::SaveContact, e)),
+        ClientCommand::RenameContact { identity, name } => {
+            contacts::rename(config, &identity, &name)
+                .map(CommandOutput::Contact)
+                .map_err(|e| application_error(Operation::RenameContact, e))
+        }
+        ClientCommand::VerifyContact {
+            identity,
+            safety_number,
+        } => contacts::verify(config, &identity, &safety_number)
+            .map(CommandOutput::Contact)
+            .map_err(|e| application_error(Operation::VerifyContact, e)),
+        ClientCommand::CreateContactConversation {
+            bootstrap,
+            recipients,
+        } => Box::pin(run_operation(Operation::CreateContactConversation, async {
+            let saved = contacts::recipient_routes(config, &recipients)?;
+            let routes: Vec<&str> = saved.iter().map(String::as_str).collect();
+            start(config, &bootstrap, &routes).await
+        }))
+        .await
+        .map(CommandOutput::Operation),
         ClientCommand::QueryOwnRoute => conversation_ui::own(config)
             .map(CommandOutput::OwnRoute)
             .map_err(|e| application_error(Operation::QueryOwnRoute, e)),
@@ -2576,6 +2700,11 @@ fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSumm
                     delivery_states: Vec::new(),
                 });
             Ok(ConversationSummary {
+                peers: conversation
+                    .peers
+                    .iter()
+                    .map(|peer| peer_summary(&session, peer))
+                    .collect::<Result<_, _>>()?,
                 group_id: conversation.group_id,
                 creator: conversation.creator,
                 peer_devices: conversation.peers.len(),
@@ -2618,25 +2747,27 @@ fn conversation_peers(config: &ProfileConfig, group: &[u8]) -> Result<Vec<PeerSu
     conversation
         .peers
         .iter()
-        .map(|peer| {
-            let contact = session
-                .client
-                .contact(&peer.identity)
-                .map_err(storage_error("contact"))?;
-            Ok(PeerSummary {
-                identity_id: peer.identity.clone(),
-                device_id: peer.device_id.clone(),
-                label: contact.as_ref().map_or_else(
-                    || hex::encode(&peer.identity[..4]),
-                    |contact| contact.label(),
-                ),
-                own: Some(&peer.identity) == session.identity_id.as_ref(),
-                verified: contact.is_some_and(|contact| contact.verified),
-                routable: peer.routable(),
-                revoked: peer.revoked,
-            })
-        })
+        .map(|peer| peer_summary(&session, peer))
         .collect()
+}
+
+fn peer_summary(session: &LocalRead, peer: &Peer) -> Result<PeerSummary, CliError> {
+    let contact = session
+        .client
+        .contact(&peer.identity)
+        .map_err(storage_error("contact"))?;
+    Ok(PeerSummary {
+        identity_id: peer.identity.clone(),
+        device_id: peer.device_id.clone(),
+        label: contact.as_ref().map_or_else(
+            || hex::encode(&peer.identity[..4.min(peer.identity.len())]),
+            |c| c.label(),
+        ),
+        own: Some(&peer.identity) == session.identity_id.as_ref(),
+        verified: contact.is_some_and(|c| c.verified),
+        routable: peer.routable(),
+        revoked: peer.revoked,
+    })
 }
 
 /// One page of a conversation, newest first and never larger than
@@ -4536,6 +4667,139 @@ mod tests {
         );
         let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
         (profile, bootstrap, app)
+    }
+
+    #[test]
+    fn saved_contacts_survive_reopen_and_require_explicit_verification() {
+        let (dir, bootstrap, app) = enrolled_test_application("contacts-a", "ws://127.0.0.1:1");
+        let (peer_dir, _, peer) = enrolled_test_application("contacts-b", "ws://127.0.0.1:1");
+        let route = peer.own_route().unwrap();
+        let parsed = parse_route(&route).unwrap();
+        let contact = app
+            .save_contact(route.clone(), "  Ana  ".into(), None)
+            .unwrap();
+        assert_eq!(contact.name.as_deref(), Some("Ana"));
+        assert!(!contact.verified, "a name is not verification");
+        let recipient = SavedRecipient {
+            identity_id: contact.identity_id.clone(),
+            device_id: parsed.device_id.clone(),
+        };
+        assert!(matches!(
+            app.create_contact_conversation(&bootstrap, vec![recipient.clone()]),
+            Err(ApplicationError::Domain { .. })
+        ));
+        assert!(
+            app.verify_contact(contact.identity_id.clone(), "00000".into())
+                .is_err()
+        );
+        assert!(!app.contacts().unwrap()[0].verified);
+        app.verify_contact(contact.identity_id.clone(), contact.safety_number.clone())
+            .unwrap();
+        app.close();
+        let config = ProfileConfig::unencrypted(&dir);
+        let reopened = Application::open(config.clone()).unwrap();
+        let saved = reopened.contacts().unwrap().remove(0);
+        assert!(saved.verified);
+        assert_eq!(saved.label, "Ana");
+        assert_eq!(saved.devices[0].device_id, parsed.device_id);
+        assert_eq!(
+            contacts::recipient_routes(&config, std::slice::from_ref(&recipient)).unwrap(),
+            vec![route.clone()]
+        );
+        assert!(
+            contacts::recipient_routes(&config, &[recipient.clone(), recipient.clone()]).is_err()
+        );
+        assert!(
+            reopened
+                .rename_contact(saved.identity_id.clone(), "x".repeat(129))
+                .is_err()
+        );
+        assert!(
+            reopened
+                .rename_contact(saved.identity_id.clone(), "one\ntwo".into())
+                .is_err()
+        );
+        assert_eq!(reopened.contacts().unwrap()[0].label, "Ana");
+        let renamed = reopened
+            .rename_contact(saved.identity_id.clone(), "Ana trabajo".into())
+            .unwrap();
+        assert!(renamed.verified);
+        assert_eq!(renamed.label, "Ana trabajo");
+        assert_eq!(
+            reopened
+                .save_contact(route.clone(), "".into(), None)
+                .unwrap()
+                .label,
+            "Ana trabajo",
+            "another route import preserves the local alias"
+        );
+        assert!(
+            reopened
+                .save_contact(route, "incorrect".into(), Some("wrong".into()))
+                .is_err()
+        );
+        assert_eq!(
+            reopened.contacts().unwrap()[0].label,
+            "Ana trabajo",
+            "failed save is atomic"
+        );
+        let cleared = reopened
+            .rename_contact(saved.identity_id, "  ".into())
+            .unwrap();
+        assert!(cleared.name.is_none());
+        assert!(cleared.verified);
+        reopened.close();
+        peer.close();
+        std::fs::remove_dir_all(dir).unwrap();
+        std::fs::remove_dir_all(peer_dir).unwrap();
+    }
+
+    #[test]
+    fn saved_recipient_rejects_mismatched_routes_and_known_revocation() {
+        let (dir, _, app) = enrolled_test_application("contacts-guard-a", "ws://127.0.0.1:1");
+        let (peer_dir, _, peer) = enrolled_test_application("contacts-guard-b", "ws://127.0.0.1:1");
+        let route = peer.own_route().unwrap();
+        let preview = app.preview_routes(vec![route.clone()]).unwrap().remove(0);
+        let saved = app
+            .save_contact(route.clone(), "Peer".into(), Some(preview.safety_number))
+            .unwrap();
+        assert!(
+            app.save_contact(app.own_route().unwrap(), "Self".into(), None)
+                .is_err()
+        );
+        assert!(
+            app.save_contact("invalid".into(), "Bad".into(), None)
+                .is_err()
+        );
+        assert_eq!(app.contacts().unwrap().len(), 1);
+        let config = ProfileConfig::unencrypted(&dir);
+        let recipient = SavedRecipient {
+            identity_id: saved.identity_id.clone(),
+            device_id: saved.devices[0].device_id.clone(),
+        };
+        let client = open_client(&config).unwrap();
+        // Even corrupt/stale local route data cannot silently choose a different device.
+        client
+            .contact_route_save(
+                &saved.identity_id,
+                &recipient.device_id,
+                &app.own_route().unwrap(),
+            )
+            .unwrap();
+        assert!(contacts::recipient_routes(&config, std::slice::from_ref(&recipient)).is_err());
+        client
+            .contact_route_save(&saved.identity_id, &recipient.device_id, &route)
+            .unwrap();
+        let conn = SharedConn::open_file(&dir.join("client.db")).unwrap();
+        conn.lock().execute("INSERT INTO identity_devices (device_id, credential_hash, revoked) VALUES (?1, ?2, 1)", rusqlite::params![recipient.device_id, vec![0u8; 32]]).unwrap();
+        assert!(app.contacts().unwrap()[0].devices[0].revoked);
+        assert!(contacts::recipient_routes(&config, &[recipient]).is_err());
+        drop(conn);
+        drop(client);
+        app.close();
+        peer.close();
+        std::fs::remove_dir_all(dir).unwrap();
+        std::fs::remove_dir_all(peer_dir).unwrap();
     }
 
     #[test]

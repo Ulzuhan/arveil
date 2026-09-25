@@ -254,17 +254,28 @@ class ConversationController extends ChangeNotifier {
     }
   }
 
-  Future<String?> create(List<String> routes, List<String> numbers) async {
+  Future<String?> create(List<String> routes, List<String> numbers) => _create(
+    () => profile.createConversation(
+      bootstrap: bootstrap,
+      routes: routes,
+      safetyNumbers: numbers,
+    ),
+  );
+
+  Future<String?> createSaved(List<SavedRecipientView> recipients) => _create(
+    () => profile.createContactConversation(
+      bootstrap: bootstrap,
+      recipients: recipients,
+    ),
+  );
+
+  Future<String?> _create(Future<ChatMutationView> Function() operation) async {
     if (_disposed || creating) return null;
     creating = true;
     error = null;
     _changed();
     try {
-      final result = await profile.createConversation(
-        bootstrap: bootstrap,
-        routes: routes,
-        safetyNumbers: numbers,
-      );
+      final result = await operation();
       if (_disposed) return null;
       notice = result.warning == null
           ? null

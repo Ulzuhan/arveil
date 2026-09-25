@@ -264,3 +264,32 @@ del sistema/Doze, cobertura amplia de teclados/IME, diálogos nativos de
 guardar/abrir/cancelar kits ni Gatekeeper en una descarga nueva en otro Mac.
 Esas pruebas siguen abiertas; no supone aceptación de beta ni revisión
 externa de seguridad.
+
+## Aceptación de contactos guardados (24 de septiembre de 2026)
+
+El cliente `0.1.0+6` pasó la prueba nativa de integración de conversaciones en:
+
+| Plataforma | Commit del código | Ejecutor |
+|---|---|---|
+| macOS 26.6.2 Apple silicon, Xcode 27.0, llavero de inicio de sesión | `b176ab4f55a90f8e3b6e273081f8244bb945afd6` | `flutter test` |
+| Emulador Android 15/API 35 ARM64, Keystore | `77206b85b4c24ff3b6abb7a652d28cba1388c23f` | `flutter drive --no-dds` |
+
+El segundo commit cambia el ejecutor de pruebas del anfitrión y su
+documentación; conserva la implementación del cliente y el escenario de
+prueba. El asistente aislado crea un relay local desechable y dos perfiles
+cifrados. Comprueba guardar un contacto sin
+verificar, comparar explícitamente su número de seguridad, reabrir el perfil
+cifrado, crear una conversación desde el contacto guardado sin volver a
+pegar su ruta y renombrarlo con el nuevo alias visible en la conversación.
+También pasaron el texto en ambos sentidos, la persistencia de la cola sin
+red, la paginación de 55 eventos y la reconexión sin duplicados en ambas
+plataformas.
+
+El interlocutor utiliza el bridge nativo dentro de la misma app de
+integración; Flutter inyecta el texto mediante su canal de pruebas. Este
+registro cubre aceptación del código, no paquetes de release en apps
+separadas, teclado/IME nativo, teléfono físico ni descarga nueva del build 6.
+Los candidatos `0.1.0+5` y el borrador de release siguen iguales. La
+aceptación de los diálogos nativos de kits sigue abierta. Los comandos de
+reproducción y ajustes locales de las herramientas Android están en el
+[README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).

@@ -117,16 +117,24 @@ perfil. Si falla la conexión, cierra/reabre y reintenta con el **mismo relay y
 la misma invitación**. Al reabrir un alta completada no necesitas otra
 invitación. El código actual también permite emparejamiento, kits y conversaciones.
 
-Para probar conversaciones con perfiles desechables del mismo relay:
+Para probar conversaciones con perfiles desechables del mismo relay (la agenda
+requiere el cliente fuente `0.1.0+6`; los paquetes `0.1.0+5` conservan el flujo
+de pegar rutas):
 
 1. Pulsa **Abrir conversaciones** y **Mi ruta** para compartir en privado la ruta
    de este dispositivo con tu contacto. Cada persona obtiene aquí su ruta.
-2. Pulsa **Nueva conversación**, pega una ruta por línea y elige **Preparar
-   comparación**. Comparad el número completo por otro canal; ambos podéis
-   previsualizar la ruta de la otra persona para ver el mismo número.
-3. Confirma la comparación y pulsa **Crear conversación**. Tu contacto pulsa
-   **Sincronizar** para recibir la invitación al grupo.
-4. Abre la conversación y envía texto. Sin conexión queda guardado localmente;
+2. Entra en **Contactos → Añadir contacto**, pega una ruta, asigna un nombre local
+   opcional y pulsa **Preparar contacto**. Comparad el número completo por otro
+   canal; ambos podéis previsualizar la ruta de la otra persona.
+3. Confirma la comparación y pulsa **Guardar contacto**, o guárdalo sin verificar
+   y utiliza **Verificar contacto** después. Un nombre no verifica una identidad.
+   **Guardar nombre** cambia el alias local; un nombre vacío lo elimina. Importa
+   otra ruta desde **Añadir contacto**; dejar el nombre vacío conserva el alias existente.
+4. Abre **Nueva conversación → Elegir contactos guardados**, selecciona contactos
+   verificados y pulsa **Usar contactos**. Se crea el grupo con sus dispositivos
+   guardados que no consten como revocados (máximo 16). Tu contacto pulsa
+   **Sincronizar** para recibirlo. Sigue disponible el flujo de pegar y comparar rutas.
+5. Abre la conversación y envía texto. Sin conexión queda guardado localmente;
    **Sincronizar** reintenta su publicación. Aceptación del relay no confirma lectura.
 
 La sincronización automática funciona con la pantalla de conversaciones en primer

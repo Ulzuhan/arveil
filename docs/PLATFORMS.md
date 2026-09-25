@@ -250,3 +250,31 @@ a physical phone, cross-device pairing, OS reboot/Doze, broad keyboard/IME
 coverage, native kit save/open/cancel dialogs, or Gatekeeper on a fresh
 download on another Mac. Those checks remain open; this is not beta acceptance
 or an external security review.
+
+## Saved-contact acceptance (September 24, 2026)
+
+Client source `0.1.0+6` passed the native conversation integration test on:
+
+| Platform | Source commit | Runner |
+|---|---|---|
+| macOS 26.6.2 Apple silicon, Xcode 27.0, login Keychain | `b176ab4f55a90f8e3b6e273081f8244bb945afd6` | `flutter test` |
+| Android 15/API 35 ARM64 emulator, Keystore | `77206b85b4c24ff3b6abb7a652d28cba1388c23f` | `flutter drive --no-dds` |
+
+The Android follow-up changes the host test runner and its documentation;
+the client implementation and test scenario are unchanged. The isolated
+helper creates a disposable local relay and two encrypted profiles. It
+checks saving an unverified contact, explicit safety
+number verification, encrypted profile reopen, conversation creation from
+a saved contact without pasting its route again, and renaming the contact
+with the updated alias shown in the conversation. Duplex text, offline
+queue persistence, pagination across 55 events and reconnection without
+duplicates also passed on both platforms.
+
+The peer runs through the native bridge inside the same integration app;
+Flutter injects text through its test channel. This record covers source
+acceptance, not separate-app release-package, native keyboard/IME,
+physical-phone or fresh-download acceptance for build 6. The existing
+`0.1.0+5` package candidates and release draft are unchanged. Native kit
+file-dialog acceptance remains open. Reproduction commands and local
+Android test-tool workarounds are in the
+[Flutter README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md).

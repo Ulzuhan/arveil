@@ -20,7 +20,7 @@ pub(super) fn own(config: &ProfileConfig) -> Result<String, CliError> {
     own_route(&session)
 }
 
-fn checked_routes(values: &[String]) -> Result<Vec<Route>, CliError> {
+pub(super) fn checked_routes(values: &[String]) -> Result<Vec<Route>, CliError> {
     if values.is_empty() || values.len() > 16 {
         return Err(CliError::Domain(
             "choose between one and sixteen device routes".into(),
@@ -104,6 +104,9 @@ pub(super) fn confirm(
             {
                 return Err(CliError::Domain("contact comparison did not match".into()));
             }
+            client
+                .contact_route_save(&route.identity_id, &route.device_id, &value.route)
+                .map_err(crate::storage_error("contact route"))?;
         }
         Ok::<_, CliError>(())
     })?;

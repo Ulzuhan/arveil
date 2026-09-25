@@ -5,9 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'conversation_controller.dart';
+import 'contacts_page.dart';
 import 'rust/api/profile.dart';
 
 String shortId(String id) => id.length <= 12 ? id : id.substring(0, 12);
+
+String conversationTitle(ConversationView row) {
+  final people = <String, String>{
+    for (final p in row.peers)
+      if (!p.own) p.identityId: p.label,
+  };
+  return people.isEmpty
+      ? 'Conversación ${shortId(row.groupId)}'
+      : people.values.join(', ');
+}
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({super.key, required this.controller});
@@ -64,6 +75,59 @@ class _ConversationsPageState extends State<ConversationsPage>
       MaterialPageRoute(builder: (_) => NewConversationPage(chat: chat)),
     );
     if (group != null && mounted) _draft.text = _drafts[group] ?? '';
+  }
+
+  Future<void> _contacts() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => ContactsPage(profile: chat.profile)),
+    );
+    if (mounted) await chat.refresh();
+  }
+
+  String get _selectedTitle {
+    final rows = chat.conversations.where((c) => c.groupId == chat.selected);
+    return rows.isEmpty
+        ? 'Conversación ${shortId(chat.selected!)}'
+        : conversationTitle(rows.first);
+  }
+
+  Future<void> _participants() async {
+    final rows = chat.conversations.where((c) => c.groupId == chat.selected);
+    if (rows.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Participantes'),
+        content: SizedBox(
+          width: 440,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final peer in rows.first.peers)
+                ListTile(
+                  title: Text(peer.own ? 'Tu identidad' : peer.label),
+                  subtitle: Text(
+                    '${shortId(peer.identityId)} · dispositivo ${shortId(peer.deviceId)}\n${peer.revoked
+                        ? "Revocado"
+                        : peer.own
+                        ? "Dispositivo propio"
+                        : peer.verified
+                        ? "Verificado"
+                        : "Sin verificar"}',
+                  ),
+                  isThreeLine: true,
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _shareRoute() async {
@@ -135,11 +199,14 @@ class _ConversationsPageState extends State<ConversationsPage>
                     )
                   : null,
               title: Text(
-                !wide && selected
-                    ? 'Conversación ${shortId(chat.selected!)}'
-                    : 'Conversaciones',
+                !wide && selected ? _selectedTitle : 'Conversaciones',
               ),
               actions: [
+                IconButton(
+                  tooltip: 'Contactos',
+                  onPressed: _contacts,
+                  icon: const Icon(Icons.contacts_outlined),
+                ),
                 IconButton(
                   tooltip: 'Mi ruta',
                   onPressed: _shareRoute,
@@ -236,7 +303,11 @@ class _ConversationsPageState extends State<ConversationsPage>
               key: Key('conversation-${row.groupId}'),
               selected: chat.selected == row.groupId,
               leading: const Icon(Icons.forum_outlined),
-              title: Text('Conversación ${shortId(row.groupId)}'),
+              title: Text(
+                conversationTitle(row),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
               subtitle: Text(
                 '${row.peerDevices} dispositivos · ${row.eventCount} mensajes',
               ),
@@ -249,11 +320,17 @@ class _ConversationsPageState extends State<ConversationsPage>
     children: [
       if (chat.sending)
         const LinearProgressIndicator(semanticsLabel: 'Guardando mensaje'),
-      Padding(
-        padding: const EdgeInsets.all(12),
-        child: Text(
-          'Historial local · ${shortId(chat.selected!)}',
-          style: Theme.of(context).textTheme.labelMedium,
+      ListTile(
+        title: Text(
+          _selectedTitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text('Historial local · ${shortId(chat.selected!)}'),
+        trailing: IconButton(
+          tooltip: 'Participantes',
+          onPressed: _participants,
+          icon: const Icon(Icons.people_outline),
         ),
       ),
       Expanded(
@@ -388,6 +465,26 @@ class _NewConversationPageState extends State<NewConversationPage> {
     super.dispose();
   }
 
+  Future<void> _chooseContacts() async {
+    final recipients = await Navigator.of(context)
+        .push<List<SavedRecipientView>>(
+          MaterialPageRoute(
+            builder: (_) => ContactsPage(
+              profile: widget.chat.profile,
+              selectRecipients: true,
+            ),
+          ),
+        );
+    if (!mounted || recipients == null) return;
+    final group = await widget.chat.createSaved(recipients);
+    if (!mounted) return;
+    if (group != null) {
+      Navigator.pop(context, group);
+    } else {
+      setState(() => _error = widget.chat.error);
+    }
+  }
+
   Future<void> _preview() async {
     final routes = _routes.text
         .split('\n')
@@ -450,8 +547,15 @@ class _NewConversationPageState extends State<NewConversationPage> {
                 child: ListView(
                   padding: const EdgeInsets.all(24),
                   children: [
+                    FilledButton.icon(
+                      key: const Key('choose-contacts'),
+                      onPressed: busy ? null : _chooseContacts,
+                      icon: const Icon(Icons.contacts_outlined),
+                      label: const Text('Elegir contactos guardados'),
+                    ),
+                    const SizedBox(height: 20),
                     const Text(
-                      'Pide a tus contactos su ruta de este relay. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.',
+                      'O utiliza una ruta nueva. Pide a tus contactos su ruta de este relay. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.',
                     ),
                     const SizedBox(height: 20),
                     TextField(

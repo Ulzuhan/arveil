@@ -153,6 +153,34 @@ mod contacts {
     }
 
     #[test]
+    fn adding_route_storage_preserves_legacy_names_and_verification() {
+        let conn = SharedConn::open_in_memory().unwrap();
+        let client = Client::open(conn.clone()).unwrap();
+        client.identity_new().unwrap();
+        let identity = vec![2; 32];
+        client.contact_seen(&identity, &[3; 32]).unwrap();
+        client
+            .contact_rename(&identity, "Existing contact")
+            .unwrap();
+        let number = client.safety_number_with(&identity).unwrap();
+        assert!(client.contact_verify(&identity, &number, 0).unwrap());
+        // A pre-address-book profile has contacts but no route table.
+        conn.lock()
+            .execute_batch("DROP TABLE contact_routes")
+            .unwrap();
+        drop(client);
+        let client = Client::open(conn).unwrap();
+        let contact = client.contact(&identity).unwrap().unwrap();
+        assert_eq!(contact.name.as_deref(), Some("Existing contact"));
+        assert!(contact.verified);
+        assert!(client.contact_routes(&identity).unwrap().is_empty());
+        client
+            .contact_route_save(&identity, &[4; 16], "validated by the application")
+            .unwrap();
+        assert_eq!(client.contact_routes(&identity).unwrap().len(), 1);
+    }
+
+    #[test]
     fn the_number_is_the_same_on_both_sides_and_changes_with_the_identity() {
         let a = [1u8; 32];
         let b = [2u8; 32];

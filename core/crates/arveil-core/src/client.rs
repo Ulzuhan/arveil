@@ -129,6 +129,13 @@ CREATE TABLE IF NOT EXISTS contacts (
     verified_at INTEGER,
     first_seen  INTEGER NOT NULL DEFAULT (unixepoch())
 );
+-- Routes contain mailbox capabilities: they stay in this encrypted profile.
+CREATE TABLE IF NOT EXISTS contact_routes (
+    identity_id BLOB NOT NULL REFERENCES contacts(identity_id),
+    device_id BLOB NOT NULL,
+    route TEXT NOT NULL,
+    PRIMARY KEY (identity_id, device_id)
+);
 CREATE TABLE IF NOT EXISTS pairing_pending (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
     sas         TEXT NOT NULL,
@@ -1114,6 +1121,33 @@ impl Client {
             }
         }
         Ok(())
+    }
+
+    /// The application validates the route and identity binding before saving.
+    pub fn contact_route_save(
+        &self,
+        identity: &[u8],
+        device: &[u8],
+        route: &str,
+    ) -> Result<(), ClientError> {
+        if self.contact(identity)?.is_none() {
+            return Err(ClientError::NoSuchContact(hex_of(identity)));
+        }
+        self.conn.lock().execute(
+            "INSERT INTO contact_routes (identity_id, device_id, route) VALUES (?1, ?2, ?3)
+             ON CONFLICT (identity_id, device_id) DO UPDATE SET route = excluded.route",
+            params![identity, device, route],
+        )?;
+        Ok(())
+    }
+
+    pub fn contact_routes(&self, identity: &[u8]) -> Result<Vec<(Vec<u8>, String)>, ClientError> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT device_id, route FROM contact_routes WHERE identity_id = ?1 ORDER BY device_id",
+        )?;
+        let rows = stmt.query_map(params![identity], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        Ok(rows.collect::<Result<_, _>>()?)
     }
 
     pub fn contacts(&self) -> Result<Vec<Contact>, ClientError> {
