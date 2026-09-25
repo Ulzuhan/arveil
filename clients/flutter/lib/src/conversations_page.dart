@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,11 +10,14 @@ import 'attachment_card.dart';
 import 'attachment_files.dart';
 import 'chat_list.dart';
 import 'contacts_page.dart';
+import 'conversation_details.dart';
 import 'conversation_text.dart';
 import 'design/design.dart';
+import 'message_list.dart';
 import 'rust/api/profile.dart';
 
 export 'conversation_text.dart';
+export 'message_list.dart';
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({
@@ -52,6 +54,7 @@ class ConversationsPageState extends State<ConversationsPage>
   final _searchFocus = FocusNode(debugLabel: 'chat search');
   final Map<String, String> _drafts = {};
   bool _fileDialog = false;
+  bool _detailsOpen = false;
   ConversationController get chat => widget.controller;
 
   @override
@@ -243,36 +246,50 @@ class ConversationsPageState extends State<ConversationsPage>
         : conversationTitle(rows.first);
   }
 
-  Future<void> _participants() async {
+  ConversationView? get _selectedRow {
     final rows = chat.conversations.where((c) => c.groupId == chat.selected);
-    if (rows.isEmpty) return;
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  /// Whether the details panel can sit beside an open conversation.
+  bool _detailsFit(BuildContext context, bool wide) =>
+      wide && MediaQuery.sizeOf(context).width >= WindowSize.detailsFrom;
+
+  /// Details beside the conversation on the widest windows, in a sheet on
+  /// phones and in a dialog in between.
+  Future<void> _showDetails(bool wide) async {
+    final row = _selectedRow;
+    if (row == null) return;
+    if (_detailsFit(context, wide)) {
+      setState(() => _detailsOpen = !_detailsOpen);
+      return;
+    }
+    Widget details() => ListenableBuilder(
+      listenable: chat,
+      builder: (context, _) =>
+          ConversationDetails(row: _selectedRow ?? row, events: chat.events),
+    );
+    if (WindowSize.of(context) == WindowSize.compact) {
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (context) => SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: details(),
+          ),
+        ),
+      );
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(context.l10n.participants),
+        title: Text(context.l10n.conversationDetails),
         content: SizedBox(
           width: 440,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              for (final peer in rows.first.peers)
-                ListTile(
-                  title: Text(
-                    peer.own ? context.l10n.participantsYou : peer.label,
-                  ),
-                  subtitle: Text(
-                    '${context.l10n.participantDevice(shortId(peer.identityId), shortId(peer.deviceId))}\n${peer.revoked
-                        ? context.l10n.revoked
-                        : peer.own
-                        ? context.l10n.ownDevice
-                        : peer.verified
-                        ? context.l10n.verified
-                        : context.l10n.unverified}',
-                  ),
-                  isThreeLine: true,
-                ),
-            ],
-          ),
+          child: SingleChildScrollView(child: details()),
         ),
         actions: [
           TextButton(
@@ -327,12 +344,62 @@ class ConversationsPageState extends State<ConversationsPage>
     }
   }
 
+  List<Widget> get _chatActions => [
+    IconButton(
+      tooltip: context.l10n.myRoute,
+      onPressed: _shareRoute,
+      icon: const Icon(Icons.share_outlined),
+    ),
+    IconButton(
+      tooltip: context.l10n.newConversation,
+      onPressed: chat.creating ? null : _create,
+      icon: const Icon(Icons.edit_square),
+    ),
+    IconButton(
+      tooltip: context.l10n.sync,
+      onPressed: chat.syncing ? null : chat.sync,
+      icon: const Icon(Icons.sync),
+    ),
+  ];
+
+  Widget _detailsButton(bool wide) => IconButton(
+    tooltip: context.l10n.conversationDetails,
+    onPressed: _selectedRow == null ? null : () => _showDetails(wide),
+    isSelected: _detailsOpen && _detailsFit(context, wide),
+    icon: const Icon(Icons.info_outline),
+    selectedIcon: const Icon(Icons.info),
+  );
+
+  /// Failures and confirmations from the last action, where it happened:
+  /// over the open conversation, or over the list.
+  List<Widget> get _banners => [
+    if (chat.error case final message?)
+      _banner(
+        StatusBanner(
+          title: message,
+          icon: Icons.error_outline,
+          tone: BannerTone.error,
+        ),
+      ),
+    if (chat.notice case final message?)
+      _banner(
+        StatusBanner(
+          title: message,
+          icon: Icons.info_outline,
+          tone: BannerTone.info,
+        ),
+      ),
+  ];
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: chat,
     builder: (context, _) {
       final wide = widget.twoPane ?? WindowSize.of(context).twoPane;
       final selected = chat.selected != null;
+      final progress = chat.syncing
+          ? LinearProgressIndicator(semanticsLabel: context.l10n.syncing)
+          : null;
       return PopScope(
         canPop: !widget.active || wide || !selected,
         onPopInvokedWithResult: (didPop, _) {
@@ -340,89 +407,139 @@ class ConversationsPageState extends State<ConversationsPage>
             unawaited(_select(null));
           }
         },
-        child: Scaffold(
-          appBar: AppBar(
-            leading: !wide && selected
-                ? IconButton(
-                    tooltip: context.l10n.backToConversations,
-                    onPressed: () => _select(null),
-                    icon: const Icon(Icons.arrow_back),
-                  )
-                : null,
-            title: Text(
-              !wide && selected ? _selectedTitle : context.l10n.navChats,
-            ),
-            actions: [
-              IconButton(
-                tooltip: context.l10n.myRoute,
-                onPressed: _shareRoute,
-                icon: const Icon(Icons.share_outlined),
-              ),
-              IconButton(
-                tooltip: context.l10n.newConversation,
-                onPressed: chat.creating ? null : _create,
-                icon: const Icon(Icons.edit_square),
-              ),
-              IconButton(
-                tooltip: context.l10n.sync,
-                onPressed: chat.syncing ? null : chat.sync,
-                icon: const Icon(Icons.sync),
-              ),
-            ],
-          ),
-          body: SafeArea(
-            child: Column(
-              children: [
-                if (chat.syncing)
-                  LinearProgressIndicator(semanticsLabel: context.l10n.syncing),
-                if (chat.error case final message?)
-                  _banner(
-                    StatusBanner(
-                      title: message,
-                      icon: Icons.error_outline,
-                      tone: BannerTone.error,
-                    ),
-                  ),
-                if (chat.notice case final message?)
-                  _banner(
-                    StatusBanner(
-                      title: message,
-                      icon: Icons.info_outline,
-                      tone: BannerTone.info,
-                    ),
-                  ),
-                Expanded(
-                  child: wide
-                      ? Row(
-                          children: [
-                            SizedBox(
-                              width: 340,
-                              child: FocusTraversalGroup(child: _list()),
-                            ),
-                            const VerticalDivider(width: 1),
-                            Expanded(
-                              child: FocusTraversalGroup(
-                                child: selected
-                                    ? _history()
-                                    : EmptyState(
-                                        icon: Icons.forum_outlined,
-                                        title: context.l10n.chooseConversation,
-                                      ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : selected
-                      ? _history()
-                      : _list(),
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: wide ? _twoPanes(progress) : _onePane(progress),
       );
     },
   );
+
+  /// Phones and medium windows: the list, or the open conversation.
+  Widget _onePane(Widget? progress) {
+    final selected = chat.selected != null;
+    return Scaffold(
+      appBar: selected
+          ? AppBar(
+              leading: IconButton(
+                tooltip: context.l10n.backToConversations,
+                onPressed: () => _select(null),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              titleSpacing: 0,
+              title: ConversationHeader(
+                title: _selectedTitle,
+                row: _selectedRow,
+              ),
+              actions: [_detailsButton(false)],
+            )
+          : AppBar(title: Text(context.l10n.navChats), actions: _chatActions),
+      body: SafeArea(
+        child: Column(
+          children: [
+            ?progress,
+            ..._banners,
+            Expanded(child: selected ? _history(offline: true) : _list()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Wide windows: the list, the conversation and, from 1200 dp, its
+  /// details, each with its own bar.
+  Widget _twoPanes(Widget? progress) {
+    final selected = chat.selected != null;
+    final row = _selectedRow;
+    final details =
+        selected && row != null && _detailsOpen && _detailsFit(context, true);
+    final c = ArveilColors.of(context);
+    return Scaffold(
+      body: SafeArea(
+        child: Row(
+          children: [
+            SizedBox(
+              width: 340,
+              child: FocusTraversalGroup(
+                child: Column(
+                  children: [
+                    AppBar(
+                      primary: false,
+                      automaticallyImplyLeading: false,
+                      title: Text(context.l10n.navChats),
+                      actions: _chatActions,
+                    ),
+                    ?progress,
+                    if (!selected) ..._banners,
+                    Expanded(child: _list()),
+                  ],
+                ),
+              ),
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: FocusTraversalGroup(
+                child: selected
+                    ? Column(
+                        children: [
+                          AppBar(
+                            primary: false,
+                            automaticallyImplyLeading: false,
+                            title: ConversationHeader(
+                              title: _selectedTitle,
+                              row: row,
+                            ),
+                            actions: [_detailsButton(true)],
+                          ),
+                          ..._banners,
+                          Expanded(child: _history(offline: false)),
+                        ],
+                      )
+                    : EmptyState(
+                        icon: Icons.forum_outlined,
+                        title: context.l10n.chooseConversation,
+                      ),
+              ),
+            ),
+            if (details) ...[
+              const VerticalDivider(width: 1),
+              SizedBox(
+                width: 320,
+                child: FocusTraversalGroup(
+                  child: Material(
+                    color: c.bar,
+                    child: Column(
+                      children: [
+                        AppBar(
+                          primary: false,
+                          automaticallyImplyLeading: false,
+                          title: Text(context.l10n.conversationDetails),
+                          actions: [
+                            IconButton(
+                              tooltip: context.l10n.close,
+                              onPressed: () =>
+                                  setState(() => _detailsOpen = false),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                            child: ConversationDetails(
+                              row: row,
+                              events: chat.events,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _banner(Widget banner) =>
       Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 0), child: banner);
@@ -474,107 +591,99 @@ class ConversationsPageState extends State<ConversationsPage>
         )
       : field;
 
-  Widget _history() => Column(
-    children: [
-      if (chat.sending)
-        LinearProgressIndicator(semanticsLabel: context.l10n.savingMessage),
-      ListTile(
-        title: Text(
-          _selectedTitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(context.l10n.localHistory(shortId(chat.selected!))),
-        trailing: IconButton(
-          tooltip: context.l10n.participants,
-          onPressed: _participants,
-          icon: const Icon(Icons.people_outline),
-        ),
-      ),
-      Expanded(
-        child: chat.loading
-            ? const Center(child: CircularProgressIndicator())
-            : chat.events.isEmpty
-            ? Center(child: Text(context.l10n.firstMessage))
-            : ListView.builder(
-                key: ValueKey('history-${chat.selected}'),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                reverse: true,
-                itemCount: chat.events.length + (chat.before == null ? 0 : 1),
-                itemBuilder: (context, index) {
-                  if (index == chat.events.length) {
-                    return TextButton(
-                      onPressed: chat.loadingOlder ? null : chat.older,
-                      child: Text(
-                        chat.loadingOlder
-                            ? context.l10n.reading
-                            : context.l10n.loadOlder,
-                      ),
-                    );
-                  }
-                  final event = chat.events[chat.events.length - 1 - index];
-                  final group = chat.selected!;
-                  if (event.attachment != null) {
-                    return AttachmentCard(
-                      event: event,
-                      active: chat.activeTransfers.contains(event.eventId),
-                      resume: () => chat.resumeAttachment(group, event.eventId),
-                      cancel: () => chat.cancelAttachment(group, event.eventId),
-                      export: () => _export(group, event),
-                    );
-                  }
-                  return MessageBubble(
-                    event: event,
-                    showSender: _group,
-                    senderVerified: _verified(event.senderIdentity),
-                  );
-                },
-              ),
-      ),
-      Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            IconButton(
-              key: const Key('attach-file'),
-              tooltip: context.l10n.attachFile,
-              onPressed: _fileDialog ? null : _attach,
-              icon: const Icon(Icons.attach_file),
+  /// The open conversation: its history in runs and days, older pages on
+  /// request, and the composer. [offline] adds the connection banner when
+  /// the list, which already shows it, is not on screen.
+  Widget _history({required bool offline}) {
+    final items = historyItems(chat.events).reversed.toList();
+    final group = chat.selected!;
+    final named = _group;
+    return Column(
+      children: [
+        if (chat.sending)
+          LinearProgressIndicator(semanticsLabel: context.l10n.savingMessage),
+        if (offline && chat.networkError != null)
+          _banner(
+            StatusBanner(
+              key: const Key('conversation-offline'),
+              title: chat.syncState == SyncState.refused
+                  ? context.l10n.syncRefusedTitle
+                  : context.l10n.offlineTitle,
+              body: chat.networkError,
+              icon: chat.syncState == SyncState.refused
+                  ? Icons.sync_problem
+                  : Icons.cloud_off_outlined,
             ),
-            Expanded(
-              child: _enterToSend(
-                TextField(
-                  key: const Key('message-draft'),
-                  controller: _draft,
-                  minLines: 1,
-                  maxLines: 5,
-                  maxLength: 32768,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  enableIMEPersonalizedLearning: false,
-                  decoration: InputDecoration(
-                    labelText: context.l10n.messageHint,
-                    counterText: '',
+          ),
+        Expanded(
+          child: chat.loading
+              ? const Center(child: CircularProgressIndicator())
+              : chat.events.isEmpty
+              ? SingleChildScrollView(
+                  child: EmptyState(
+                    icon: Icons.chat_bubble_outline,
+                    title: context.l10n.firstMessage,
                   ),
+                )
+              : ListView.builder(
+                  key: ValueKey('history-$group'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  reverse: true,
+                  itemCount: items.length + (chat.before == null ? 0 : 1),
+                  itemBuilder: (context, index) {
+                    if (index == items.length) {
+                      return Center(
+                        child: TextButton(
+                          onPressed: chat.loadingOlder ? null : chat.older,
+                          child: Text(
+                            chat.loadingOlder
+                                ? context.l10n.reading
+                                : context.l10n.loadOlder,
+                          ),
+                        ),
+                      );
+                    }
+                    return switch (items[index]) {
+                      DayItem(:final day) => DateSeparator(dayLabel(day)),
+                      EventItem(:final event, :final position)
+                          when event.attachment != null =>
+                        AttachmentCard(
+                          event: event,
+                          position: position,
+                          active: chat.activeTransfers.contains(event.eventId),
+                          resume: () =>
+                              chat.resumeAttachment(group, event.eventId),
+                          cancel: () =>
+                              chat.cancelAttachment(group, event.eventId),
+                          export: () => _export(group, event),
+                        ),
+                      EventItem(:final event, :final position) => MessageBubble(
+                        event: event,
+                        position: position,
+                        showSender: named,
+                        senderVerified: _verified(event.senderIdentity),
+                      ),
+                    };
+                  },
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              key: const Key('send-message'),
-              tooltip: context.l10n.send,
-              onPressed: chat.sending ? null : _send,
-              icon: const Icon(Icons.send),
-            ),
-          ],
         ),
-      ),
-    ],
-  );
+        Composer(
+          controller: _draft,
+          fieldKey: const Key('message-draft'),
+          sendKey: const Key('send-message'),
+          attachKey: const Key('attach-file'),
+          maxLength: 32768,
+          onAttach: _attach,
+          canAttach: !_fileDialog,
+          onSend: chat.sending ? null : _send,
+          wrapField: _enterToSend,
+        ),
+      ],
+    );
+  }
 }
 
 class _SendIntent extends Intent {
@@ -597,133 +706,6 @@ class _SendAction extends Action<_SendIntent> {
   Object? invoke(_SendIntent intent) {
     if (!page.chat.sending) unawaited(page._send());
     return null;
-  }
-}
-
-class MessageBubble extends StatelessWidget {
-  const MessageBubble({
-    super.key,
-    required this.event,
-    this.showSender = false,
-    this.senderVerified = false,
-  });
-  final HistoryEventView event;
-
-  /// Name who wrote a received message, for conversations where more than
-  /// one other person writes.
-  final bool showSender;
-
-  /// The user verified the identity that wrote this event.
-  final bool senderVerified;
-
-  Widget _notice(BuildContext context, NoticeView notice) {
-    final theme = Theme.of(context);
-    return Align(
-      child: Container(
-        key: Key('notice-${event.eventId}'),
-        constraints: const BoxConstraints(maxWidth: 420),
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              noticeText(event.senderLabel, notice),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              senderVerified
-                  ? context.l10n.noticeSigned
-                  : context.l10n.noticeCompare,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.labelSmall,
-            ),
-            if (event.createdAt > 0)
-              Text(
-                recordedTime(event.createdAt),
-                style: theme.textTheme.labelSmall,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (event.notice case final notice?) return _notice(context, notice);
-    final sent = event.kind == 'sent';
-    final mine = event.own;
-    final text = event.kind == 'received' || sent
-        ? utf8.decode(event.body, allowMalformed: true)
-        : event.kind.startsWith('file')
-        ? context.l10n.legacyAttachment
-        : currentStrings.conversationEvent;
-    final status = !sent
-        ? mine
-              ? context.l10n.sentFromOtherDevice
-              : context.l10n.receivedHere
-        : event.delivery.isEmpty
-        ? context.l10n.deliveryNoRecipients
-        : event.delivery.any((s) => s.startsWith('undeliverable'))
-        ? context.l10n.deliveryRejected
-        : event.delivery.any((s) => s == 'expired/unknown')
-        ? context.l10n.deliveryExpired
-        : event.delivery.every((s) => s.startsWith('accepted'))
-        ? context.l10n.deliveryAccepted
-        : context.l10n.deliveryPending;
-    final sender = showSender && !mine ? event.senderLabel : null;
-    final meta = Theme.of(context).textTheme.labelSmall;
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        key: Key('message-${event.eventId}'),
-        constraints: const BoxConstraints(maxWidth: 560),
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: mine
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (sender != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  sender,
-                  key: Key('sender-${event.eventId}'),
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            SelectableText(text),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              children: [
-                if (event.createdAt > 0)
-                  Text(
-                    recordedTime(event.createdAt),
-                    key: Key('time-${event.eventId}'),
-                    style: meta,
-                  ),
-                Text(status, style: meta),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

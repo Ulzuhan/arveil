@@ -1808,23 +1808,11 @@ abstract class AppLocalizations {
   /// **'Identidad {identity} · dispositivo {device}'**
   String identityDevice(String identity, String device);
 
-  /// No description provided for @participantDevice.
-  ///
-  /// In es, this message translates to:
-  /// **'{identity} · dispositivo {device}'**
-  String participantDevice(String identity, String device);
-
   /// No description provided for @revoked.
   ///
   /// In es, this message translates to:
   /// **'Revocado'**
   String get revoked;
-
-  /// No description provided for @ownDevice.
-  ///
-  /// In es, this message translates to:
-  /// **'Dispositivo propio'**
-  String get ownDevice;
 
   /// No description provided for @close.
   ///
@@ -1922,12 +1910,6 @@ abstract class AppLocalizations {
   /// **'Guardando mensaje'**
   String get savingMessage;
 
-  /// No description provided for @localHistory.
-  ///
-  /// In es, this message translates to:
-  /// **'Historial local · {id}'**
-  String localHistory(String id);
-
   /// No description provided for @firstMessage.
   ///
   /// In es, this message translates to:
@@ -1993,12 +1975,6 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Recibido en este dispositivo'**
   String get receivedHere;
-
-  /// No description provided for @deliveryPending.
-  ///
-  /// In es, this message translates to:
-  /// **'Guardado localmente · envío pendiente'**
-  String get deliveryPending;
 
   /// No description provided for @newConversationRoutesInvalid.
   ///
@@ -2125,6 +2101,78 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Sincronización rechazada'**
   String get syncRefusedTitle;
+
+  /// No description provided for @conversationDetails.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalles de la conversación'**
+  String get conversationDetails;
+
+  /// No description provided for @conversationPeople.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 persona} other{{count} personas}}'**
+  String conversationPeople(int count);
+
+  /// No description provided for @detailsFiles.
+  ///
+  /// In es, this message translates to:
+  /// **'Archivos'**
+  String get detailsFiles;
+
+  /// No description provided for @detailsNoFiles.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay archivos en el historial cargado.'**
+  String get detailsNoFiles;
+
+  /// No description provided for @messageDetails.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalles del mensaje'**
+  String get messageDetails;
+
+  /// No description provided for @messageRecordedAt.
+  ///
+  /// In es, this message translates to:
+  /// **'Registrado en este dispositivo: {when}'**
+  String messageRecordedAt(String when);
+
+  /// No description provided for @deliveryPerMailbox.
+  ///
+  /// In es, this message translates to:
+  /// **'Entrega por buzón'**
+  String get deliveryPerMailbox;
+
+  /// No description provided for @mailboxNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'Buzón {number}'**
+  String mailboxNumber(int number);
+
+  /// No description provided for @mailboxRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'El buzón rechazó el mensaje'**
+  String get mailboxRejected;
+
+  /// No description provided for @copyText.
+  ///
+  /// In es, this message translates to:
+  /// **'Copiar texto'**
+  String get copyText;
+
+  /// No description provided for @textCopied.
+  ///
+  /// In es, this message translates to:
+  /// **'Texto copiado'**
+  String get textCopied;
+
+  /// No description provided for @devicesCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 dispositivo} other{{count} dispositivos}}'**
+  String devicesCount(int count);
 }
 
 class _AppLocalizationsDelegate

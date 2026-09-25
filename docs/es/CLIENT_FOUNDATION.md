@@ -746,3 +746,43 @@ Evidencia: `test/chat_list_test.dart` cubre las filas (avatar, verificación,
 entrega y no leídos), las horas, la búsqueda sin acentos y su vaciado, ⌘K y
 Esc en macOS y Windows, el estado vacío con su acción, el aviso del kit y la
 lista con el texto al 200 % en un móvil.
+
+## Conversación (25 de septiembre de 2026)
+
+La conversación abierta usa ya los componentes del sistema de diseño.
+
+- **Historial.** Los mensajes forman burbujas con el ancho de su contenido.
+  Los de un mismo autor, con menos de diez minutos de diferencia y el mismo
+  día, se agrupan: solo la primera burbuja lleva la cola y, en un grupo, el
+  nombre del autor en su color. Un separador indica «Hoy», «Ayer» o la fecha
+  cuando cambia el día local. Los avisos de dispositivos aparecen centrados y
+  siempre sueltos. Se conserva la carga de mensajes anteriores.
+- **Entrega.** Cada burbuja muestra la hora y, si salió de este dispositivo,
+  un icono de estado. La pulsación larga o el clic secundario abren sus
+  detalles: la hora a la que se registró aquí, el estado de cada buzón
+  (aceptado por el servidor, pendiente, rechazado o caducado, nunca «leído»),
+  y la opción de copiar el texto.
+- **Adjuntos.** Van en una burbuja con icono, nombre, tamaño, estado,
+  progreso y las mismas acciones de antes. La burbuja no fusiona su semántica,
+  así que cada botón sigue siendo accesible por separado.
+- **Cabecera y detalles.** La cabecera muestra avatar, nombre y si la otra
+  persona está verificada o cuántas personas tiene el grupo. Los detalles
+  enumeran a cada persona con su verificación y sus dispositivos, tus
+  dispositivos y los archivos del historial cargado. Desde 1200 dp quedan en
+  un panel junto a la conversación; en el móvil se abren en una hoja y en el
+  resto de tamaños en un diálogo.
+- **Sin conexión.** En una sola columna, la conversación muestra el aviso de
+  falta de conexión o de rechazo del servidor, que en dos columnas ya aparece
+  sobre la lista. El compositor es el del sistema de diseño, con los mismos
+  límites y sin que el teclado aprenda lo que se escribe.
+- En escritorio, cada columna tiene su propia barra: la lista con sus
+  acciones, la conversación con su cabecera y los detalles con su título.
+
+Evidencia:
+
+- `test/conversation_view_test.dart` cubre la agrupación y los separadores,
+  los nombres en el primer mensaje de cada grupo, los detalles por buzón y la
+  copia con el clic secundario, el panel desde 1200 dp y el diálogo por debajo,
+  el aviso sin conexión en el móvil y la conversación vacía.
+- Los goldens de componentes se regeneraron con las burbujas ajustadas a su
+  contenido.

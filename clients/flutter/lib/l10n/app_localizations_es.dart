@@ -1084,15 +1084,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String participantDevice(String identity, String device) {
-    return '$identity · dispositivo $device';
-  }
-
-  @override
   String get revoked => 'Revocado';
-
-  @override
-  String get ownDevice => 'Dispositivo propio';
 
   @override
   String get close => 'Cerrar';
@@ -1168,11 +1160,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get savingMessage => 'Guardando mensaje';
 
   @override
-  String localHistory(String id) {
-    return 'Historial local · $id';
-  }
-
-  @override
   String get firstMessage => 'Escribe el primer mensaje.';
 
   @override
@@ -1206,9 +1193,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get receivedHere => 'Recibido en este dispositivo';
-
-  @override
-  String get deliveryPending => 'Guardado localmente · envío pendiente';
 
   @override
   String get newConversationRoutesInvalid =>
@@ -1280,4 +1264,60 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get syncRefusedTitle => 'Sincronización rechazada';
+
+  @override
+  String get conversationDetails => 'Detalles de la conversación';
+
+  @override
+  String conversationPeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count personas',
+      one: '1 persona',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get detailsFiles => 'Archivos';
+
+  @override
+  String get detailsNoFiles => 'No hay archivos en el historial cargado.';
+
+  @override
+  String get messageDetails => 'Detalles del mensaje';
+
+  @override
+  String messageRecordedAt(String when) {
+    return 'Registrado en este dispositivo: $when';
+  }
+
+  @override
+  String get deliveryPerMailbox => 'Entrega por buzón';
+
+  @override
+  String mailboxNumber(int number) {
+    return 'Buzón $number';
+  }
+
+  @override
+  String get mailboxRejected => 'El buzón rechazó el mensaje';
+
+  @override
+  String get copyText => 'Copiar texto';
+
+  @override
+  String get textCopied => 'Texto copiado';
+
+  @override
+  String devicesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dispositivos',
+      one: '1 dispositivo',
+    );
+    return '$_temp0';
+  }
 }

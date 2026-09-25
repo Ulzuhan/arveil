@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/l10n.dart';
@@ -20,9 +22,14 @@ class ChatBubble extends StatelessWidget {
     this.senderColor,
     this.meta,
     this.position = BubblePosition.single,
+    this.mergeSemantics = true,
   });
   final bool own;
   final Widget child;
+
+  /// Reads the bubble as one node. Off when it holds its own buttons, so
+  /// each stays reachable.
+  final bool mergeSemantics;
 
   /// Author name, shown on the first bubble of a run in a group.
   final String? sender;
@@ -32,6 +39,9 @@ class ChatBubble extends StatelessWidget {
 
   bool get _starts =>
       position == BubblePosition.single || position == BubblePosition.first;
+
+  Widget _merge(Widget child) =>
+      mergeSemantics ? MergeSemantics(child: child) : child;
 
   @override
   Widget build(BuildContext context) {
@@ -44,36 +54,46 @@ class ChatBubble extends StatelessWidget {
       bottomLeft: round,
       bottomRight: round,
     );
-    return Align(
-      alignment: own ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Container(
-          margin: EdgeInsets.only(top: _starts ? 6 : 2),
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-          decoration: BoxDecoration(
-            color: own ? c.accentSoft : c.surfaceRaised,
-            borderRadius: radius,
+    // As wide as its content, up to 420 dp or 80 % of a narrow pane.
+    return LayoutBuilder(
+      builder: (context, constraints) => Align(
+        alignment: own ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: math.min(420, constraints.maxWidth * 0.8),
           ),
-          child: MergeSemantics(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_starts && sender != null)
-                  Text(
-                    sender!,
-                    style: ArveilType.label.copyWith(
-                      fontSize: 13,
-                      color: senderColor ?? c.inkSoft,
+          child: Container(
+            margin: EdgeInsets.only(top: _starts ? 6 : 2),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+            decoration: BoxDecoration(
+              color: own ? c.accentSoft : c.surfaceRaised,
+              borderRadius: radius,
+            ),
+            child: _merge(
+              IntrinsicWidth(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_starts && sender != null)
+                      Text(
+                        sender!,
+                        style: ArveilType.label.copyWith(
+                          fontSize: 13,
+                          color: senderColor ?? c.inkSoft,
+                        ),
+                      ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: DefaultTextStyle.merge(
+                        style: ArveilType.messageBody.copyWith(color: c.ink),
+                        child: child,
+                      ),
                     ),
-                  ),
-                DefaultTextStyle.merge(
-                  style: ArveilType.messageBody.copyWith(color: c.ink),
-                  child: child,
+                    if (meta case final meta?)
+                      Align(alignment: Alignment.centerRight, child: meta),
+                  ],
                 ),
-                if (meta case final meta?)
-                  Align(alignment: Alignment.centerRight, child: meta),
-              ],
+              ),
             ),
           ),
         ),
@@ -250,27 +270,42 @@ class ConversationTile extends StatelessWidget {
   }
 }
 
-/// Where a message is written: attach, type, send.
+/// Where a message is written: attach, type, send. The keyboard learns
+/// nothing from what is typed here.
 class Composer extends StatelessWidget {
   const Composer({
     super.key,
     required this.controller,
     required this.onSend,
     this.onAttach,
+    this.canAttach = true,
     this.hint,
     this.enabled = true,
+    this.maxLength,
     this.fieldKey,
     this.sendKey,
+    this.attachKey,
+    this.wrapField,
   });
   final TextEditingController controller;
-  final VoidCallback onSend;
+
+  /// Null disables the send button, as while a message is being saved.
+  final VoidCallback? onSend;
+
+  /// Shows the attach button when set.
   final VoidCallback? onAttach;
+  final bool canAttach;
 
   /// Defaults to the language's word for a message.
   final String? hint;
   final bool enabled;
+  final int? maxLength;
   final Key? fieldKey;
   final Key? sendKey;
+  final Key? attachKey;
+
+  /// Wraps the text field, for instance with keyboard shortcuts.
+  final Widget Function(Widget field)? wrapField;
 
   @override
   Widget build(BuildContext context) {
@@ -287,37 +322,45 @@ class Composer extends StatelessWidget {
           children: [
             if (onAttach != null)
               IconButton(
+                key: attachKey,
                 tooltip: context.l10n.attachFile,
-                onPressed: enabled ? onAttach : null,
+                onPressed: enabled && canAttach ? onAttach : null,
                 icon: Icon(Icons.attach_file, color: c.inkSoft),
               ),
             Expanded(
-              child: TextField(
-                key: fieldKey,
-                controller: controller,
-                enabled: enabled,
-                minLines: 1,
-                maxLines: 5,
-                textCapitalization: TextCapitalization.sentences,
-                style: ArveilType.messageBody.copyWith(color: c.ink),
-                decoration: InputDecoration(
-                  hintText: hint ?? context.l10n.messageHint,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide(color: c.lineStrong),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide(color: c.lineStrong),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide(color: c.accent, width: 2),
+              child: (wrapField ?? (field) => field)(
+                TextField(
+                  key: fieldKey,
+                  controller: controller,
+                  enabled: enabled,
+                  minLines: 1,
+                  maxLines: 5,
+                  maxLength: maxLength,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: ArveilType.messageBody.copyWith(color: c.ink),
+                  decoration: InputDecoration(
+                    hintText: hint ?? context.l10n.messageHint,
+                    counterText: '',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: BorderSide(color: c.lineStrong),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: BorderSide(color: c.lineStrong),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: BorderSide(color: c.accent, width: 2),
+                    ),
                   ),
                 ),
               ),

@@ -1076,15 +1076,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String participantDevice(String identity, String device) {
-    return '$identity · device $device';
-  }
-
-  @override
   String get revoked => 'Revoked';
-
-  @override
-  String get ownDevice => 'Own device';
 
   @override
   String get close => 'Close';
@@ -1159,11 +1151,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get savingMessage => 'Saving message';
 
   @override
-  String localHistory(String id) {
-    return 'Local history · $id';
-  }
-
-  @override
   String get firstMessage => 'Write the first message.';
 
   @override
@@ -1196,9 +1183,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receivedHere => 'Received on this device';
-
-  @override
-  String get deliveryPending => 'Saved locally · waiting to send';
 
   @override
   String get newConversationRoutesInvalid =>
@@ -1270,4 +1254,60 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncRefusedTitle => 'Sync refused';
+
+  @override
+  String get conversationDetails => 'Conversation details';
+
+  @override
+  String conversationPeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people',
+      one: '1 person',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get detailsFiles => 'Files';
+
+  @override
+  String get detailsNoFiles => 'No files in the loaded history.';
+
+  @override
+  String get messageDetails => 'Message details';
+
+  @override
+  String messageRecordedAt(String when) {
+    return 'Recorded on this device: $when';
+  }
+
+  @override
+  String get deliveryPerMailbox => 'Delivery per mailbox';
+
+  @override
+  String mailboxNumber(int number) {
+    return 'Mailbox $number';
+  }
+
+  @override
+  String get mailboxRejected => 'The mailbox refused the message';
+
+  @override
+  String get copyText => 'Copy text';
+
+  @override
+  String get textCopied => 'Text copied';
+
+  @override
+  String devicesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count devices',
+      one: '1 device',
+    );
+    return '$_temp0';
+  }
 }

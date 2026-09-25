@@ -114,7 +114,7 @@ Future<void> tap(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
-  testWidgets('participant names and verification fit a phone dialog', (
+  testWidgets('participant names and verification fit a phone sheet', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -142,11 +142,17 @@ void main() {
     await tester.pumpAndSettle();
     await tap(tester, find.byKey(const Key('conversation-group-a')));
     expect(find.text('Ana'), findsWidgets);
-    await tap(tester, find.byTooltip('Participantes'));
-    expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.textContaining('Verificado'), findsOneWidget);
+    await tap(tester, find.byTooltip('Detalles de la conversación'));
+    final details = find.byKey(const Key('conversation-details'));
+    expect(details, findsOneWidget);
+    expect(
+      find.descendant(of: details, matching: find.textContaining('Verificado')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
-    await tap(tester, find.text('Cerrar'));
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+    expect(details, findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 
