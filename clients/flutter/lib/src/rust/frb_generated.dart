@@ -2237,8 +2237,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   HistoryEventView dco_decode_history_event_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return HistoryEventView(
       cursor: dco_decode_i_64(arr[0]),
       eventId: dco_decode_String(arr[1]),
@@ -2246,6 +2246,10 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       body: dco_decode_list_prim_u_8_strict(arr[3]),
       attachment: dco_decode_opt_box_autoadd_attachment_view(arr[4]),
       delivery: dco_decode_list_String(arr[5]),
+      createdAt: dco_decode_i_64(arr[6]),
+      senderIdentity: dco_decode_opt_String(arr[7]),
+      senderLabel: dco_decode_opt_String(arr[8]),
+      own: dco_decode_bool(arr[9]),
     );
   }
 
@@ -3041,6 +3045,10 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       deserializer,
     );
     var var_delivery = sse_decode_list_String(deserializer);
+    var var_createdAt = sse_decode_i_64(deserializer);
+    var var_senderIdentity = sse_decode_opt_String(deserializer);
+    var var_senderLabel = sse_decode_opt_String(deserializer);
+    var var_own = sse_decode_bool(deserializer);
     return HistoryEventView(
       cursor: var_cursor,
       eventId: var_eventId,
@@ -3048,6 +3056,10 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       body: var_body,
       attachment: var_attachment,
       delivery: var_delivery,
+      createdAt: var_createdAt,
+      senderIdentity: var_senderIdentity,
+      senderLabel: var_senderLabel,
+      own: var_own,
     );
   }
 
@@ -3987,6 +3999,10 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_list_prim_u_8_strict(self.body, serializer);
     sse_encode_opt_box_autoadd_attachment_view(self.attachment, serializer);
     sse_encode_list_String(self.delivery, serializer);
+    sse_encode_i_64(self.createdAt, serializer);
+    sse_encode_opt_String(self.senderIdentity, serializer);
+    sse_encode_opt_String(self.senderLabel, serializer);
+    sse_encode_bool(self.own, serializer);
   }
 
   @protected

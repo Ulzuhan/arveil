@@ -368,3 +368,54 @@ profile, and a copy marked as version 2 was refused without byte changes.
 Workspace tests, Clippy, the MLS spike and the demo and phase scripts passed.
 Upgrading packaged apps with populated profiles on Android and macOS is still
 an acceptance step of the [client redesign](PHASE3B.md).
+
+## Message senders and times (September 25, 2026)
+
+Every history event now says who wrote it and when this device recorded it.
+Migration 2 adds `sender_device` and `sender_identity` to `events`. Both are
+nullable, so builds up to `0.1.0+11` still read and write a version 2 profile;
+a CLI run confirmed it.
+
+- Processing an MLS application message (text or attachment announcement)
+  stores the device behind the sending leaf, which MLS has just
+  authenticated. It also stores the identity this profile knows for that
+  device: its own for this device and the devices it authorized, or a peer's
+  from that conversation's roster. Messages this device writes are stored as
+  its own.
+- Reading history resolves what was unknown on arrival: a device learned later
+  is named from the roster at read time. Events recorded before version 2 keep
+  empty senders, except that this device's own sent kinds are its own. A
+  received row is never attributed by guessing.
+- `HistoryEventView` gains four fields:
+  - `created_at`: Unix seconds when this device recorded the event, which is
+    arrival for received events and creation for sent ones. It is not when the
+    sender wrote it; the protocol does not carry that time.
+  - `sender_identity`: the identity that wrote the event, when known.
+  - `sender_label`: the local contact name or a short identifier, absent for
+    own events and for unknown senders.
+  - `own`: written by this identity, from any of its devices.
+- The conversation screen:
+  - Aligns own messages to the own side, including those from another device
+    of the same identity.
+  - Names the author of received messages when more than one other identity
+    writes in the conversation.
+  - Shows the recorded time.
+
+  The complete redesign of this screen is a later step of the
+  [client plan](PHASE3B.md).
+- Imported history records carry their time but not yet their sender. Changing
+  the archive format is a separate step.
+
+Evidence:
+
+- Core tests cover the sender round trip, the device-to-identity lookup and
+  migration 2.
+- An application test uses a real in-process MLS group. It covers another
+  identity learned only after its message, another device of the same
+  identity, older rows and a contact rename.
+- The bridge conversion and Flutter widget tests cover the new fields,
+  author naming, own-side alignment and time formatting.
+- An upgrade run from `main` binaries adopted a profile to version 2. The next
+  received message carried the peer's device and identity, the next sent
+  message was own, earlier rows stayed empty, and the old CLI still read the
+  profile.

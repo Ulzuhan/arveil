@@ -85,10 +85,31 @@ pub struct ExportedEvent {
 }
 
 /// A local event: `(event_id, kind, body)`.
-/// A stored event with its cursor: position, identifier, kind, body.
-pub type PagedEventRow = (i64, Vec<u8>, String, Vec<u8>);
-
 pub type EventRow = (Vec<u8>, String, Vec<u8>);
+
+/// The device that wrote an event, as MLS authenticated it, and the
+/// identity this profile knows for that device, if any yet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EventSender {
+    pub device_id: Vec<u8>,
+    pub identity_id: Option<Vec<u8>>,
+}
+
+/// A stored event with its position in the conversation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PagedEvent {
+    pub cursor: i64,
+    pub event_id: Vec<u8>,
+    pub kind: String,
+    pub body: Vec<u8>,
+    /// Unix seconds when this device recorded it: arrival for what it
+    /// received, creation for what it sent.
+    pub created_at: i64,
+    /// Empty for events recorded before senders were kept, and for events
+    /// no MLS sender stands behind.
+    pub sender_device: Option<Vec<u8>>,
+    pub sender_identity: Option<Vec<u8>>,
+}
 
 /// One sealed envelope waiting for, or accepted by, the relay.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -179,9 +200,29 @@ impl Delivery {
         kind: &str,
         body: &[u8],
     ) -> Result<(), rusqlite::Error> {
+        self.record_event_by(group_id, event_id, kind, body, None)
+    }
+
+    /// Record a local event together with who wrote it.
+    pub fn record_event_by(
+        &self,
+        group_id: &[u8],
+        event_id: &[u8],
+        kind: &str,
+        body: &[u8],
+        sender: Option<&EventSender>,
+    ) -> Result<(), rusqlite::Error> {
         self.conn.lock().execute(
-            "INSERT INTO events (group_id, event_id, kind, body) VALUES (?1, ?2, ?3, ?4)",
-            params![group_id, event_id, kind, body],
+            "INSERT INTO events (group_id, event_id, kind, body, sender_device, sender_identity)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                group_id,
+                event_id,
+                kind,
+                body,
+                sender.map(|s| &s.device_id),
+                sender.and_then(|s| s.identity_id.as_ref()),
+            ],
         )?;
         Ok(())
     }
@@ -368,15 +409,24 @@ impl Delivery {
         group_id: &[u8],
         before: Option<i64>,
         limit: usize,
-    ) -> Result<Vec<PagedEventRow>, rusqlite::Error> {
+    ) -> Result<Vec<PagedEvent>, rusqlite::Error> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT id, event_id, kind, body FROM events
+            "SELECT id, event_id, kind, body, created_at, sender_device, sender_identity
+             FROM events
              WHERE group_id = ?1 AND (?2 IS NULL OR id < ?2)
              ORDER BY id DESC LIMIT ?3",
         )?;
         let rows = stmt.query_map(params![group_id, before, limit as i64], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+            Ok(PagedEvent {
+                cursor: r.get(0)?,
+                event_id: r.get(1)?,
+                kind: r.get(2)?,
+                body: r.get(3)?,
+                created_at: r.get(4)?,
+                sender_device: r.get(5)?,
+                sender_identity: r.get(6)?,
+            })
         })?;
         rows.collect()
     }

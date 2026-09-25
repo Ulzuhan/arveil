@@ -25,6 +25,8 @@ mod contacts;
 #[cfg(test)]
 mod device_tests;
 mod devices;
+#[cfg(test)]
+mod history_tests;
 pub use devices::{DeviceInventory, ManagedDevice, RevocationProgress};
 mod conversation_ui;
 pub use contacts::{ContactDevice, ContactSummary, SavedRecipient};
@@ -54,7 +56,7 @@ use std::sync::{Arc, Mutex, OnceLock, Weak, mpsc};
 use arveil_core::attachments::{self, FileDescriptor};
 use arveil_core::channel::codec::Payload;
 use arveil_core::client::{Client, Conversation, OwnMailbox, Peer, StoredDevice, StoredRealm};
-use arveil_core::delivery::Delivery;
+use arveil_core::delivery::{Delivery, EventSender, PagedEvent};
 use arveil_core::envelope::{self, EnvelopeContext, KIND_MLS};
 use arveil_core::mls::Engine;
 use arveil_core::storage::{SharedConn, StorageError};
@@ -1103,6 +1105,18 @@ pub struct HistoryEvent {
     pub body: Vec<u8>,
     pub delivery_states: Vec<DeliveryState>,
     pub attachment: Option<AttachmentSummary>,
+    /// Unix seconds when this device recorded the event: arrival for what
+    /// it received, creation for what it sent. Not the time the sender
+    /// wrote it, which the protocol does not carry.
+    pub created_at: i64,
+    /// The identity that wrote the event, when this profile knows it.
+    pub sender_identity: Option<Vec<u8>>,
+    /// What to call that identity: its local contact name or a short
+    /// identifier. Absent for this profile's own events and for senders
+    /// nobody can name.
+    pub sender_label: Option<String>,
+    /// Written by this identity, from this device or another of its own.
+    pub own: bool,
 }
 
 /// One page of a conversation, newest first. `next` is the cursor for the
@@ -2934,14 +2948,22 @@ fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSumm
                 .map_err(storage_error("events"))?
                 .into_iter()
                 .next()
-                .map(|(cursor, event_id, kind, body)| HistoryEvent {
-                    attachment: None,
-                    cursor,
-                    event_id,
-                    kind,
-                    body,
-                    delivery_states: Vec::new(),
-                });
+                .map(|row| {
+                    let by = attribution(&session, &conversation.group_id, &row)?;
+                    Ok::<_, CliError>(HistoryEvent {
+                        attachment: None,
+                        cursor: row.cursor,
+                        event_id: row.event_id,
+                        kind: row.kind,
+                        body: row.body,
+                        delivery_states: Vec::new(),
+                        created_at: row.created_at,
+                        sender_identity: by.identity,
+                        sender_label: by.label,
+                        own: by.own,
+                    })
+                })
+                .transpose()?;
             Ok(ConversationSummary {
                 peers: conversation
                     .peers
@@ -3035,17 +3057,17 @@ fn history_page(
         .map_err(storage_error("events"))?;
     let next = if rows.len() > limit {
         rows.truncate(limit);
-        rows.last().map(|(cursor, ..)| *cursor)
+        rows.last().map(|row| row.cursor)
     } else {
         None
     };
 
     let mut events = Vec::with_capacity(rows.len());
-    for (cursor, event_id, kind, body) in rows.into_iter().rev() {
-        let delivery_states = if kind == "sent" || kind == "sent-file" {
+    for row in rows.into_iter().rev() {
+        let delivery_states = if row.kind == "sent" || row.kind == "sent-file" {
             session
                 .delivery
-                .states_for_event(&event_id, now)
+                .states_for_event(&row.event_id, now)
                 .map_err(storage_error("states"))?
                 .into_iter()
                 .map(|(mailbox_id, state)| DeliveryState { mailbox_id, state })
@@ -3053,19 +3075,79 @@ fn history_page(
         } else {
             Vec::new()
         };
+        let by = attribution(&session, group, &row)?;
         events.push(HistoryEvent {
-            attachment: attachment_ui::summary(&session.delivery, &event_id, &kind, &body)?,
-            cursor,
-            event_id,
-            kind,
-            body,
+            attachment: attachment_ui::summary(
+                &session.delivery,
+                &row.event_id,
+                &row.kind,
+                &row.body,
+            )?,
+            cursor: row.cursor,
+            event_id: row.event_id,
+            kind: row.kind,
+            body: row.body,
             delivery_states,
+            created_at: row.created_at,
+            sender_identity: by.identity,
+            sender_label: by.label,
+            own: by.own,
         });
     }
     Ok(HistoryPage {
         group_id: group.to_vec(),
         events,
         next,
+    })
+}
+
+/// Kinds of event this device wrote itself.
+fn sent_here(kind: &str) -> bool {
+    matches!(kind, "sent" | "sent-file" | "file-outgoing")
+}
+
+/// Who wrote a stored event, as a screen needs it.
+struct Attribution {
+    identity: Option<Vec<u8>>,
+    label: Option<String>,
+    own: bool,
+}
+
+/// Events recorded before senders were kept, and events whose device this
+/// profile learned only later, are resolved from the conversation roster
+/// now. What cannot be resolved stays unknown rather than guessed.
+fn attribution(
+    session: &LocalRead,
+    group: &[u8],
+    row: &PagedEvent,
+) -> Result<Attribution, CliError> {
+    let identity = match (&row.sender_identity, &row.sender_device) {
+        (Some(identity), _) => Some(identity.clone()),
+        (None, Some(device)) => session
+            .client
+            .device_identity(group, device)
+            .map_err(storage_error("sender"))?,
+        (None, None) if sent_here(&row.kind) => session.identity_id.clone(),
+        (None, None) => None,
+    };
+    let own = sent_here(&row.kind) || (identity.is_some() && identity == session.identity_id);
+    let label = match &identity {
+        Some(identity) if !own => Some(
+            session
+                .client
+                .contact(identity)
+                .map_err(storage_error("contact"))?
+                .map_or_else(
+                    || hex::encode(&identity[..4.min(identity.len())]),
+                    |c| c.label(),
+                ),
+        ),
+        _ => None,
+    };
+    Ok(Attribution {
+        identity,
+        label,
+        own,
     })
 }
 
@@ -3093,13 +3175,18 @@ fn archived_conversations(
                 .archived(&group_id)
                 .map_err(storage_error("archived"))?
                 .into_iter()
-                .map(|(kind, body)| HistoryEvent {
+                .map(|(kind, body, created_at)| HistoryEvent {
                     attachment: None,
                     cursor: 0,
                     event_id: Vec::new(),
+                    own: sent_here(&kind),
                     kind: format!("archived-{kind}"),
                     body,
                     delivery_states: Vec::new(),
+                    created_at,
+                    // Imported records carry no sender yet.
+                    sender_identity: None,
+                    sender_label: None,
                 })
                 .collect();
             Ok(ConversationHistory {
@@ -3950,8 +4037,13 @@ fn queue_text(config: &ProfileConfig, text: &str, group: Option<&str>) -> Result
             group
                 .write_to_storage()
                 .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            s.delivery
-                .record_event(&conv.group_id, &event_id, "sent", text.as_bytes())?;
+            s.delivery.record_event_by(
+                &conv.group_id,
+                &event_id,
+                "sent",
+                text.as_bytes(),
+                Some(&own_sender(&s)),
+            )?;
             let bytes = msg.to_bytes().map_err(|_| rusqlite::Error::InvalidQuery)?;
             enqueue_for_all(&s, &conv.peers, Some(&event_id), &bytes)
         })
@@ -4011,6 +4103,42 @@ async fn send(
         Err(e) => return Err(e),
     }
     Ok(())
+}
+
+/// Who wrote an application message: the device behind the MLS leaf that
+/// sent it, which MLS has just authenticated, and the identity this profile
+/// knows for that device. `None` only if the leaf has no basic credential,
+/// which no Arveil device produces; the event is still recorded.
+fn event_sender<C: MlsConfig>(
+    s: &Session,
+    group: &Group<C>,
+    gid: &[u8],
+    leaf: u32,
+) -> Result<Option<EventSender>, CliError> {
+    let Some(device_id) = group.member_at_index(leaf).and_then(|m| {
+        m.signing_identity
+            .credential
+            .as_basic()
+            .map(|b| b.identifier.clone())
+    }) else {
+        return Ok(None);
+    };
+    let identity_id = s
+        .client
+        .device_identity(gid, &device_id)
+        .map_err(storage_error("sender"))?;
+    Ok(Some(EventSender {
+        device_id,
+        identity_id,
+    }))
+}
+
+/// What this device writes is its own, from its own identity.
+fn own_sender(s: &Session) -> EventSender {
+    EventSender {
+        device_id: s.device.keys.device_id.to_vec(),
+        identity_id: Some(s.identity_id.clone()),
+    }
 }
 
 /// Process one decrypted MLS message inside the receive unit.
@@ -4106,8 +4234,15 @@ fn handle_mls<C: MlsConfig>(
                             })
                         }
                         "text" => {
+                            let sender = event_sender(s, &group, &gid, app.sender_index)?;
                             s.delivery
-                                .record_event(&gid, delivery_id, "received", &ev.body)
+                                .record_event_by(
+                                    &gid,
+                                    delivery_id,
+                                    "received",
+                                    &ev.body,
+                                    sender.as_ref(),
+                                )
                                 .map_err(storage_error("event"))?;
                             Ok(StateChange::MessageReceived {
                                 group_id: gid,
@@ -4118,8 +4253,15 @@ fn handle_mls<C: MlsConfig>(
                         "file" => {
                             let d =
                                 FileDescriptor::decode(&ev.body).map_err(protocol_error("file"))?;
+                            let sender = event_sender(s, &group, &gid, app.sender_index)?;
                             s.delivery
-                                .record_event(&gid, delivery_id, "file-pending", &ev.body)
+                                .record_event_by(
+                                    &gid,
+                                    delivery_id,
+                                    "file-pending",
+                                    &ev.body,
+                                    sender.as_ref(),
+                                )
                                 .map_err(storage_error("event"))?;
                             Ok(StateChange::FileAnnounced {
                                 group_id: gid,

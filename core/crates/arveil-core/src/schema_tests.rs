@@ -310,3 +310,34 @@ fn reopening_changes_nothing() {
     drop(second);
     cleanup(&path);
 }
+
+/// A version 1 profile gains the sender columns, empty for the events it
+/// already had: nothing guesses who wrote them.
+#[test]
+fn version_two_adds_empty_sender_columns_to_existing_events() {
+    let path = scratch("senders");
+    {
+        let v1 = Connection::open(&path).unwrap();
+        v1.execute_batch(&baseline_schema()).unwrap();
+        v1.execute_batch(
+            "INSERT INTO events (group_id, event_id, kind, body)
+                 VALUES (x'01', x'02', 'received', CAST('antes' AS BLOB));
+             PRAGMA user_version = 1;",
+        )
+        .unwrap();
+    }
+
+    let conn = SharedConn::open_file(&path).unwrap();
+    let conn = conn.lock();
+    assert_eq!(version_of(&conn), PROFILE_SCHEMA_VERSION);
+    let row: (Vec<u8>, Option<Vec<u8>>, Option<Vec<u8>>) = conn
+        .query_row(
+            "SELECT body, sender_device, sender_identity FROM events",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(row, (b"antes".to_vec(), None, None));
+    drop(conn);
+    cleanup(&path);
+}

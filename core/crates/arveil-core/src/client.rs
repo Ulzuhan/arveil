@@ -629,6 +629,32 @@ impl Client {
             .optional()?)
     }
 
+    /// The identity a device in `group` belongs to: this profile's own for
+    /// this device and the devices it authorized, a peer's from that
+    /// conversation's roster, or `None` while this profile has not learned
+    /// the device.
+    pub fn device_identity(
+        &self,
+        group: &[u8],
+        device: &[u8],
+    ) -> Result<Option<Vec<u8>>, ClientError> {
+        Ok(self
+            .conn
+            .lock()
+            .query_row(
+                "SELECT identity_id FROM identity
+                  WHERE id = 1
+                    AND (EXISTS (SELECT 1 FROM device WHERE device_id = ?2)
+                         OR EXISTS (SELECT 1 FROM identity_devices WHERE device_id = ?2))
+                 UNION ALL
+                 SELECT peer_identity FROM peers WHERE group_id = ?1 AND device_id = ?2
+                 LIMIT 1",
+                params![group, device],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
     pub fn root_public(&self) -> Result<Option<VerifyingKey>, ClientError> {
         let pk: Option<Vec<u8>> = self
             .conn
@@ -1064,13 +1090,15 @@ impl Client {
         })
     }
 
-    /// Archived records of one conversation, oldest first.
-    pub fn archived(&self, group_id: &[u8]) -> Result<Vec<(String, Vec<u8>)>, ClientError> {
+    /// Archived records of one conversation, oldest first, as
+    /// `(kind, body, created_at)`.
+    pub fn archived(&self, group_id: &[u8]) -> Result<Vec<(String, Vec<u8>, i64)>, ClientError> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT kind, body FROM archived_events WHERE group_id = ?1 ORDER BY created_at, event_id",
+            "SELECT kind, body, created_at FROM archived_events
+             WHERE group_id = ?1 ORDER BY created_at, event_id",
         )?;
-        let rows = stmt.query_map(params![group_id], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        let rows = stmt.query_map(params![group_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
@@ -2401,6 +2429,48 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_device_belongs_to_its_own_identity_or_to_the_peer_that_holds_it() {
+        let c = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        let root = c.identity_new().unwrap();
+        let (me, _) = c.device_new(1_800_000_000).unwrap();
+        let group = vec![5u8; 32];
+        let other_group = vec![6u8; 32];
+        let peer_identity = vec![7u8; 32];
+        let peer_device = vec![8u8; 16];
+        c.conversation_save(&Conversation {
+            group_id: group.clone(),
+            creator: true,
+            peers: vec![Peer {
+                identity: peer_identity.clone(),
+                device_id: peer_device.clone(),
+                credential_hash: vec![9; 32],
+                root_public: vec![10; 32],
+                mailbox: None,
+                write_cap: None,
+                hpke: None,
+                revoked: false,
+            }],
+        })
+        .unwrap();
+        c.conversation_save(&Conversation {
+            group_id: other_group.clone(),
+            creator: true,
+            peers: vec![],
+        })
+        .unwrap();
+
+        let own = Some(root.identity_id());
+        assert_eq!(c.device_identity(&group, &me.keys.device_id).unwrap(), own);
+        assert_eq!(
+            c.device_identity(&group, &peer_device).unwrap(),
+            Some(peer_identity)
+        );
+        // The roster is per conversation, and an unknown device is unknown.
+        assert_eq!(c.device_identity(&other_group, &peer_device).unwrap(), None);
+        assert_eq!(c.device_identity(&group, &[11u8; 16]).unwrap(), None);
+    }
 
     #[test]
     fn initial_key_packages_survive_reopen_and_acknowledgement() {

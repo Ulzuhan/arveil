@@ -2640,6 +2640,10 @@ impl SseDecode for crate::api::profile::HistoryEventView {
         let mut var_attachment =
             <Option<crate::api::profile::AttachmentView>>::sse_decode(deserializer);
         let mut var_delivery = <Vec<String>>::sse_decode(deserializer);
+        let mut var_createdAt = <i64>::sse_decode(deserializer);
+        let mut var_senderIdentity = <Option<String>>::sse_decode(deserializer);
+        let mut var_senderLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_own = <bool>::sse_decode(deserializer);
         return crate::api::profile::HistoryEventView {
             cursor: var_cursor,
             event_id: var_eventId,
@@ -2647,6 +2651,10 @@ impl SseDecode for crate::api::profile::HistoryEventView {
             body: var_body,
             attachment: var_attachment,
             delivery: var_delivery,
+            created_at: var_createdAt,
+            sender_identity: var_senderIdentity,
+            sender_label: var_senderLabel,
+            own: var_own,
         };
     }
 }
@@ -3865,6 +3873,10 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::HistoryEventView {
             self.body.into_into_dart().into_dart(),
             self.attachment.into_into_dart().into_dart(),
             self.delivery.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.sender_identity.into_into_dart().into_dart(),
+            self.sender_label.into_into_dart().into_dart(),
+            self.own.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4580,6 +4592,10 @@ impl SseEncode for crate::api::profile::HistoryEventView {
         <Vec<u8>>::sse_encode(self.body, serializer);
         <Option<crate::api::profile::AttachmentView>>::sse_encode(self.attachment, serializer);
         <Vec<String>>::sse_encode(self.delivery, serializer);
+        <i64>::sse_encode(self.created_at, serializer);
+        <Option<String>>::sse_encode(self.sender_identity, serializer);
+        <Option<String>>::sse_encode(self.sender_label, serializer);
+        <bool>::sse_encode(self.own, serializer);
     }
 }
 

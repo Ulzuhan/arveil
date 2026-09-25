@@ -15,6 +15,8 @@ HistoryEventView event(int n, {String? text}) => HistoryEventView(
   kind: 'sent',
   body: utf8.encode(text ?? 'message $n'),
   delivery: const ['queued'],
+  createdAt: 1790000000 + n,
+  own: true,
 );
 const row = ConversationView(
   groupId: 'group-a',
@@ -269,6 +271,8 @@ void main() {
                     kind: 'received',
                     body: utf8.encode('received body'),
                     delivery: const [],
+                    createdAt: 1790000000,
+                    own: false,
                   ),
                 ),
                 MessageBubble(
@@ -278,6 +282,8 @@ void main() {
                     kind: 'sent',
                     body: utf8.encode('sent body'),
                     delivery: const ['accepted'],
+                    createdAt: 1790000000,
+                    own: true,
                   ),
                 ),
               ],
@@ -425,4 +431,72 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+
+  testWidgets(
+    'group messages name their author, and own messages from another device sit on the own side',
+    (tester) async {
+      HistoryEventView message(
+        String id, {
+        required bool own,
+        String? label,
+        String kind = 'received',
+      }) => HistoryEventView(
+        cursor: 1,
+        eventId: id,
+        kind: kind,
+        body: utf8.encode('body $id'),
+        delivery: const [],
+        createdAt: 1790000000,
+        senderLabel: label,
+        own: own,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                MessageBubble(
+                  event: message('lucia', own: false, label: 'Lucía'),
+                  showSender: true,
+                ),
+                MessageBubble(
+                  event: message('pair', own: false, label: 'Pablo'),
+                ),
+                MessageBubble(event: message('mine', own: true)),
+              ],
+            ),
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('sender-lucia')), findsOneWidget);
+      expect(find.text('Lucía'), findsOneWidget);
+      // One other person: the author is obvious and not repeated.
+      expect(find.byKey(const Key('sender-pair')), findsNothing);
+      expect(find.byKey(const Key('sender-mine')), findsNothing);
+      expect(
+        find.text('Enviado desde otro de tus dispositivos'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('time-lucia')), findsOneWidget);
+      final mine = tester.widget<Align>(
+        find
+            .ancestor(
+              of: find.byKey(const Key('message-mine')),
+              matching: find.byType(Align),
+            )
+            .first,
+      );
+      expect(mine.alignment, Alignment.centerRight);
+    },
+  );
+
+  test('recorded times show the hour today and the date otherwise', () {
+    final at = DateTime(2026, 9, 25, 18, 4);
+    final seconds = at.millisecondsSinceEpoch ~/ 1000;
+    expect(recordedTime(seconds, now: DateTime(2026, 9, 25, 23)), '18:04');
+    expect(
+      recordedTime(seconds, now: DateTime(2026, 9, 26, 9)),
+      '25/9/2026 18:04',
+    );
+  });
 }

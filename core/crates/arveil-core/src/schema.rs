@@ -21,7 +21,7 @@ use rusqlite::Connection;
 use crate::storage::StorageError;
 
 /// The newest profile schema this build reads and writes.
-pub const PROFILE_SCHEMA_VERSION: u32 = 1;
+pub const PROFILE_SCHEMA_VERSION: u32 = 2;
 
 /// One step from `version - 1` to `version`.
 pub(crate) struct Migration {
@@ -29,10 +29,16 @@ pub(crate) struct Migration {
     pub(crate) apply: fn(&Connection) -> Result<(), StorageError>,
 }
 
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    apply: baseline,
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        apply: baseline,
+    },
+    Migration {
+        version: 2,
+        apply: event_senders,
+    },
+];
 
 /// Bring `conn` up to [`PROFILE_SCHEMA_VERSION`].
 pub(crate) fn migrate(conn: &Connection) -> Result<(), StorageError> {
@@ -147,6 +153,20 @@ fn baseline(conn: &Connection) -> Result<(), StorageError> {
             return Err(StorageError::UnsupportedSchema { table, detail });
         }
     }
+    Ok(())
+}
+
+/// Version 2: who wrote each event. `sender_device` is the device behind
+/// the MLS leaf that sent it; `sender_identity` is the identity this profile
+/// knew for that device when it recorded the event. Both stay empty for
+/// events recorded before this version: nothing guesses them. The columns
+/// are nullable, so builds that predate versioning still read and write
+/// the table.
+fn event_senders(conn: &Connection) -> Result<(), StorageError> {
+    conn.execute_batch(
+        "ALTER TABLE events ADD COLUMN sender_device BLOB;
+         ALTER TABLE events ADD COLUMN sender_identity BLOB;",
+    )?;
     Ok(())
 }
 

@@ -259,3 +259,60 @@ fn i05_receive_unit_commits_before_ack_and_survives_a_crash() {
         "a stale sync cannot move the cursor backwards"
     );
 }
+
+#[test]
+fn events_keep_their_sender_and_time() {
+    let conn = SharedConn::open_in_memory().unwrap();
+    let delivery = Delivery::open(conn).unwrap();
+    let group = [1u8; 32];
+    delivery
+        .record_event(&group, b"legacy", "received", b"sin remitente")
+        .unwrap();
+    let known = EventSender {
+        device_id: vec![2; 16],
+        identity_id: Some(vec![3; 32]),
+    };
+    delivery
+        .record_event_by(&group, b"known", "received", b"hola", Some(&known))
+        .unwrap();
+    let unknown_identity = EventSender {
+        device_id: vec![4; 16],
+        identity_id: None,
+    };
+    delivery
+        .record_event_by(
+            &group,
+            b"device-only",
+            "received",
+            b"dispositivo sin identidad",
+            Some(&unknown_identity),
+        )
+        .unwrap();
+
+    let page = delivery.events_page(&group, None, 10).unwrap();
+    let by_id = |id: &[u8]| page.iter().find(|e| e.event_id == id).unwrap();
+    let legacy = by_id(b"legacy");
+    assert_eq!(
+        (&legacy.sender_device, &legacy.sender_identity),
+        (&None, &None)
+    );
+    let recorded = by_id(b"known");
+    assert_eq!(recorded.sender_device.as_deref(), Some(&[2u8; 16][..]));
+    assert_eq!(recorded.sender_identity.as_deref(), Some(&[3u8; 32][..]));
+    let partial = by_id(b"device-only");
+    assert_eq!(partial.sender_device.as_deref(), Some(&[4u8; 16][..]));
+    assert_eq!(partial.sender_identity, None);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    assert!(page.iter().all(|e| (now - e.created_at).abs() < 60));
+
+    // Changing a transfer's kind keeps who wrote it.
+    delivery
+        .update_event(b"known", "file-unavailable", &[])
+        .unwrap();
+    let page = delivery.events_page(&group, None, 10).unwrap();
+    let updated = page.iter().find(|e| e.event_id == b"known").unwrap();
+    assert_eq!(updated.sender_identity.as_deref(), Some(&[3u8; 32][..]));
+}

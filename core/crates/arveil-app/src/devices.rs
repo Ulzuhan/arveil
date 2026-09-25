@@ -265,7 +265,7 @@ pub(super) async fn revoke(
         record_change(StateChange::ArchivedConversation {
             group_id: group_id.clone(),
         });
-        for (kind, body) in s
+        for (kind, body, _) in s
             .client
             .archived(&group_id)
             .map_err(storage_error("archived"))?
