@@ -985,6 +985,27 @@ impl Profile {
         })
     }
 
+    /// Text messages of one conversation containing `text`, newest first,
+    /// ignoring case and accents. Each call reads a bounded number of
+    /// events; pass `next` as `before` to keep searching further back.
+    pub fn search_history(
+        &self,
+        group_id: String,
+        text: String,
+        before: Option<i64>,
+        limit: u32,
+    ) -> Result<HistoryPageView, CommandError> {
+        let group = decode_hex(&group_id)?;
+        let page = self
+            .inner
+            .search_history(&group, &text, before, limit as usize)
+            .map_err(command_error)?;
+        Ok(HistoryPageView {
+            events: page.events.into_iter().map(event_view).collect(),
+            next: page.next,
+        })
+    }
+
     /// Mark a conversation read up to `cursor`, the newest event a screen
     /// showed. Marking twice, late or past the end is harmless.
     pub fn mark_read(&self, group_id: String, cursor: i64) -> Result<ReadMarkerView, CommandError> {
@@ -1408,6 +1429,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::QueryConversations => "query-conversations",
         Operation::QueryPeers => "query-peers",
         Operation::QueryHistoryPage => "query-history-page",
+        Operation::SearchHistory => "search-history",
         Operation::MarkRead => "mark-read",
         Operation::QueryArchived => "query-archived",
     }

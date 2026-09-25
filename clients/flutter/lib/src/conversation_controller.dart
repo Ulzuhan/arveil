@@ -218,6 +218,24 @@ class ConversationController extends ChangeNotifier {
     }
   }
 
+  /// Text messages of the open conversation containing [text], newest
+  /// first; [before] continues a search that stopped. Null when it failed.
+  Future<HistoryPageView?> searchHistory(String text, {int? before}) async {
+    final group = selected;
+    if (_disposed || group == null) return null;
+    try {
+      return await profile.searchHistory(
+        groupId: group,
+        text: text,
+        before: before,
+        limit: 50,
+      );
+    } catch (failure) {
+      FailureLog.record(failure);
+      return null;
+    }
+  }
+
   Future<void> older() async {
     if (_disposed || loadingOlder || before == null || selected == null) return;
     final version = _selection;

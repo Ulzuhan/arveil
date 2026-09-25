@@ -2569,6 +2569,54 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'English'**
   String get languageEnglish;
+
+  /// No description provided for @searchConversation.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar en la conversación'**
+  String get searchConversation;
+
+  /// No description provided for @searchConversationHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar en esta conversación'**
+  String get searchConversationHint;
+
+  /// No description provided for @searchConversationPrompt.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe para buscar entre los mensajes de esta conversación.'**
+  String get searchConversationPrompt;
+
+  /// No description provided for @searchNoResults.
+  ///
+  /// In es, this message translates to:
+  /// **'Ningún mensaje contiene «{query}»'**
+  String searchNoResults(String query);
+
+  /// No description provided for @searchNothingRecent.
+  ///
+  /// In es, this message translates to:
+  /// **'Nada entre los mensajes más recientes.'**
+  String get searchNothingRecent;
+
+  /// No description provided for @searchOlder.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar más atrás'**
+  String get searchOlder;
+
+  /// No description provided for @searchFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo buscar. Vuelve a intentarlo.'**
+  String get searchFailed;
+
+  /// No description provided for @closeSearch.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar la búsqueda'**
+  String get closeSearch;
 }
 
 class _AppLocalizationsDelegate

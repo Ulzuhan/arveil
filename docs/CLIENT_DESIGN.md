@@ -74,7 +74,7 @@ One small PR per package with its own tests. Relative size: S (up to a day), M (
 | E2 Secret-free diagnostics (implemented) | S | C5 | Exported report with version, OS, locale, profile state and typed error codes only; a test searches it for test-profile secrets |
 | E3 Documentation and screenshots | S | E1, E2 | Update installation, client foundation and platform docs in both languages |
 | F1 QR invitation (optional) | L | B1 | Versioned join payload documented as one-use sensitive data; relay `invite` may print a QR; camera only after tapping "Scan"; paste always available; never logged |
-| F2 In-conversation search (optional) | S | B1 | Bounded Rust query over the open conversation; the search button stays hidden until it exists |
+| F2 In-conversation search (optional, implemented) | S | B1 | Bounded Rust query over the open conversation, with ⌘F on desktop |
 
 A and B can proceed in parallel.
 

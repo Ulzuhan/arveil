@@ -877,3 +877,26 @@ drift.
 or visible text is written by hand (only `Colors.transparent` and the
 technical `arveil-bootstrap:v0:…` format are allowed). The app name and the
 language names also come from the ARBs.
+
+## Search within a conversation (September 25, 2026)
+
+- **Rust.** `Application::search_history` finds the text messages of one
+  conversation that contain the requested text, ignoring case and accents,
+  newest first. Each call reads at most 5,000 events (`MAX_SEARCH_SCAN`) and
+  says where it stopped, so a long history answers in bounded time. Notices,
+  attachments and other conversations are left out. The bridge exposes it as
+  `searchHistory`, shaped like a history page.
+- **Interface.** The search button in the header, or ⌘F (Ctrl+F outside
+  macOS) on desktop, swaps the history for a field and the results: who and
+  when, and the text. Tapping one opens its details. "Search further back"
+  continues when the reading stopped before the start, and the screen says
+  when nothing matches. Escape, the close button or back on a phone return to
+  the conversation.
+- Jumping to the message inside the history is left for later: it needs the
+  surrounding pages loaded.
+
+Evidence: two tests in `arveil-app` (case- and accent-insensitive matching,
+text of that conversation only, continuing past the limit and reading at most
+5,000 events per call) and `test/conversation_search_test.dart` (results, no
+match, searching further back, ⌘F and Escape on macOS and Linux, and back on a
+phone).

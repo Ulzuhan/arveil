@@ -411,5 +411,13 @@
   "diagnosticsSaved": "Report saved",
   "diagnosticsSaveFailed": "The report could not be saved",
   "languageSpanish": "Español",
-  "languageEnglish": "English"
+  "languageEnglish": "English",
+  "searchConversation": "Search in the conversation",
+  "searchConversationHint": "Search this conversation",
+  "searchConversationPrompt": "Type to search this conversation’s messages.",
+  "searchNoResults": "No message contains “{query}”",
+  "searchNothingRecent": "Nothing among the most recent messages.",
+  "searchOlder": "Search further back",
+  "searchFailed": "The search failed. Try again.",
+  "closeSearch": "Close the search"
 }

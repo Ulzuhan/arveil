@@ -1527,4 +1527,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageEnglish => 'English';
+
+  @override
+  String get searchConversation => 'Search in the conversation';
+
+  @override
+  String get searchConversationHint => 'Search this conversation';
+
+  @override
+  String get searchConversationPrompt =>
+      'Type to search this conversation’s messages.';
+
+  @override
+  String searchNoResults(String query) {
+    return 'No message contains “$query”';
+  }
+
+  @override
+  String get searchNothingRecent => 'Nothing among the most recent messages.';
+
+  @override
+  String get searchOlder => 'Search further back';
+
+  @override
+  String get searchFailed => 'The search failed. Try again.';
+
+  @override
+  String get closeSearch => 'Close the search';
 }

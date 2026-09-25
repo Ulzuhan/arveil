@@ -264,7 +264,7 @@ Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 - La app escanea con la cámara solo después de pulsar «Escanear», con permisos de cámara en Android y macOS. Pegar el texto sigue siendo siempre posible.
 - El contenido no se registra en logs.
 
-**F2 — Búsqueda dentro de una conversación (S).** Consulta acotada en Rust sobre el texto de la conversación abierta, con ⌘F en escritorio. Hasta que exista, la conversación no muestra el botón de búsqueda.
+**F2 — Búsqueda dentro de una conversación (S).** Consulta acotada en Rust sobre el texto de la conversación abierta, con ⌘F en escritorio. Hasta que exista, la conversación no muestra el botón de búsqueda. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
 ### Dependencias
 

@@ -827,5 +827,20 @@
   "languageEnglish": "English",
   "@languageEnglish": {
     "description": "Always the language's own name, in every locale."
-  }
+  },
+  "searchConversation": "Buscar en la conversación",
+  "searchConversationHint": "Buscar en esta conversación",
+  "searchConversationPrompt": "Escribe para buscar entre los mensajes de esta conversación.",
+  "searchNoResults": "Ningún mensaje contiene «{query}»",
+  "@searchNoResults": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "searchNothingRecent": "Nada entre los mensajes más recientes.",
+  "searchOlder": "Buscar más atrás",
+  "searchFailed": "No se pudo buscar. Vuelve a intentarlo.",
+  "closeSearch": "Cerrar la búsqueda"
 }
