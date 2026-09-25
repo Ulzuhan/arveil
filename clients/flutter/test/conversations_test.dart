@@ -38,13 +38,6 @@ class ChatProfile extends FakeProfile {
   bool offline = false, failSave = false, partialCreate = false;
   int sends = 0, syncs = 0, creates = 0;
   @override
-  Stream<ProgressView> watch({required BigInt generation}) =>
-      const Stream.empty();
-  @override
-  BigInt startWatching() => BigInt.one;
-  @override
-  void stopWatching({required BigInt generation}) {}
-  @override
   Future<List<ConversationView>> conversations() async =>
       initialRows == null ? [row] : await initialRows!.future;
   final List<(String, int)> marks = [];
@@ -150,9 +143,6 @@ void main() {
     addTearDown(session.dispose);
     await tester.pumpWidget(ArveilApp(session: session));
     await tester.tap(find.text('Abrir perfil'));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Abrir conversaciones'));
-    await tester.tap(find.text('Abrir conversaciones'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('conversation-group-a')));
     await tester.pumpAndSettle();

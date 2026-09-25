@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,6 +10,7 @@ import 'conversation_controller.dart';
 import 'attachment_card.dart';
 import 'attachment_files.dart';
 import 'contacts_page.dart';
+import 'design/layout.dart';
 import 'rust/api/profile.dart';
 
 String shortId(String id) => id.length <= 12 ? id : id.substring(0, 12);
@@ -60,15 +62,30 @@ class ConversationsPage extends StatefulWidget {
     super.key,
     required this.controller,
     this.attachmentFiles = const AttachmentFiles(),
+    this.twoPane,
+    this.active = true,
+    this.notices = const [],
   });
   final ConversationController controller;
   final AttachmentFiles attachmentFiles;
 
+  /// List and conversation side by side; by default when the window is
+  /// expanded.
+  final bool? twoPane;
+
+  /// Whether this page is the destination on screen, so the back gesture
+  /// is its own.
+  final bool active;
+
+  /// Shown above the chat list, such as the kit reminder.
+  final List<Widget> notices;
+
   @override
-  State<ConversationsPage> createState() => _ConversationsPageState();
+  State<ConversationsPage> createState() => ConversationsPageState();
 }
 
-class _ConversationsPageState extends State<ConversationsPage>
+/// Public so the navigation's shortcuts can drive the page.
+class ConversationsPageState extends State<ConversationsPage>
     with WidgetsBindingObserver {
   final _draft = TextEditingController();
   final Map<String, String> _drafts = {};
@@ -213,12 +230,34 @@ class _ConversationsPageState extends State<ConversationsPage>
     if (group != null && mounted) _draft.text = _drafts[group] ?? '';
   }
 
-  Future<void> _contacts() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => ContactsPage(profile: chat.profile)),
-    );
-    if (mounted) await chat.refresh();
+  /// Opens the new conversation screen, unless one is being created.
+  Future<void> newConversation() async {
+    if (!chat.creating) await _create();
   }
+
+  /// Opens the conversation [step] rows away from the open one, or the
+  /// first or last when none is open.
+  Future<void> selectAdjacent(int step) async {
+    final rows = chat.conversations;
+    if (rows.isEmpty) return;
+    final at = rows.indexWhere((c) => c.groupId == chat.selected);
+    final next = at < 0
+        ? (step > 0 ? 0 : rows.length - 1)
+        : (at + step).clamp(0, rows.length - 1);
+    if (next != at) await _select(rows[next].groupId);
+  }
+
+  /// Closes the open conversation, keeping its draft.
+  Future<void> closeConversation() => _select(null);
+
+  /// On desktop Enter sends and Shift+Enter starts a new line; on phones
+  /// Enter starts a new line.
+  bool get _enterSends => switch (defaultTargetPlatform) {
+    TargetPlatform.macOS ||
+    TargetPlatform.windows ||
+    TargetPlatform.linux => true,
+    _ => false,
+  };
 
   String get _selectedTitle {
     final rows = chat.conversations.where((c) => c.groupId == chat.selected);
@@ -314,82 +353,79 @@ class _ConversationsPageState extends State<ConversationsPage>
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: chat,
-    builder: (context, _) => LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 760;
-        final selected = chat.selected != null;
-        return PopScope(
-          canPop: wide || !selected,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) unawaited(_select(null));
-          },
-          child: Scaffold(
-            appBar: AppBar(
-              leading: !wide && selected
-                  ? IconButton(
-                      tooltip: context.l10n.backToConversations,
-                      onPressed: () => _select(null),
-                      icon: const Icon(Icons.arrow_back),
-                    )
-                  : null,
-              title: Text(
-                !wide && selected
-                    ? _selectedTitle
-                    : context.l10n.conversationsTitle,
-              ),
-              actions: [
-                IconButton(
-                  tooltip: context.l10n.contactsTitle,
-                  onPressed: _contacts,
-                  icon: const Icon(Icons.contacts_outlined),
-                ),
-                IconButton(
-                  tooltip: context.l10n.myRoute,
-                  onPressed: _shareRoute,
-                  icon: const Icon(Icons.share_outlined),
-                ),
-                IconButton(
-                  tooltip: context.l10n.newConversation,
-                  onPressed: chat.creating ? null : _create,
-                  icon: const Icon(Icons.edit_square),
-                ),
-                IconButton(
-                  tooltip: context.l10n.sync,
-                  onPressed: chat.syncing ? null : chat.sync,
-                  icon: const Icon(Icons.sync),
-                ),
-              ],
+    builder: (context, _) {
+      final wide = widget.twoPane ?? WindowSize.of(context).twoPane;
+      final selected = chat.selected != null;
+      return PopScope(
+        canPop: !widget.active || wide || !selected,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && widget.active && !wide && chat.selected != null) {
+            unawaited(_select(null));
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: !wide && selected
+                ? IconButton(
+                    tooltip: context.l10n.backToConversations,
+                    onPressed: () => _select(null),
+                    icon: const Icon(Icons.arrow_back),
+                  )
+                : null,
+            title: Text(
+              !wide && selected ? _selectedTitle : context.l10n.navChats,
             ),
-            body: SafeArea(
-              child: Column(
-                children: [
-                  if (chat.syncing)
-                    LinearProgressIndicator(
-                      semanticsLabel: context.l10n.syncing,
+            actions: [
+              IconButton(
+                tooltip: context.l10n.myRoute,
+                onPressed: _shareRoute,
+                icon: const Icon(Icons.share_outlined),
+              ),
+              IconButton(
+                tooltip: context.l10n.newConversation,
+                onPressed: chat.creating ? null : _create,
+                icon: const Icon(Icons.edit_square),
+              ),
+              IconButton(
+                tooltip: context.l10n.sync,
+                onPressed: chat.syncing ? null : chat.sync,
+                icon: const Icon(Icons.sync),
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                if (chat.syncing)
+                  LinearProgressIndicator(semanticsLabel: context.l10n.syncing),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+                  child: Text(
+                    syncStatusText(
+                      chat.syncState,
+                      chat.lastSynced,
+                      DateTime.now(),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
-                    child: Text(
-                      syncStatusText(
-                        chat.syncState,
-                        chat.lastSynced,
-                        DateTime.now(),
-                      ),
-                      key: const Key('sync-status'),
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
+                    key: const Key('sync-status'),
+                    style: Theme.of(context).textTheme.labelSmall,
                   ),
-                  if (chat.networkError case final message?) _banner(message),
-                  if (chat.error case final message?)
-                    _banner(message, error: true),
-                  if (chat.notice case final message?) _banner(message),
-                  Expanded(
-                    child: wide
-                        ? Row(
-                            children: [
-                              SizedBox(width: 280, child: _list()),
-                              const VerticalDivider(width: 1),
-                              Expanded(
+                ),
+                if (chat.networkError case final message?) _banner(message),
+                if (chat.error case final message?)
+                  _banner(message, error: true),
+                if (chat.notice case final message?) _banner(message),
+                if (wide || !selected) ...widget.notices,
+                Expanded(
+                  child: wide
+                      ? Row(
+                          children: [
+                            SizedBox(
+                              width: 320,
+                              child: FocusTraversalGroup(child: _list()),
+                            ),
+                            const VerticalDivider(width: 1),
+                            Expanded(
+                              child: FocusTraversalGroup(
                                 child: selected
                                     ? _history()
                                     : Center(
@@ -398,19 +434,19 @@ class _ConversationsPageState extends State<ConversationsPage>
                                         ),
                                       ),
                               ),
-                            ],
-                          )
-                        : selected
-                        ? _history()
-                        : _list(),
-                  ),
-                ],
-              ),
+                            ),
+                          ],
+                        )
+                      : selected
+                      ? _history()
+                      : _list(),
+                ),
+              ],
             ),
           ),
-        );
-      },
-    ),
+        ),
+      );
+    },
   );
 
   Widget _banner(String message, {bool error = false}) => Semantics(
@@ -442,6 +478,10 @@ class _ConversationsPageState extends State<ConversationsPage>
           ],
         )
       : ListView.builder(
+          // Rows carry their own 16 dp; medium windows get more room.
+          padding: EdgeInsets.symmetric(
+            horizontal: WindowSize.of(context).margin - 16,
+          ),
           itemCount: chat.conversations.length,
           itemBuilder: (context, index) {
             final row = chat.conversations[index];
@@ -505,6 +545,19 @@ class _ConversationsPageState extends State<ConversationsPage>
           .where((c) => c.groupId == chat.selected)
           .expand((c) => c.peers)
           .any((p) => p.identityId == identity && p.verified);
+
+  Widget _enterToSend(Widget field) => _enterSends
+      ? Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.enter): _SendIntent(),
+            SingleActivator(LogicalKeyboardKey.numpadEnter): _SendIntent(),
+          },
+          child: Actions(
+            actions: {_SendIntent: _SendAction(this)},
+            child: field,
+          ),
+        )
+      : field;
 
   Widget _history() => Column(
     children: [
@@ -578,18 +631,20 @@ class _ConversationsPageState extends State<ConversationsPage>
               icon: const Icon(Icons.attach_file),
             ),
             Expanded(
-              child: TextField(
-                key: const Key('message-draft'),
-                controller: _draft,
-                minLines: 1,
-                maxLines: 5,
-                maxLength: 32768,
-                autocorrect: false,
-                enableSuggestions: false,
-                enableIMEPersonalizedLearning: false,
-                decoration: InputDecoration(
-                  labelText: context.l10n.messageHint,
-                  counterText: '',
+              child: _enterToSend(
+                TextField(
+                  key: const Key('message-draft'),
+                  controller: _draft,
+                  minLines: 1,
+                  maxLines: 5,
+                  maxLength: 32768,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.messageHint,
+                    counterText: '',
+                  ),
                 ),
               ),
             ),
@@ -605,6 +660,29 @@ class _ConversationsPageState extends State<ConversationsPage>
       ),
     ],
   );
+}
+
+class _SendIntent extends Intent {
+  const _SendIntent();
+}
+
+/// Sends on Enter, except while an input method is composing text, when
+/// Enter confirms the composition instead.
+class _SendAction extends Action<_SendIntent> {
+  _SendAction(this.page);
+  final ConversationsPageState page;
+
+  @override
+  bool isEnabled(_SendIntent intent) {
+    final composing = page._draft.value.composing;
+    return !composing.isValid || composing.isCollapsed;
+  }
+
+  @override
+  Object? invoke(_SendIntent intent) {
+    if (!page.chat.sending) unawaited(page._send());
+    return null;
+  }
 }
 
 class MessageBubble extends StatelessWidget {

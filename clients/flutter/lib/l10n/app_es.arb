@@ -4,6 +4,12 @@
   "@appTitle": {
     "description": "Application name; never translated."
   },
+  "navChats": "Chats",
+  "@navChats": {
+    "description": "Main navigation destination with the conversation list."
+  },
+  "navContacts": "Contactos",
+  "navSettings": "Ajustes",
   "profileClose": "Cerrar perfil",
   "profileStateUnreadable": "No se pudo leer el estado del perfil.",
   "profileReadAgain": "Volver a leer",
@@ -34,12 +40,9 @@
   "enrollRestore": "Restaurar desde un kit",
   "kitReminderNever": "Guarda tu kit de identidad. Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.",
   "kitReminderStale": "Tus dispositivos cambiaron después de guardar el kit. Guarda uno nuevo para que una recuperación los conozca.",
-  "readyTitle": "Tu perfil está listo",
-  "readyBody": "Identidad registrada y buzón preparado.",
   "kitSave": "Guardar kit",
   "later": "Más tarde",
   "recoveryRollbackWarning": "El servidor conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.",
-  "openConversations": "Abrir conversaciones",
   "manageDevices": "Gestionar dispositivos",
   "encryptedHistory": "Historial cifrado",
   "linkedDeviceKitNote": "Este dispositivo está vinculado. El kit de identidad se exporta desde el dispositivo administrador.",
@@ -605,7 +608,6 @@
   "ownRouteCopy": "Copiar ruta",
   "ownRouteFailed": "No se pudo obtener la ruta de este dispositivo.",
   "backToConversations": "Volver a conversaciones",
-  "conversationsTitle": "Conversaciones",
   "myRoute": "Mi ruta",
   "newConversation": "Nueva conversación",
   "sync": "Sincronizar",

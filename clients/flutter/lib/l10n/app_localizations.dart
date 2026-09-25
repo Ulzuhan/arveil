@@ -104,6 +104,24 @@ abstract class AppLocalizations {
   /// **'Arveil'**
   String get appTitle;
 
+  /// Main navigation destination with the conversation list.
+  ///
+  /// In es, this message translates to:
+  /// **'Chats'**
+  String get navChats;
+
+  /// No description provided for @navContacts.
+  ///
+  /// In es, this message translates to:
+  /// **'Contactos'**
+  String get navContacts;
+
+  /// No description provided for @navSettings.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajustes'**
+  String get navSettings;
+
   /// No description provided for @profileClose.
   ///
   /// In es, this message translates to:
@@ -284,18 +302,6 @@ abstract class AppLocalizations {
   /// **'Tus dispositivos cambiaron después de guardar el kit. Guarda uno nuevo para que una recuperación los conozca.'**
   String get kitReminderStale;
 
-  /// No description provided for @readyTitle.
-  ///
-  /// In es, this message translates to:
-  /// **'Tu perfil está listo'**
-  String get readyTitle;
-
-  /// No description provided for @readyBody.
-  ///
-  /// In es, this message translates to:
-  /// **'Identidad registrada y buzón preparado.'**
-  String get readyBody;
-
   /// No description provided for @kitSave.
   ///
   /// In es, this message translates to:
@@ -313,12 +319,6 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'El servidor conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.'**
   String get recoveryRollbackWarning;
-
-  /// No description provided for @openConversations.
-  ///
-  /// In es, this message translates to:
-  /// **'Abrir conversaciones'**
-  String get openConversations;
 
   /// No description provided for @manageDevices.
   ///
@@ -1861,12 +1861,6 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Volver a conversaciones'**
   String get backToConversations;
-
-  /// No description provided for @conversationsTitle.
-  ///
-  /// In es, this message translates to:
-  /// **'Conversaciones'**
-  String get conversationsTitle;
 
   /// No description provided for @myRoute.
   ///

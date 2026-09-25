@@ -623,3 +623,40 @@ Evidence:
   English, including text produced outside widgets.
 - CI regenerates the localizations and fails if they differ from the
   committed ones or if any message is left untranslated.
+
+## Adaptive navigation and shortcuts (September 25, 2026)
+
+A ready profile opens the main navigation: Chats, Contacts and Settings.
+Without an identity only the welcome and enrollment show, and a finished
+enrollment goes straight to Chats.
+
+- **Sizes.** Below 600 dp there is a bottom bar, and an open conversation takes
+  the whole screen without it. From 600 to 839 dp the structure is the same
+  with wider margins. From 840 dp a side rail sits beside the list and the
+  conversation, which share the window. The breakpoints live in `WindowSize`,
+  in the design system.
+- **State.** Each destination is built on its first visit and then stays
+  mounted: the conversation keeps syncing and keeps its draft while contacts or
+  settings are on screen, and when the window changes size. Back closes the
+  conversation first and, from another destination, returns to Chats.
+- **Settings.** It gathers what the profile screen used to show: devices,
+  encrypted history, keys for new groups, the identity kit, linking another
+  device and "Close profile". The kit reminder and the recovery warning appear
+  above the chat list, and "Save kit" leads to the kit panel in Settings.
+- **Desktop shortcuts** (⌘ on macOS, Ctrl elsewhere): ⌘N opens a new chat, ⌥↑
+  and ⌥↓ move to the previous or next chat, ⌘, opens Settings and Esc closes
+  the conversation; dialogs close on Esc by themselves. Esc does not close
+  screens with forms, so nothing typed is lost. On desktop Enter sends and
+  Shift+Enter does not; while an input method is composing, Enter confirms the
+  composition. On phones Enter inserts a line. ⌘K will come with the chat
+  search (C2).
+- **Focus.** The rail, the list and the conversation are traversal groups, so
+  Tab moves from the rail to the list and then to the conversation.
+
+Evidence:
+
+- `test/navigation_test.dart` walks the app at 390×844 and 1280×800: bar or
+  rail, full-screen conversation on phones, back, resizing without losing the
+  draft, the shortcuts on macOS and Linux, Enter on macOS, Windows and Android,
+  and Tab order.
+- The kit, recovery, pairing and key tests follow the new path to Settings.

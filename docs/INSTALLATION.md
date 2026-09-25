@@ -113,17 +113,18 @@ Android reports a conflict. Check `BUILD.json` for version and certificate detai
 
 ### First use and limits
 
-The interface follows the system language: English when the system prefers
-it, Spanish otherwise; the button names below are the Spanish ones. A
-completed enrollment shows the profile summary. On a connection failure,
-close/reopen and retry with the **same relay
-and invitation**; successful enrollment does not need another invitation on
-reopen. Current source also supports pairing, recovery kits and conversations.
+The interface follows the system language: English when the system prefers it,
+Spanish otherwise; the button names below are the Spanish ones. A completed
+enrollment opens **Chats**, with **Contactos** and **Ajustes** in the bottom bar
+on a phone or in the side rail on a wide window. On a connection failure,
+close/reopen and retry with the **same relay and invitation**; successful
+enrollment does not need another invitation on reopen. Current source also
+supports pairing, recovery kits and conversations.
 
 To try conversations with disposable profiles on the same relay using the
 current source or a package containing it:
 
-1. Select **Abrir conversaciones**, then **Mi ruta** to share this device's route
+1. In **Chats**, select **Mi ruta** to share this device's route
    privately with your contact. Each person can obtain their route here.
 2. Open **Contactos → Añadir contacto**, paste a route, give it an optional local
    name and choose **Preparar contacto**. Compare the full safety number through
@@ -212,7 +213,7 @@ all acceptance runs already exist; see [phase 3b](PHASE3B.md).
 
 ## Manage your devices (available since `0.1.0+8`)
 
-Open **Gestionar dispositivos** from the profile. Compare the full device ID
+Open **Gestionar dispositivos** in **Ajustes**. Compare the full device ID
 with the other device before revoking it. Only the administrator can revoke
 another device; the current device cannot revoke itself. A linked profile may
 show a partial inventory because it has not learned the other device IDs.
@@ -230,7 +231,7 @@ identical retry and commits revocation with the manifest atomically.
 
 ## Save and recover history (available since `0.1.0+9`)
 
-1. In the profile, open **Historial cifrado**, acknowledge that this copy can
+1. In **Ajustes**, open **Historial cifrado**, acknowledge that this copy can
    reveal past messages and select **Guardar historial cifrado**. If the native
    dialog returns before the app regains focus, select **Mostrar clave del archivo
    guardado** after returning (fixed in `0.1.0+10`). Save its key separately,

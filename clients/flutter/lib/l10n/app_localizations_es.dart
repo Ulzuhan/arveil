@@ -12,6 +12,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appTitle => 'Arveil';
 
   @override
+  String get navChats => 'Chats';
+
+  @override
+  String get navContacts => 'Contactos';
+
+  @override
+  String get navSettings => 'Ajustes';
+
+  @override
   String get profileClose => 'Cerrar perfil';
 
   @override
@@ -113,12 +122,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Tus dispositivos cambiaron después de guardar el kit. Guarda uno nuevo para que una recuperación los conozca.';
 
   @override
-  String get readyTitle => 'Tu perfil está listo';
-
-  @override
-  String get readyBody => 'Identidad registrada y buzón preparado.';
-
-  @override
   String get kitSave => 'Guardar kit';
 
   @override
@@ -127,9 +130,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get recoveryRollbackWarning =>
       'El servidor conocía un manifiesto anterior al de tu kit. Comprueba las revocaciones con un contacto o dispositivo superviviente antes de confiar en su estado.';
-
-  @override
-  String get openConversations => 'Abrir conversaciones';
 
   @override
   String get manageDevices => 'Gestionar dispositivos';
@@ -1113,9 +1113,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get backToConversations => 'Volver a conversaciones';
-
-  @override
-  String get conversationsTitle => 'Conversaciones';
 
   @override
   String get myRoute => 'Mi ruta';
