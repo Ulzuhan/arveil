@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arveil · Iconos</title>
+<style>
+  :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+  body { margin: 0; background: #f1f0ea; color: #213d35; }
+  main { max-width: 1024px; margin: auto; padding: 48px 32px; }
+  h1 { margin: 0; font-size: 42px; letter-spacing: -.04em; }
+  h2 { font-size: 16px; margin: 0 0 28px; }
+  p { max-width: 720px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 32px; }
+  .panel { padding: 32px; margin: 24px 0; background: #fff; border-radius: 24px; }
+  .dark { background: #182b26; color: #f6efdf; }
+  figure { margin: 0; display: grid; justify-items: center; gap: 12px; }
+  figcaption { font-size: 13px; }
+  .adaptive { width: 128px; height: 128px; background: #245b51; position: relative; overflow: hidden; }
+  /* Launchers show the central 72dp of a 108dp layer; the native vector scales by .72. */
+  .adaptive img { position: absolute; width: 108%; height: 108%; top: -4%; left: -4%; }
+  .circle { border-radius: 50%; }
+  .rounded { border-radius: 28%; }
+  .themed { background: #d6e9be; }
+  .themed img { filter: brightness(0); opacity: .8; }
+  .dark .themed { background: #364d35; }
+  .dark .themed img { filter: none; }
+  .sizes { align-items: end; }
+  a { color: inherit; }
+</style>
+<main>
+  <h1>Arveil</h1>
+  <p>Una «A» como un velo plegado. Verde pino y marfil para una app de conversaciones privadas.</p>
+  <section class="panel">
+    <h2>macOS · Dock y Finder</h2>
+    <div class="row sizes">
+      <figure><img src="icon-macos-source.png" width="160" height="160" alt="Icono macOS de Arveil"><figcaption>160 px</figcaption></figure>
+      <figure><img src="icon-macos-source.png" width="64" height="64" alt=""><figcaption>64 px</figcaption></figure>
+      <figure><img src="icon-macos-source.png" width="32" height="32" alt=""><figcaption>32 px</figcaption></figure>
+      <figure><img src="icon-macos-source.png" width="16" height="16" alt=""><figcaption>16 px</figcaption></figure>
+    </div>
+  </section>
+  <section class="panel dark">
+    <h2>Android · Recortes del launcher</h2>
+    <div class="row">
+      <figure><div class="adaptive circle"><img src="mark.svg" alt="Icono circular"></div><figcaption>Circular</figcaption></figure>
+      <figure><div class="adaptive rounded"><img src="mark.svg" alt="Icono cuadrado redondeado"></div><figcaption>Adaptativo</figcaption></figure>
+      <figure><div class="adaptive circle themed"><img src="mark.svg" alt="Icono monocromo oscuro"></div><figcaption>Tema oscuro</figcaption></figure>
+      <figure><img src="icon-square-source.png" width="128" height="128" alt="Icono clásico"><figcaption>Android 7</figcaption></figure>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Iconos temáticos · Muestra de color</h2>
+    <div class="row">
+      <div class="adaptive circle themed"><img src="mark.svg" alt="Icono monocromo claro"></div>
+      <p>El sistema elige los colores del icono monocromo. Las vistas adaptativas simulan recortes; el launcher decide la forma y las animaciones finales.</p>
+    </div>
+  </section>
+  <p><a href="README.md">Fuentes, formatos y regeneración</a></p>
+</main>
+</html>

@@ -44,6 +44,11 @@ For ZIP/APK creation, see [client packaging](../../docs/CLIENT_RELEASES.md).
 
 ## Running it
 
+Source `0.1.0+11` uses Arveil's own macOS and Android launcher icons, including
+adaptive and monochrome Android variants. The committed platform resources are
+ready to build; see [brand assets](../../assets/brand/README.md) for sources,
+previews and the maintainer-only export command.
+
 ```bash
 flutter pub get
 flutter run -d macos
