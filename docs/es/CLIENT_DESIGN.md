@@ -2,7 +2,7 @@
 
 [English version](../CLIENT_DESIGN.md). Este documento en español es la fuente normativa; la versión inglesa es una traducción resumida que debe actualizarse en la misma revisión. Ante discrepancias, prevalece este documento.
 
-Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización), B1 (tokens, tema y componentes), B2 (español e inglés), C1 (navegación adaptativa y atajos), C2 (lista de chats), C3 (conversación) y C5 (contactos, verificación y ajustes); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
+Estado: dirección visual aprobada el 25 de septiembre de 2026 sobre maquetas de las pantallas principales. Implementados: A0 (versionado del esquema), A1 (remitente y hora del historial en vivo), A1b (remitente en el historial cifrado), A2 (resumen de conversaciones y no leídos), A3 (estado del kit, avisos de dispositivos y estado de sincronización), B1 (tokens, tema y componentes), B2 (español e inglés), C1 (navegación adaptativa y atajos), C2 (lista de chats), C3 (conversación), C4 (bienvenida y alta) y C5 (contactos, verificación y ajustes); el resto está pendiente. El plan se ejecuta dentro de [M3b.5](PHASE3B.md) y antes de la prueba con tres usuarios externos. No modifica el protocolo ni el relay, salvo el paquete opcional F1 (invitación por QR), que requiere su propia revisión de formato.
 
 ## Por qué y qué no
 
@@ -226,7 +226,7 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 
 **C3 — Conversación (M).** Depende de A1, A3 y C1. Burbujas agrupadas, separadores de fecha, indicador de entrega con detalle por buzón, adjuntos con todos sus estados, avisos de sistema, banner sin conexión y compositor. Llama a `mark_read` al mostrar mensajes nuevos. En escritorio, panel de detalles. Conserva la paginación existente y responde durante sincronizaciones lentas. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
-**C4 — Bienvenida y alta (M).** Depende de B1 y B2. Bienvenida con tres entradas, alta por invitación paso a paso, vinculación y restauración con el nuevo sistema visual, y kit con «Más tarde» y riesgo visible. Mantiene la reanudación y los errores tipados existentes.
+**C4 — Bienvenida y alta (M).** Depende de B1 y B2. Bienvenida con tres entradas, alta por invitación paso a paso, vinculación y restauración con el nuevo sistema visual, y kit con «Más tarde» y riesgo visible. Mantiene la reanudación y los errores tipados existentes. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 
 **C5 — Contactos, verificación y ajustes (M).** Depende de B1, B2 y A3. Contactos y nuevo chat, verificación con el número de seguridad en rejilla, ajustes en secciones y migración de dispositivos, historial cifrado y claves para grupos nuevos al nuevo sistema. «Cerrar perfil» sigue disponible. Implementado; véase la [base del cliente](CLIENT_FOUNDATION.md).
 

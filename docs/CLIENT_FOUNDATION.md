@@ -757,3 +757,27 @@ not saved and linked device), each screen with its bar, the own route from
 contacts, the list with verification, the empty list, and adding a contact
 that is saved verified only after "They match". The kit, key, linking and
 contact tests follow the new path.
+
+## Welcome and enrollment (September 25, 2026)
+
+- **Welcome.** With the profile closed, the brand mark, what Arveil is in one
+  sentence, the note on the profile key and "Open profile" show.
+- **Three ways in.** A profile without an identity asks how to start: join with
+  an invitation, link with another device, or restore from a kit. Each has
+  "Back to setup" at the top.
+- **Invitation in two steps.** First the server details, then the invitation,
+  each step validating its own field under a "Step 1 of 2" indicator. "Back"
+  keeps what was typed. An enrollment left half-done resumes as before, with
+  both fields on one screen, the saved state and the typed errors.
+- **Kit after enrollment.** When an identity becomes ready on this device as an
+  administration device without a current kit, saving the kit is offered
+  before entering ("Save kit" opens its screen), with the risk of postponing
+  in view; "Later" goes to Chats, where the reminder stays until it is saved.
+  Reopening a ready profile goes straight in.
+- `ProfilePage` moves to `lib/src/onboarding.dart`; `main.dart` only starts
+  the app.
+
+Evidence: `test/onboarding_test.dart` covers the welcome with the mark, the
+three ways in and back, the two steps keeping the server, the kit offer with
+"Later" and with "Save kit", and reopening without an offer. The resumable
+enrollment test walks the steps, and the restore test goes through the offer.

@@ -101,8 +101,9 @@ migrated. See [platform behavior and acceptance](PLATFORMS.md).
 1. Download the `android-arm64.apk` file on the phone and open it.
 2. If prompted, permit **Install unknown apps** for the browser or file manager
    used to open this APK. Install Arveil; you can turn that permission off afterward.
-3. Open Arveil, select **Abrir perfil**, and enter the relay data and invitation.
-   A private relay requires the phone to be connected to its network.
+3. Open Arveil, select **Abrir perfil**, then **Unirme con una invitación**, and
+   enter the server (relay) data and then the invitation. A private relay
+   requires the phone to be connected to its network.
 
 **Update:** open the newer APK and choose the update/install option over the
 existing app. It must use the same signing certificate and a higher build number.

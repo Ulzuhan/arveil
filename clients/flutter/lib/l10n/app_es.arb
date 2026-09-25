@@ -728,5 +728,29 @@
   "numbersDiffer": "No coinciden",
   "mismatchTitle": "Los números no coinciden",
   "mismatchBody": "No verifiques este contacto. La ruta puede no ser de esa persona o haber cambiado: pídele que te la envíe otra vez por otro canal.",
-  "comparedWillVerify": "Coinciden: el contacto se guardará como verificado."
+  "comparedWillVerify": "Coinciden: el contacto se guardará como verificado.",
+  "startTitle": "¿Cómo quieres empezar?",
+  "startBody": "Tu identidad se crea en este dispositivo y solo tú la guardas.",
+  "entryInvitation": "Unirme con una invitación",
+  "entryInvitationHelp": "Con los datos del servidor y la invitación que te dieron.",
+  "entryPairingHelp": "Tu dispositivo administrador autoriza este.",
+  "entryRestoreHelp": "Recupera tu identidad con el kit y su clave.",
+  "enrollStep": "Paso {step} de {total}",
+  "@enrollStep": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "enrollServerTitle": "Datos del servidor",
+  "enrollNext": "Siguiente",
+  "enrollPrevious": "Atrás",
+  "enrollInviteTitle": "Tu invitación",
+  "enrollInviteBody": "Pega la invitación de 64 caracteres que te dio el administrador.",
+  "kitOfferTitle": "Guarda ahora tu kit de identidad",
+  "kitOfferRiskTitle": "Si lo dejas para más tarde"
 }

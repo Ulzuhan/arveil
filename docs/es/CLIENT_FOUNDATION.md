@@ -819,3 +819,27 @@ Evidencia: `test/settings_test.dart` cubre las secciones y los estados del kit
 la ruta propia desde contactos, la lista con verificación, la lista vacía y el
 alta que solo se guarda verificada tras «Coinciden». Las pruebas del kit, las
 claves, la vinculación y los contactos siguen el camino nuevo.
+
+## Bienvenida y alta (25 de septiembre de 2026)
+
+- **Bienvenida.** Con el perfil cerrado se ven la marca, qué es Arveil en una
+  frase, la nota sobre la clave del perfil y «Abrir perfil».
+- **Tres entradas.** Un perfil sin identidad pregunta cómo empezar: unirse con
+  una invitación, vincular con otro dispositivo o restaurar desde un kit. Cada
+  entrada tiene «Volver al alta» arriba.
+- **Invitación en dos pasos.** Primero los datos del servidor y después la
+  invitación, cada paso con su propia validación y un indicador «Paso 1 de 2».
+  «Atrás» conserva lo escrito. Un alta que quedó a medias se retoma como antes,
+  con ambos campos en una pantalla, el estado guardado y los errores tipados.
+- **Kit tras el alta.** Cuando una identidad queda lista en este dispositivo y
+  es administradora sin kit vigente, antes de entrar se ofrece guardar el kit
+  («Guardar kit» abre su pantalla) con el riesgo de posponerlo a la vista; «Más
+  tarde» lleva a Chats, donde el aviso sigue hasta que se guarde. Reabrir un
+  perfil ya listo entra directamente.
+- `ProfilePage` pasa a `lib/src/onboarding.dart`; `main.dart` solo arranca la
+  app.
+
+Evidencia: `test/onboarding_test.dart` cubre la bienvenida con la marca, las
+tres entradas y su vuelta, los dos pasos conservando el servidor, la oferta del
+kit con «Más tarde» y con «Guardar kit», y la reapertura sin oferta. La prueba
+del alta reanudable recorre los pasos y la de restauración pasa por la oferta.

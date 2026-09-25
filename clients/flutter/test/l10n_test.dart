@@ -63,8 +63,11 @@ void main() {
     expect(find.text('Open profile'), findsOneWidget);
     await tester.tap(find.text('Open profile'));
     await tester.pumpAndSettle();
-    expect(find.text('Create identity and join'), findsOneWidget);
-    await tester.tap(find.text('Create identity and join'));
+    expect(find.text('How do you want to start?'), findsOneWidget);
+    await tester.tap(find.text('Join with an invitation'));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 1 of 2'), findsOneWidget);
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     expect(find.text('Paste the complete server details.'), findsOneWidget);
 

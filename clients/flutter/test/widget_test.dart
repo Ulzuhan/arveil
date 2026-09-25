@@ -147,17 +147,26 @@ void main() {
       await tester.pumpWidget(ArveilApp(session: session));
       await tester.tap(find.text('Abrir perfil'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Crear identidad y unirme'));
-      await tester.tap(find.text('Crear identidad y unirme'));
+      await tester.tap(find.text('Unirme con una invitación'));
       await tester.pumpAndSettle();
-      expect(profile.enrollments, 0);
+      // Each step checks its own field before moving on.
+      await tester.tap(find.byKey(const Key('enroll-next')));
+      await tester.pumpAndSettle();
       expect(
         find.text('Pega los datos completos del servidor.'),
         findsOneWidget,
       );
       await tester.enterText(find.byKey(const Key('bootstrap')), relay);
+      await tester.tap(find.byKey(const Key('enroll-next')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Crear identidad y unirme'));
+      await tester.pumpAndSettle();
+      expect(profile.enrollments, 0);
+      expect(
+        find.text('La invitación debe contener 64 caracteres hexadecimales.'),
+        findsOneWidget,
+      );
       await tester.enterText(find.byKey(const Key('invite')), invitation);
-      await tester.ensureVisible(find.text('Crear identidad y unirme'));
       await tester.tap(find.text('Crear identidad y unirme'));
       await tester.pumpAndSettle();
       expect(find.text('Retoma tu alta'), findsOneWidget);

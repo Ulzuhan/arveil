@@ -1363,4 +1363,51 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get comparedWillVerify =>
       'Coinciden: el contacto se guardará como verificado.';
+
+  @override
+  String get startTitle => '¿Cómo quieres empezar?';
+
+  @override
+  String get startBody =>
+      'Tu identidad se crea en este dispositivo y solo tú la guardas.';
+
+  @override
+  String get entryInvitation => 'Unirme con una invitación';
+
+  @override
+  String get entryInvitationHelp =>
+      'Con los datos del servidor y la invitación que te dieron.';
+
+  @override
+  String get entryPairingHelp => 'Tu dispositivo administrador autoriza este.';
+
+  @override
+  String get entryRestoreHelp => 'Recupera tu identidad con el kit y su clave.';
+
+  @override
+  String enrollStep(int step, int total) {
+    return 'Paso $step de $total';
+  }
+
+  @override
+  String get enrollServerTitle => 'Datos del servidor';
+
+  @override
+  String get enrollNext => 'Siguiente';
+
+  @override
+  String get enrollPrevious => 'Atrás';
+
+  @override
+  String get enrollInviteTitle => 'Tu invitación';
+
+  @override
+  String get enrollInviteBody =>
+      'Pega la invitación de 64 caracteres que te dio el administrador.';
+
+  @override
+  String get kitOfferTitle => 'Guarda ahora tu kit de identidad';
+
+  @override
+  String get kitOfferRiskTitle => 'Si lo dejas para más tarde';
 }
