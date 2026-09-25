@@ -194,6 +194,12 @@ explicit download, progress, cancellation and explicit export. The limit is
 are identified by conversation and `event_id`, so equal names never select or
 overwrite another private copy. Native selectors grant access to the chosen
 source/destination; their paths and URIs are not persisted with the message.
+Android reads the selected document directly through the
+[Storage Access Framework](https://developer.android.com/training/data-storage/shared/documents-files)
+into bounded memory on a worker thread, without the general picker's plaintext
+cache or persistent URI grants. The stream limit applies even when a provider
+omits or misreports the size. macOS streams the selected file. A provider may
+keep its own source copy; Arveil does not control that provider's storage.
 
 The GUI opts into manual attachment handling. Sync receives descriptors but
 never downloads their blobs automatically. Descriptors, transfer state and
@@ -228,3 +234,5 @@ cancellation, changing conversation during file selection and phone layouts.
 The native attachment scenario uses two profiles and a disposable relay,
 with in-memory selector substitutes. Actual OS picker dialogs, a physical
 phone and cross-app release-package acceptance remain separate checks.
+Android JVM tests additionally cover exact-limit and empty input, oversized
+unknown-length streams and cancellation before reading.

@@ -218,6 +218,13 @@ del archivo original). Cada archivo se identifica por conversación y `event_id`
 los nombres iguales no seleccionan ni sobrescriben otra copia privada. Los
 selectores del sistema conceden acceso al origen/destino elegido; sus rutas y
 URI no se guardan con el mensaje.
+Android lee directamente el documento seleccionado mediante el
+[Storage Access Framework](https://developer.android.com/training/data-storage/shared/documents-files),
+en memoria acotada y desde un hilo de trabajo, sin la caché en claro del selector
+general ni permisos URI persistentes. El límite se comprueba durante la lectura
+aunque el proveedor omita o declare mal el tamaño. macOS lee el archivo elegido
+por bloques. El proveedor puede conservar su propia copia; Arveil no controla
+el almacenamiento de ese proveedor.
 
 La GUI activa la gestión manual de adjuntos. Sincronizar recibe descriptores,
 pero nunca descarga automáticamente sus blobs. Descriptores, estados y bloques
@@ -253,3 +260,5 @@ conversación durante la selección y presentación móvil. El escenario nativo 
 dos perfiles y un relay desechable, con sustitutos de selectores en memoria.
 Los diálogos reales del sistema, el teléfono físico y los paquetes de release
 en apps distintas siguen teniendo aceptación separada.
+Las pruebas JVM de Android también cubren entrada vacía, tamaño exacto al límite,
+flujo demasiado grande sin longitud conocida y cancelación antes de leer.

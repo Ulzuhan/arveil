@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 const maximumAttachmentBytes = 25 * 1024 * 1024 - 16;
 
@@ -23,8 +25,23 @@ String safeAttachmentName(String name) {
 /// nor local path is passed to Rust or retained with the conversation.
 class AttachmentFiles {
   const AttachmentFiles();
+  static const _android = MethodChannel('io.github.ulzuhan.arveil/attachments');
 
   Future<PickedAttachment?> open() async {
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      // The general picker plugin caches Android sources before returning.
+      // Our channel reads the selected content URI directly into bounded memory.
+      final picked = await _android.invokeMapMethod<String, Object?>('pick');
+      if (picked == null) return null;
+      final bytes = picked['bytes'] as Uint8List;
+      if (bytes.length > maximumAttachmentBytes) {
+        throw const FormatException('El archivo debe ocupar menos de 25 MiB.');
+      }
+      return PickedAttachment(
+        safeAttachmentName(picked['name'] as String),
+        bytes,
+      );
+    }
     final file = await FilePicker.pickFile(dialogTitle: 'Elegir archivo');
     if (file == null) return null;
     if ((file.lengthSync() ?? 0) > maximumAttachmentBytes) {

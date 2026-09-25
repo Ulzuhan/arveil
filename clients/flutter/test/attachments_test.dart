@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:arveil/src/attachment_card.dart';
 import 'package:arveil/src/attachment_files.dart';
 import 'package:arveil/src/conversation_controller.dart';
 import 'package:arveil/src/conversations_page.dart';
 import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'conversations_test.dart' show ChatProfile;
 import 'widget_test.dart' show relay;
@@ -116,6 +117,41 @@ Future<ConversationController> open(
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'Android selection uses the bounded native channel and preserves cancellation',
+    () async {
+      const channel = MethodChannel('io.github.ulzuhan.arveil/attachments');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() {
+        debugDefaultTargetPlatformOverride = null;
+        messenger.setMockMethodCallHandler(channel, null);
+      });
+      Object? result;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'pick');
+        expect(call.arguments, isNull);
+        return result;
+      });
+      const files = AttachmentFiles();
+      expect(await files.open(), isNull);
+      result = {
+        'name': '../same.txt',
+        'bytes': Uint8List.fromList([1, 2, 3]),
+      };
+      final picked = (await files.open())!;
+      expect(picked.name, 'same.txt');
+      expect(picked.bytes, [1, 2, 3]);
+      result = {
+        'name': 'large.bin',
+        'bytes': Uint8List(maximumAttachmentBytes + 1),
+      };
+      await expectLater(files.open(), throwsFormatException);
+    },
+  );
+
   test(
     'stream limit stops before reading more bytes and names lose paths',
     () async {

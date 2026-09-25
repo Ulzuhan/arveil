@@ -126,6 +126,9 @@ jobs:
       - name: Resolve packages
         working-directory: clients/flutter
         run: flutter pub get
+      - name: Android attachment input tests
+        working-directory: clients/flutter/android
+        run: ./gradlew app:testDebugUnitTest -Ptarget-platform=android-arm64
       # This disposable CI key only exercises the signing/package checks.
       # It is never used for user downloads, and no APK is uploaded here.
       - name: Verify Android release packaging
