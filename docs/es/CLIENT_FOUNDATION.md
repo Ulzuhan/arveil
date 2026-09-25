@@ -339,7 +339,9 @@ su kit. Se valida entero antes de guardar registros y archivos en una transacci�
 Los registros existentes con el mismo `(group_id, event_id)` se conservan sin
 cambios y cuentan como duplicados. No se crean mensajes activos, outbox ni estado
 MLS. La pantalla paginada no permite enviar; un archivo importado no demuestra la
-autoría del texto. La reexportación conserva registros y adjuntos importados.
+autoría ni la entrega del texto. La dirección incluye mensajes encolados localmente;
+el archivo no conserva acuses de entrega. La reexportación conserva registros y
+adjuntos importados.
 
 Límites: entrada cifrada de 64 MiB, 10.000 registros por archivo, texto de 1 MiB,
 adjuntos por debajo de 25 MiB y presupuesto conservador de 48 MiB para exportar.

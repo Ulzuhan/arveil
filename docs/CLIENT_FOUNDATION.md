@@ -309,7 +309,9 @@ the entire archive before writing, and commits records/files in one transaction.
 Existing `(group_id, event_id)` records are retained unchanged and counted as
 duplicates. No outbox, live event or MLS state is created. The paginated archive
 screen has no composer; imported text is historical data, not authenticated
-proof of authorship. Re-export preserves imported records and available files.
+proof of authorship or delivery. Direction labels include locally queued messages;
+the archive does not preserve delivery receipts. Re-export preserves imported
+records and available files.
 
 Limits: 64 MiB encrypted input, 10,000 records per archive, 1 MiB per text,
 the existing attachment limit below 25 MiB, and a conservative 48 MiB export

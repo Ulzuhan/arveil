@@ -248,7 +248,7 @@ class _ArchivesPageState extends State<ArchivesPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Grupo ${e.groupId.substring(0, e.groupId.length < 12 ? e.groupId.length : 12)} · ${e.kind.startsWith('sent') ? 'Enviado' : 'Recibido'}',
+                    'Grupo ${e.groupId.substring(0, e.groupId.length < 12 ? e.groupId.length : 12)} · ${e.kind.startsWith('sent') ? 'Saliente' : 'Entrante'}',
                   ),
                   SelectableText(e.text),
                   if (e.fileName != null)
