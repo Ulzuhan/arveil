@@ -87,6 +87,14 @@ A and B can proceed in parallel.
 - A new packaged candidate passes the package audit, with results recorded in the [platform matrix](PLATFORMS.md).
 - Spanish and English documentation updated.
 
+Status on September 25, 2026 (packages C1–E3): the token and text rule
+(checked by `test/hygiene_test.dart`), the goldens of the main screens in both
+sizes and themes with the contrast test, the Flutter tests and the
+documentation in both languages are met. The `0.1.0+13` macOS and Android
+candidates pass the package audit. The update from `0.1.0+10` is verified at
+profile level; repeating it at package level on macOS and the Android emulator
+remains. See the [platform matrix](PLATFORMS.md).
+
 Meeting these conditions does not close M3b.5: physical-hardware acceptance, three external users, versioned server images and the capability-expiry decision remain, and can proceed in parallel.
 
 ## Implementation notes
