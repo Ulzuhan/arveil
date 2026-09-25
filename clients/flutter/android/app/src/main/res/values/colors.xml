@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The design's ground colour (lib/src/design/tokens.dart), behind
+         Flutter while its first frame is drawn, so nothing flashes white. -->
+    <color name="arveil_ground">#F4F1EA</color>
+</resources>

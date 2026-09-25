@@ -86,6 +86,12 @@ void main() {
   testWidgets(
     'enrollment validates, retries and recognizes completion after reopening',
     (tester) async {
+      // The whole form on screen: a lazy list does not build what is
+      // scrolled away, and the title is what this test reads.
+      tester.view.physicalSize = const Size(1200, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final profile = FakeProfile();
       final session = ProfileSession(opener: () async => profile);
       addTearDown(session.dispose);
