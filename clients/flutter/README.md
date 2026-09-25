@@ -256,3 +256,24 @@ cd android
 
 The fresh process avoids reusing a Gradle/Kotlin daemon that retains the
 packager's temporary SDK alias after that directory has been removed.
+
+
+## Device management acceptance
+
+Source `0.1.0+8` adds **Gestionar dispositivos** to the profile: current/known
+own devices, partial-inventory warnings and administrator-only revocation with
+explicit target confirmation. Offline revocations survive reopening and resume
+with sync. Publication, remaining group leaves and undelivered notices have
+separate states; no remote erasure or automatic MLS rejoin is promised.
+
+```sh
+python3 scripts/test_client_conversations.py --device macos --scenario devices
+python3 scripts/test_client_conversations.py --device emulator-5554 --scenario devices
+```
+
+Run from the repository root with Flutter (and `adb` for the disposable emulator)
+on PATH. The helper creates a private temporary relay, invitations and test
+profiles; it exports no identity kit. The scenario checks pairing, offline
+revocation through the UI, encrypted reopen, relay refusal of the revoked device,
+MLS removal and text with a surviving participant. No private diagnostics are
+committed. Use [the platform record](../../docs/PLATFORMS.md) for actual coverage.

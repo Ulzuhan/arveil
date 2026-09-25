@@ -41,7 +41,7 @@ The implementer also reported Clippy and phases 1–4 passing in earlier iterati
 
 ## Remaining limits
 
-- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing and identity-kit interfaces are implemented. Conversation creation, paginated history, text sending and sync are implemented. Contacts and explicit attachments are implemented; device-management interfaces remain pending. Experimental ZIP/APK packaging exists; physical-mobile acceptance remains pending.
+- The graphical client opens encrypted profiles and supports invitation enrollment, retry and durable setup state on reopen. Pairing and identity-kit interfaces are implemented. Conversation creation, paginated history, text sending and sync are implemented. Contacts, explicit attachments and device management are implemented; history archive UI remains pending. Experimental ZIP/APK packaging exists; physical-mobile acceptance remains pending.
 - Only the CLI reads environment variables now, and it still chooses an unencrypted profile when no key is set. Platform key storage is tested on an Android emulator and the ad-hoc macOS build with its login Keychain. Physical-phone and fresh-download acceptance remain pending.
 - The Rust bridge runs blocking calls off the UI thread and exposes incremental progress streams. General operation cancellation and full platform lifecycle acceptance remain pending.
 - File/membership events need further correlation identifiers. Progress is a projection: changes it does not model reach a caller only in the durable result.
@@ -183,7 +183,7 @@ Existing contacts learned from conversations can be named and verified; if no
 route was saved, import one before selecting that contact. Alias and verification
 survive profile reopen. The conversation acceptance helper now exercises this
 flow before its duplex-text, offline/reconnect and pagination checks. M3b.4
-still owes device controls and history archive UI.
+still owes history archive UI and the complete loss/recovery demonstration.
 
 
 ## Explicit attachments (second M3b.4 slice)
@@ -236,3 +236,44 @@ with in-memory selector substitutes. Actual OS picker dialogs, a physical
 phone and cross-app release-package acceptance remain separate checks.
 Android JVM tests additionally cover exact-limit and empty input, oversized
 unknown-length streams and cancellation before reading.
+
+
+## Own devices and resumable revocation (third M3b.4 slice)
+
+Source `0.1.0+8` adds **Manage devices** to the profile screen. The local
+inventory identifies the current device, root-administrator authority and
+known revoked devices. A linked or recovered profile may know credential
+hashes without their device identifiers; the screen explicitly counts these
+unknown entries rather than claiming a complete inventory. It reports the
+local manifest version, not online presence or current relay state.
+
+Only the administrator can revoke another known own device. Confirmation
+shows its full identifier and explains permanent revocation, deferred relay
+enforcement and preservation of copies/history already held by that device.
+Rust rejects self-revocation, unknown identifiers and linked-device authority.
+
+The manifest, revoked peer flags and revocation journal commit together.
+A retry reuses the existing revocation; it never signs a new version merely
+because a reply was lost. Each conversation journals its manifest notice
+atomically with MLS state and sealed outbox entries. The designated committer
+removes the leaf locally; other coordinators must apply removal separately
+(the existing CLI `chat remove` remains available). Regular sync resumes
+confirmed revocations, publishes the newest manifest before the outbox and
+reuses sealed bytes and delivery IDs. Sync and revocation share one exclusion;
+local queries remain available while network work waits.
+
+The UI distinguishes local revocation, relay acceptance, conversations still
+holding the leaf, queued notices, rejected/expired notices and missing routes.
+Relay acceptance does not prove peer receipt. Missing routes are reported,
+not repaired automatically. Known revoked leaves block new sends until removed;
+offline participants may not yet know the revocation. This does not implement
+remote erasure, automatic recovery, history import or MLS rejoin.
+
+Rust regressions cover lost manifest/envelope ACKs, encrypted reopen, rejected
+authority/targets, rollback of failed local units and a later device link while
+publication is pending. Widget tests cover target confirmation/cancellation,
+partial inventories, sanitized errors, retry by sync and closing during a wait.
+The native `devices` scenario pairs disposable profiles, revokes offline from
+the UI, reopens, synchronizes, checks the revoked handshake is refused and
+exchanges text with a remaining peer after MLS removal. Platform results are
+recorded separately in [PLATFORMS](PLATFORMS.md).

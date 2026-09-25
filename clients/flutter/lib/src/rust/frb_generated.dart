@@ -65,7 +65,7 @@ class ArveilRust
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1029958820;
+  int get rustContentHash => 114774087;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -141,6 +141,10 @@ abstract class ArveilRustApi extends BaseApi {
 
   Future<void> crateApiProfileProfileCreateIdentity({required Profile that});
 
+  Future<DeviceInventoryView> crateApiProfileProfileDevices({
+    required Profile that,
+  });
+
   Future<void> crateApiProfileProfileEnroll({
     required Profile that,
     required String bootstrap,
@@ -211,6 +215,12 @@ abstract class ArveilRustApi extends BaseApi {
   });
 
   Future<void> crateApiProfileProfileResumeRecovery({required Profile that});
+
+  Future<void> crateApiProfileProfileRevokeDevice({
+    required Profile that,
+    required String bootstrap,
+    required String deviceId,
+  });
 
   Future<ContactView> crateApiProfileProfileSaveContact({
     required Profile that,
@@ -762,6 +772,39 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Future<DeviceInventoryView> crateApiProfileProfileDevices({
+    required Profile that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_device_inventory_view,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileDevicesConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileDevicesConstMeta =>
+      const TaskConstMeta(debugName: "Profile_devices", argNames: ["that"]);
+
+  @override
   Future<void> crateApiProfileProfileEnroll({
     required Profile that,
     required String bootstrap,
@@ -780,7 +823,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 15,
             port: port_,
           );
         },
@@ -820,7 +863,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 16,
             port: port_,
           );
         },
@@ -854,7 +897,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -893,7 +936,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 18,
             port: port_,
           );
         },
@@ -929,7 +972,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 19,
             port: port_,
           );
         },
@@ -963,7 +1006,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 20,
             port: port_,
           );
         },
@@ -998,7 +1041,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 21,
             port: port_,
           );
         },
@@ -1040,7 +1083,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1080,7 +1123,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 23,
             port: port_,
           );
         },
@@ -1120,7 +1163,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1156,7 +1199,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1198,7 +1241,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1240,7 +1283,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1274,7 +1317,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1293,6 +1336,46 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       const TaskConstMeta(
         debugName: "Profile_resume_recovery",
         argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiProfileProfileRevokeDevice({
+    required Profile that,
+    required String bootstrap,
+    required String deviceId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_String(bootstrap, serializer);
+          sse_encode_String(deviceId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileRevokeDeviceConstMeta,
+        argValues: [that, bootstrap, deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileRevokeDeviceConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_revoke_device",
+        argNames: ["that", "bootstrap", "deviceId"],
       );
 
   @override
@@ -1316,7 +1399,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1350,7 +1433,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1378,7 +1461,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_64,
@@ -1411,7 +1494,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             serializer,
           );
           sse_encode_u_64(generation, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1447,7 +1530,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1486,7 +1569,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1527,7 +1610,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 34,
+              funcId: 36,
               port: port_,
             );
           },
@@ -1559,7 +1642,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1587,7 +1670,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1619,7 +1702,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1648,7 +1731,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1778,6 +1861,14 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  RevocationProgressView dco_decode_box_autoadd_revocation_progress_view(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_revocation_progress_view(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -1894,6 +1985,21 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  DeviceInventoryView dco_decode_device_inventory_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return DeviceInventoryView(
+      administrator: dco_decode_bool(arr[0]),
+      manifestSequence: dco_decode_u_64(arr[1]),
+      unknownActive: dco_decode_u_32(arr[2]),
+      unknownRevoked: dco_decode_u_32(arr[3]),
+      devices: dco_decode_list_managed_device_view(arr[4]),
+    );
+  }
+
+  @protected
   HistoryEventView dco_decode_history_event_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1997,6 +2103,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  List<ManagedDeviceView> dco_decode_list_managed_device_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_managed_device_view).toList();
+  }
+
+  @protected
   List<PeerView> dco_decode_list_peer_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_peer_view).toList();
@@ -2027,6 +2139,20 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  ManagedDeviceView dco_decode_managed_device_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ManagedDeviceView(
+      deviceId: dco_decode_String(arr[0]),
+      current: dco_decode_bool(arr[1]),
+      revoked: dco_decode_bool(arr[2]),
+      revocation: dco_decode_opt_box_autoadd_revocation_progress_view(arr[3]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -2054,6 +2180,16 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   PairingView? dco_decode_opt_box_autoadd_pairing_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_pairing_view(raw);
+  }
+
+  @protected
+  RevocationProgressView? dco_decode_opt_box_autoadd_revocation_progress_view(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_revocation_progress_view(raw);
   }
 
   @protected
@@ -2202,6 +2338,21 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       sequence: dco_decode_u_64(arr[0]),
       operation: dco_decode_String(arr[1]),
       kind: dco_decode_progress_kind_view(arr[2]),
+    );
+  }
+
+  @protected
+  RevocationProgressView dco_decode_revocation_progress_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return RevocationProgressView(
+      relayPublished: dco_decode_bool(arr[0]),
+      groupsWaiting: dco_decode_u_32(arr[1]),
+      notificationsPending: dco_decode_u_32(arr[2]),
+      notificationsUnconfirmed: dco_decode_u_32(arr[3]),
+      withoutRoute: dco_decode_u_32(arr[4]),
     );
   }
 
@@ -2414,6 +2565,14 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  RevocationProgressView sse_decode_box_autoadd_revocation_progress_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_revocation_progress_view(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
@@ -2544,6 +2703,25 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       peerDevices: var_peerDevices,
       peers: var_peers,
       eventCount: var_eventCount,
+    );
+  }
+
+  @protected
+  DeviceInventoryView sse_decode_device_inventory_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_administrator = sse_decode_bool(deserializer);
+    var var_manifestSequence = sse_decode_u_64(deserializer);
+    var var_unknownActive = sse_decode_u_32(deserializer);
+    var var_unknownRevoked = sse_decode_u_32(deserializer);
+    var var_devices = sse_decode_list_managed_device_view(deserializer);
+    return DeviceInventoryView(
+      administrator: var_administrator,
+      manifestSequence: var_manifestSequence,
+      unknownActive: var_unknownActive,
+      unknownRevoked: var_unknownRevoked,
+      devices: var_devices,
     );
   }
 
@@ -2691,6 +2869,20 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  List<ManagedDeviceView> sse_decode_list_managed_device_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ManagedDeviceView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_managed_device_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<PeerView> sse_decode_list_peer_view(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2742,6 +2934,25 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       ans_.add(sse_decode_saved_recipient_view(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  ManagedDeviceView sse_decode_managed_device_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_current = sse_decode_bool(deserializer);
+    var var_revoked = sse_decode_bool(deserializer);
+    var var_revocation = sse_decode_opt_box_autoadd_revocation_progress_view(
+      deserializer,
+    );
+    return ManagedDeviceView(
+      deviceId: var_deviceId,
+      current: var_current,
+      revoked: var_revoked,
+      revocation: var_revocation,
+    );
   }
 
   @protected
@@ -2800,6 +3011,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_pairing_view(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  RevocationProgressView? sse_decode_opt_box_autoadd_revocation_progress_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_revocation_progress_view(deserializer));
     } else {
       return null;
     }
@@ -2994,6 +3218,25 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       sequence: var_sequence,
       operation: var_operation,
       kind: var_kind,
+    );
+  }
+
+  @protected
+  RevocationProgressView sse_decode_revocation_progress_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_relayPublished = sse_decode_bool(deserializer);
+    var var_groupsWaiting = sse_decode_u_32(deserializer);
+    var var_notificationsPending = sse_decode_u_32(deserializer);
+    var var_notificationsUnconfirmed = sse_decode_u_32(deserializer);
+    var var_withoutRoute = sse_decode_u_32(deserializer);
+    return RevocationProgressView(
+      relayPublished: var_relayPublished,
+      groupsWaiting: var_groupsWaiting,
+      notificationsPending: var_notificationsPending,
+      notificationsUnconfirmed: var_notificationsUnconfirmed,
+      withoutRoute: var_withoutRoute,
     );
   }
 
@@ -3222,6 +3465,15 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_revocation_progress_view(
+    RevocationProgressView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_revocation_progress_view(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
@@ -3335,6 +3587,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_u_32(self.peerDevices, serializer);
     sse_encode_list_peer_view(self.peers, serializer);
     sse_encode_u_32(self.eventCount, serializer);
+  }
+
+  @protected
+  void sse_encode_device_inventory_view(
+    DeviceInventoryView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.administrator, serializer);
+    sse_encode_u_64(self.manifestSequence, serializer);
+    sse_encode_u_32(self.unknownActive, serializer);
+    sse_encode_u_32(self.unknownRevoked, serializer);
+    sse_encode_list_managed_device_view(self.devices, serializer);
   }
 
   @protected
@@ -3460,6 +3725,18 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_list_managed_device_view(
+    List<ManagedDeviceView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_managed_device_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_peer_view(
     List<PeerView> self,
     SseSerializer serializer,
@@ -3515,6 +3792,21 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     for (final item in self) {
       sse_encode_saved_recipient_view(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_managed_device_view(
+    ManagedDeviceView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_bool(self.current, serializer);
+    sse_encode_bool(self.revoked, serializer);
+    sse_encode_opt_box_autoadd_revocation_progress_view(
+      self.revocation,
+      serializer,
+    );
   }
 
   @protected
@@ -3576,6 +3868,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_pairing_view(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_revocation_progress_view(
+    RevocationProgressView? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_revocation_progress_view(self, serializer);
     }
   }
 
@@ -3741,6 +4046,19 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_u_64(self.sequence, serializer);
     sse_encode_String(self.operation, serializer);
     sse_encode_progress_kind_view(self.kind, serializer);
+  }
+
+  @protected
+  void sse_encode_revocation_progress_view(
+    RevocationProgressView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.relayPublished, serializer);
+    sse_encode_u_32(self.groupsWaiting, serializer);
+    sse_encode_u_32(self.notificationsPending, serializer);
+    sse_encode_u_32(self.notificationsUnconfirmed, serializer);
+    sse_encode_u_32(self.withoutRoute, serializer);
   }
 
   @protected
@@ -3926,6 +4244,9 @@ class ProfileImpl extends RustOpaque implements Profile {
   Future<void> createIdentity() =>
       ArveilRust.instance.api.crateApiProfileProfileCreateIdentity(that: this);
 
+  Future<DeviceInventoryView> devices() =>
+      ArveilRust.instance.api.crateApiProfileProfileDevices(that: this);
+
   /// Creates an identity if needed, then resumes the existing enrollment.
   /// The invitation is hashed by Rust and is never persisted by Flutter.
   Future<void> enroll({required String bootstrap, required String invite}) =>
@@ -4031,6 +4352,17 @@ class ProfileImpl extends RustOpaque implements Profile {
 
   Future<void> resumeRecovery() =>
       ArveilRust.instance.api.crateApiProfileProfileResumeRecovery(that: this);
+
+  /// A later network failure can follow a durable local revocation. Always
+  /// query devices again, and resume with sync rather than creating new state.
+  Future<void> revokeDevice({
+    required String bootstrap,
+    required String deviceId,
+  }) => ArveilRust.instance.api.crateApiProfileProfileRevokeDevice(
+    that: this,
+    bootstrap: bootstrap,
+    deviceId: deviceId,
+  );
 
   Future<ContactView> saveContact({
     required String route,

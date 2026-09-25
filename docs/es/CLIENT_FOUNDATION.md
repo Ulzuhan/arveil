@@ -58,7 +58,7 @@ El implementador informó además de Clippy y fases 1–4 correctos durante las 
 
 ## Límites que permanecen
 
-- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. La conversación de texto está implementada; sigue pendiente la gestión de dispositivos. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
+- El cliente gráfico abre perfiles cifrados y permite el alta por invitación, su reintento y la consulta del avance al reabrir. Emparejamiento y kit de identidad ya tienen interfaz. Conversaciones, contactos, adjuntos y gestión de dispositivos están implementados; sigue pendiente la interfaz de archivos de historial. Existe empaquetado experimental ZIP/APK; falta aceptación en un móvil físico.
 - Solo la CLI lee ya variables de entorno, y sigue eligiendo perfil sin cifrar cuando no hay clave. El almacén seguro se ha probado en emulador Android y en macOS con firma ad hoc y llavero clásico. Quedan pendientes teléfono físico y una instalación nueva descargada.
 - El puente Rust ejecuta las llamadas bloqueantes fuera del hilo de interfaz y expone un flujo incremental de eventos. Siguen pendientes la cancelación general de operaciones y la aceptación completa del ciclo de vida de cada plataforma.
 - Algunos eventos de archivos y membresía necesitan identificadores adicionales para actualizar elementos concretos de la UI. El progreso es una proyección: los cambios que no modela solo llegan en el resultado durable.
@@ -206,7 +206,7 @@ Los contactos aprendidos en conversaciones se pueden nombrar y verificar; si
 no tienen una ruta guardada hay que importar una antes de seleccionarlos. Alias
 y verificación sobreviven a la reapertura. El asistente de aceptación de
 conversaciones recorre ahora este flujo antes de texto bidireccional, modo sin
-red, reconexión y paginación. Quedan pendientes de M3b.4 la gestión de dispositivos y la interfaz de archivos de historial.
+red, reconexión y paginación. Quedan pendientes de M3b.4 la interfaz de archivos de historial y la demostración completa de pérdida/recuperación.
 
 
 ## Adjuntos explícitos (segunda entrega de M3b.4)
@@ -262,3 +262,47 @@ Los diálogos reales del sistema, el teléfono físico y los paquetes de release
 en apps distintas siguen teniendo aceptación separada.
 Las pruebas JVM de Android también cubren entrada vacía, tamaño exacto al límite,
 flujo demasiado grande sin longitud conocida y cancelación antes de leer.
+
+
+## Dispositivos propios y revocación reanudable (tercera entrega de M3b.4)
+
+El código fuente `0.1.0+8` añade **Gestionar dispositivos** al perfil. El
+inventario local identifica el dispositivo actual, la autoridad del administrador
+y las revocaciones conocidas. Un perfil vinculado o recuperado puede conocer
+credenciales sin sus identificadores de dispositivo; la pantalla cuenta esas
+entradas desconocidas y avisa de que el inventario es parcial. Muestra la versión
+local del manifiesto, no presencia en línea ni el estado actual del relay.
+
+Solo el administrador puede revocar otro dispositivo propio conocido. La
+confirmación muestra su identificador completo y explica la permanencia del
+cambio, la aplicación diferida en el relay y que las copias/historial existentes
+no se borran. Rust rechaza revocar el dispositivo actual, identificadores
+desconocidos y operaciones sin la autoridad raíz.
+
+El manifiesto, las marcas de revocación y el registro de progreso se guardan
+en una transacción. Reintentar reutiliza la revocación existente sin firmar otra
+versión por haber perdido una respuesta. Cada conversación registra su aviso
+junto al estado MLS y los sobres cifrados de salida. El coordinador autorizado
+retira la hoja localmente; otros coordinadores deben aplicar la retirada por
+separado (sigue disponible `chat remove` en la CLI). La sincronización normal
+reanuda revocaciones confirmadas, publica el manifiesto más reciente antes que
+los sobres y reutiliza bytes e identificadores de entrega. Sincronización y
+revocación se excluyen entre sí; las consultas locales siguen respondiendo.
+
+La interfaz distingue revocación local, aceptación del relay, conversaciones
+que aún mantienen la hoja, avisos en cola, rechazados/caducados y falta de rutas.
+La aceptación del relay no confirma recepción por los participantes. Las rutas
+faltantes se informan, no se reparan automáticamente. Las hojas revocadas conocidas
+bloquean nuevos envíos hasta retirarlas; un participante sin conexión puede no
+conocer todavía la revocación. No se implementan borrado remoto, recuperación
+automática, importación del historial ni rejoin MLS.
+
+Las regresiones Rust cubren respuestas de manifiesto/sobres perdidas, reapertura
+cifrada, rechazo de autoridad/destino, rollback de transacciones fallidas y una
+vinculación posterior mientras queda publicación pendiente. Los tests de widgets
+cubren confirmación/cancelación, inventario parcial, errores sin datos privados,
+reintento mediante sincronización y cierre durante la espera. El escenario nativo
+`devices` vincula perfiles desechables, revoca sin conexión desde la interfaz,
+reabre, sincroniza, comprueba el rechazo del dispositivo revocado e intercambia
+texto con otro participante tras la retirada MLS. Los resultados por plataforma
+se registran aparte en [PLATFORMS](PLATFORMS.md).

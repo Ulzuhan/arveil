@@ -73,6 +73,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView dco_decode_box_autoadd_pairing_view(dynamic raw);
 
   @protected
+  RevocationProgressView dco_decode_box_autoadd_revocation_progress_view(
+    dynamic raw,
+  );
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -92,6 +97,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ConversationView dco_decode_conversation_view(dynamic raw);
+
+  @protected
+  DeviceInventoryView dco_decode_device_inventory_view(dynamic raw);
 
   @protected
   HistoryEventView dco_decode_history_event_view(dynamic raw);
@@ -130,6 +138,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   List<HistoryEventView> dco_decode_list_history_event_view(dynamic raw);
 
   @protected
+  List<ManagedDeviceView> dco_decode_list_managed_device_view(dynamic raw);
+
+  @protected
   List<PeerView> dco_decode_list_peer_view(dynamic raw);
 
   @protected
@@ -145,6 +156,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   List<SavedRecipientView> dco_decode_list_saved_recipient_view(dynamic raw);
 
   @protected
+  ManagedDeviceView dco_decode_managed_device_view(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -158,6 +172,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   PairingView? dco_decode_opt_box_autoadd_pairing_view(dynamic raw);
+
+  @protected
+  RevocationProgressView? dco_decode_opt_box_autoadd_revocation_progress_view(
+    dynamic raw,
+  );
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -179,6 +198,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ProgressView dco_decode_progress_view(dynamic raw);
+
+  @protected
+  RevocationProgressView dco_decode_revocation_progress_view(dynamic raw);
 
   @protected
   RoutePreviewView dco_decode_route_preview_view(dynamic raw);
@@ -267,6 +289,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView sse_decode_box_autoadd_pairing_view(SseDeserializer deserializer);
 
   @protected
+  RevocationProgressView sse_decode_box_autoadd_revocation_progress_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -288,6 +315,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ConversationView sse_decode_conversation_view(SseDeserializer deserializer);
+
+  @protected
+  DeviceInventoryView sse_decode_device_inventory_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   HistoryEventView sse_decode_history_event_view(SseDeserializer deserializer);
@@ -336,6 +368,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  List<ManagedDeviceView> sse_decode_list_managed_device_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<PeerView> sse_decode_list_peer_view(SseDeserializer deserializer);
 
   @protected
@@ -351,6 +388,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<SavedRecipientView> sse_decode_list_saved_recipient_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ManagedDeviceView sse_decode_managed_device_view(
     SseDeserializer deserializer,
   );
 
@@ -376,6 +418,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  RevocationProgressView? sse_decode_opt_box_autoadd_revocation_progress_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -395,6 +442,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ProgressView sse_decode_progress_view(SseDeserializer deserializer);
+
+  @protected
+  RevocationProgressView sse_decode_revocation_progress_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RoutePreviewView sse_decode_route_preview_view(SseDeserializer deserializer);
@@ -504,6 +556,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_revocation_progress_view(
+    RevocationProgressView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -530,6 +588,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   @protected
   void sse_encode_conversation_view(
     ConversationView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_device_inventory_view(
+    DeviceInventoryView self,
     SseSerializer serializer,
   );
 
@@ -594,6 +658,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_list_managed_device_view(
+    List<ManagedDeviceView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_peer_view(List<PeerView> self, SseSerializer serializer);
 
   @protected
@@ -614,6 +684,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   @protected
   void sse_encode_list_saved_recipient_view(
     List<SavedRecipientView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_managed_device_view(
+    ManagedDeviceView self,
     SseSerializer serializer,
   );
 
@@ -645,6 +721,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_revocation_progress_view(
+    RevocationProgressView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
@@ -667,6 +749,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_progress_view(ProgressView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_revocation_progress_view(
+    RevocationProgressView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_route_preview_view(

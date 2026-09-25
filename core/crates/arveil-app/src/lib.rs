@@ -18,6 +18,10 @@ mod attachment_ui;
 pub mod carrier;
 pub use attachment_ui::{AttachmentState, AttachmentSummary, MAX_ATTACHMENT_BYTES};
 mod contacts;
+#[cfg(test)]
+mod device_tests;
+mod devices;
+pub use devices::{DeviceInventory, ManagedDevice, RevocationProgress};
 mod conversation_ui;
 pub use contacts::{ContactDevice, ContactSummary, SavedRecipient};
 pub use conversation_ui::{ConfirmedRoute, RoutePreview};
@@ -96,6 +100,7 @@ pub enum Operation {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    QueryDevices,
     QueryContacts,
     SaveContact,
     RenameContact,
@@ -186,6 +191,7 @@ pub enum ClientCommand {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    QueryDevices,
     QueryContacts,
     SaveContact {
         route: String,
@@ -290,6 +296,7 @@ impl ClientCommand {
             Self::ExportKit => Operation::ExportKit,
             Self::RestoreKit { .. } => Operation::RestoreKit,
             Self::ResumeRecovery => Operation::ResumeRecovery,
+            Self::QueryDevices => Operation::QueryDevices,
             Self::QueryContacts => Operation::QueryContacts,
             Self::SaveContact { .. } => Operation::SaveContact,
             Self::RenameContact { .. } => Operation::RenameContact,
@@ -1135,6 +1142,7 @@ pub enum CommandOutput {
     KeyPackageSupply(KeyPackageSupply),
     Recovery(RecoveryResult),
     OnboardingStatus(OnboardingStatus),
+    Devices(DeviceInventory),
     Contacts(Vec<ContactSummary>),
     Contact(ContactSummary),
     OwnRoute(String),
@@ -1312,6 +1320,7 @@ impl ClientCommand {
             | Self::QueryOnboarding
             | Self::QueryOwnRoute
             | Self::ExportAttachment { .. }
+            | Self::QueryDevices
             | Self::QueryContacts
             | Self::PreviewRoutes { .. }
             | Self::QueryKeyPackageSupply
@@ -1606,6 +1615,7 @@ fn command_future(
             if matches!(
                 &command,
                 ClientCommand::Sync { .. }
+                    | ClientCommand::RevokeDevice { .. }
                     | ClientCommand::CheckKeyPackages
                     | ClientCommand::ReplenishKeyPackages
             ) {
@@ -2042,6 +2052,13 @@ impl Application {
         }
     }
 
+    pub fn devices(&self) -> Result<DeviceInventory, ApplicationError> {
+        match self.execute(ClientCommand::QueryDevices)? {
+            CommandOutput::Devices(value) => Ok(value),
+            _ => unreachable!("devices output"),
+        }
+    }
+
     pub fn contacts(&self) -> Result<Vec<ContactSummary>, ApplicationError> {
         match self.execute(ClientCommand::QueryContacts)? {
             CommandOutput::Contacts(value) => Ok(value),
@@ -2405,6 +2422,9 @@ async fn run_command(
                 .map(CommandOutput::AttachmentBytes)
                 .map_err(|e| application_error(Operation::ExportAttachment, e))
         }
+        ClientCommand::QueryDevices => devices::inventory(config)
+            .map(CommandOutput::Devices)
+            .map_err(|e| application_error(Operation::QueryDevices, e)),
         ClientCommand::QueryContacts => contacts::list(config)
             .map(CommandOutput::Contacts)
             .map_err(|e| application_error(Operation::QueryContacts, e)),
@@ -2640,7 +2660,7 @@ async fn run_command(
             device_id,
         } => run_operation(
             Operation::RevokeDevice,
-            revoke(config, &bootstrap, &device_id),
+            devices::revoke(config, &bootstrap, &device_id),
         )
         .await
         .map(CommandOutput::Operation),
@@ -4031,7 +4051,9 @@ async fn sync(config: &ProfileConfig, bootstrap: &str) -> Result<(), CliError> {
         .map_err(storage_error("mailbox"))?
         .ok_or_else(|| CliError::Domain("no mailbox".into()))?;
 
+    devices::prepare(config)?;
     let mut conn = connect(config, &s, &b).await?;
+    devices::publish(&s, &mut conn).await?;
     let published = publish_pending(config, &s, &mut conn).await?;
     if published > 0 {
         record_change(StateChange::EnvelopesPublished {
@@ -4144,6 +4166,8 @@ async fn sync(config: &ProfileConfig, bootstrap: &str) -> Result<(), CliError> {
         new,
         acked: unacked.len(),
     });
+    devices::prepare(config)?;
+    publish_pending(config, &s, &mut conn).await?;
     conn.close().await;
     Ok(())
 }
@@ -4201,123 +4225,6 @@ async fn refresh_manifests(s: &Session, conn: &mut Connection) -> Result<(), Cli
             }),
         }
     }
-    Ok(())
-}
-
-/// `arveil device revoke --data-dir D <bootstrap> <device-id-hex>`
-///
-/// Signs manifest N+1 without that device, publishes it to the realm (which
-/// refuses the device's handshake and revokes its capabilities), sends it as
-/// a `manifest` event into every conversation, and, where this device is the
-/// committer, removes the revoked leaf in the same pass.
-async fn revoke(config: &ProfileConfig, bootstrap: &str, device_hex: &str) -> Result<(), CliError> {
-    let b = Bootstrap::parse(bootstrap)?;
-    let device_id = hex::decode(device_hex).map_err(domain_error("device id"))?;
-    let (s, engine) = session(config)?;
-    let (manifest, hash) = s
-        .client
-        .device_revoke(&device_id)
-        .map_err(domain_error("revoke"))?;
-    record_change(StateChange::DeviceRevoked {
-        device_id: device_id.clone(),
-        credential_hash: hash.clone(),
-    });
-
-    let mut conn = connect(config, &s, &b).await?;
-    match conn
-        .request(Payload::ManifestPut {
-            manifest: manifest.clone(),
-        })
-        .await?
-    {
-        Payload::Ack => record_change(StateChange::RealmRevocationPublished),
-        other => return Err(CliError::Protocol(format!("unexpected reply: {other:?}"))),
-    }
-
-    for gid in s
-        .client
-        .archived_groups()
-        .map_err(storage_error("archived"))?
-    {
-        record_change(StateChange::ArchivedConversation {
-            group_id: gid.clone(),
-        });
-        for (kind, body) in s.client.archived(&gid).map_err(storage_error("archived"))? {
-            record_change(StateChange::ArchivedEvent { kind, body });
-        }
-    }
-    for conv in s
-        .client
-        .conversations()
-        .map_err(storage_error("conversations"))?
-    {
-        let mut group = engine
-            .load_group(&conv.group_id)
-            .map_err(storage_error("mls load"))?;
-        let in_group = roster_device_ids(&group).contains(&device_id);
-        let committer = i_am_committer(&s, &group);
-        let event = manifest_message(&mut group, &manifest)?;
-        let removal = if in_group && committer {
-            let index = group
-                .roster()
-                .members()
-                .into_iter()
-                .find(|m| {
-                    m.signing_identity
-                        .credential
-                        .as_basic()
-                        .map(|c| c.identifier == device_id)
-                        .unwrap_or(false)
-                })
-                .map(|m| m.index)
-                .ok_or_else(|| CliError::Domain("revoked device not found in the roster".into()))?;
-            let commit = group
-                .commit_builder()
-                .remove_member(index)
-                .map_err(domain_error("mls remove"))?
-                .build()
-                .map_err(domain_error("mls commit"))?;
-            group
-                .apply_pending_commit()
-                .map_err(protocol_error("mls apply"))?;
-            Some(
-                commit
-                    .commit_message
-                    .to_bytes()
-                    .map_err(protocol_error("commit"))?,
-            )
-        } else {
-            None
-        };
-        s.client
-            .unit_of_work(|| {
-                group
-                    .write_to_storage()
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                enqueue_for_all(&s, &conv.peers, None, &event)?;
-                if let Some(bytes) = &removal {
-                    enqueue_for_all(&s, &conv.peers, None, bytes)?;
-                }
-                Ok::<_, rusqlite::Error>(())
-            })
-            .map_err(storage_error("revoke unit"))?;
-        record_change(StateChange::ConversationManifestSent {
-            group_id: conv.group_id.clone(),
-            removal: match (&removal, in_group) {
-                (Some(_), _) => RemovalOutcome::Removed {
-                    epoch: group.current_epoch(),
-                },
-                (None, true) => RemovalOutcome::LeftToCommitter,
-                (None, false) => RemovalOutcome::NotInGroup,
-            },
-        });
-    }
-    let n = publish_pending(config, &s, &mut conn).await?;
-    record_change(StateChange::EnvelopesPublished {
-        count: n,
-        pending: false,
-    });
-    conn.close().await;
     Ok(())
 }
 
