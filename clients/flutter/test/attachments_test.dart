@@ -21,6 +21,8 @@ HistoryEventView attachment(
   kind: outgoing ? 'file-outgoing' : 'file-pending',
   body: Uint8List.fromList('PRIVATE_INTERNAL_BODY'.codeUnits),
   delivery: const [],
+  createdAt: 1790000000,
+  own: outgoing,
   attachment: AttachmentView(
     name: 'same.txt',
     size: BigInt.from(3),

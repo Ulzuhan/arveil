@@ -349,6 +349,16 @@ pub struct HistoryEventView {
     pub attachment: Option<AttachmentView>,
     /// Delivery state per mailbox, for events this device sent.
     pub delivery: Vec<String>,
+    /// Unix seconds when this device recorded the event: arrival for what
+    /// it received, creation for what it sent. Not when the sender wrote it.
+    pub created_at: i64,
+    /// Hexadecimal identity that wrote the event, when known.
+    pub sender_identity: Option<String>,
+    /// Local contact name or short identifier of that identity. Absent for
+    /// this profile's own events and for senders nobody can name.
+    pub sender_label: Option<String>,
+    /// Written by this identity, from this device or another of its own.
+    pub own: bool,
 }
 
 /// One page, oldest first within the page.
@@ -1060,6 +1070,10 @@ fn event_view(event: HistoryEvent) -> HistoryEventView {
             .into_iter()
             .map(|state| state.state)
             .collect(),
+        created_at: event.created_at,
+        sender_identity: event.sender_identity.as_deref().map(hex),
+        sender_label: event.sender_label,
+        own: event.own,
     }
 }
 
@@ -1278,6 +1292,10 @@ mod tests {
                 body: b"private descriptor or local path".to_vec(),
                 delivery_states: vec![],
                 attachment: None,
+                created_at: 1_790_000_000,
+                sender_identity: None,
+                sender_label: None,
+                own: false,
             });
             assert!(view.body.is_empty());
         }
@@ -1288,8 +1306,16 @@ mod tests {
             body: b"message".to_vec(),
             delivery_states: vec![],
             attachment: None,
+            created_at: 1_790_000_000,
+            sender_identity: Some(vec![0xab, 0xcd]),
+            sender_label: Some("Lucía".into()),
+            own: false,
         });
         assert_eq!(view.body, b"message");
+        assert_eq!(view.created_at, 1_790_000_000);
+        assert_eq!(view.sender_identity.as_deref(), Some("abcd"));
+        assert_eq!(view.sender_label.as_deref(), Some("Lucía"));
+        assert!(!view.own);
     }
 
     #[test]

@@ -577,6 +577,20 @@ class HistoryEventView {
   /// Delivery state per mailbox, for events this device sent.
   final List<String> delivery;
 
+  /// Unix seconds when this device recorded the event: arrival for what
+  /// it received, creation for what it sent. Not when the sender wrote it.
+  final PlatformInt64 createdAt;
+
+  /// Hexadecimal identity that wrote the event, when known.
+  final String? senderIdentity;
+
+  /// Local contact name or short identifier of that identity. Absent for
+  /// this profile's own events and for senders nobody can name.
+  final String? senderLabel;
+
+  /// Written by this identity, from this device or another of its own.
+  final bool own;
+
   const HistoryEventView({
     required this.cursor,
     required this.eventId,
@@ -584,6 +598,10 @@ class HistoryEventView {
     required this.body,
     this.attachment,
     required this.delivery,
+    required this.createdAt,
+    this.senderIdentity,
+    this.senderLabel,
+    required this.own,
   });
 
   @override
@@ -593,7 +611,11 @@ class HistoryEventView {
       kind.hashCode ^
       body.hashCode ^
       attachment.hashCode ^
-      delivery.hashCode;
+      delivery.hashCode ^
+      createdAt.hashCode ^
+      senderIdentity.hashCode ^
+      senderLabel.hashCode ^
+      own.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -605,7 +627,11 @@ class HistoryEventView {
           kind == other.kind &&
           body == other.body &&
           attachment == other.attachment &&
-          delivery == other.delivery;
+          delivery == other.delivery &&
+          createdAt == other.createdAt &&
+          senderIdentity == other.senderIdentity &&
+          senderLabel == other.senderLabel &&
+          own == other.own;
 }
 
 /// One page, oldest first within the page.

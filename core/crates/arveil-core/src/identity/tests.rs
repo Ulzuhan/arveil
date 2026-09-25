@@ -173,9 +173,15 @@ mod contacts {
         let number = client.safety_number_with(&identity).unwrap();
         assert!(client.contact_verify(&identity, &number, 0).unwrap());
         // A pre-address-book profile has contacts but no route table, and
-        // predates schema versioning. Reopening it adds the table.
+        // predates schema versioning, so it also lacks what later migrations
+        // added. Reopening it adds the table.
         conn.lock()
-            .execute_batch("DROP TABLE contact_routes; PRAGMA user_version = 0;")
+            .execute_batch(
+                "DROP TABLE contact_routes;
+                 ALTER TABLE events DROP COLUMN sender_device;
+                 ALTER TABLE events DROP COLUMN sender_identity;
+                 PRAGMA user_version = 0;",
+            )
             .unwrap();
         drop(client);
         drop(conn);

@@ -178,7 +178,8 @@ pub(super) fn queue(
     let encoded = d.encode().map_err(protocol_error("attachment"))?;
     let id = random_delivery_id()?;
     s.client.unit_of_work(|| {
-        s.delivery.record_event(group, &id, "file-outgoing", &[])?;
+        s.delivery
+            .record_event_by(group, &id, "file-outgoing", &[], Some(&own_sender(&s)))?;
         s.delivery.attachment_create(
             &id,
             &AttachmentRow {

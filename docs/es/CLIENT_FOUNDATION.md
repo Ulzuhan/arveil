@@ -400,3 +400,57 @@ marcada como versión 2 se rechazó sin cambiar un byte. Pasaron las pruebas del
 workspace, Clippy, el spike MLS, la demo y los scripts de fase. La actualización
 de apps empaquetadas con perfiles poblados en Android y macOS sigue siendo un
 paso de aceptación del [rediseño del cliente](PHASE3B.md).
+
+## Remitente y hora de los mensajes (25 de septiembre de 2026)
+
+Cada evento del historial indica ahora quién lo escribió y cuándo lo registró
+este dispositivo. La migración 2 añade `sender_device` y `sender_identity` a
+`events`. Ambas columnas admiten nulos, así que las builds hasta `0.1.0+11`
+siguen leyendo y escribiendo un perfil en versión 2; una ejecución con la CLI lo
+confirmó.
+
+- Al procesar un mensaje de aplicación MLS (texto o anuncio de adjunto) se
+  guarda el dispositivo detrás de la hoja emisora, que MLS acaba de autenticar.
+  También se guarda la identidad que este perfil conoce para ese dispositivo:
+  la propia para este dispositivo y los que autorizó, o la de un participante
+  según el roster de esa conversación. Los mensajes que escribe este
+  dispositivo se guardan como propios.
+- Al leer el historial se resuelve lo que no se conocía al llegar: un
+  dispositivo aprendido después se nombra desde el roster en ese momento. Los
+  eventos registrados antes de la versión 2 conservan el remitente vacío,
+  salvo los enviados por este dispositivo, que son propios. Nunca se atribuye
+  una fila recibida por suposición.
+- `HistoryEventView` añade cuatro campos:
+  - `created_at`: segundos Unix en que este dispositivo registró el evento, es
+    decir, la llegada para los recibidos y la creación para los enviados. No es
+    cuándo lo escribió el remitente; el protocolo no transporta esa hora.
+  - `sender_identity`: la identidad que escribió el evento, si se conoce.
+  - `sender_label`: el nombre local del contacto o un identificador corto;
+    no existe para los eventos propios ni para remitentes desconocidos.
+  - `own`: escrito por esta identidad, desde cualquiera de sus dispositivos.
+- La pantalla de conversación:
+  - Alinea en el lado propio los mensajes propios, también los de otro
+    dispositivo de la misma identidad.
+  - Nombra al autor de los mensajes recibidos cuando escribe más de una
+    identidad ajena en la conversación.
+  - Muestra la hora registrada.
+
+  El rediseño completo de esta pantalla es un paso posterior del
+  [plan del cliente](PHASE3B.md).
+- Los registros importados del historial llevan su hora pero todavía no su
+  remitente. Cambiar el formato del archivo es un paso aparte.
+
+Evidencia:
+
+- Las pruebas del core cubren el remitente guardado y leído, la búsqueda de la
+  identidad de un dispositivo y la migración 2.
+- Una prueba de aplicación usa un grupo MLS real en proceso. Cubre otra
+  identidad conocida solo después de su mensaje, otro dispositivo de la misma
+  identidad, filas antiguas y el cambio de nombre de un contacto.
+- La conversión del puente y las pruebas de widgets de Flutter cubren los
+  campos nuevos, el nombre del autor, la alineación propia y el formato de la
+  hora.
+- Una actualización desde binarios de `main` adoptó un perfil a la versión 2.
+  El siguiente mensaje recibido llevó el dispositivo y la identidad del
+  participante, el siguiente enviado quedó como propio, las filas anteriores
+  siguieron vacías y la CLI antigua siguió leyendo el perfil.

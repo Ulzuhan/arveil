@@ -427,6 +427,18 @@ class _ConversationsPageState extends State<ConversationsPage>
           },
         );
 
+  /// Whether more than one other person writes here, so received messages
+  /// need their author named.
+  bool get _group =>
+      chat.conversations
+          .where((c) => c.groupId == chat.selected)
+          .expand((c) => c.peers)
+          .where((p) => !p.own)
+          .map((p) => p.identityId)
+          .toSet()
+          .length >
+      1;
+
   Widget _history() => Column(
     children: [
       if (chat.sending)
@@ -477,7 +489,7 @@ class _ConversationsPageState extends State<ConversationsPage>
                       export: () => _export(group, event),
                     );
                   }
-                  return MessageBubble(event: event);
+                  return MessageBubble(event: event, showSender: _group);
                 },
               ),
       ),
@@ -523,18 +535,29 @@ class _ConversationsPageState extends State<ConversationsPage>
 }
 
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.event});
+  const MessageBubble({
+    super.key,
+    required this.event,
+    this.showSender = false,
+  });
   final HistoryEventView event;
+
+  /// Name who wrote a received message, for conversations where more than
+  /// one other person writes.
+  final bool showSender;
   @override
   Widget build(BuildContext context) {
     final sent = event.kind == 'sent';
+    final mine = event.own;
     final text = event.kind == 'received' || sent
         ? utf8.decode(event.body, allowMalformed: true)
         : event.kind.startsWith('file')
         ? 'Adjunto (consulta disponible desde la CLI)'
         : 'Evento de conversación';
     final status = !sent
-        ? 'Recibido en este dispositivo'
+        ? mine
+              ? 'Enviado desde otro de tus dispositivos'
+              : 'Recibido en este dispositivo'
         : event.delivery.isEmpty
         ? 'Guardado localmente · sin destinatarios disponibles'
         : event.delivery.any((s) => s.startsWith('undeliverable'))
@@ -544,15 +567,17 @@ class MessageBubble extends StatelessWidget {
         : event.delivery.every((s) => s.startsWith('accepted'))
         ? 'Aceptado por el relay · lectura sin confirmar'
         : 'Guardado localmente · envío pendiente';
+    final sender = showSender && !mine ? event.senderLabel : null;
+    final meta = Theme.of(context).textTheme.labelSmall;
     return Align(
-      alignment: sent ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         key: Key('message-${event.eventId}'),
         constraints: const BoxConstraints(maxWidth: 560),
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: sent
+          color: mine
               ? Theme.of(context).colorScheme.primaryContainer
               : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
@@ -560,14 +585,49 @@ class MessageBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (sender != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  sender,
+                  key: Key('sender-${event.eventId}'),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             SelectableText(text),
             const SizedBox(height: 6),
-            Text(status, style: Theme.of(context).textTheme.labelSmall),
+            Wrap(
+              spacing: 6,
+              children: [
+                if (event.createdAt > 0)
+                  Text(
+                    recordedTime(event.createdAt),
+                    key: Key('time-${event.eventId}'),
+                    style: meta,
+                  ),
+                Text(status, style: meta),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+/// When this device recorded an event, in local time: the hour for today,
+/// the date and hour otherwise. It is when the event arrived or was written
+/// here, never a claim about when its sender wrote it.
+String recordedTime(int seconds, {DateTime? now}) {
+  final at = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+  final today = now ?? DateTime.now();
+  String two(int n) => n.toString().padLeft(2, '0');
+  final hour = '${two(at.hour)}:${two(at.minute)}';
+  final sameDay =
+      at.year == today.year && at.month == today.month && at.day == today.day;
+  return sameDay ? hour : '${at.day}/${at.month}/${at.year} $hour';
 }
 
 class NewConversationPage extends StatefulWidget {
