@@ -2,13 +2,17 @@
 
 [Español](es/INSTALLATION.md).
 
-**Current availability (September 24, 2026):** there are no published GitHub
+**Current availability (September 25, 2026):** there are no published GitHub
 releases yet. A [packaging command](CLIENT_RELEASES.md) prepares experimental
 macOS ZIP and Android APK candidates. The current source supports invitation enrollment,
 pairing and encrypted identity-kit export/restore, verified groups, paginated
-history, offline text and sync. Experimental packages `0.1.0+5` passed
-Mac ↔ Android-emulator messaging and an upgrade from `0.1.0+2` preserving
-the enrolled profiles; see the [acceptance record](PLATFORMS.md#cross-platform-package-acceptance-september-24-2026).
+history, offline text and sync, saved contacts, attachments, device revocation
+and encrypted history export/import. Candidates `0.1.0+10` include these features
+and a fix for native save-dialog key handling. The Android emulator retained its
+profile across updates and passed native history save/open, repeated import and
+restart checks; macOS profile reopening remains pending for this build. See the
+[acceptance record](PLATFORMS.md#corrected-package-and-archive-dialog-acceptance-september-25-2026).
+The previous `0.1.0+5` candidates passed Mac ↔ Android-emulator messaging.
 Earlier experimental packages may contain only invitation enrollment; check
 the package revision and release notes. Use disposable test profiles at this stage.
 
@@ -111,8 +115,8 @@ summary. On a connection failure, close/reopen and retry with the **same relay
 and invitation**; successful enrollment does not need another invitation on
 reopen. Current source also supports pairing, recovery kits and conversations.
 
-To try conversations with disposable profiles on the same relay (contacts require
-source client `0.1.0+6`; the `0.1.0+5` packages retain the route-paste flow):
+To try conversations with disposable profiles on the same relay using the
+current source or a package containing it:
 
 1. Select **Abrir conversaciones**, then **Mi ruta** to share this device's route
    privately with your contact. Each person can obtain their route here.
@@ -131,11 +135,11 @@ source client `0.1.0+6`; the `0.1.0+5` packages retain the route-paste flow):
    **Sincronizar** retries publication. Relay acceptance does not confirm reading.
 
 Automatic sync runs while the conversation screen is in the foreground. Push,
-background receipt, attachment actions and membership controls are still pending.
+background receipt and general group membership controls are still pending.
 The existing experimental packages may precede these source changes; check their
 recorded revision before expecting these screens.
 
-### Attachments (source client `0.1.0+7`)
+### Attachments (available since `0.1.0+7`)
 
 In a conversation, choose **Adjuntar archivo** (the paperclip), select a file smaller
 than 25 MiB, and confirm. The private queued copy survives restart. If offline,
@@ -145,7 +149,7 @@ would create another message. Incoming files download only when you choose
 That exported copy is outside Arveil's encrypted profile and may be backed up
 by its destination. Cancelling an unfinished transfer discards its local data;
 it does not recall a sent message. Request another copy if the relay reports
-expiry. Existing `0.1.0+5` package candidates do not include this interface.
+expiry.
 
 ## Build from source
 
@@ -201,7 +205,7 @@ repository. These are delivery requirements, not claims that the packages or
 all acceptance runs already exist; see [phase 3b](PHASE3B.md).
 
 
-## Manage your devices (source `0.1.0+8`)
+## Manage your devices (available since `0.1.0+8`)
 
 Open **Gestionar dispositivos** from the profile. Compare the full device ID
 with the other device before revoking it. Only the administrator can revoke
@@ -219,11 +223,13 @@ Update the relay from the same source revision when trying this feature. Older
 relays return 409 on repeated manifest publication; this relay accepts an
 identical retry and commits revocation with the manifest atomically.
 
-## Save and recover history (source `0.1.0+9`)
+## Save and recover history (available since `0.1.0+9`)
 
 1. In the profile, open **Historial cifrado**, acknowledge that this copy can
-   reveal past messages and select **Guardar historial cifrado**. Save its key
-   separately, for example in a password manager. The key disappears when you
+   reveal past messages and select **Guardar historial cifrado**. If the native
+   dialog returns before the app regains focus, select **Mostrar clave del archivo
+   guardado** after returning (fixed in `0.1.0+10`). Save its key separately,
+   for example in a password manager. The key disappears when you
    leave or switch apps; export again if you lose it. Review the count of files
    without a copy: pending downloads and legacy CLI files are not fetched.
 2. After losing a device, first restore the same identity with its latest kit
@@ -236,6 +242,11 @@ identical retry and commits revocation with the manifest atomically.
    messages nor rejoins old groups. Exchange the recovered device's route with a
    contact and explicitly start a new conversation for new messages.
 
-These steps are available from source; existing `0.1.0+5` package candidates do
-not contain this screen. Files are limited to 64 MiB and 10,000 records; see
+These steps are included in the `0.1.0+10` candidates. Files are limited to
+64 MiB and 10,000 records; see
 [implementation limits](CLIENT_FOUNDATION.md#encrypted-history-and-loss-recovery-fourth-m3b4-slice).
+
+When saving an identity kit, the equivalent action is **Mostrar clave del kit
+guardado**. A save completed in the background requires this explicit reveal
+after returning. Once back in the app, switching away again discards the pending
+key as well; export another copy if needed. Neither key is stored by Arveil.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'kit_files.dart';
+import 'export_secret.dart';
 import 'profile_session.dart';
 
 class RecoveryPanel extends StatefulWidget {
@@ -23,7 +24,7 @@ class _RecoveryPanelState extends State<RecoveryPanel>
   final _relay = TextEditingController();
   final _secretInput = TextEditingController();
   List<int>? _encrypted;
-  String? _exportedSecret;
+  final _exportedSecret = ExportSecret();
   bool _confirmed = false;
   bool _picking = false;
   bool _deferred = false;
@@ -41,13 +42,8 @@ class _RecoveryPanelState extends State<RecoveryPanel>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) {
       _secretInput.clear();
-      if (_exportedSecret != null) {
-        setState(() {
-          _exportedSecret = null;
-          _saved = false;
-        });
-      }
     }
+    setState(() => _exportedSecret.lifecycle(state));
   }
 
   @override
@@ -55,30 +51,22 @@ class _RecoveryPanelState extends State<RecoveryPanel>
     WidgetsBinding.instance.removeObserver(this);
     _relay.dispose();
     _secretInput.dispose();
-    _exportedSecret = null;
+    _exportedSecret.clear();
     _encrypted = null;
     super.dispose();
   }
 
   Future<void> _save() async {
     setState(() {
-      _exportedSecret = null;
+      _exportedSecret.clear();
       _saved = false;
     });
     final secret = await session.saveKit(widget.files.save);
-    if (mounted &&
-        secret != null &&
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+    if (mounted && secret != null) {
       setState(() {
-        _exportedSecret = secret;
+        _exportedSecret.saved(secret, WidgetsBinding.instance.lifecycleState);
         _deferred = false;
       });
-    } else if (mounted && secret != null) {
-      session.reportFailure(
-        const ProfileAccessException(
-          'Se guardó el archivo, pero la app pasó a segundo plano. Crea un kit nuevo para guardar también su clave.',
-        ),
-      );
     }
   }
 
@@ -133,7 +121,15 @@ class _RecoveryPanelState extends State<RecoveryPanel>
         'El kit recupera tu identidad, no el historial ni el estado de los grupos. Guarda el archivo cifrado y su clave por separado; juntos permiten tomar el control de la identidad.',
       ),
       const SizedBox(height: 12),
-      if (_exportedSecret case final secret?) ...[
+      if (_exportedSecret.pending)
+        OutlinedButton(
+          onPressed: () => setState(
+            () =>
+                _exportedSecret.reveal(WidgetsBinding.instance.lifecycleState),
+          ),
+          child: const Text('Mostrar clave del kit guardado'),
+        ),
+      if (_exportedSecret.visible case final secret?) ...[
         const Text(
           'Archivo guardado. Guarda ahora esta clave por separado, por ejemplo en tu gestor de contraseñas. Arveil no la conserva.',
         ),
@@ -146,7 +142,7 @@ class _RecoveryPanelState extends State<RecoveryPanel>
         const SizedBox(height: 12),
         FilledButton(
           onPressed: () => setState(() {
-            _exportedSecret = null;
+            _exportedSecret.clear();
             _saved = true;
           }),
           child: const Text('He guardado la clave por separado'),

@@ -39,12 +39,12 @@ promesa se vuelve falsa:
 |---|---|---|
 | **Clave del perfil** | la base local en reposo | nada. Perderla pierde el historial local, y eso se acepta a propósito |
 | **Kit de identidad** | la raíz de la identidad, exportada por la persona | la identidad. Ni conversaciones ni estado de grupo MLS |
-| **Exportación de historial** | un archivo cifrado que la persona pide explícitamente | conversaciones, importadas en un perfil **nuevo** con una clave local **nueva**. Es un hito posterior; nada de lo de aquí depende de él |
+| **Exportación de historial** | un archivo cifrado que la persona pide explícitamente | mensajes de solo lectura y adjuntos disponibles de la misma identidad, también tras recuperar la identidad en un perfil **nuevo** con una clave local **nueva**. No recupera sesiones MLS |
 
 La clave del perfil son 32 bytes aleatorios del generador del sistema,
 producidos en Rust con la misma llamada que usa el resto del cliente, y
 entregados al almacén de la plataforma. Nunca se deriva de nada que se
-teclee y Arveil no la sincroniza. La futura exportación de historial tendrá
+teclee y Arveil no la sincroniza. La exportación de historial tiene
 su propia clave. En macOS, las copias o migraciones manuales del llavero clásico
 quedan fuera del control de la aplicación; no se promete vinculación al dispositivo.
 
@@ -393,3 +393,46 @@ fase 2. Los comandos están en el [README Flutter](https://github.com/Ulzuhan/ar
 Siguen sin verificar Android físico, diálogos nativos de archivos de historial,
 instalación limpia y este flujo entre apps de release independientes. No se han
 reemplazado los candidatos `0.1.0+5` ni el borrador de release.
+
+
+## Aceptación del paquete corregido y sus selectores (25 de septiembre de 2026)
+
+Los paquetes normales de release `0.1.0+10` se compilaron desde el commit limpio
+`8b4f5ef06b810ce07adc82e69bd0e6e28d86c5c6`. Ambos pasaron las comprobaciones
+de firma, arquitectura, checksums y privacidad del contenido descomprimido.
+El ZIP macOS tiene firma ad hoc; el APK conserva el certificado de las versiones
+2 y 5. Son candidatos sin publicar para el borrador `clients-v0.1.0-alpha.3`.
+
+| Paquete | SHA-256 |
+|---|---|
+| `arveil-0.1.0-10-macos-arm64.zip` | `80e8f93f11449c2e160030f850d96914287089cff0a57d32b28f3e2d31fcfc3d` |
+| `arveil-0.1.0-10-android-arm64.apk` | `33f0accdc43ebe7c54724f27ee403fc72535ba1bb262999b5ecc7dce8fbcd030` |
+
+Se usó la app normal instalada en el emulador Android 15/API 35 ARM64, con el
+teclado y los selectores nativos, sobre su perfil desechable existente. No se
+usó una app de integración ni se desinstaló o borró el almacenamiento.
+
+1. La actualización APK 5 → 9 conservó el alta y los cinco mensajes de prueba.
+   Un mensaje nuevo elevó la conversación a seis. Después se instaló APK 10
+   sobre APK 9 con el mismo certificado, conservando ese perfil.
+2. La versión 9 reveló un fallo real: el selector terminaba de guardar antes
+   de que Flutter volviera a primer plano y se descartaba la clave. Ese candidato
+   no debe distribuirse. La versión 10 mantiene el resultado oculto hasta pedir
+   expresamente mostrarlo; volver a perder el foco descarta claves pendientes y
+   visibles. El kit comparte la corrección y tiene cobertura de regresión widget.
+3. En APK 10, cancelar el guardado no mostró una clave. Guardar otro archivo
+   informó de seis registros; **Mostrar clave del archivo guardado** mostró su
+   clave. Cambiar de app y volver la borró sin mostrarla de nuevo.
+4. Cancelar la apertura no seleccionó un archivo. Elegir el archivo guardado e
+   introducir su clave importó seis registros de solo lectura. Repetirlo informó
+   de cero registros nuevos y seis existentes. La conversación conservó seis
+   mensajes: importar no los reenvió. Los seis textos importados siguieron
+   disponibles después de detener y reiniciar el proceso de la app.
+
+Pasan los 55 tests Flutter, análisis, formato y documentación bilingüe estricta.
+Los archivos de prueba, claves y capturas de interfaz quedan privados. El ZIP
+macOS arrancó en macOS 26.6.2 Apple silicon / Xcode 27.0, pero falta verificar
+reapertura del perfil, selectores nativos y conversación Mac–Android con la
+versión 10. También siguen pendientes Android físico, instalación descargada
+limpia, selectores del kit y recuperación entre apps de release separadas.
+Los borradores alpha anteriores no se han modificado.

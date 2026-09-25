@@ -4,6 +4,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show PlatformInt64;
 import 'archive_files.dart';
 import 'attachment_files.dart';
+import 'export_secret.dart';
 import 'rust/api/profile.dart';
 
 class ArchivesPage extends StatefulWidget {
@@ -24,7 +25,7 @@ class _ArchivesPageState extends State<ArchivesPage>
     with WidgetsBindingObserver {
   final _secretInput = TextEditingController();
   Uint8List? _encrypted;
-  String? _secret;
+  final _secret = ExportSecret();
   String? _message;
   String? _error;
   bool _busy = false;
@@ -42,7 +43,7 @@ class _ArchivesPageState extends State<ArchivesPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _secretInput.dispose();
-    _secret = null;
+    _secret.clear();
     _encrypted = null;
     super.dispose();
   }
@@ -51,8 +52,8 @@ class _ArchivesPageState extends State<ArchivesPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) {
       _secretInput.clear();
-      setState(() => _secret = null);
     }
+    setState(() => _secret.lifecycle(state));
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -82,7 +83,7 @@ class _ArchivesPageState extends State<ArchivesPage>
 
   Future<void> _export() => _run(() async {
     setState(() {
-      _secret = null;
+      _secret.clear();
       _message = null;
     });
     final archive = await widget.profile.exportArchive();
@@ -92,12 +93,7 @@ class _ArchivesPageState extends State<ArchivesPage>
     setState(() {
       _message =
           'Archivo guardado: ${archive.records} registros, ${archive.files} adjuntos con copia, ${archive.unavailableFiles} sin copia.';
-      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
-        _secret = archive.secret;
-      } else {
-        _message =
-            'Archivo guardado, pero la app pasó a segundo plano. Exporta otra copia para guardar también su clave.';
-      }
+      _secret.saved(archive.secret, WidgetsBinding.instance.lifecycleState);
     });
   });
   Future<void> _pick() => _run(() async {
@@ -116,7 +112,7 @@ class _ArchivesPageState extends State<ArchivesPage>
     setState(() {
       _encrypted = null;
       _message = null;
-      _secret = null;
+      _secret.clear();
     });
     final receipt = await widget.profile.importArchive(
       encrypted: bytes,
@@ -171,14 +167,21 @@ class _ArchivesPageState extends State<ArchivesPage>
           icon: const Icon(Icons.save_alt),
           label: const Text('Guardar historial cifrado'),
         ),
-        if (_secret case final secret?) ...[
+        if (_secret.pending)
+          OutlinedButton(
+            onPressed: () => setState(
+              () => _secret.reveal(WidgetsBinding.instance.lifecycleState),
+            ),
+            child: const Text('Mostrar clave del archivo guardado'),
+          ),
+        if (_secret.visible case final secret?) ...[
           const SizedBox(height: 16),
           const Text(
             'Guarda esta clave por separado. Desaparece al salir o cambiar de aplicación; Arveil no la conserva.',
           ),
           SelectableText(secret, key: const Key('archive-export-secret')),
           TextButton(
-            onPressed: () => setState(() => _secret = null),
+            onPressed: () => setState(_secret.clear),
             child: const Text('He guardado la clave'),
           ),
         ],

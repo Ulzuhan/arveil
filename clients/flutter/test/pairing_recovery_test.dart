@@ -171,7 +171,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('kit-deferred-warning')), findsOneWidget);
   });
-  testWidgets('a save completed in the background does not reveal its secret', (
+  testWidgets('a background save needs an explicit foreground key reveal', (
     tester,
   ) async {
     final profile = RecoveryProfile()..ready();
@@ -186,6 +186,15 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
     expect(find.text(secret), findsNothing);
+    await tester.tap(find.text('Mostrar clave del kit guardado'));
+    await tester.pumpAndSettle();
+    expect(find.text(secret), findsOneWidget);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.text(secret), findsNothing);
+    expect(find.text('Mostrar clave del kit guardado'), findsNothing);
   });
 
   testWidgets(

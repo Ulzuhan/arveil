@@ -39,12 +39,12 @@ promise becomes false:
 |---|---|---|
 | **Profile key** | the local database at rest | nothing. Losing it loses local history, and that is accepted on purpose |
 | **Identity kit** | the identity's root, exported by the user | the identity. Not conversations, not MLS group state |
-| **History export** | an explicit encrypted archive the user asks for | conversations, imported into a **new** profile under a **new** local key. A later milestone; nothing here depends on it |
+| **History export** | an explicit encrypted archive the user asks for | read-only messages and available attachments for the same identity, including after identity recovery into a **new** profile with a **new** local key. It does not recover MLS sessions |
 
 The profile key is 32 random bytes from the operating system's generator,
 made in Rust with the same call the rest of the client uses, and handed to
 the platform store. It is never derived from anything a person types and
-is not synchronized by Arveil. The future history export will use its own
+is not synchronized by Arveil. History export uses its own
 key. On macOS, a manual backup/migration of the classic login Keychain is
 outside the application’s control; do not claim that this backend is device-bound.
 
@@ -376,3 +376,46 @@ Reproduction commands are in the [Flutter README](https://github.com/Ulzuhan/arv
 Physical Android, native archive dialogs, clean installation and this recovery
 flow between separate release apps remain unverified. Existing `0.1.0+5`
 installer candidates and the release draft have not been replaced.
+
+
+## Corrected package and archive-dialog acceptance (September 25, 2026)
+
+Normal release packages `0.1.0+10` were built from clean commit
+`8b4f5ef06b810ce07adc82e69bd0e6e28d86c5c6`. Both passed signature,
+architecture, checksum and decompressed-content privacy checks. The macOS ZIP
+is ad-hoc signed; the Android APK retains the certificate from builds 2 and 5.
+These are unpublished candidates for the `clients-v0.1.0-alpha.3` draft.
+
+| Package | SHA-256 |
+|---|---|
+| `arveil-0.1.0-10-macos-arm64.zip` | `80e8f93f11449c2e160030f850d96914287089cff0a57d32b28f3e2d31fcfc3d` |
+| `arveil-0.1.0-10-android-arm64.apk` | `33f0accdc43ebe7c54724f27ee403fc72535ba1bb262999b5ecc7dce8fbcd030` |
+
+The Android 15/API 35 ARM64 emulator used the normal installed application,
+OS keyboard and native document selectors, with its existing disposable
+profile. No integration-test entry point, uninstall or data clearing was used.
+
+1. Upgrade from APK 5 to 9 retained enrollment and all five fixture messages.
+   One new test message brought the live conversation to six. APK 10 then
+   replaced APK 9 using the same signing certificate and retained that profile.
+2. Build 9 exposed a real native-selector bug: saving finished before Flutter
+   resumed, so the app discarded the archive key. That candidate is not for
+   distribution. Build 10 keeps this result hidden until an explicit foreground
+   reveal; another loss of focus after returning discards hidden/visible keys.
+   Identity-kit export shares the correction and has widget regression coverage.
+3. In APK 10, cancelling native save revealed no key. Saving a new archive
+   reported six records; **Mostrar clave del archivo guardado** displayed its
+   key. Leaving and returning to the app cleared it without redisplaying it.
+4. Cancelling native open selected nothing. Opening the saved archive and
+   entering its key imported six read-only records. Repeating the import
+   reported zero new records and six existing records. The live conversation
+   still contained six messages; import did not resend them. All six imported
+   texts remained readable after stopping and restarting the app process.
+
+The Flutter suite has 55 passing tests; analysis, formatting and strict
+bilingual documentation checks pass. Test archives, keys and raw UI data stay
+private. The macOS ZIP launched on macOS 26.6.2 Apple silicon / Xcode 27.0,
+but profile reopening, native dialogs and a Mac–Android messaging rerun remain
+pending for build 10. Physical Android, clean-download acceptance, native kit
+selectors and recovery between separate release apps also remain unverified.
+The earlier alpha drafts are unchanged.
