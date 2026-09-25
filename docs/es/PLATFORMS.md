@@ -328,3 +328,34 @@ análisis estático y las comprobaciones de privacidad. Los comandos están en e
 Es aceptación del código: siguen sin verificar los diálogos nativos de adjuntos
 en macOS, Android físico, descarga nueva y adjuntos entre apps de release
 independientes. Los candidatos `0.1.0+5` y el borrador de release siguen iguales.
+
+
+## Aceptación de gestión de dispositivos (25 de septiembre de 2026)
+
+El cliente fuente `0.1.0+8`, commit de implementación
+`a17ba9d392616e74f92f039c96fcda56c1e54ef8`, pasó el escenario nativo `devices` en:
+
+| Plataforma | Almacenamiento y transporte |
+|---|---|
+| macOS 26.6.2 Apple silicon, Xcode 27.0 | Llavero de inicio de sesión, SQLCipher, relay local desechable |
+| Emulador Android 15/API 35 ARM64 | Keystore, SQLCipher, relay local desechable |
+
+Tres perfiles desechables recorren el inventario del administrador y del
+dispositivo vinculado, aviso de inventario parcial, emparejamiento, confirmación
+y cancelación explícitas, revocación sin red, reapertura cifrada y reanudación
+desde la interfaz. Después, el relay rechaza el handshake del dispositivo
+revocado; el administrador retira su hoja MLS e intercambia texto con el
+participante restante. La sincronización repetida conserva la versión del
+manifiesto y no duplica mensajes. No se exporta ningún kit ni archivo de
+historial. Al terminar se limpian los perfiles y se cierra el emulador.
+
+Pasaron los 102 tests Rust y 47 tests Flutter (uno de Rust sigue ignorado),
+Clippy, análisis Flutter, aceptación de fase 2 de la CLI, documentación estricta
+y controles de higiene de publicación. Rust simula además respuestas perdidas
+de manifiesto y sobres, transacciones locales fallidas y una vinculación nueva
+mientras queda revocación pendiente. Los comandos están en el
+[README Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md#device-management-acceptance).
+
+Es aceptación del código con varios perfiles dentro de cada app de pruebas;
+no acredita un teléfono físico ni apps de release independientes. Los
+candidatos de instalador `0.1.0+5` y el borrador de release siguen iguales.
