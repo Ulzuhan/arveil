@@ -3043,13 +3043,23 @@ impl SseDecode for crate::api::profile::ProfileError {
             }
             5 => {
                 let mut var_path = <String>::sse_decode(deserializer);
+                let mut var_found = <u32>::sse_decode(deserializer);
+                let mut var_supported = <u32>::sse_decode(deserializer);
+                return crate::api::profile::ProfileError::TooNew {
+                    path: var_path,
+                    found: var_found,
+                    supported: var_supported,
+                };
+            }
+            6 => {
+                let mut var_path = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::api::profile::ProfileError::Unusable {
                     path: var_path,
                     reason: var_reason,
                 };
             }
-            6 => {
+            7 => {
                 let mut var_path = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::api::profile::ProfileError::Io {
@@ -4041,14 +4051,25 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::ProfileError {
             crate::api::profile::ProfileError::InUse { path } => {
                 [4.into_dart(), path.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::profile::ProfileError::Unusable { path, reason } => [
+            crate::api::profile::ProfileError::TooNew {
+                path,
+                found,
+                supported,
+            } => [
                 5.into_dart(),
+                path.into_into_dart().into_dart(),
+                found.into_into_dart().into_dart(),
+                supported.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::profile::ProfileError::Unusable { path, reason } => [
+                6.into_dart(),
                 path.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::profile::ProfileError::Io { path, reason } => [
-                6.into_dart(),
+                7.into_dart(),
                 path.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
@@ -4870,13 +4891,23 @@ impl SseEncode for crate::api::profile::ProfileError {
                 <i32>::sse_encode(4, serializer);
                 <String>::sse_encode(path, serializer);
             }
-            crate::api::profile::ProfileError::Unusable { path, reason } => {
+            crate::api::profile::ProfileError::TooNew {
+                path,
+                found,
+                supported,
+            } => {
                 <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(path, serializer);
+                <u32>::sse_encode(found, serializer);
+                <u32>::sse_encode(supported, serializer);
+            }
+            crate::api::profile::ProfileError::Unusable { path, reason } => {
+                <i32>::sse_encode(6, serializer);
                 <String>::sse_encode(path, serializer);
                 <String>::sse_encode(reason, serializer);
             }
             crate::api::profile::ProfileError::Io { path, reason } => {
-                <i32>::sse_encode(6, serializer);
+                <i32>::sse_encode(7, serializer);
                 <String>::sse_encode(path, serializer);
                 <String>::sse_encode(reason, serializer);
             }

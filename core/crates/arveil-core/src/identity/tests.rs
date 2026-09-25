@@ -154,7 +154,15 @@ mod contacts {
 
     #[test]
     fn adding_route_storage_preserves_legacy_names_and_verification() {
-        let conn = SharedConn::open_in_memory().unwrap();
+        let dir = std::env::temp_dir().join(format!(
+            "arveil-legacy-routes-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("client.db");
+        let conn = SharedConn::open_file(&path).unwrap();
         let client = Client::open(conn.clone()).unwrap();
         client.identity_new().unwrap();
         let identity = vec![2; 32];
@@ -164,12 +172,14 @@ mod contacts {
             .unwrap();
         let number = client.safety_number_with(&identity).unwrap();
         assert!(client.contact_verify(&identity, &number, 0).unwrap());
-        // A pre-address-book profile has contacts but no route table.
+        // A pre-address-book profile has contacts but no route table, and
+        // predates schema versioning. Reopening it adds the table.
         conn.lock()
-            .execute_batch("DROP TABLE contact_routes")
+            .execute_batch("DROP TABLE contact_routes; PRAGMA user_version = 0;")
             .unwrap();
         drop(client);
-        let client = Client::open(conn).unwrap();
+        drop(conn);
+        let client = Client::open(SharedConn::open_file(&path).unwrap()).unwrap();
         let contact = client.contact(&identity).unwrap().unwrap();
         assert_eq!(contact.name.as_deref(), Some("Existing contact"));
         assert!(contact.verified);
@@ -178,6 +188,8 @@ mod contacts {
             .contact_route_save(&identity, &[4; 16], "validated by the application")
             .unwrap();
         assert_eq!(client.contact_routes(&identity).unwrap().len(), 1);
+        drop(client);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

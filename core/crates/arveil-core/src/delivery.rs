@@ -19,6 +19,8 @@ use crate::storage::SharedConn;
 mod attachment_store;
 pub use attachment_store::AttachmentRow;
 
+/// Delivery tables, part of the version 1 baseline in [`crate::schema`].
+/// Frozen: a change to these tables is a new migration, not an edit here.
 pub const DELIVERY_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS outbox (
     id          INTEGER PRIMARY KEY,
@@ -116,8 +118,9 @@ impl Delivery {
         )
     }
 
+    /// Wrap an open profile connection. Opening the connection already
+    /// brought its schema up to date (see [`crate::schema`]).
     pub fn open(conn: SharedConn) -> Result<Self, rusqlite::Error> {
-        conn.lock().execute_batch(DELIVERY_SCHEMA)?;
         Ok(Self { conn })
     }
 

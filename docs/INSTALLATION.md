@@ -85,7 +85,10 @@ Installing these packages does not require Flutter, Rust, Xcode or Android Studi
 **Update:** quit Arveil, replace the app in Applications with the newer version,
 and reopen it. Keep the existing profile and Keychain entry. Do not use an app
 cleaner to remove its data. If the key cannot be accessed, preserve the profile
-and resolve Keychain access before continuing.
+and resolve Keychain access before continuing. Do not replace the app with an
+older version: newer builds may change the profile in ways an older one cannot
+read. Builds after `0.1.0+11` detect a profile from a newer version and refuse
+to open it without changing it; earlier builds do not check.
 
 The classic login Keychain does not provide the same device-binding protection
 as the iOS Data Protection Keychain. It is not synchronized by Arveil, but

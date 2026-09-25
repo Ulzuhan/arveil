@@ -57,7 +57,7 @@ use arveil_core::client::{Client, Conversation, OwnMailbox, Peer, StoredDevice, 
 use arveil_core::delivery::Delivery;
 use arveil_core::envelope::{self, EnvelopeContext, KIND_MLS};
 use arveil_core::mls::Engine;
-use arveil_core::storage::SharedConn;
+use arveil_core::storage::{SharedConn, StorageError};
 use futures_util::FutureExt;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use mls_rs::client_builder::MlsConfig;
@@ -1533,6 +1533,17 @@ pub enum ApplicationOpenError {
     Closing { path: PathBuf },
     #[error("the profile key must be 32 bytes as 64 hexadecimal characters")]
     BadKey,
+    /// A newer build wrote this profile. Nothing was changed; a newer app
+    /// opens it.
+    #[error(
+        "client profile {} has schema version {found}, newer than the {supported} this build supports; it was not changed",
+        path.display()
+    )]
+    ProfileTooNew {
+        path: PathBuf,
+        found: u32,
+        supported: u32,
+    },
     #[error("cannot open client profile {}: {source}", path.display())]
     Unusable {
         path: PathBuf,
@@ -1769,11 +1780,31 @@ fn executor_for(config: ProfileConfig) -> Result<Arc<SerialExecutor>, Applicatio
 
     let profile_lock = profile_lock(dir.clone())?;
     // Opening the database here is what makes a wrong or absent key a failure
-    // of `open`, before any handle exists to hand a caller.
-    open_client(&config).map_err(|source| ApplicationOpenError::Unusable {
+    // of `open`, before any handle exists to hand a caller. The same open
+    // brings the schema up to date once, before any command runs, and
+    // refuses a profile from a newer build without changing it.
+    let unusable = |source| ApplicationOpenError::Unusable {
         path: dir.clone(),
         source,
-    })?;
+    };
+    std::fs::create_dir_all(config.dir())
+        .map_err(filesystem_error("data dir"))
+        .map_err(unusable)?;
+    let conn = SharedConn::open_file_keyed(&config.dir().join("client.db"), config.key()).map_err(
+        |error| match error {
+            StorageError::SchemaTooNew { found, supported } => {
+                ApplicationOpenError::ProfileTooNew {
+                    path: dir.clone(),
+                    found,
+                    supported,
+                }
+            }
+            other => unusable(storage_error("storage")(other)),
+        },
+    )?;
+    Client::open(conn)
+        .map_err(storage_error("client"))
+        .map_err(unusable)?;
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -5193,6 +5224,45 @@ mod tests {
         // The profile is still free, and its own key still opens it.
         Application::open(ProfileConfig::encrypted(&profile, &key).unwrap())
             .expect("the right key still opens the profile")
+            .close();
+        std::fs::remove_dir_all(profile).ok();
+    }
+
+    #[test]
+    fn a_profile_from_a_newer_build_is_refused_at_open_and_left_free() {
+        use arveil_core::schema::PROFILE_SCHEMA_VERSION;
+
+        let profile = std::env::temp_dir().join(format!(
+            "arveil-newer-schema-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::remove_dir_all(&profile).ok();
+        Application::open(ProfileConfig::unencrypted(&profile))
+            .expect("a new profile opens")
+            .close();
+        let set_version = |version: u32| {
+            rusqlite::Connection::open(profile.join("client.db"))
+                .unwrap()
+                .pragma_update(None, "user_version", version)
+                .unwrap();
+        };
+        set_version(PROFILE_SCHEMA_VERSION + 1);
+
+        match Application::open(ProfileConfig::unencrypted(&profile)) {
+            Err(ApplicationOpenError::ProfileTooNew {
+                found, supported, ..
+            }) => assert_eq!(
+                (found, supported),
+                (PROFILE_SCHEMA_VERSION + 1, PROFILE_SCHEMA_VERSION)
+            ),
+            Err(other) => panic!("expected a newer-profile refusal, got {other}"),
+            Ok(_) => panic!("a newer profile must not open"),
+        }
+        // The refusal released the profile: once readable again it opens.
+        set_version(PROFILE_SCHEMA_VERSION);
+        Application::open(ProfileConfig::unencrypted(&profile))
+            .expect("the profile is free after the refusal")
             .close();
         std::fs::remove_dir_all(profile).ok();
     }

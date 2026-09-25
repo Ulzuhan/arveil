@@ -358,3 +358,45 @@ perfil desechable, recupera su identidad con una nueva clave del almacén nativo
 importa desde memoria, reabre, comprueba que no reenvía ni reincorpora al grupo y
 envía texto por una conversación nueva creada expresamente. No exporta datos
 reales. Consulta [la evidencia de plataformas](PLATFORMS.md) para las ejecuciones.
+
+## Versionado del esquema del perfil (25 de septiembre de 2026)
+
+La base del perfil guarda la versión de su esquema en `PRAGMA user_version`, y
+`arveil_core::schema` aplica migraciones ordenadas al abrir una conexión. Antes,
+cada apertura volvía a ejecutar `CREATE TABLE IF NOT EXISTS`. Eso añade tablas
+nuevas pero no puede cambiar una existente: la columna `contacts.name` de la
+fase 4 se añadió editando el texto de la tabla, así que un perfil anterior no la
+tenía.
+
+- Un perfil sin versión, como los que escribe cualquier build hasta
+  `0.1.0+11`, es la versión 0. La migración 1 añade las tablas base que falten,
+  añade `contacts.name` si no existe y compara las columnas de cada tabla con la
+  base. Cualquier otra diferencia se rechaza como perfil de desarrollo no
+  soportado, y el rollback deja sus tablas y filas como estaban.
+- Cada migración se confirma junto con la versión que fija. Un fallo conserva
+  la versión anterior y la siguiente apertura continúa desde ahí.
+- Un perfil con una versión más reciente se rechaza antes de que la conexión
+  escriba nada, incluido el pragma del modo de diario. La aplicación devuelve
+  `ProfileTooNew`; la GUI pide actualizar la app e indica que el perfil no se ha
+  modificado. Una clave incorrecta se sigue informando como antes.
+- Las builds hasta `0.1.0+11` no leen la versión. La versión 1 no cambia
+  ninguna tabla existente salvo esa reparación, así que siguen abriendo un
+  perfil adoptado, pero una migración posterior puede no ser compatible con
+  ellas. No instales una app más antigua sobre una más nueva; Android ya rechaza
+  un número de build menor.
+- Los textos base (`MLS_SCHEMA`, `CLIENT_SCHEMA`, `DELIVERY_SCHEMA`) quedan
+  congelados. Un cambio de esquema es una migración nueva al final de la lista,
+  con una prueba que parte de la versión anterior.
+
+Evidencia: las pruebas `schema` de `arveil-core` cubren perfiles nuevos,
+adoptados, reparados, no soportados, más recientes (sin cifrar y con SQLCipher),
+con versión negativa, con una migración interrumpida y reanudada, y reabiertos.
+`arveil-app` comprueba que `Application::open` rechaza un perfil más reciente y
+lo libera, y una prueba de Flutter comprueba el mensaje. Una ejecución local usó
+binarios reales de `main` para crear un perfil CLI cifrado y otro sin cifrar con
+una conversación MLS activa. La CLI nueva adoptó ambos y la conversación siguió
+sin pérdidas. La CLI antigua siguió leyendo el perfil adoptado, y una copia
+marcada como versión 2 se rechazó sin cambiar un byte. Pasaron las pruebas del
+workspace, Clippy, el spike MLS, la demo y los scripts de fase. La actualización
+de apps empaquetadas con perfiles poblados en Android y macOS sigue siendo un
+paso de aceptación del [rediseño del cliente](PHASE3B.md).

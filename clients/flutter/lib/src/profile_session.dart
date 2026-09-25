@@ -313,6 +313,8 @@ String describeFailure(Object failure) => switch (failure) {
     'El perfil está abierto en otra sesión. Ciérrala e inténtalo de nuevo.',
   ProfileError_Closing() =>
     'El perfil aún se está cerrando. Vuelve a intentarlo.',
+  ProfileError_TooNew() =>
+    'Una versión más reciente de Arveil guardó este perfil. Actualiza la app para abrirlo; el perfil no se ha modificado.',
   ProfileError_Unusable() =>
     'No se pudo descifrar el perfil. Conserva los datos y comprueba su clave.',
   ProfileError_Io() || FileSystemException() =>

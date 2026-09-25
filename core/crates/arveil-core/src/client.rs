@@ -23,6 +23,8 @@ mod archive_store;
 mod device_store;
 pub use device_store::Revocation;
 
+/// Client tables, part of the version 1 baseline in [`crate::schema`].
+/// Frozen: a change to these tables is a new migration, not an edit here.
 pub const CLIENT_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS identity (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
@@ -570,8 +572,9 @@ pub struct KeyPackageObservation {
 }
 
 impl Client {
+    /// Wrap an open profile connection. Opening the connection already
+    /// brought its schema up to date (see [`crate::schema`]).
     pub fn open(conn: SharedConn) -> Result<Self, ClientError> {
-        conn.lock().execute_batch(CLIENT_SCHEMA)?;
         Ok(Self { conn })
     }
 
