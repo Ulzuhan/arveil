@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Merged by build.gradle.kts only into builds with an update feed: the
+         foreground, user-confirmed signed APK update flow is its only use. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+</manifest>

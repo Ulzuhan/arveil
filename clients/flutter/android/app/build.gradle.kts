@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -10,6 +12,17 @@ val releaseStore = providers.environmentVariable("ARVEIL_ANDROID_KEYSTORE")
 val releaseStorePassword = providers.environmentVariable("ARVEIL_ANDROID_STORE_PASSWORD")
 val releaseKeyAlias = providers.environmentVariable("ARVEIL_ANDROID_KEY_ALIAS")
 val releaseKeyPassword = providers.environmentVariable("ARVEIL_ANDROID_KEY_PASSWORD")
+
+// Only a build with an update feed asks for the permission to install
+// packages; stores and device policies may flag it. Flutter hands its
+// dart-defines to Gradle as comma-separated Base64, from --dart-define and
+// --dart-define-from-file alike.
+val dartDefines = (findProperty("dart-defines") as String?).orEmpty()
+    .split(",").filter { it.isNotEmpty() }
+    .map { String(Base64.getDecoder().decode(it)) }
+val updateFeed = listOf("ARVEIL_UPDATE_URL=", "ARVEIL_UPDATE_PUBLIC_KEY=").all { name ->
+    dartDefines.any { it.startsWith(name) && it.length > name.length }
+}
 
 android {
     namespace = "io.github.ulzuhan.arveil"
@@ -56,6 +69,12 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
             releaseKeyAlias.isPresent && releaseKeyPassword.isPresent) {
             "Release signing is missing. Use scripts/package_clients.py; see docs/CLIENT_RELEASES.md."
         }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        if (updateFeed) variant.sources.manifests.addStaticManifestFile("src/updateFeed/AndroidManifest.xml")
     }
 }
 

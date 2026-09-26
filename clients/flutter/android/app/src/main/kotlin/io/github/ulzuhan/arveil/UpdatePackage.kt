@@ -8,8 +8,13 @@ import java.security.MessageDigest
 internal object UpdatePackage {
     const val MAX_BYTES = 512L * 1024 * 1024
 
+    /** The bytes read are not the package that was announced and verified. */
+    class Mismatch : IllegalArgumentException("The package does not match its announcement")
+
+    private fun expect(condition: Boolean) { if (!condition) throw Mismatch() }
+
     fun copyVerified(input: InputStream, output: OutputStream, size: Long, sha256: String) {
-        require(size in 1..MAX_BYTES && sha256.matches(Regex("[0-9a-f]{64}")))
+        expect(size in 1..MAX_BYTES && sha256.matches(Regex("[0-9a-f]{64}")))
         val digest = MessageDigest.getInstance("SHA-256")
         val buffer = ByteArray(64 * 1024)
         var total = 0L
@@ -17,14 +22,24 @@ internal object UpdatePackage {
             val count = input.read(buffer)
             if (count < 0) break
             total += count
-            require(total <= size)
+            expect(total <= size)
             digest.update(buffer, 0, count)
             output.write(buffer, 0, count)
         }
-        require(total == size)
+        expect(total == size)
         val actual = digest.digest().joinToString("") { "%02x".format(it) }
-        require(actual == sha256)
+        expect(actual == sha256)
     }
+
+    /**
+     * The code Dart receives when preparing an installation fails. Until the
+     * package is [accepted], and whenever the bytes written differ from it,
+     * the package is at fault and Dart deletes it. A failure while Android
+     * takes an accepted package, such as a full disk or a refused session, is
+     * "storage": the download stays for another attempt.
+     */
+    fun failure(accepted: Boolean, error: Throwable): String =
+        if (!accepted || error is Mismatch) "package" else "storage"
 
     /**
      * Whether a session this app left behind should be abandoned before a new

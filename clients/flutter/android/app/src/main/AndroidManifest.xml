@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Only the foreground, user-confirmed signed APK update flow uses this. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- REQUEST_INSTALL_PACKAGES comes from src/updateFeed, only into builds
+         with an update feed. -->
     <!-- The profile is an encrypted database and its key is held by the
          Keystore. Neither travels to a cloud backup or a device transfer:
          exclusion is not encryption, it keeps the encrypted file out of an

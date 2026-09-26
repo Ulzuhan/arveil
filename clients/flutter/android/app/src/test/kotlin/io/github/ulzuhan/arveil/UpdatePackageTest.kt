@@ -23,9 +23,21 @@ class UpdatePackageTest {
             Triple(bytes.reversedArray(), bytes.size.toLong(), digest),
             Triple(bytes, 0L, digest), Triple(bytes, UpdatePackage.MAX_BYTES + 1, digest),
             Triple(bytes, bytes.size.toLong(), "0".repeat(64)),
-        )) assertThrows(IllegalArgumentException::class.java) {
+        )) assertThrows(UpdatePackage.Mismatch::class.java) {
             UpdatePackage.copyVerified(ByteArrayInputStream(input), ByteArrayOutputStream(), size, hash)
         }
+    }
+
+    @Test fun onlyAPackageFaultDeletesTheDownload() {
+        val full = java.io.IOException("No space left on device")
+        // Refused before it was accepted: the package is at fault.
+        assertEquals("package", UpdatePackage.failure(false, IllegalArgumentException()))
+        assertEquals("package", UpdatePackage.failure(false, full))
+        // Accepted, then the bytes written differ: still the package.
+        assertEquals("package", UpdatePackage.failure(true, UpdatePackage.Mismatch()))
+        // Accepted, then Android could not take it: kept for another attempt.
+        assertEquals("storage", UpdatePackage.failure(true, full))
+        assertEquals("storage", UpdatePackage.failure(true, SecurityException()))
     }
 
     @Test fun neverAsksWhetherASessionIsSealedBelowApi26() {

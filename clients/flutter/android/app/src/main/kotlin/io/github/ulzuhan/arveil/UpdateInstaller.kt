@@ -9,12 +9,15 @@ import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
+import androidx.core.net.toUri
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.lang.ref.WeakReference
 import java.util.UUID
 import java.util.concurrent.Executors
 
@@ -27,11 +30,20 @@ class UpdateResultReceiver : BroadcastReceiver() {
 
 internal class UpdateInstaller(private val activity: Activity, messenger: BinaryMessenger) {
     companion object {
-        var active: UpdateInstaller? = null
-            private set
+        // Weak, so a destroyed activity is never kept alive through it.
+        private var current = WeakReference<UpdateInstaller>(null)
+        val active: UpdateInstaller? get() = current.get()
+
+        /**
+         * How long a return from the confirmation waits for Android's status
+         * before asking about the session itself: some versions send none
+         * when the confirmation is dismissed.
+         */
+        const val SETTLE_MILLIS = 2000L
     }
     private val channel = MethodChannel(messenger, "io.github.ulzuhan.arveil/updates")
     private val worker = Executors.newSingleThreadExecutor()
+    private val main = Handler(Looper.getMainLooper())
     private val packages = activity.packageManager
     private val installer = packages.packageInstaller
     private var pending: MethodChannel.Result? = null
@@ -39,8 +51,16 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
     private var sessionId = -1
     private var action: String? = null
     private var confirmation: Intent? = null
+    private var shown = false
     private var resumed = false
     @Volatile private var closed = false
+
+    /**
+     * A committed session whose outcome never arrived. It is left alone,
+     * since the person may have confirmed it, until another attempt starts.
+     */
+    @Volatile private var unsettled = -1
+    private val settle = Runnable { settle() }
 
     @Suppress("DEPRECATION")
     private fun info(path: String? = null): PackageInfo? {
@@ -75,7 +95,7 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
         .map { it.sessionId }
 
     init {
-        active = this
+        current = WeakReference(this)
         channel.setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
@@ -85,8 +105,16 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
                     "permission" -> {
                         if (Build.VERSION.SDK_INT >= 26) {
                             activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                Uri.parse("package:${activity.packageName}")))
+                                "package:${activity.packageName}".toUri()))
                         }
+                        result.success(null)
+                    }
+                    "open" -> {
+                        // Dart passes the signed, HTTPS-only release notes link.
+                        val link = call.argument<String>("url")!!.toUri()
+                        require(link.scheme == "https")
+                        activity.startActivity(Intent(Intent.ACTION_VIEW, link)
+                            .addCategory(Intent.CATEGORY_BROWSABLE))
                         result.success(null)
                     }
                     "install" -> {
@@ -111,6 +139,7 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
 
     private fun prepare(file: File, expectedBuild: Long, size: Long, digest: String) {
         var created = -1
+        var accepted = false
         try {
             val directory = File(activity.cacheDir, "updates").canonicalFile
             require(file.name == "update.apk" && file.canonicalFile.parentFile == directory)
@@ -119,7 +148,11 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
             val candidate = info(file.path) ?: error("Invalid archive")
             require(UpdatePackage.compatible(installed.packageName, version(installed), signers(installed),
                 candidate.packageName, version(candidate), signers(candidate), expectedBuild))
-            if (Build.VERSION.SDK_INT >= 24) require(candidate.applicationInfo!!.minSdkVersion <= Build.VERSION.SDK_INT)
+            require(candidate.applicationInfo!!.minSdkVersion <= Build.VERSION.SDK_INT)
+            accepted = true
+            // A new attempt replaces a session whose outcome never arrived.
+            unsettled.takeIf { it >= 0 }?.let { installer.abandonSession(it) }
+            unsettled = -1
             // A crash during copying can leave an unsealed session behind.
             leftoverSessions().forEach { installer.abandonSession(it) }
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
@@ -147,15 +180,16 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
                     installer.openSession(prepared).use { it.commit(callback!!.intentSender) }
                 } catch (_: Throwable) { finish("install") }
             }
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
             // Throwable, not Exception: an Error on this worker thread would end the app.
             if (created >= 0) try { installer.abandonSession(created) } catch (_: Throwable) { }
             // Neither the archive nor Android exception text is surfaced to Dart.
-            try {
+            val code = UpdatePackage.failure(accepted, error)
+            if (code == "package") try {
                 file.takeIf { it.name == "update.apk" &&
                     it.canonicalFile == File(File(activity.cacheDir, "updates").canonicalFile, "update.apk") }?.delete()
             } catch (_: Throwable) { /* Still report failure if removal is unavailable. */ }
-            activity.runOnUiThread { if (!closed) finish("package") }
+            activity.runOnUiThread { if (!closed) finish(code) }
         }
     }
 
@@ -174,21 +208,53 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
         }
     }
 
-    fun onResume() { resumed = true; showConfirmation() }
-    fun onPause() { resumed = false }
+    fun onResume() {
+        resumed = true
+        // Back from the confirmation: give Android's status a moment first.
+        if (shown && pending != null) {
+            main.removeCallbacks(settle)
+            main.postDelayed(settle, SETTLE_MILLIS)
+        }
+        showConfirmation()
+    }
+
+    fun onPause() {
+        resumed = false
+        main.removeCallbacks(settle)
+    }
 
     private fun showConfirmation() {
         val intent = confirmation ?: return
         if (!resumed || closed) return
         confirmation = null
-        try { activity.startActivity(intent) } catch (_: Exception) { finish("install") }
+        try {
+            activity.startActivity(intent)
+            shown = true
+        } catch (_: Exception) { finish("install") }
     }
 
-    private fun finish(error: String?) {
-        if (error != null && sessionId >= 0) try { installer.abandonSession(sessionId) } catch (_: Exception) { }
+    /**
+     * No status arrived after the person came back from the confirmation, so
+     * the screen would wait forever. A session that is gone was cancelled. One
+     * that remains may have been confirmed and be installing, so it is not
+     * abandoned here: Dart is told it was cancelled, and the next attempt
+     * replaces the session if it is still there.
+     */
+    private fun settle() {
+        if (closed || pending == null || !shown || !resumed) return
+        val id = sessionId
+        val remains = try { installer.getSessionInfo(id) != null } catch (_: Throwable) { false }
+        if (remains) unsettled = id
+        finish("cancelled", abandon = false)
+    }
+
+    private fun finish(error: String?, abandon: Boolean = true) {
+        if (abandon && error != null && sessionId >= 0) try { installer.abandonSession(sessionId) } catch (_: Exception) { }
+        main.removeCallbacks(settle)
         callback?.cancel()
         callback = null
         confirmation = null
+        shown = false
         sessionId = -1
         action = null
         val result = pending
@@ -199,8 +265,10 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
     fun close() {
         closed = true
         channel.setMethodCallHandler(null)
-        if (active === this) active = null
-        finish("cancelled")
+        if (active === this) current.clear()
+        // A committed session may be waiting for the person, who can still
+        // confirm it after this activity is gone; only Dart's call ends here.
+        finish("cancelled", abandon = false)
         worker.shutdown()
     }
 }
