@@ -42,6 +42,22 @@ usuario. No se ofrece como alternativa desinstalar, volver a una versión
 anterior ni borrar los datos. Un anuncio caducado debe renovarse antes de
 instalar.
 
+Una oferta que caduca, o que supera un anuncio más reciente, desaparece de la
+pantalla. Una comprobación que falla, por falta de conexión o porque el
+servicio respondió mal, conserva una oferta que sigue siendo válida, con su
+descarga. Si Android no puede recibir el paquete, por ejemplo por falta de
+espacio, la descarga se conserva para otro intento; un paquete que no es el
+anunciado se borra. Algunas versiones de Android no responden cuando se
+descarta la confirmación: al volver a Arveil, el intento figura como cancelado
+al cabo de un momento, y **Instalar actualización** vuelve a empezar. El enlace
+a las notas de la versión se abre en el navegador, que contacta con ese sitio.
+
+Solo los builds con canal de actualizaciones piden el permiso de Android para
+instalar paquetes. **Ajustes → Diagnóstico** indica `updates:` seguido de
+`none`, del canal, o de `invalid` cuando el build lleva una configuración de
+actualizaciones que la app rechazó; ese build se comporta como uno sin
+actualizaciones.
+
 ## Configurar una distribución
 
 Usa el [empaquetado del cliente](CLIENT_RELEASES.md) y conserva la clave de
@@ -221,10 +237,12 @@ El manifiesto está limitado a 64 KiB y el APK a 512 MiB. Las notas de la
 versión son texto plano de como mucho 8000 code points Unicode; el firmador y
 la app las cuentan igual, y
 `clients/flutter/test/fixtures/update-manifest-vectors.json` mantiene sus
-reglas alineadas. Los tiempos de espera
-y las comprobaciones de tamaño durante la transmisión acotan las descargas. Las
-descargas no válidas o incompletas se eliminan. Android vuelve a calcular el
-hash de los bytes mientras los copia a la sesión de instalación.
+reglas alineadas. Una descarga falla si se detiene 30 segundos o si dura más
+de 10 minutos más un segundo por cada 16 KiB del paquete; las comprobaciones de
+tamaño durante la transmisión también la acotan. Las descargas no válidas o
+incompletas se eliminan, y un paquete descargado se elimina la siguiente vez
+que arranca la app, así que no queda tras instalarlo. La app vuelve a calcular
+el hash de los bytes mientras los copia a la sesión de instalación.
 
 `updates.json`, en el directorio de soporte de la aplicación, guarda si
 activaste la comprobación, el último intento y, para cada clave de

@@ -35,6 +35,21 @@ Android 12+, the session explicitly requires user action. Android performs the f
 and asks the user to confirm. No uninstall, downgrade or data-clear fallback is
 offered. An expired announcement must be refreshed before installation.
 
+An offer that expires, or that a newer announcement overtakes, leaves the
+screen. A check that fails, for lack of connection or because the service
+answered badly, keeps an offer that is still valid, with its download. If
+Android cannot take the package, for example for lack of space, the download
+stays for another attempt; a package that is not the announced one is deleted.
+Some Android versions send no answer when the confirmation is dismissed: back
+in Arveil, the attempt then reads as cancelled after a moment, and **Install
+update** starts again. The release notes link opens in the browser, which
+contacts that site.
+
+Only builds with a feed request Android's permission to install packages.
+**Settings → Diagnostics** reports `updates:` followed by `none`, the channel,
+or `invalid` when the build carries an update configuration the app refused;
+such a build behaves as one without updates.
+
 ## Configure a distribution
 
 Use [client packaging](CLIENT_RELEASES.md) and retain the existing Android
@@ -197,9 +212,12 @@ The payload contains:
 The feed is limited to 64 KiB and the APK to 512 MiB. Release notes are plain
 text of at most 8,000 Unicode code points; the signer and the app count them
 the same way, and `clients/flutter/test/fixtures/update-manifest-vectors.json`
-keeps their rules in step. Timeouts and streamed
-size checks bound downloads. Invalid/partial downloads are removed. Android
-hashes the bytes again while copying them into the installation session.
+keeps their rules in step. A download fails if it stalls for 30 seconds or
+takes longer than 10 minutes plus one second per 16 KiB of package; streamed
+size checks bound it too. Invalid/partial downloads are removed, and a
+downloaded package is removed when the app next starts, so it never stays after
+installing. The app hashes the bytes again while copying them into the
+installation session.
 
 `updates.json` in application support stores the opt-in choice, the last
 attempt and, for each update key and channel, the highest accepted sequence
