@@ -8,7 +8,8 @@ import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'widget_test.dart' show FakeProfile, relay;
+import 'widget_test.dart'
+    show FakeProfile, destination, home, openSettings, relay;
 
 const secret = 'TEST-ONLY-RECOVERY-SECRET';
 const sas = '123456';
@@ -173,6 +174,7 @@ void main() {
     final profile = RecoveryProfile()..ready();
     final files = MemoryKitFiles();
     await open(tester, profile, files: files);
+    await openSettings(tester);
     await tester.tap(find.text('Guardar kit cifrado'));
     await tester.pumpAndSettle();
     expect(find.text(secret), findsNothing);
@@ -196,7 +198,10 @@ void main() {
       final files = MemoryKitFiles()..saved = true;
       await open(tester, profile, files: files);
       expect(find.byKey(const Key('kit-reminder')), findsOneWidget);
-      await tester.ensureVisible(find.text('Guardar kit cifrado'));
+      // The reminder leads to the kit panel in settings.
+      await tester.tap(find.text('Guardar kit'));
+      await tester.pumpAndSettle();
+      expect(find.text('Guardar kit cifrado').hitTestable(), findsOneWidget);
       await tester.tap(find.text('Guardar kit cifrado'));
       await tester.pumpAndSettle();
       expect(profile.kitConfirmations, 0, reason: 'a saved file is not enough');
@@ -206,6 +211,8 @@ void main() {
       await tester.tap(find.text('He guardado la clave por separado'));
       await tester.pumpAndSettle();
       expect(profile.kitConfirmations, 1);
+      await tester.tap(destination('Chats'));
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('kit-reminder')), findsNothing);
     },
   );
@@ -245,6 +252,7 @@ void main() {
     final profile = RecoveryProfile()..ready();
     final files = MemoryKitFiles()..saving = Completer<bool>();
     await open(tester, profile, files: files);
+    await openSettings(tester);
     await tester.tap(find.text('Guardar kit cifrado'));
     await tester.pump();
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -295,7 +303,7 @@ void main() {
       await tester.tap(find.text('Reanudar recuperación'));
       await tester.pumpAndSettle();
       expect(profile.resumes, 1);
-      expect(find.text('Tu perfil está listo'), findsOneWidget);
+      expect(home, findsOneWidget);
     },
   );
   testWidgets(
@@ -322,8 +330,13 @@ void main() {
       await tester.tap(find.text('Confirmar comparación'));
       await tester.pumpAndSettle();
       expect(profile.confirmations, 2);
-      expect(find.text('Tu perfil está listo'), findsOneWidget);
+      expect(home, findsOneWidget);
+      await openSettings(tester);
       expect(find.text('Guardar kit cifrado'), findsNothing);
+      expect(
+        find.textContaining('El kit de identidad se exporta'),
+        findsOneWidget,
+      );
     },
   );
   testWidgets('expired pairing cannot be confirmed', (tester) async {

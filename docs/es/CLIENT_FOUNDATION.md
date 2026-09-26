@@ -677,3 +677,43 @@ Evidencia:
   inglés, incluido el texto que se genera fuera de los widgets.
 - El CI vuelve a generar las localizaciones y falla si difieren de las
   incluidas en el repositorio o si queda algún mensaje sin traducir.
+
+## Navegación adaptativa y atajos (25 de septiembre de 2026)
+
+Un perfil listo abre la navegación principal, con Chats, Contactos y Ajustes.
+Sin identidad solo se muestran la bienvenida y el alta, y un alta que termina
+lleva directamente a Chats.
+
+- **Tamaños.** Por debajo de 600 dp hay una barra inferior, y una conversación
+  abierta ocupa toda la pantalla sin ella. Entre 600 y 839 dp la estructura es
+  la misma, con márgenes mayores. Desde 840 dp un raíl lateral acompaña a la
+  lista y a la conversación, que comparten la ventana. Los límites están en
+  `WindowSize`, dentro del sistema de diseño.
+- **Estado.** Cada destino se construye al visitarlo por primera vez y después
+  sigue montado: la conversación continúa sincronizando y conserva su borrador
+  mientras se ven los contactos o los ajustes, y también cuando la ventana
+  cambia de tamaño. El gesto de volver cierra primero la conversación y, desde
+  otro destino, vuelve a Chats.
+- **Ajustes.** Reúne lo que antes mostraba la pantalla del perfil:
+  dispositivos, historial cifrado, claves para grupos nuevos, el kit de
+  identidad, la vinculación de otro dispositivo y «Cerrar perfil». El
+  recordatorio del kit y el aviso de recuperación aparecen sobre la lista de
+  chats, y «Guardar kit» lleva al panel del kit en Ajustes.
+- **Atajos de escritorio** (⌘ en macOS, Ctrl en los demás sistemas): ⌘N abre
+  un chat nuevo, ⌥↑ y ⌥↓ pasan al chat anterior o siguiente, ⌘, abre Ajustes y
+  Esc cierra la conversación; los diálogos se cierran con Esc por sí mismos.
+  Esc no cierra pantallas con formularios, para no perder lo escrito. En
+  escritorio Intro envía y Mayús+Intro no envía; mientras un método de entrada
+  compone texto, Intro confirma la composición. En el móvil Intro inserta una
+  línea. ⌘K llegará con la búsqueda de chats (C2).
+- **Foco.** El raíl, la lista y la conversación forman grupos de recorrido,
+  así que el tabulador avanza del raíl a la lista y de ahí a la conversación.
+
+Evidencia:
+
+- `test/navigation_test.dart` recorre la app a 390×844 y a 1280×800: barra o
+  raíl, conversación a pantalla completa en el móvil, gesto de volver, cambio
+  de tamaño sin perder el borrador, los atajos en macOS y Linux, Intro en
+  macOS, Windows y Android, y el orden del tabulador.
+- Las pruebas del kit, la recuperación, la vinculación y las claves siguen el
+  camino nuevo hasta Ajustes.

@@ -121,15 +121,16 @@ instalación. Conserva la app actual si Android informa de un conflicto.
 ### Primer uso y límites
 
 La interfaz sigue el idioma del sistema: inglés si el sistema lo prefiere y
-español en los demás casos. El alta completada muestra el resumen del
-perfil. Si falla la conexión, cierra/reabre y reintenta con el **mismo relay y
-la misma invitación**. Al reabrir un alta completada no necesitas otra
-invitación. El código actual también permite emparejamiento, kits y conversaciones.
+español en los demás casos. El alta completada abre **Chats**, con **Contactos**
+y **Ajustes** en la barra inferior del móvil o en el raíl lateral de una ventana
+ancha. Si falla la conexión, cierra/reabre y reintenta con el **mismo relay y la
+misma invitación**. Al reabrir un alta completada no necesitas otra invitación.
+El código actual también permite emparejamiento, kits y conversaciones.
 
 Para probar conversaciones con perfiles desechables del mismo relay usando
 el código actual o un paquete que lo incluya:
 
-1. Pulsa **Abrir conversaciones** y **Mi ruta** para compartir en privado la ruta
+1. En **Chats**, pulsa **Mi ruta** para compartir en privado la ruta
    de este dispositivo con tu contacto. Cada persona obtiene aquí su ruta.
 2. Entra en **Contactos → Añadir contacto**, pega una ruta, asigna un nombre local
    opcional y pulsa **Preparar contacto**. Comparad el número completo por otro
@@ -223,7 +224,7 @@ o todas esas pruebas existan ya; véase la [fase 3b](PHASE3B.md).
 
 ## Gestionar tus dispositivos (disponible desde `0.1.0+8`)
 
-Abre **Gestionar dispositivos** desde el perfil. Compara el identificador
+Abre **Gestionar dispositivos** en **Ajustes**. Compara el identificador
 completo con el del otro dispositivo antes de revocarlo. Solo el administrador
 puede revocar otro dispositivo; el actual no puede revocarse a sí mismo. Un
 perfil vinculado puede mostrar un inventario parcial al desconocer otros IDs.
@@ -241,7 +242,7 @@ acepta el reintento idéntico y guarda la revocación y el manifiesto juntos.
 
 ## Guardar y recuperar el historial (disponible desde `0.1.0+9`)
 
-1. En el perfil, abre **Historial cifrado**, confirma que la copia permite leer
+1. En **Ajustes**, abre **Historial cifrado**, confirma que la copia permite leer
    mensajes antiguos y pulsa **Guardar historial cifrado**. Si el selector nativo
    termina antes de que la app recupere el foco, pulsa **Mostrar clave del archivo
    guardado** al volver (corregido en `0.1.0+10`). Guarda su clave por separado,

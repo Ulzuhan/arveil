@@ -130,6 +130,20 @@ abstract final class ArveilTheme {
         textColor: c.onAccent,
         textStyle: text.labelMedium,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: c.bar,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: c.accentSoft,
+        elevation: 0,
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: c.bar,
+        indicatorColor: c.accentSoft,
+        selectedIconTheme: IconThemeData(color: c.ink),
+        unselectedIconTheme: IconThemeData(color: c.inkSoft),
+        selectedLabelTextStyle: text.labelMedium?.copyWith(color: c.ink),
+        unselectedLabelTextStyle: text.labelMedium?.copyWith(color: c.inkSoft),
+      ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: c.accent,
         linearTrackColor: c.accentSoft,

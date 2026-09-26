@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'l10n/l10n.dart';
 import 'src/design/theme.dart';
-import 'src/devices_page.dart';
-import 'src/archives_page.dart';
-import 'src/profile_session.dart';
-import 'src/conversation_controller.dart';
-import 'src/conversations_page.dart';
+import 'src/home_shell.dart';
 import 'src/kit_files.dart';
-import 'src/key_packages_panel.dart';
 import 'src/pairing_panel.dart';
+import 'src/profile_session.dart';
 import 'src/recovery_panel.dart';
+import 'src/settings_page.dart';
 import 'src/rust/api/profile.dart';
 import 'src/rust/frb_generated.dart';
 
@@ -43,6 +40,8 @@ class ArveilApp extends StatelessWidget {
   );
 }
 
+/// Opens the profile and routes it: the welcome while closed, enrollment
+/// until the identity is ready, and then the main navigation.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, this.session, required this.kitFiles});
   final ProfileSession? session;
@@ -55,7 +54,6 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   late final ProfileSession _session = widget.session ?? ProfileSession();
   final _form = GlobalKey<FormState>();
-  final _kitPanel = GlobalKey();
   String _entry = 'enroll';
   final _bootstrap = TextEditingController();
   final _invite = TextEditingController();
@@ -91,98 +89,85 @@ class _ProfilePageState extends State<ProfilePage> {
     if (await _session.close() && mounted) _bootstrap.clear();
   }
 
+  bool get _ready =>
+      _session.isOpen && _session.setup?.stage == SetupStage.ready;
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _session,
-    builder: (context, _) => Scaffold(
-      appBar: AppBar(
-        title: const Text('Arveil'),
-        actions: [
-          if (_session.isOpen)
-            TextButton.icon(
-              onPressed: _session.busy || _session.cancellingPairing
-                  ? null
-                  : _close,
-              icon: const Icon(Icons.lock_outline),
-              label: Text(context.l10n.profileClose),
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                if (!_session.isOpen)
-                  ..._welcome(context)
-                else if (_session.setup == null) ...[
-                  Text(context.l10n.profileStateUnreadable),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _session.busy ? null : _session.refresh,
-                    child: Text(context.l10n.profileReadAgain),
-                  ),
-                ] else if (_session.setup!.stage == SetupStage.ready)
-                  ..._ready(context)
-                else if (_session.setup!.stage == SetupStage.recovering)
-                  RecoveryResumePanel(session: _session)
-                else if (_session.setup!.stage == SetupStage.linkedDevice ||
-                    _session.setup!.pairing != null ||
-                    _entry == 'pair') ...[
-                  PairingPanel(
-                    key: const Key('pair-new-device'),
-                    session: _session,
-                  ),
-                  if (_session.setup!.stage == SetupStage.new_ &&
-                      _session.setup!.pairing == null)
-                    TextButton(
-                      onPressed: _session.busy
-                          ? null
-                          : () => setState(() => _entry = 'enroll'),
-                      child: Text(context.l10n.enrollBack),
-                    ),
-                ] else if (_entry == 'restore') ...[
-                  RecoveryPanel(
-                    key: const Key('restore-panel'),
-                    session: _session,
-                    files: widget.kitFiles,
-                  ),
+    builder: (context, _) => _ready
+        ? HomeShell(
+            session: _session,
+            kitFiles: widget.kitFiles,
+            onClose: _close,
+          )
+        : _enrollment(context),
+  );
+
+  Widget _enrollment(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Arveil'),
+      actions: [
+        if (_session.isOpen)
+          TextButton.icon(
+            onPressed: _session.busy || _session.cancellingPairing
+                ? null
+                : _close,
+            icon: const Icon(Icons.lock_outline),
+            label: Text(context.l10n.profileClose),
+          ),
+      ],
+    ),
+    body: SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              if (!_session.isOpen)
+                ..._welcome(context)
+              else if (_session.setup == null) ...[
+                Text(context.l10n.profileStateUnreadable),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: _session.busy ? null : _session.refresh,
+                  child: Text(context.l10n.profileReadAgain),
+                ),
+              ] else if (_session.setup!.stage == SetupStage.recovering)
+                RecoveryResumePanel(session: _session)
+              else if (_session.setup!.stage == SetupStage.linkedDevice ||
+                  _session.setup!.pairing != null ||
+                  _entry == 'pair') ...[
+                PairingPanel(
+                  key: const Key('pair-new-device'),
+                  session: _session,
+                ),
+                if (_session.setup!.stage == SetupStage.new_ &&
+                    _session.setup!.pairing == null)
                   TextButton(
                     onPressed: _session.busy
                         ? null
                         : () => setState(() => _entry = 'enroll'),
                     child: Text(context.l10n.enrollBack),
                   ),
-                ] else
-                  ..._onboarding(context),
-                if (_session.busy) ...[
-                  const SizedBox(height: 24),
-                  LinearProgressIndicator(
-                    semanticsLabel: context.l10n.operationInProgress,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(context.l10n.operationInProgressDetail),
-                ],
-                if (_session.error case final message?) ...[
-                  const SizedBox(height: 24),
-                  Semantics(
-                    liveRegion: true,
-                    child: Container(
-                      key: const Key('error'),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.errorContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(message),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+              ] else if (_entry == 'restore') ...[
+                RecoveryPanel(
+                  key: const Key('restore-panel'),
+                  session: _session,
+                  files: widget.kitFiles,
+                ),
+                TextButton(
+                  onPressed: _session.busy
+                      ? null
+                      : () => setState(() => _entry = 'enroll'),
+                  child: Text(context.l10n.enrollBack),
+                ),
+              ] else
+                ..._onboarding(context),
+              SessionActivity(session: _session),
+            ],
           ),
         ),
       ),
@@ -311,139 +296,4 @@ class _ProfilePageState extends State<ProfilePage> {
       ],
     ];
   }
-
-  /// Why the administration device should save a kit now, or nothing.
-  String? _kitReminder(AppLocalizations l10n) {
-    final setup = _session.setup!;
-    if (!setup.administrator || _session.kitReminderDismissed) return null;
-    if (setup.kitSavedAt == null) {
-      return l10n.kitReminderNever;
-    }
-    if (setup.kitStale) {
-      return l10n.kitReminderStale;
-    }
-    return null;
-  }
-
-  List<Widget> _ready(BuildContext context) => [
-    const Icon(Icons.check_circle_outline, size: 48),
-    const SizedBox(height: 20),
-    Text(
-      context.l10n.readyTitle,
-      style: Theme.of(context).textTheme.headlineLarge,
-    ),
-    const SizedBox(height: 16),
-    Text(context.l10n.readyBody),
-    const SizedBox(height: 24),
-    if (_kitReminder(context.l10n) case final message?) ...[
-      Card(
-        key: const Key('kit-reminder'),
-        color: Theme.of(context).colorScheme.tertiaryContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(message),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilledButton(
-                    onPressed: () {
-                      final panel = _kitPanel.currentContext;
-                      if (panel != null) Scrollable.ensureVisible(panel);
-                    },
-                    child: Text(context.l10n.kitSave),
-                  ),
-                  TextButton(
-                    onPressed: () =>
-                        setState(() => _session.kitReminderDismissed = true),
-                    child: Text(context.l10n.later),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 24),
-    ],
-    if (_session.setup!.recoveryWarning) ...[
-      Text(context.l10n.recoveryRollbackWarning),
-      const SizedBox(height: 24),
-    ],
-    FilledButton.icon(
-      onPressed: _session.busy
-          ? null
-          : () {
-              final controller = ConversationController(
-                _session.profile!,
-                _session.setup!.bootstrap!,
-              );
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => ConversationsPage(controller: controller),
-                ),
-              );
-            },
-      icon: const Icon(Icons.forum_outlined),
-      label: Text(context.l10n.openConversations),
-    ),
-
-    const SizedBox(height: 24),
-    OutlinedButton.icon(
-      key: const Key('open-devices'),
-      onPressed: _session.busy
-          ? null
-          : () => Navigator.of(context).push<void>(
-              MaterialPageRoute(
-                builder: (_) => DevicesPage(
-                  profile: _session.profile!,
-                  bootstrap: _session.setup!.bootstrap!,
-                ),
-              ),
-            ),
-      icon: const Icon(Icons.devices),
-      label: Text(context.l10n.manageDevices),
-    ),
-    const SizedBox(height: 24),
-    OutlinedButton.icon(
-      key: const Key('open-archives'),
-      onPressed: _session.busy
-          ? null
-          : () => Navigator.of(context).push<void>(
-              MaterialPageRoute(
-                builder: (_) => ArchivesPage(profile: _session.profile!),
-              ),
-            ),
-      icon: const Icon(Icons.history),
-      label: Text(context.l10n.encryptedHistory),
-    ),
-    const SizedBox(height: 24),
-    KeyPackagesPanel(session: _session),
-    const Divider(height: 48),
-    if (_session.setup!.administrator) ...[
-      KeyedSubtree(
-        key: _kitPanel,
-        child: RecoveryPanel(
-          key: const Key('export-panel'),
-          session: _session,
-          files: widget.kitFiles,
-          export: true,
-        ),
-      ),
-      const Divider(height: 48),
-      PairingPanel(
-        key: const Key('pair-administration'),
-        session: _session,
-        administration: true,
-      ),
-      const Divider(height: 48),
-    ] else ...[
-      Text(context.l10n.linkedDeviceKitNote),
-      const SizedBox(height: 24),
-    ],
-  ];
 }

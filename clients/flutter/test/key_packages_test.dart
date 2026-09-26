@@ -6,7 +6,7 @@ import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'widget_test.dart' show FakeProfile, relay;
+import 'widget_test.dart' show FakeProfile, openSettings, relay;
 
 KeyPackageSupplyView supply(int? count, {bool pending = false}) =>
     KeyPackageSupplyView(
@@ -83,6 +83,7 @@ void main() {
     await tester.pumpWidget(ArveilApp(session: session));
     await tester.tap(find.text('Abrir perfil'));
     await tester.pumpAndSettle();
+    await openSettings(tester);
     return session;
   }
 
@@ -154,6 +155,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Abrir perfil'));
       await tester.pumpAndSettle();
+      await openSettings(tester);
       expect(find.text('Reanudar publicación de claves'), findsOneWidget);
       profile.loseAck = false;
       await tester.tap(find.text('Reanudar publicación de claves'));

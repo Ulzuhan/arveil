@@ -78,8 +78,35 @@ class FakeProfile implements Profile {
   @override
   Future<List<ConversationView>> conversations() async => [];
 
+  // A ready profile opens the chats, which watch progress and sync.
+  @override
+  BigInt startWatching() => BigInt.one;
+  @override
+  Stream<ProgressView> watch({required BigInt generation}) =>
+      const Stream.empty();
+  @override
+  void stopWatching({required BigInt generation}) {}
+  @override
+  Future<SyncView> sync_({required String bootstrap}) async =>
+      const SyncView(processedEnvelopes: 0);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A destination of the main navigation, in the rail or the bottom bar.
+Finder destination(String label) => find.descendant(
+  of: find.byWidgetPredicate((w) => w is NavigationRail || w is NavigationBar),
+  matching: find.text(label),
+);
+
+/// Whether the main navigation of a ready profile is on screen.
+Finder get home =>
+    find.byWidgetPredicate((w) => w is NavigationRail || w is NavigationBar);
+
+Future<void> openSettings(WidgetTester tester) async {
+  await tester.tap(destination('Ajustes'));
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -124,14 +151,15 @@ void main() {
       await tester.ensureVisible(find.text('Reintentar alta'));
       await tester.tap(find.text('Reintentar alta'));
       await tester.pumpAndSettle();
-      expect(find.text('Tu perfil está listo'), findsOneWidget);
+      expect(home, findsOneWidget);
       expect(find.byKey(const Key('invite')), findsNothing);
+      await openSettings(tester);
       await tester.tap(find.text('Cerrar perfil'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Abrir perfil'));
       await tester.tap(find.text('Abrir perfil'));
       await tester.pumpAndSettle();
-      expect(find.text('Tu perfil está listo'), findsOneWidget);
+      expect(home, findsOneWidget);
       expect(profile.enrollments, 2);
     },
   );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import 'design/layout.dart';
 import 'rust/api/profile.dart';
 
 String contactId(String id) => id.length <= 12 ? id : id.substring(0, 12);
@@ -116,7 +117,10 @@ class _ContactsPageState extends State<ContactsPage> {
               ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.symmetric(
+                  horizontal: WindowSize.of(context).margin,
+                  vertical: 16,
+                ),
                 children: [
                   Text(context.l10n.contactsNamesLocal),
                   if (widget.selectRecipients)
