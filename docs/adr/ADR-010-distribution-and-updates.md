@@ -23,7 +23,7 @@ Three constraints shape any answer:
 
 **1. Binaries stay in GitHub Releases.** Every published package lives in its `clients-v*` release, immutable once published (no `--clobber`, as the release guide already requires). The website links to them; it does not host copies. One source of truth, the release's checksums, and no bandwidth or storage on the website's host.
 
-**2. The current version is announced by a signed manifest, not by "latest".** GitHub's `releases/latest` ignores prereleases and cannot tell `v*` (relay and CLI) from `clients-v*`. A small JSON document, `clients.json`, lists for each platform the version, build number, minimum OS, download URL, size and SHA-256, plus a release-notes URL, a monotonically increasing `sequence` and an `expires` date. It is published on the project website and attached to the release.
+**2. The current version is announced by a signed manifest, not by "latest".** GitHub's `releases/latest` ignores prereleases and cannot tell `v*` (relay and CLI) from `clients-v*`. A small JSON document per channel, `clients-<channel>.json` (`clients-beta.json` for people testing with the maintainer, `clients-stable.json` for everyone else), lists for each platform the version, build number, minimum OS, download URL, size and SHA-256, plus a release-notes URL, a monotonically increasing `sequence` and an `expires` date. It is published on the project website and attached to the release. The channel is compiled into the app and signed inside the manifest, so a build accepts only its own channel's feed.
 
 **3. The manifest is signed with a dedicated update key.** An Ed25519 key used for nothing else: not the Android signing key, not any realm key. It is kept off the web server and off CI, backed up like the Android key, and the signature is made on the maintainer's machine at the same moment a release goes from draft to published. The public key is compiled into the app. A future key can be announced inside a manifest signed by the current one.
 
@@ -69,9 +69,9 @@ Three constraints shape any answer:
 
 A second long-lived secret appears: the update key, with its backup and its rotation. Losing it means publishing a build with a new public key that people install by hand, once.
 
-Publishing a release gains a step: generate `clients.json`, sign it, publish it to the website and attach it to the release. The website's download section is generated from the same manifest, so the page and the app can never disagree about the current version.
+Publishing a release gains a step: generate the channel's `clients-<channel>.json`, sign it, publish it to the website and attach it to the release. The website's download section is generated from the same manifest, so the page and the app can never disagree about the current version.
 
-The Android updater uses `REQUEST_INSTALL_PACKAGES`, a permission that some stores and device policies restrict; the system-installation test is recorded in the [platform record](../PLATFORMS.md#android-signed-updater-acceptance-2026-09-26). This implementation does not close the other M3b.8 requirements.
+The Android updater uses `REQUEST_INSTALL_PACKAGES`, a permission that some stores and device policies restrict; only builds with an update feed declare it. The system-installation test is recorded in the [platform record](../PLATFORMS.md#android-signed-updater-acceptance-2026-09-26). This implementation does not close the other M3b.8 requirements.
 
 Opt-in means most installations will not check for updates on their own. The install guide and the release notes remain the main channel until the check proves itself.
 
@@ -89,4 +89,3 @@ Opt-in means most installations will not check for updates on their own. The ins
 
 - Whether signing can move to CI without putting the key where CI logs and third-party actions can reach it.
 - How long a manifest stays valid (`expires`): long enough not to break phones that are offline for weeks, short enough to notice a withheld update.
-- Whether to offer a beta channel for people testing with the maintainer.
