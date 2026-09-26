@@ -830,9 +830,14 @@ light and dark.
 - **Touch targets.** The main phone screens meet Flutter's 48 dp and labelled
   tap target guidelines; the accent swatches and the composer field now
   measure 48 dp for it.
+- **Settings.** Each row is a stop of its own with its title, state and
+  action, and each group's title is a separate heading. Before, a group with
+  a single tappable row, such as "Connection", read as one tappable heading.
+  The text size control says what it sizes and its value once ("Text size,
+  100%"); the value also shows next to the control.
 
-Evidence: `test/accessibility_test.dart`. The manual TalkBack and VoiceOver
-review is still pending in the [platform matrix](PLATFORMS.md).
+Evidence: `test/accessibility_test.dart`. The TalkBack review is in the
+[platform matrix](PLATFORMS.md); the VoiceOver review is still pending.
 
 ## Secret-free diagnostics (September 25, 2026)
 

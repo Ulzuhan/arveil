@@ -98,6 +98,65 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a settings heading and each row are stops of their own', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await openRich(tester);
+    await settle(tester, destination('Ajustes'));
+    // A group whose only tappable row folded the heading into it read as
+    // one pressable heading: «Conexión, Claves para grupos nuevos…».
+    for (final (heading, row) in [
+      ('Tu identidad', 'share-route'),
+      ('Conexión', 'open-keys'),
+    ]) {
+      await reveal(tester, find.byKey(Key(row)));
+      expect(
+        tester.getSemantics(find.text(heading)),
+        isSemantics(label: heading, isHeader: true, hasTapAction: false),
+      );
+      final node = tester.getSemantics(find.byKey(Key(row)));
+      expect(
+        node,
+        isSemantics(isButton: true, hasTapAction: true, isHeader: false),
+      );
+      expect(node.label, isNot(contains(heading)));
+      if (row == 'share-route') {
+        // The row above it says what this device is and does nothing.
+        final identity = tester.getSemantics(
+          find.text('Este dispositivo administra tus dispositivos'),
+        );
+        expect(identity, isSemantics(hasTapAction: false));
+        expect(identity.label, isNot(contains(heading)));
+        expect(node.label, isNot(contains('administra')));
+      }
+    }
+    semantics.dispose();
+  });
+
+  testWidgets('the text size slider says what it sizes, and the size once', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await openRich(tester);
+    await settle(tester, destination('Ajustes'));
+    final appearance = find.byKey(const Key('open-appearance'));
+    await tester.scrollUntilVisible(appearance, 100);
+    await settle(tester, appearance);
+    await reveal(tester, find.byKey(const Key('text-size')));
+    expect(
+      tester.getSemantics(find.byKey(const Key('text-size'))),
+      isSemantics(
+        label: 'Tamaño del texto',
+        value: '100 %',
+        increasedValue: '110 %',
+        isSlider: true,
+      ),
+    );
+    expect(find.text('100 %'), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets('reduced motion shows a new screen without moving it', (
     tester,
   ) async {

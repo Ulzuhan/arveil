@@ -533,8 +533,10 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
+    // A node of its own, so a lone row below cannot absorb the heading.
     child: Semantics(
       header: true,
+      container: true,
       child: Text(
         text,
         style: ArveilType.label.copyWith(
@@ -563,6 +565,7 @@ class SettingsGroup extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
             child: Semantics(
               header: true,
+              container: true,
               child: Text(
                 title,
                 style: ArveilType.label.copyWith(
@@ -619,6 +622,14 @@ class SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = ArveilColors.of(context);
+    // One stop for a screen reader: title, state and action together, never
+    // merged with the group's heading or a neighbouring row.
+    return MergeSemantics(
+      child: Semantics(button: onTap != null, child: _row(c)),
+    );
+  }
+
+  Widget _row(ArveilColors c) {
     return InkWell(
       onTap: onTap,
       child: ConstrainedBox(
