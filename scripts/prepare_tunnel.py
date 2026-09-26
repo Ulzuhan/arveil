@@ -99,6 +99,9 @@ http {{
     client_max_body_size 1k;
     client_body_temp_path body;
     proxy_temp_path proxy;
+    fastcgi_temp_path fastcgi;
+    uwsgi_temp_path uwsgi;
+    scgi_temp_path scgi;
     server {{
         listen 127.0.0.1:{connector};
         server_name {hostname};
