@@ -109,6 +109,46 @@ class PublicationTests(unittest.TestCase):
             self.assertNotIn("ARVEIL_TEST_INVITE", env)
             self.assertNotIn("FLUTTER_XCODE_DART_DEFINES", env)
 
+    def test_build_leaves_no_gradle_or_kotlin_daemon_behind(self):
+        # A daemon started with a build's temporary SDK alias outlived it and
+        # broke the next packaging run with Kotlin classpath errors.
+        for inherited in (None, "-Xmx2g -Dorg.gradle.daemon=true"):
+            with self.subTest(inherited=inherited), patch.dict(os.environ):
+                os.environ.pop("GRADLE_OPTS", None)
+                if inherited:
+                    os.environ["GRADLE_OPTS"] = inherited
+                env = package.build_environment(Path(tempfile.gettempdir()) / "neutral-source")
+                # Other JVM options survive; the last -D wins, so no daemon starts.
+                self.assertEqual(env["GRADLE_OPTS"].split(), (inherited or "").split() + ["-Dorg.gradle.daemon=false"])
+                self.assertEqual(env["ORG_GRADLE_PROJECT_kotlin.compiler.execution.strategy"], "in-process")
+
+    def test_apksigner_uses_flutter_jdk_or_names_java_home(self):
+        with tempfile.TemporaryDirectory() as directory:
+            def jdk(name, status):
+                java = Path(directory) / name / "bin/java"
+                java.parent.mkdir(parents=True)
+                java.write_text(f"#!/bin/sh\nexit {status}\n", encoding="utf-8")
+                java.chmod(0o755)
+                return str(java.parents[1])
+            working, broken, empty = jdk("working", 0), jdk("broken", 1), str(Path(directory) / "empty")
+            machine = '{\n  "android-sdk": "sdk",\n  "jdk-dir": ' + json.dumps(working) + "\n}\n"
+            # An explicit JAVA_HOME wins and Flutter is not asked.
+            with patch.object(package, "run") as run:
+                env = package.java_environment({"JAVA_HOME": working, "PATH": empty}, "flutter")
+            run.assert_not_called()
+            self.assertEqual(env["PATH"].split(os.pathsep)[0], str(Path(working) / "bin"))
+            # Without JAVA_HOME, apksigner gets the JDK Flutter builds with.
+            with patch.object(package, "run", return_value="Welcome banner\n" + machine) as run:
+                env = package.java_environment({"PATH": empty}, "flutter")
+            run.assert_called_once()
+            self.assertEqual(env["JAVA_HOME"], working)
+            # No runtime: stop before building, naming JAVA_HOME but not paths.
+            for given, reported in (({"JAVA_HOME": broken}, machine), ({}, '{"jdk-dir": null}'), ({}, "")):
+                with self.subTest(given=given, reported=reported), patch.object(package, "run", return_value=reported):
+                    with self.assertRaisesRegex(ValueError, "JAVA_HOME") as failure:
+                        package.java_environment(dict(given, PATH=empty), "flutter")
+                    self.assertNotIn(directory, str(failure.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

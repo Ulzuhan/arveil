@@ -13,8 +13,9 @@ configuration never enters the client package.
 Use the pinned [Flutter/Rust toolchain](PLATFORMS.md), Python 3.10 or newer,
 and a clean committed checkout. macOS packages require an Apple silicon Mac,
 Xcode with its license accepted and CocoaPods. Android packages require Java,
-the Android SDK/NDK and build tools (`apksigner` and `aapt2`); set `JAVA_HOME`
-and `ANDROID_HOME` for your installation. Put Flutter and Java tools on `PATH`.
+the Android SDK/NDK and build tools (`apksigner` and `aapt2`); set `ANDROID_HOME`
+for your installation, and `JAVA_HOME` if Flutter does not already find a JDK
+(`flutter doctor -v`). Put Flutter and Java tools on `PATH`.
 
 The initial package targets are Apple silicon macOS and Android ARM64.
 The helper records the minimum OS/SDK in `BUILD.json`. Builds are experimental:
@@ -59,9 +60,18 @@ recorded in their metadata. The version and commit also reach the app
 (`--dart-define`), which shows them in its diagnostic report; a local build
 without the script says "local build".
 
-`apksigner` needs a Java runtime: if the system has none, point `JAVA_HOME` at
-Android Studio's JDK (`/Applications/Android
-Studio.app/Contents/jbr/Contents/Home`) before building.
+`apksigner` needs a Java runtime. Without `JAVA_HOME`, the helper uses the JDK
+Flutter builds with (`flutter config --jdk-dir`, or Android Studio's bundled
+JDK). If no Java runtime starts, it stops before building and asks for
+`JAVA_HOME`, for example Android Studio's JDK (`/Applications/Android
+Studio.app/Contents/jbr/Contents/Home`).
+
+Android builds run Gradle without a daemon and compile Kotlin inside the Gradle
+process, so consecutive packaging builds need no daemon cleanup. Each build
+reaches the Android SDK through a temporary directory that is deleted
+afterwards: a daemon kept alive with it broke the next build with Kotlin
+classpath errors, and stopping shared daemons instead can interrupt a build in
+another checkout.
 
 Android release builds refuse missing signing configuration. CI can supply
 `ARVEIL_ANDROID_KEYSTORE`, `ARVEIL_ANDROID_STORE_PASSWORD`,

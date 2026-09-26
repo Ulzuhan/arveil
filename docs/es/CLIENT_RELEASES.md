@@ -8,8 +8,9 @@ Esta página es para mantenedores. Empaquetar no publica una release en GitHub.
 Usa el [toolchain Flutter/Rust fijado](PLATFORMS.md), Python 3.10 o posterior y
 un checkout limpio y comiteado. macOS requiere un Mac con Apple silicon,
 Xcode con su licencia aceptada y CocoaPods. Android requiere Java, SDK/NDK y
-las herramientas `apksigner` y `aapt2`. Configura `JAVA_HOME`, `ANDROID_HOME`
-y el `PATH` de Flutter y Java según tu instalación.
+las herramientas `apksigner` y `aapt2`. Configura `ANDROID_HOME` y el `PATH`
+de Flutter y Java según tu instalación, y `JAVA_HOME` si Flutter no encuentra
+ya un JDK (`flutter doctor -v`).
 
 Los primeros paquetes se destinan a macOS Apple silicon y Android ARM64.
 `BUILD.json` registra la versión mínima del sistema/SDK. Son experimentales:
@@ -55,9 +56,18 @@ en sus metadatos. La versión y el commit también llegan a la app
 (`--dart-define`), que los muestra en su informe de diagnóstico; una
 compilación local sin el script dice «local build».
 
-`apksigner` necesita un entorno Java: si el sistema no tiene uno, apunta
-`JAVA_HOME` al JDK de Android Studio (`/Applications/Android
-Studio.app/Contents/jbr/Contents/Home`) antes de compilar.
+`apksigner` necesita un entorno Java. Sin `JAVA_HOME`, el asistente usa el JDK
+con el que compila Flutter (`flutter config --jdk-dir` o el JDK incluido en
+Android Studio). Si no arranca ningún entorno Java, se detiene antes de compilar
+y pide `JAVA_HOME`, por ejemplo el JDK de Android Studio (`/Applications/Android
+Studio.app/Contents/jbr/Contents/Home`).
+
+Las compilaciones Android ejecutan Gradle sin daemon y compilan Kotlin dentro
+del proceso de Gradle, así que no hace falta limpiar daemons entre dos
+empaquetados. Cada compilación accede al SDK de Android mediante un directorio
+temporal que se borra al terminar: un daemon que siguiera vivo con él rompía la
+compilación siguiente con errores de classpath de Kotlin, y detener en su lugar
+daemons compartidos puede interrumpir una compilación en otro checkout.
 
 La compilación Android de producción rechaza la ausencia de firma. CI puede
 usar las variables privadas `ARVEIL_ANDROID_KEYSTORE`,
