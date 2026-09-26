@@ -1,4 +1,4 @@
-# Every action in .github/workflows is pinned to a full commit SHA, with its
+# Every action in .github/workflows and .github/actions is pinned to a full commit SHA, with its
 # version in a comment. Dependabot keeps those pins current: at most one
 # grouped pull request a week, which goes through the same required checks
 # as any other change. Security updates for the language ecosystems are
@@ -6,7 +6,9 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: weekly
     groups:
