@@ -1,161 +1,328 @@
+<div align="center">
+
+<img src="assets/brand/icon-macos-source.png" alt="Arveil" width="112" height="112">
+
 # Arveil
 
-<img src="assets/brand/icon-macos-source.png" alt="Arveil app icon" width="96" height="96">
+**Private messaging for families and small circles of trust, on a server you own.**
 
-**A self-hosted, end-to-end encrypted messenger for families and small circles of trust.**
+End-to-end encrypted with MLS (RFC 9420) · one Go relay binary on SQLite · apps for macOS and Android
 
 [![CI](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml)
-[Install / try](docs/INSTALLATION.md) · [Instalar / probar](docs/es/INSTALLATION.md) · [Documentation](https://ulzuhan.github.io/arveil/) · [Español](docs/es/README.md) · [Quick demo](#try-the-phase-0-demo) · [Contributing](CONTRIBUTING.md)
+[![Docs](https://github.com/Ulzuhan/arveil/actions/workflows/docs.yml/badge.svg)](https://ulzuhan.github.io/arveil/)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Status: experimental](https://img.shields.io/badge/status-experimental-orange.svg)](#project-status)
 
-A Go relay transports encrypted messages; a Rust core handles identity, MLS,
-offline delivery and recovery. The relay uses SQLite and a data directory,
-with access over LAN, Tailscale or a tunnel. See the
-[threat model](docs/THREAT_MODEL.md) for the guarantees and their conditions.
+[Documentation](https://ulzuhan.github.io/arveil/) ·
+[Install](docs/INSTALLATION.md) ·
+[Threat model](docs/THREAT_MODEL.md) ·
+[Protocol](docs/PROTOCOL.md) ·
+[Español](docs/es/README.md)
 
-## Current status
+</div>
 
-**Experimental implementation — not independently security audited.**
+> [!WARNING]
+> Arveil is experimental and has **not** been independently audited. No
+> release has been published yet. Use disposable test profiles, and read the
+> [threat model](docs/THREAT_MODEL.md) before trusting it with anything that
+> matters.
 
-| Component | Implemented | Next work |
-|---|---|---|
-| Go relay and Rust CLI | MLS group chat, encrypted attachments, offline outbox, multi-device identity, pairing, revocation and recovery | External security review and continued interoperability testing |
-| Flutter client | Rust bridge, encrypted profiles, invitation enrollment, pairing, identity-kit export/restore, KeyPackage replenishment, verified group creation, paginated conversations, offline text, saved contacts, explicit encrypted attachments resumable device revocation and encrypted history export/import; macOS and Android build checks in CI | Physical-device acceptance, clean installation and recovery acceptance on hardware |
-| Operations | Container, Compose, systemd and rootless Podman; health checks, limits, backup and restore acceptance | Off-host encrypted backups, retention and reboot drills for each deployment |
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screens/desktop_conversation_dark.png">
+    <img src="docs/assets/screens/desktop_conversation_light.png" alt="The Arveil desktop app: chat list, a group conversation and its participants" width="860">
+  </picture>
+</p>
+<p align="center"><sub>The macOS app in Spanish. It speaks English and Spanish, following the system or a choice in Settings.</sub></p>
 
-The [client implementation record](docs/CLIENT_FOUNDATION.md) distinguishes
-implemented behavior from the [remaining Flutter milestones](docs/PHASE3B.md).
-Acceptance scripts run in [CI](.github/workflows/ci.yml); passing tests do not
-replace an independent review. Start with [running a realm](docs/OPERATIONS.md)
-or the [rootless Podman guide](docs/PODMAN.md).
+## Why Arveil
 
-## Install and try
+Most people who want private family chat have two options. They can trust
+a hosted service they cannot run themselves, or self-host software that
+needs a sysadmin to keep it alive. Arveil aims for both: modern end-to-end
+encryption, and a server a household can run on a small machine without
+understanding it.
 
-Start with the [installation guide](docs/INSTALLATION.md)
-([español](docs/es/INSTALLATION.md)) to choose a server, macOS or Android path.
-As of September 15, 2026, no public GitHub releases are published. Maintainers
-can build the relay with Docker/Podman and prepare experimental
-[macOS ZIP and Android APK packages](docs/CLIENT_RELEASES.md). These packages
-install without development tools. The macOS app uses the classic login
-Keychain without paid Apple Developer membership. Local installation/update
-checks pass; physical-phone and fresh-download acceptance remain pending.
+- **The server stores no conversations.** It keeps opaque mailboxes and
+  encrypted envelopes. Group membership, titles and rosters exist only in
+  MLS state on your devices.
+- **Your identity belongs to you, not to the server.** A root key generated
+  on your device signs every device you add. The person running the relay
+  decides who may use it, never who you are.
+- **Every device is visible.** Each conversation, including 1:1 chats, is an
+  MLS group with one leaf per device. Adding a phone or revoking a lost one
+  is an explicit cryptographic operation, and your contacts see it.
+- **It works however you reach home.** A Noise IK channel between device
+  and relay runs inside any carrier: LAN, a tailnet, port forwarding or a
+  tunnel that terminates TLS. The tunnel sees traffic patterns, never the
+  API, identifiers or credentials.
+- **Local-first, recovery-first.** You can read and write while the server
+  is down. Identity recovery, adding a device and history archives are three
+  separate, explicit mechanisms. Old MLS state is never restored to keep
+  sending.
+- **Built for homelab operations.** SQLite in WAL mode with verified
+  durability settings, backups by copying a directory, and no Redis,
+  Postgres, message broker or Kubernetes.
 
-## Why another messenger
+## Features
 
-Most self-hostable messengers make you choose between privacy and operability. Matrix homeservers are heavy and their group encryption has a complicated history. XMPP has OMEMO, but multi-device is uneven. Hosted E2EE apps are excellent and not self-hostable. Arveil is built around a different set of bets:
+<table>
+<tr>
+<td valign="top" width="50%">
 
-- **The server has no rooms table.** It stores opaque mailboxes and encrypted envelopes. Group membership, titles and rosters exist only inside MLS state on your devices.
-- **MLS (RFC 9420), one leaf per device.** Every conversation, including 1:1, is an MLS group. Adding a phone or revoking a lost one is a visible cryptographic operation, not an account setting.
-- **Identity does not belong to the server.** An Ed25519 root key generated on your device signs your device credentials. The homelab admin decides who may use the server, never who you are.
-- **Carrier-independent transport.** A Noise IK channel between device and relay runs inside whatever gets you there: LAN, tailnet, port forwarding, Tailscale Funnel, Cloudflare Tunnel. A tunnel that terminates TLS sees connection patterns, never the API, its identifiers or credentials.
-- **Local-first, recovery-first.** Read and write with the server down. Identity recovery, device enrollment and history archives are three separate, explicit mechanisms. No old MLS state is ever "restored" to keep sending.
-- **Homelab operations by design.** SQLite in WAL mode with verified durability settings, offline backup by copying a directory, no Redis, Postgres, brokers or Kubernetes.
+**Messaging**
 
-## What Arveil is not
+- 1:1 and group conversations, each an MLS group
+- Works offline: read history, write, and send once the relay is reachable
+- Encrypted attachments with resumable transfers
+- Delivery states that never claim someone read your message
+- Search within a conversation, run on your device
+- Unread counts and conversation previews
 
-No federation, no voice or video, no bots or bridges, no web client served by the realm, no anonymity network, no post-quantum profile, no high availability in V1. The threat model says plainly what the relay still sees: IPs, timing, sizes, and who talks to whom. Read it before trusting anything.
+</td>
+<td valign="top" width="50%">
 
-## Architecture at a glance
+**Identity and devices**
+
+- Device-generated Ed25519 root identity
+- Link a new device by comparing a code, and revoke a lost one
+- Safety numbers to verify contacts in person or over another channel
+- A notice in the chat when a contact adds or removes a device
+- Identity kit: an encrypted recovery file with a separate secret
+- Encrypted history archives, kept apart from identity recovery
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Apps**
+
+- Flutter for macOS and Android over a shared Rust core
+- Profile encrypted at rest with SQLCipher; the key stays in the Keychain or Android Keystore
+- Adaptive layouts from phone to desktop, with keyboard shortcuts
+- English and Spanish, light and dark themes, six accents, backgrounds and text size
+- Screen reader labels, 200% text and reduced motion
+- A diagnostic report that leaves out secrets
+
+</td>
+<td valign="top">
+
+**Relay**
+
+- A single Go binary with SQLite and encrypted blobs on disk
+- Noise IK over WebSocket, with a signed endpoint list and optional TLS
+- One-use invitations, per-address limits, health checks and metrics
+- Docker Compose, systemd and rootless Podman setups
+- Tested backup and restore procedures
+- Linux x86-64 and ARM64 images with build provenance, published on release tags
+
+</td>
+</tr>
+</table>
+
+## How it works
 
 ```mermaid
 flowchart LR
-  subgraph Device[Your device]
-    UI[Flutter client foundation] --> App[arveil-app: operations and executor]
-    App --> Core[Rust core: identity, MLS, storage, recovery]
+  subgraph Device["Your device"]
+    UI["Flutter app"] --> App["arveil-app<br/>operations and executor"]
+    App --> Core["arveil-core<br/>identity · MLS · encrypted storage · recovery"]
   end
-  subgraph Realm[Realm: untrusted for content]
-    Relay[Go relay: Noise channel over WebSocket]
-    Relay --> DB[(SQLite: membership, queues)]
-    Relay --> FS[Filesystem: encrypted blobs]
+  subgraph Realm["Relay: trusted for delivery, not for content"]
+    Relay["arveil-relay<br/>Noise IK over WebSocket"]
+    Relay --> DB[("SQLite<br/>members · mailboxes · queues")]
+    Relay --> Blobs["Filesystem<br/>encrypted blobs"]
   end
-  Core <-->|LAN / tailnet / tunnel| Relay
+  Core <-->|"LAN · tailnet · tunnel · Internet"| Relay
 ```
 
-Full documentation, in reading order:
+The Rust core owns identity, MLS ([mls-rs](https://github.com/awslabs/mls-rs)),
+durable state and recovery. The CLI and the Flutter apps share it through
+[flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge), and
+the Dart side holds only presentation state. The relay authenticates
+devices, stores envelopes until they are delivered, and knows nothing about
+conversations.
 
-| Document | Contents |
+**What the relay can and cannot see**
+
+| Visible to the relay operator | Never visible to the relay |
 |---|---|
-| [Architecture](docs/ARCHITECTURE.md) | Components, boundaries, deployment, access paths, scope and phases |
-| [Threat model](docs/THREAT_MODEL.md) | Assets, adversaries, what the server knows, conditional guarantees, verifiable invariants |
-| [Protocol](docs/PROTOCOL.md) | Layers, objects, bootstrap, MLS groups, durable delivery, frame catalog, recovery |
-| [Domain model](docs/DOMAIN_MODEL.md) | Entities, key lifecycle, server schema, local atomicity, state machines |
-| [Decision records](docs/adr/) | ADR-001 to ADR-009: Go + Rust, MLS, identity, storage, recovery, transport and Flutter |
-| [Running a realm](docs/OPERATIONS.md) | Install, tunnels, limits, health and metrics, backups and restore |
-| [Phase 0 plan](docs/PHASE0.md) | Milestones, acceptance criteria and results of the viability slice |
-| [Phase 1 plan](docs/PHASE1.md) | Groups, offline outbox, TTL, endpoint fallback, attachments: milestones and results |
-| [Phase 2 plan](docs/PHASE2.md) | Multi-device, revocation, coordinator succession, identity kit and archive, encryption at rest |
-| [Phase 3 plan](docs/PHASE3.md) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds |
-| [Phase 4 plan](docs/PHASE4.md) | Packaging, limits per address, health and metrics, TLS, backups, and the client gaps |
-| [Viability review v0.3](docs/REVIEW-v0.3.md) | External-style review with verified references and open risks |
+| Registered members, their public keys and devices | Message text, files, file names and types |
+| Which device sends to which mailbox, and when | Group IDs, epochs, rosters and titles |
+| IP addresses, sizes, timing, frequency and push tokens | Private keys and recovery secrets |
+| | History backup contents |
 
-La documentación completa también está disponible en español en [`docs/es/`](docs/es/README.md).
+A modified relay can still infer who talks to whom from connections and
+deliveries. The [threat model](docs/THREAT_MODEL.md) states each guarantee,
+its conditions, and the invariants (I-01 to I-13) the tests check.
 
-## Releases
+## Project status
 
-The current workflow packages command-line binaries, not the Flutter app.
+The relay, the Rust core and the CLI are complete through Phase 4. The
+Flutter apps cover the everyday flows and are moving towards a limited beta.
 
-Tagging `v*` runs [the release workflow](.github/workflows/release.yml): it builds the relay and the CLI for Linux x86-64 and macOS arm64, injects the commit each binary reports through `arveil version` and `arveil-relay -version`, publishes `SHA256SUMS-cli-relay.txt`, and attaches signed build provenance so somebody who did not build them can check where they came from. Create the corresponding GitHub release before attaching artifacts; uploads fail if an asset with the same name already exists.
-
-Experimental Flutter packages use separate `clients-v*` release tags and
-`SHA256SUMS-clients.txt`. Follow the [client release guide](docs/CLIENT_RELEASES.md)
-to prepare their draft from tested packages and preserve the recorded source revision.
-
-It does **not** do platform code signing: there is no Apple notarization and no Windows Authenticode certificate, so those systems will still warn on first run. Verify a download with its checksum and its provenance attestation (`gh attestation verify <file> --repo Ulzuhan/arveil`), not with the absence of a warning.
-
-## Roadmap
-
-| Phase | Deliverable | Exit condition |
+| Phase | Scope | Status |
 |---|---|---|
-| 0: viability (done) | Rust core without full UI, two CLI clients, minimal relay | Real MLS, verified identity and atomic persistence demonstrated |
-| 1: LAN vertical (done) | 1:1 and group chat, offline outbox, queues, attachments, Noise channel with endpoint list | Restarts, duplicates, TTL, network loss and carrier switching with no silent loss |
-| 2: personal use (done) | Multi-device, identity kit, history archive, revocation | Total-loss and restore drills; enrollment is never silent |
-| 3a: ready to hand out (done) | Pairing over a live channel, contact verification, resumable transfers, push hint, signed builds | Every claim in `scripts/phase3.sh`; builds a stranger can check |
-| 4: operable (done) | Container image, compose and systemd, limits per address, health and metrics, TLS, backups; KeyPackage replenishment, several conversations, contact names | Somebody else can install it, watch it, back it up and restore it |
-| 3b: distribution | Mobile and desktop clients, signed updates, optional push | M3b.8: signed builds/updates, external security review, verified platform matrix; M3b.5 is a limited beta |
+| 0 · Viability | Rust core, two CLI clients, minimal relay; real MLS and atomic persistence | ✅ Done |
+| 1 · LAN vertical | Groups, offline outbox, TTL, attachments, Noise channel with endpoint list | ✅ Done |
+| 2 · Personal use | Multi-device, identity kit, history archive, revocation, encryption at rest | ✅ Done |
+| 3a · Ready to hand out | Pairing, contact verification, resumable transfers, push hint, signed builds | ✅ Done |
+| 4 · Operable | Packaging, per-address limits, health and metrics, TLS, backups | ✅ Done |
+| 3b · Apps | Flutter clients, signed updates, external security review | 🚧 In progress |
 
-## Repository layout
+Phase 3b milestones M3b.0 to M3b.4 are implemented: native build and bridge,
+application contract, enrollment and pairing, conversations and daily use.
+Next is **M3b.5**, a limited macOS and Android beta in which three external
+users complete the main flows. Production (M3b.8) additionally requires an
+external security review and signed updates. See the
+[Phase 3b plan](docs/PHASE3B.md) and the
+[client implementation record](docs/CLIENT_FOUNDATION.md).
 
-```text
-.
-├── core/       Rust core, application layer, CLI and Flutter bridge
-├── clients/    Flutter mobile and desktop client
-├── scripts/    Acceptance scenarios and deployment helpers
-├── relay/      Go module: arveil-relay server
-├── spikes/     Throwaway investigations; spikes/mls compares OpenMLS and mls-rs (M0.5)
-├── docs/       Architecture docs (English), docs/es/ (Spanish), MkDocs site source
-├── mkdocs.yml  Documentation site
-└── Makefile    build, test, lint, docs
+**Platforms**
+
+| Platform | Status |
+|---|---|
+| Relay on Linux x86-64 and ARM64 | Container images build in CI and publish on the first release tag |
+| Relay and CLI on Linux x86-64 and macOS arm64 | Release workflow ready, with checksums and build provenance |
+| macOS 12+ app (Apple silicon) | Experimental package; update from an earlier build verified |
+| Android 7.0+ app (arm64) | Experimental APK; verified on the emulator, physical devices pending |
+| Windows and Linux desktop apps | Planned (M3b.6) |
+| iOS app | Planned (M3b.7) |
+
+The [platform record](docs/PLATFORMS.md) lists what was tested, on which
+device and at which commit.
+
+## Getting started
+
+### Run a relay
+
+You need Git, Docker and the Docker Compose plugin.
+
+```sh
+git clone https://github.com/Ulzuhan/arveil.git
+cd arveil
+docker compose -f relay/compose.yaml up -d --build
+docker compose -f relay/compose.yaml exec arveil-relay /arveil-relay healthcheck -admin http://127.0.0.1:9090
 ```
 
-## Try the Phase 0 demo
+Then print the relay's connection data and create a one-use invitation:
 
-Requires Go 1.27.x, Rust 1.98.1 and `sqlite3` on the PATH.
+```sh
+docker compose -f relay/compose.yaml logs --no-log-prefix arveil-relay | head -1
+docker compose -f relay/compose.yaml exec arveil-relay /arveil-relay invite -data-dir /data
+```
 
-```bash
+The default listens on loopback only. To reach it from a phone, choose an
+address in [Running a realm](docs/OPERATIONS.md), or follow the
+[rootless Podman and Tailscale guide](docs/PODMAN.md).
+
+### Get the apps
+
+No app release is published yet. Build from source (below), or ask a
+maintainer for an experimental macOS ZIP or Android APK prepared with the
+[client packaging guide](docs/CLIENT_RELEASES.md). Neither needs developer
+tools to install. The [installation guide](docs/INSTALLATION.md) covers
+each route, what has been verified and what is still pending.
+
+### Try the command-line demo
+
+With Go 1.27, Rust 1.98.1 and `sqlite3` installed:
+
+```sh
 ./scripts/demo.sh
 ```
 
-It starts a relay, enrolls two devices with one-use invites, opens an MLS conversation, exchanges messages, restarts the relay, crashes a client after it committed a message, shows the retransmission arriving exactly once, and inventories the relay database.
+The demo starts a relay and enrolls two devices with one-use invitations.
+It opens an MLS conversation, exchanges messages and restarts the relay. It
+then crashes a client after a commit, shows the retransmission arriving
+exactly once, and lists what the relay database holds.
 
-## Building
+### Build from source
 
-Requires Go 1.27.x and Rust 1.98.1 (see [ADR-001](docs/adr/ADR-001-go-server-rust-core.md) for why these versions are pinned).
+| Component | Toolchain |
+|---|---|
+| Relay | Go 1.27 (`relay/go.mod`) |
+| Rust core and CLI | Rust 1.98.1 (`core/rust-toolchain.toml`) |
+| Apps | Flutter 3.44.1, Xcode for macOS, Android SDK with NDK 28 for Android |
 
-```bash
-make build
+```sh
+make build        # relay and Rust workspace
+make test         # Go and Rust test suites
+make lint         # formatting, vet and clippy
+make docs-serve   # documentation site on localhost (needs uv)
 ```
 
-```bash
-make test
+```sh
+cd clients/flutter
+flutter pub get
+flutter run -d macos
 ```
 
-```bash
-make docs-serve
+The native library builds automatically through `rust_builder`. The
+[client README](clients/flutter/README.md) covers bindings, acceptance
+checks and Android tooling.
+
+## Documentation
+
+The full documentation is published at
+**[ulzuhan.github.io/arveil](https://ulzuhan.github.io/arveil/)** and is
+available in English and [Spanish](docs/es/README.md).
+
+| Topic | Documents |
+|---|---|
+| Using and running it | [Installation](docs/INSTALLATION.md) · [Running a realm](docs/OPERATIONS.md) · [Rootless Podman](docs/PODMAN.md) · [Client packages](docs/CLIENT_RELEASES.md) |
+| Design | [Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Protocol](docs/PROTOCOL.md) · [Domain model](docs/DOMAIN_MODEL.md) |
+| Decisions | [ADR-001 to ADR-009](docs/adr/): Go and Rust, MLS, zero-trust server, SQLite, identity, recovery, redundancy, transport, Flutter |
+| Apps | [Client design](docs/CLIENT_DESIGN.md) · [Implementation record](docs/CLIENT_FOUNDATION.md) · [Phase 3b plan](docs/PHASE3B.md) · [Platform record](docs/PLATFORMS.md) |
+| History | Phase plans [0](docs/PHASE0.md) · [1](docs/PHASE1.md) · [2](docs/PHASE2.md) · [3](docs/PHASE3.md) · [4](docs/PHASE4.md) · [Viability review v0.3](docs/REVIEW-v0.3.md) |
+
+## Security
+
+Arveil has **not** been independently audited. Automated acceptance scenarios
+exercise the documented protocol and recovery behavior, but passing tests are
+not a review. Please report vulnerabilities privately through
+[GitHub security advisories](https://github.com/Ulzuhan/arveil/security/advisories/new);
+see [SECURITY.md](SECURITY.md) for scope and what to include.
+
+Releases will ship `SHA256SUMS` files and signed build provenance
+(`gh attestation verify <file> --repo Ulzuhan/arveil`). The builds are not
+notarized or code-signed per platform, so macOS and Windows will warn on
+first launch. Verify downloads with checksums and provenance instead.
+
+## What Arveil is not
+
+Arveil has no federation, voice or video calls, bots or bridges, web client,
+anonymity network or post-quantum profile, and no high availability in the
+first version. The relay still sees IP addresses, timing, sizes and who
+talks to whom.
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the
+development checks, publication hygiene and pull request guidance. Open an
+issue before changing the protocol or adding a major feature, and review
+designs against a specific ADR or threat-model row.
+
+<details>
+<summary><b>Repository layout</b></summary>
+
+```text
+.
+├── relay/      Go relay (arveil-relay), container image and packaging
+├── core/       Rust workspace: arveil-core, arveil-app, arveil-cli, arveil-flutter
+├── clients/    Flutter app for macOS and Android
+├── scripts/    Acceptance scenarios, packaging and deployment helpers
+├── docs/       Documentation in English, docs/es/ in Spanish (MkDocs site)
+├── assets/     Brand sources: icon and mark
+└── spikes/     Throwaway investigations, such as the OpenMLS and mls-rs comparison
 ```
 
-## Contributing and security
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development checks, publication hygiene and PR guidance. Design review is welcome against a specific ADR or threat-model row. Report security findings privately through [SECURITY.md](SECURITY.md).
+</details>
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE). The permissive choice is deliberate: the Rust core is meant to be embedded in mobile and desktop clients, including ones this project does not write, and the protocol is meant to be implementable by others.
+Arveil is licensed under the [Apache License 2.0](LICENSE). The permissive
+license is deliberate: the Rust core is meant to be embedded in clients this
+project does not write, and the protocol is meant to be implementable by
+others.
