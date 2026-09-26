@@ -127,9 +127,42 @@ def build_environment(source):
     env["FLUTTER_XCODE_ARCHS"] = "arm64"
     env["FLUTTER_XCODE_EXCLUDED_ARCHS"] = "x86_64"
     env["FLUTTER_XCODE_CODE_SIGN_IDENTITY"] = "-"
+    # Android builds see the SDK through a temporary alias that is deleted
+    # afterwards. A Gradle or Kotlin daemon kept alive with it breaks the next
+    # build, and stopping shared daemons breaks concurrent builds elsewhere.
+    # Run both in the build's own process instead; Xcode builds ignore these.
+    env["GRADLE_OPTS"] = " ".join(filter(None, (env.get("GRADLE_OPTS"), "-Dorg.gradle.daemon=false")))
+    env["ORG_GRADLE_PROJECT_kotlin.compiler.execution.strategy"] = "in-process"
     env["RUSTUP_TOOLCHAIN"] = re.search(
         r'channel\s*=\s*"([^"]+)"', (ROOT / "core/rust-toolchain.toml").read_text(encoding="utf-8"))[1]
     return env
+
+
+def java_environment(env, flutter):
+    """Return the environment for apksigner, a shell wrapper that runs `java` from PATH."""
+    home = env.get("JAVA_HOME")
+    if not home:
+        # Default to the JDK Flutter builds with: its jdk-dir setting or
+        # Android Studio's bundled JDK. The path itself is never printed.
+        try:
+            output = run([flutter, "config", "--machine"], env=env)
+            config = json.JSONDecoder().raw_decode(output, output.index("{"))[0]
+            home = config.get("jdk-dir") if isinstance(config, dict) else None
+        except (ValueError, OSError, subprocess.CalledProcessError):
+            home = None
+    java = dict(env)
+    if home:
+        java["JAVA_HOME"] = str(home)
+        java["PATH"] = os.pathsep.join((str(Path(home) / "bin"), env.get("PATH", "")))
+    # Without a runtime, macOS's /usr/bin/java fails; say so before building.
+    try:
+        found = subprocess.run(["java", "-version"], env=java, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL).returncode == 0
+    except OSError:
+        found = False
+    if not found:
+        raise ValueError("apksigner needs a Java runtime; set JAVA_HOME to a JDK such as Android Studio's.")
+    return java
 
 
 def android_details(badging, build, updates):
@@ -185,6 +218,8 @@ def package(args):
         for key in ("KEYSTORE", "STORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD"):
             if not env.get("ARVEIL_ANDROID_" + key):
                 raise ValueError("Android release signing is required; see docs/CLIENT_RELEASES.md.")
+        # The build finds its own JDK; apksigner runs after it. Check first.
+        java = java_environment(env, args.flutter)
     private = ROOT / ".local/client-builds"
     private.mkdir(parents=True, exist_ok=True, mode=0o700)
     # A real isolated source directory also removes Dart-generated absolute
@@ -272,7 +307,7 @@ def package(args):
                                  key=lambda p: tuple(int(n) for n in re.findall(r"\d+", p.parent.name)))
             if not build_tools:
                 raise ValueError("Android build tools (apksigner) are required.")
-            details = run([str(build_tools[-1]), "verify", "--verbose", "--print-certs", str(artifact)], env=env)
+            details = run([str(build_tools[-1]), "verify", "--verbose", "--print-certs", str(artifact)], env=java)
             fingerprint = re.search(r"certificate SHA-256 digest: ([0-9a-f]{64})", details)
             if not fingerprint or "CN=Android Debug" in details:
                 raise ValueError("Expected a valid release certificate, not debug signing.")
