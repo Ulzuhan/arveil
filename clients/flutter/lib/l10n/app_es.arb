@@ -38,7 +38,7 @@
   "enrollSubmit": "Crear identidad y unirme",
   "enrollPair": "Vincular con mi otro dispositivo",
   "enrollRestore": "Restaurar desde un kit",
-  "kitReminderNever": "Guarda tu kit de identidad. Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.",
+  "kitReminderNever": "Sin kit ni otro dispositivo vinculado, perder este dispositivo significa perder tu identidad.",
   "kitReminderStale": "Tus dispositivos cambiaron después de guardar el kit. Guarda uno nuevo para que una recuperación los conozca.",
   "kitSave": "Guardar kit",
   "later": "Más tarde",
@@ -672,5 +672,22 @@
         "type": "String"
       }
     }
-  }
+  },
+  "today": "Hoy",
+  "yesterday": "Ayer",
+  "chatSearchHint": "Buscar chats",
+  "chatSearchClear": "Borrar la búsqueda",
+  "chatSearchNone": "Ningún chat coincide con «{query}»",
+  "@chatSearchNone": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "kitReminderTitle": "Guarda tu kit de identidad",
+  "kitReminderStaleTitle": "Actualiza tu kit de identidad",
+  "recoveryWarningTitle": "Comprueba las revocaciones",
+  "offlineTitle": "Sin conexión",
+  "syncRefusedTitle": "Sincronización rechazada"
 }

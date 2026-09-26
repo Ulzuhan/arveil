@@ -717,3 +717,32 @@ Evidencia:
   macOS, Windows y Android, y el orden del tabulador.
 - Las pruebas del kit, la recuperación, la vinculación y las claves siguen el
   camino nuevo hasta Ajustes.
+
+## Lista de chats (25 de septiembre de 2026)
+
+La lista de chats usa ya los componentes del sistema de diseño.
+
+- **Filas.** Cada fila lleva avatar, nombre, vista previa del último evento,
+  hora, no leídos y, si el último mensaje salió de este dispositivo, su estado
+  de entrega (nunca «leído»). El avatar toma el tono de la otra persona o, en
+  un grupo, del grupo. La marca de verificado aparece cuando se han verificado
+  todas las demás personas, y «Sin verificar» cuando falta alguna. La hora es
+  la de hoy, «Ayer» o la fecha.
+- **Búsqueda.** Filtra por el nombre de la conversación o de cualquier persona,
+  sin distinguir mayúsculas ni acentos, y dice cuándo no hay coincidencias.
+  ⌘K (Ctrl+K fuera de macOS) pone el cursor en ella, cerrando en el móvil la
+  conversación que tape la lista; Esc la vacía.
+- **Encabezado.** La línea de sincronización indica con un punto si se llegó
+  al servidor. Debajo aparecen los avisos: el kit de identidad pendiente o
+  desactualizado, con «Guardar kit» y «Más tarde»; la advertencia tras una
+  recuperación; y la falta de conexión o el rechazo del servidor.
+- **Vacío.** Sin conversaciones, la lista explica cómo empezar y ofrece
+  «Nueva conversación»; en escritorio, el panel sin conversación abierta
+  también usa el estado vacío.
+- `ArveilColors.of` recurre a los tokens por defecto del brillo en uso si un
+  widget se muestra fuera del tema de Arveil, como en una prueba aislada.
+
+Evidencia: `test/chat_list_test.dart` cubre las filas (avatar, verificación,
+entrega y no leídos), las horas, la búsqueda sin acentos y su vaciado, ⌘K y
+Esc en macOS y Windows, el estado vacío con su acción, el aviso del kit y la
+lista con el texto al 200 % en un móvil.

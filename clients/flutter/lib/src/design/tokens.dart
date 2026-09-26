@@ -171,8 +171,13 @@ class ArveilColors extends ThemeExtension<ArveilColors> {
     return hash % count;
   }
 
-  static ArveilColors of(BuildContext context) =>
-      Theme.of(context).extension<ArveilColors>()!;
+  /// The tokens of the theme in use; the defaults for its brightness when
+  /// a widget is shown outside [ArveilTheme], as in a lone widget test.
+  static ArveilColors of(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.extension<ArveilColors>() ??
+        (theme.brightness == Brightness.dark ? dark : light);
+  }
 
   @override
   ArveilColors copyWith() => this;

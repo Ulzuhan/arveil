@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:arveil/main.dart';
 import 'package:arveil/src/conversation_controller.dart';
 import 'package:arveil/src/conversations_page.dart';
+import 'package:arveil/src/design/design.dart';
 import 'package:arveil/src/profile_session.dart';
 import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/material.dart';
@@ -168,13 +169,25 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: ConversationsPage(controller: chat)),
     );
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
     profile.initialRows!.complete([row]);
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 30));
     expect(profile.syncs, 0);
 
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    for (final state in [
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
     await tester.pumpAndSettle();
     expect(profile.syncs, 1);
     await tester.pump(const Duration(seconds: 10));
@@ -584,8 +597,12 @@ void main() {
     expect(find.text('Tú: Llego a las nueve'), findsOneWidget);
     // With one other person the author is obvious and not repeated.
     expect(find.text('hola'), findsOneWidget);
-    expect(find.byKey(const Key('unread-group-a')), findsOneWidget);
-    expect(find.byKey(const Key('unread-group-b')), findsNothing);
+    Finder badge(String group) => find.descendant(
+      of: find.byKey(Key('conversation-$group')),
+      matching: find.byType(UnreadBadge),
+    );
+    expect(badge('group-a'), findsOneWidget);
+    expect(badge('group-b'), findsNothing);
     // The row reads as one node; the count is part of what it says.
     expect(
       find.bySemanticsLabel(RegExp('3 mensajes sin leer')),
@@ -679,6 +696,8 @@ void main() {
   ) async {
     final profile = ChatProfile();
     final chat = await open(tester, profile);
+    // On a phone the sync line heads the list.
+    await chat.select(null);
     await chat.sync();
     await tester.pumpAndSettle();
     expect(chat.syncState, SyncState.synced);
