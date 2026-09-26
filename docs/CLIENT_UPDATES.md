@@ -45,8 +45,35 @@ python3 scripts/client_updates.py init-key --key .local/update-signing/update.pe
 ```
 
 Back it up encrypted, separately from the APK key. It never belongs on the
-website, relay or CI. The command refuses to overwrite it and prints only the
-public key. Keep the following file in `.local/distribution.json`, mode 0600:
+website, relay or CI. The command refuses to overwrite it, saying that the key
+already exists, and prints only the public key.
+
+The command asks twice, in the terminal, for a passphrase of at least 12
+characters and stores the key encrypted with it (PKCS#8, AES-256 and
+PBKDF2-HMAC-SHA256 with 600,000 iterations); signing asks for it again.
+Neither the passphrase nor the key passes through command arguments or
+environment variables. Generate a long random passphrase and keep it in a
+password manager, never beside the key. **Losing the passphrase is losing the
+key:** the only way out is rotating the update key (see below), which takes a
+new build signed with the Android key. For scripted use, `--passphrase-fd N`
+reads the passphrase from the first line of the inherited file descriptor N
+instead of the terminal, for example through a pipe from a password manager's
+command-line tool. Without a terminal or that option, the tool stops rather
+than read a passphrase that would be echoed.
+
+A key created before this encryption existed is plain PEM. Signing still
+accepts it, with a warning. Encrypt it once; the command checks that the public
+key is unchanged and prints it. Then replace the file and destroy the plaintext
+key and every unencrypted backup of it:
+
+```sh
+python3 scripts/client_updates.py encrypt-key \
+  --key .local/update-signing/update.pem \
+  --output .local/update-signing/update-encrypted.pem
+mv .local/update-signing/update-encrypted.pem .local/update-signing/update.pem
+```
+
+Keep the following file in `.local/distribution.json`, mode 0600:
 
 ```json
 {
@@ -91,9 +118,22 @@ python3 scripts/client_updates.py sign \
   --output .local/releases/clients-beta-1.json
 ```
 
-Keep a private publication ledger of sequence numbers. **Every changed payload,
-including an expiry extension for the same APK, needs a higher sequence.** The
-tool checks package hashes, clean-build metadata, distribution/key agreement
+**Every changed payload, including an expiry extension for the same APK, needs
+a higher sequence.** The tool keeps that record itself: `sequences.json`,
+beside the key (here in `.local/update-signing/`, which Git ignores), lists
+each signed sequence per channel with its version, build, expiry and the
+SHA-256 of the signed file. Pass `--sequence` only for a channel's first
+announcement: 1 for a new channel or, if announcements were signed before the
+ledger existed, one higher than the last one published. Afterwards omit it;
+the tool uses the next number and prints it. An explicit `--sequence` must be
+higher than the last one recorded. A missing ledger, or a channel without
+entries, means no earlier announcement. A malformed ledger stops signing and is
+never reset: restore it from a backup or correct it by hand. The entry is
+written atomically, mode 0600, only after the signature verifies and before the
+output file, so a failed write can skip a number but never reuse one; clients
+accept gaps. Back up the ledger with the key.
+
+The tool checks package hashes, clean-build metadata, distribution/key agreement
 and an immutable GitHub asset URL, then verifies its own OpenSSL signature.
 It writes a new file exclusively; it never publishes or overwrites one.
 
@@ -171,7 +211,9 @@ Switching an installation between channels needs nothing more: the new
 channel keeps its own history. Rotating the update key means publishing a
 build with the new public key, which people install by hand once, as
 [ADR-010](adr/ADR-010-distribution-and-updates.md) describes; never reset
-update state or tell users to reinstall from scratch.
+update state or tell users to reinstall from scratch. Losing the update key or
+its passphrase leaves only this rotation, and that build must be signed with
+the existing Android key.
 The current Android certificate check intentionally requires the same current
 signers and does not implement APK signing-key lineage migration.
 
@@ -181,7 +223,8 @@ signers and does not implement APK signing-key lineage migration.
 signatures (including an independent OpenSSL fixture), expiry, sequence reuse
 and rollback, disabled checks, daily scheduling, package tampering and redirects.
 `python3 -m unittest discover -s scripts -p 'test_client_updates.py'` exercises
-the offline signing boundary. Android `app:testDebugUnitTest` checks the exact
+the offline signing boundary, including the sequence ledger and encrypted keys.
+Android `app:testDebugUnitTest` checks the exact
 session bytes, application ID, version and certificate policy.
 
 For the actual system installer, use the private

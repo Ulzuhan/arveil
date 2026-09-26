@@ -53,9 +53,36 @@ python3 scripts/client_updates.py init-key --key .local/update-signing/update.pe
 ```
 
 Haz una copia cifrada, separada de la clave del APK. Nunca debe estar en la
-web, el relay ni la CI. El comando se niega a sobrescribirla y solo imprime la
-clave pública. Guarda el siguiente archivo en `.local/distribution.json`, con
-modo 0600:
+web, el relay ni la CI. El comando se niega a sobrescribirla, avisando de que
+la clave ya existe, y solo imprime la clave pública.
+
+El comando pide dos veces en el terminal una frase de contraseña de al menos
+12 caracteres y guarda la clave cifrada con ella (PKCS#8, AES-256 y
+PBKDF2-HMAC-SHA256 con 600 000 iteraciones); al firmar vuelve a pedirla. Ni la
+frase de contraseña ni la clave pasan por argumentos de la línea de órdenes ni
+por variables de entorno. Genera una frase larga y aleatoria y guárdala en un
+gestor de contraseñas, nunca junto a la clave. **Perder la frase de contraseña
+es perder la clave:** la única salida es rotar la clave de actualización (véase
+más abajo), lo que exige una build nueva firmada con la clave de Android. Para
+usos automatizados, `--passphrase-fd N` lee la frase de contraseña de la
+primera línea del descriptor de archivo heredado N en lugar del terminal; por
+ejemplo, a través de una tubería desde la herramienta de línea de órdenes de un
+gestor de contraseñas. Sin terminal ni esa opción, la herramienta se detiene en
+vez de leer una frase de contraseña que se vería en pantalla.
+
+Una clave creada antes de que existiera este cifrado es un PEM sin cifrar. La
+firma todavía la acepta, con un aviso. Cífrala una vez; el comando comprueba
+que la clave pública no cambia y la imprime. Después sustituye el archivo y
+destruye la clave sin cifrar y todas sus copias sin cifrar:
+
+```sh
+python3 scripts/client_updates.py encrypt-key \
+  --key .local/update-signing/update.pem \
+  --output .local/update-signing/update-encrypted.pem
+mv .local/update-signing/update-encrypted.pem .local/update-signing/update.pem
+```
+
+Guarda el siguiente archivo en `.local/distribution.json`, con modo 0600:
 
 ```json
 {
@@ -103,13 +130,28 @@ python3 scripts/client_updates.py sign \
   --output .local/releases/clients-beta-1.json
 ```
 
-Lleva un registro privado de publicación con los números de secuencia.
 **Cualquier cambio en la carga útil, incluida una ampliación de la caducidad
-para el mismo APK, necesita una secuencia superior.** La herramienta comprueba
-los hashes del paquete, los metadatos de compilación limpia, que la
-distribución y la clave concuerden y que la URL del recurso de GitHub sea
-inmutable; después verifica su propia firma con OpenSSL. Solo escribe archivos
-nuevos, en modo exclusivo; nunca publica ni sobrescribe uno existente.
+para el mismo APK, necesita una secuencia superior.** La herramienta lleva ese
+registro por sí misma: `sequences.json`, junto a la clave (aquí en
+`.local/update-signing/`, que Git ignora), guarda por canal cada secuencia
+firmada con su versión, su compilación, su caducidad y el SHA-256 del archivo
+firmado. Pasa `--sequence` solo en el primer anuncio de un canal: 1 si el canal
+es nuevo o, si ya se firmaron anuncios antes de que existiera el registro, uno
+más que el último publicado. Después, omítelo: la herramienta usa el número
+siguiente y lo imprime. Un `--sequence` explícito debe ser mayor que el último
+registrado. Si falta el registro, o un canal no tiene entradas, no hay ningún
+anuncio anterior. Un registro con formato no válido detiene la firma y nunca se
+restablece: recupéralo de una copia de seguridad o corrígelo a mano. La
+entrada se escribe de forma atómica, con modo 0600, solo después de verificar
+la firma y antes del archivo de salida, así que un fallo al escribir puede
+saltarse un número, pero nunca reutilizarlo; los clientes aceptan huecos. Haz
+copia de seguridad del registro junto con la clave.
+
+La herramienta comprueba los hashes del paquete, los metadatos de compilación
+limpia, que la distribución y la clave concuerden y que la URL del recurso de
+GitHub sea inmutable; después verifica su propia firma con OpenSSL. Solo
+escribe archivos nuevos, en modo exclusivo; nunca publica ni sobrescribe uno
+existente.
 
 Publica primero el APK verificado, adjunta el anuncio firmado con su nombre de
 archivo único por secuencia y sirve de forma atómica esos mismos bytes en la
@@ -196,7 +238,9 @@ Cambiar una instalación de canal no necesita nada más: el canal nuevo conserva
 su propio historial. Rotar la clave de actualización exige publicar una build
 con la clave pública nueva, que la gente instala a mano una vez, como explica
 la [ADR-010](adr/ADR-010-distribution-and-updates.md); nunca restablezcas el
-estado de actualización ni pidas a la gente que reinstale desde cero. La comprobación actual del certificado Android exige a
+estado de actualización ni pidas a la gente que reinstale desde cero. Perder la
+clave de actualización o su frase de contraseña solo deja esta rotación, y esa
+build debe firmarse con la clave de Android existente. La comprobación actual del certificado Android exige a
 propósito los mismos firmantes actuales y no implementa la migración por
 linaje de la clave de firma del APK.
 
@@ -207,7 +251,8 @@ firmas (incluido un vector OpenSSL independiente), la caducidad, la
 reutilización de secuencias y los retrocesos, las comprobaciones desactivadas,
 la programación diaria, la manipulación del paquete y las redirecciones.
 `python3 -m unittest discover -s scripts -p 'test_client_updates.py'` prueba la
-frontera de la firma sin conexión. En Android, `app:testDebugUnitTest`
+frontera de la firma sin conexión, incluidos el registro de secuencias y las
+claves cifradas. En Android, `app:testDebugUnitTest`
 comprueba los bytes exactos de la sesión, el ID de aplicación, la versión y la
 política de certificados.
 
