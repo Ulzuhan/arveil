@@ -644,6 +644,18 @@ abstract class AppLocalizations {
   /// **'El servidor está limitando los intentos de vinculación desde esta red. Espera unos minutos (hasta 10) antes de generar un código nuevo; reintentar antes no sirve.'**
   String get errorPairingQuota;
 
+  /// No description provided for @errorPairingNoAnswer.
+  ///
+  /// In es, this message translates to:
+  /// **'El dispositivo nuevo no respondió a este código o el código ya no es válido. Comprueba que el dispositivo nuevo sigue mostrándolo; si no, genera otro allí y pégalo aquí.'**
+  String get errorPairingNoAnswer;
+
+  /// No description provided for @errorPairingExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'El código caducó sin respuesta del dispositivo administrador. Genera otro y pégalo allí antes de que caduque.'**
+  String get errorPairingExpired;
+
   /// No description provided for @errorQuota.
   ///
   /// In es, this message translates to:
@@ -1457,8 +1469,14 @@ abstract class AppLocalizations {
   /// No description provided for @pairingWaitInterrupted.
   ///
   /// In es, this message translates to:
-  /// **'La espera se interrumpió. Cancela esta sesión y genera otro código; la comparación ya recibida se conserva al reabrir.'**
+  /// **'La espera se detuvo, pero el código sigue siendo válido hasta que caduque. Sigue esperando o cancela y genera otro.'**
   String get pairingWaitInterrupted;
+
+  /// No description provided for @pairingResumeWait.
+  ///
+  /// In es, this message translates to:
+  /// **'Seguir esperando'**
+  String get pairingResumeWait;
 
   /// No description provided for @pairingCancel.
   ///

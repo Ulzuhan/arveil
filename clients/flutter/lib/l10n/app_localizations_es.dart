@@ -337,6 +337,14 @@ class AppLocalizationsEs extends AppLocalizations {
       'El servidor está limitando los intentos de vinculación desde esta red. Espera unos minutos (hasta 10) antes de generar un código nuevo; reintentar antes no sirve.';
 
   @override
+  String get errorPairingNoAnswer =>
+      'El dispositivo nuevo no respondió a este código o el código ya no es válido. Comprueba que el dispositivo nuevo sigue mostrándolo; si no, genera otro allí y pégalo aquí.';
+
+  @override
+  String get errorPairingExpired =>
+      'El código caducó sin respuesta del dispositivo administrador. Genera otro y pégalo allí antes de que caduque.';
+
+  @override
   String get errorQuota =>
       'El servidor alcanzó uno de sus límites y no aceptó la operación. Espera unos minutos antes de volver a intentarlo; si se repite, avisa a quien lo administra.';
 
@@ -843,7 +851,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get pairingWaitInterrupted =>
-      'La espera se interrumpió. Cancela esta sesión y genera otro código; la comparación ya recibida se conserva al reabrir.';
+      'La espera se detuvo, pero el código sigue siendo válido hasta que caduque. Sigue esperando o cancela y genera otro.';
+
+  @override
+  String get pairingResumeWait => 'Seguir esperando';
 
   @override
   String get pairingCancel => 'Cancelar vinculación';

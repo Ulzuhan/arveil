@@ -177,6 +177,16 @@ class _PairingPanelState extends State<PairingPanel> {
                   ? context.l10n.pairingWaiting
                   : context.l10n.pairingWaitInterrupted,
             ),
+            if (!session.waitingForPairing) ...[
+              const SizedBox(height: 12),
+              FilledButton(
+                key: const Key('pair-resume-wait'),
+                onPressed: session.busy || session.cancellingPairing
+                    ? null
+                    : session.waitForPairing,
+                child: Text(context.l10n.pairingResumeWait),
+              ),
+            ],
           ],
           if (!pairing.committing) ...[
             const SizedBox(height: 16),

@@ -60,8 +60,12 @@ The invitation form keeps its token only in memory and clears it on completion o
 
 The setup offers invitation, linking and restore. A linked device compares the
 short code manually before applying its grant; a wrong code cannot finalize it.
-An interrupted wait **before receiving the comparison** needs cancellation and
-a new pairing code. Once the comparison is stored it survives reopening; once
+The new device listens for as long as its code is valid (the relay's rendezvous
+lifetime, ten minutes by default), because the code travels to the
+administration device by hand. If that wait is interrupted **before receiving
+the comparison**, **Keep waiting** resumes it while the code is valid; an
+interruption in the middle of the exchange still needs cancellation and a new
+code. Once the comparison is stored it survives reopening; once
 confirmation commits, finalization resumes using the same device/mailbox.
 Cancellation is local and does not revoke authorization already issued by the
 administrator. The administration screen states this before issuing a grant

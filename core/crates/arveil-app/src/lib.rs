@@ -1342,7 +1342,9 @@ impl ProfileConfig {
         self
     }
 
-    /// How long a pairing wait may block before it gives up.
+    /// How long the administration device waits for the new device to
+    /// answer (90 seconds by default). It also shortens the new device's
+    /// wait, which otherwise lasts until its code expires.
     pub fn with_pairing_timeout(mut self, seconds: u64) -> Self {
         self.pairing_timeout = Some(seconds);
         self

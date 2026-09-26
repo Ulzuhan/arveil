@@ -275,6 +275,33 @@ void main() {
     }
   });
 
+  test('a pairing refusal points at the other device, not at enrollment', () {
+    final admin = describeFailure(
+      const CommandError.domain(
+        operation: 'approve-pairing',
+        reason: 'PRIVATE_TOKEN_AND_PATH',
+      ),
+    );
+    expect(admin, contains('no respondió a este código'));
+    final waiting = describeFailure(
+      const CommandError.domain(
+        operation: 'await-pairing',
+        reason: 'PRIVATE_TOKEN_AND_PATH',
+      ),
+    );
+    expect(waiting, contains('caducó'));
+    for (final message in [admin, waiting]) {
+      expect(message, isNot(contains('alta')));
+      expect(message, isNot(contains('PRIVATE_TOKEN_AND_PATH')));
+    }
+    expect(
+      describeFailure(
+        const CommandError.domain(operation: 'enroll', reason: ''),
+      ),
+      contains('no empieces un alta diferente'),
+    );
+  });
+
   test('a profile from a newer app asks for an update, not for its key', () {
     final message = describeFailure(
       const ProfileError.tooNew(

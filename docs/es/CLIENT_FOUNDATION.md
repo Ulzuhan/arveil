@@ -77,8 +77,12 @@ El formulario mantiene la invitación solo en memoria y la borra al completar el
 
 El alta ofrece invitación, vinculación y restauración. El dispositivo nuevo
 compara manualmente el código corto antes de aplicar su autorización; un código
-incorrecto impide finalizar. Si la espera se interrumpe **antes de recibir la
-comparación**, hay que cancelar y generar otro código. La comparación recibida
+incorrecto impide finalizar. El dispositivo nuevo escucha mientras su código
+es válido (la vida de la cita en el relay, diez minutos por defecto), porque el
+código viaja a mano hasta el administrador. Si esa espera se interrumpe **antes
+de recibir la comparación**, «Seguir esperando» la retoma mientras el código
+siga siendo válido; una interrupción a mitad del intercambio sigue exigiendo
+cancelar y generar otro código. La comparación recibida
 sobrevive a la reapertura; tras confirmar, la finalización retoma el mismo
 dispositivo y buzón. Cancelar solo detiene el alta local: no revoca una
 autorización ya emitida por el administrador. Su pantalla lo explica antes
