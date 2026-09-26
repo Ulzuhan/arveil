@@ -136,7 +136,13 @@ and the publication script both keep these releases separate.
 4. Create a **draft prerelease** using the client tag. Set its target to the exact
    source commit recorded in both metadata files, not a moving branch. Attach
    only the two packages, the two metadata files and `SHA256SUMS-clients.txt`.
-   Record the scope and acceptance evidence below in its notes.
+   Record the scope and acceptance evidence below in its notes. The signed
+   update announcement is attached too ([signed updates](CLIENT_UPDATES.md)).
+5. Once the release is published, update the
+   [Homebrew tap](https://github.com/kaicorplabs/homebrew-tap): in
+   `Casks/arveil.rb`, set `version` to the public version and the build
+   (`0.1.0-beta.2,20`) and `sha256` to the ZIP's, then run `brew style` and
+   `brew fetch --cask arveil` against the published file.
 
 The CLI/relay workflow publishes `SHA256SUMS-cli-relay.txt` with an explicit
 binary list and refuses to overwrite existing release assets. A repeated upload

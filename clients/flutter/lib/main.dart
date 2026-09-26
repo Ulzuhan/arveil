@@ -22,15 +22,20 @@ Future<void> main() async {
   await ArveilRust.init();
   final appearance = await AppearanceController.load(FileAppearanceStore());
   UpdateController? updates;
-  if (Platform.isAndroid) {
+  // Android installs verified updates; the Mac app only announces them and
+  // opens the download.
+  if (Platform.isAndroid || Platform.isMacOS) {
     updates = UpdateController(
+      notifyOnly: Platform.isMacOS,
       config: UpdateConfig.fromEnvironment(),
       store: FileUpdateStore(await getApplicationSupportDirectory()),
       transport: HttpsUpdateTransport(
         () async =>
             Directory('${(await getTemporaryDirectory()).path}/updates'),
       ),
-      installer: AndroidUpdateInstaller(),
+      installer: Platform.isMacOS
+          ? MacUpdateNotifier()
+          : AndroidUpdateInstaller(),
       verifier: (payload, signature, publicKey) => verifyUpdateSignature(
         payload: payload,
         signature: signature,

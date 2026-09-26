@@ -130,6 +130,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'The check or download could not complete. Check your connection and available storage, then try again.';
 
   @override
+  String get updatesExplanationMac =>
+      'Arveil can tell you when there is a new version and open its download. You install it yourself: quit Arveil and replace the app in Applications. Your profile and conversations stay; do not delete the app\'s data.';
+
+  @override
+  String get updatesPrivacyMac =>
+      'Checks contact this distribution’s update service independently of your server. That service sees your IP address and the time, but receives neither your identity nor your installed version. Your browser downloads the new version from GitHub.';
+
+  @override
+  String get updatesOpenDownload => 'Download in the browser';
+
+  @override
+  String get updatesMacReplace =>
+      'When it finishes, open the ZIP, quit Arveil and drag the new app into Applications, replacing the old one. If you installed it with Homebrew, use “brew upgrade --cask arveil” instead. The first time you open the new version, macOS asks you to allow it in System Settings → Privacy & Security.';
+
+  @override
   String get updatesErrorFormat =>
       'The update service sent an announcement this app cannot read. Nothing was accepted.';
 

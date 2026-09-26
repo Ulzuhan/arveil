@@ -254,6 +254,46 @@ def record_sequence(path, channel, entry):
     replace_private(path, (json.dumps(ledger, indent=2) + "\n").encode())
 
 
+def checked_package(directory, platform, suffix, config):
+    """The one package in a clean, packaged build directory for [platform],
+    built for this update distribution, with its BUILD.json and checksum."""
+    build = read_build(directory / "BUILD.json")
+    if build.get("dirty_source") is not False or build.get("platform") != platform or build.get("architecture") != "arm64":
+        raise ValueError(f"Only a clean, packaged {platform} arm64 release may be announced.")
+    if build.get("update_config") != config:
+        raise ValueError(f"The {platform} package was not built for this exact update distribution.")
+    artifacts = list(directory.glob(f"*{suffix}"))
+    if len(artifacts) != 1:
+        raise ValueError(f"Expected exactly one {suffix} in the {platform} package directory.")
+    artifact = artifacts[0]
+    # Check the packaging manifest before signing, including BUILD.json itself.
+    sums = {}
+    for line in (directory / "SHA256SUMS.txt").read_text(encoding="utf-8").splitlines():
+        digest, name = line.split("  ", 1)
+        if Path(name).name != name or name in sums or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise ValueError("Malformed package checksums.")
+        sums[name] = digest
+    for file in (artifact, directory / "BUILD.json"):
+        if hashlib.sha256(file.read_bytes()).hexdigest() != sums.get(file.name):
+            raise ValueError("A package no longer matches its release checksums.")
+    if not 1 <= artifact.stat().st_size <= MAX_BYTES:
+        raise ValueError("Package size is outside the supported range.")
+    if not text(build.get("version"), r"\d+\.\d+\.\d+") or not integer(build.get("build"), 1, 2100000000):
+        raise ValueError(f"Invalid {platform} version or build.")
+    return build, artifact, sums[artifact.name]
+
+
+def release_asset(url, artifact):
+    """The immutable clients-v* GitHub release URL of [artifact]."""
+    url = https_url(url)
+    parsed = urlparse(url)
+    # No mutable /latest links, arbitrary websites or versionless download URLs.
+    if parsed.hostname != "github.com" or parsed.query or not re.fullmatch(
+            r"/[^/]+/[^/]+/releases/download/clients-v[^/]+/" + re.escape(artifact.name), parsed.path):
+        raise ValueError(f"Use the immutable clients-v* GitHub release asset URL of {artifact.name}.")
+    return url
+
+
 def sign(args):
     if args.key.stat().st_mode & 0o077:
         raise ValueError("The update key must be private (chmod 600).")
@@ -263,42 +303,37 @@ def sign(args):
     sequence = choose_sequence(read_ledger(ledger), channel, args.sequence)
     if not 1 <= args.valid_days <= 90:
         raise ValueError("Use an expiry of 1–90 days.")
-    build = read_build(args.package / "BUILD.json")
-    if build.get("dirty_source") is not False or build.get("platform") != "android" or build.get("architecture") != "arm64":
-        raise ValueError("Only a clean, packaged Android arm64 release may be announced.")
-    if build.get("update_config") != config:
-        raise ValueError("The APK was not built for this exact update distribution.")
+    build, apk, apk_sha256 = checked_package(args.package, "android", ".apk", config)
     if not text(build.get("certificate_sha256"), r"[0-9a-f]{64}"):
         raise ValueError("The build is missing its Android signing certificate fingerprint.")
-    artifacts = list(args.package.glob("*.apk"))
-    if len(artifacts) != 1:
-        raise ValueError("Expected exactly one APK in the package directory.")
-    apk = artifacts[0]
-    # Check the packaging manifest before signing, including BUILD.json itself.
-    sums = {}
-    for line in (args.package / "SHA256SUMS.txt").read_text(encoding="utf-8").splitlines():
-        digest, name = line.split("  ", 1)
-        if Path(name).name != name or name in sums or not re.fullmatch(r"[0-9a-f]{64}", digest):
-            raise ValueError("Malformed package checksums.")
-        sums[name] = digest
-    for file in (apk, args.package / "BUILD.json"):
-        if hashlib.sha256(file.read_bytes()).hexdigest() != sums.get(file.name):
-            raise ValueError("A package no longer matches its release checksums.")
-    if not 1 <= apk.stat().st_size <= MAX_BYTES:
-        raise ValueError("APK size is outside the supported range.")
-    if not text(build.get("version"), r"\d+\.\d+\.\d+") or not integer(build.get("build"), 1, 2100000000):
-        raise ValueError("Invalid Android version or build.")
     if not integer(build.get("minimum_sdk"), 21, 1000):
         raise ValueError("Invalid minimum Android SDK.")
     if not text(build.get("application_id"), r"[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+"):
         raise ValueError("Missing or invalid Android application ID.")
     notes = check_notes(args.notes.read_text(encoding="utf-8"))
-    url = https_url(args.asset_url)
-    parsed = urlparse(url)
-    # No mutable /latest links, arbitrary websites or versionless download URLs.
-    if parsed.hostname != "github.com" or parsed.query or not re.fullmatch(
-            r"/[^/]+/[^/]+/releases/download/clients-v[^/]+/" + re.escape(apk.name), parsed.path):
-        raise ValueError("Use this APK's immutable clients-v* GitHub release asset URL.")
+    notes_url = https_url(args.notes_url)
+    platforms = {"android-arm64": {
+        "version": build["version"], "build": build["build"], "minimum_sdk": build["minimum_sdk"],
+        "application_id": build["application_id"], "url": release_asset(args.asset_url, apk),
+        "size": apk.stat().st_size, "sha256": apk_sha256, "notes": notes, "notes_url": notes_url,
+    }}
+    # The Mac app only announces a new version and opens its download: it
+    # compares the build number and never installs anything.
+    macos_package = getattr(args, "macos_package", None)
+    macos_asset_url = getattr(args, "macos_asset_url", None)
+    if (macos_package is None) != (macos_asset_url is None):
+        raise ValueError("Pass --macos-package and --macos-asset-url together.")
+    if macos_package is not None:
+        mac, archive, archive_sha256 = checked_package(macos_package, "macos", ".zip", config)
+        if (mac["version"], mac["build"]) != (build["version"], build["build"]):
+            raise ValueError("The macOS and Android packages must be the same version and build.")
+        if not text(mac.get("minimum_os"), r"\d+\.\d+(\.\d+)?"):
+            raise ValueError("Missing or invalid minimum macOS version.")
+        platforms["macos-arm64"] = {
+            "version": mac["version"], "build": mac["build"], "minimum_os": mac["minimum_os"],
+            "url": release_asset(macos_asset_url, archive), "size": archive.stat().st_size,
+            "sha256": archive_sha256, "notes": notes, "notes_url": notes_url,
+        }
     if os.path.lexists(args.output):
         raise ValueError(OUTPUT_EXISTS)
     # Ask for the passphrase only once every other input has been checked.
@@ -317,11 +352,7 @@ def sign(args):
     payload = json.dumps({
         "schema": 1, "channel": channel, "sequence": sequence,
         "expires": expires,
-        "platforms": {"android-arm64": {
-            "version": build["version"], "build": build["build"], "minimum_sdk": build["minimum_sdk"],
-            "application_id": build["application_id"], "url": url, "size": apk.stat().st_size,
-            "sha256": sums[apk.name], "notes": notes, "notes_url": https_url(args.notes_url),
-        }},
+        "platforms": platforms,
     }, ensure_ascii=False, separators=(",", ":")).encode()
     with tempfile.TemporaryDirectory(prefix="arveil-update-sign-") as temporary:
         source = Path(temporary) / "payload"
@@ -371,6 +402,9 @@ def main():
     for field in ("key", "config", "package", "notes", "output"):
         signed.add_argument("--" + field, type=Path, required=True)
     signed.add_argument("--asset-url", required=True)
+    signed.add_argument("--macos-package", type=Path,
+                        help="also announce this packaged macOS build, of the same version and build")
+    signed.add_argument("--macos-asset-url", help="the macOS ZIP's clients-v* GitHub release asset URL")
     signed.add_argument("--notes-url", required=True)
     signed.add_argument("--sequence", type=int,
                         help="required for a channel's first announcement; defaults to the next one in the ledger")

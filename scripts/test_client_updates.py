@@ -133,6 +133,53 @@ class SigningTests(unittest.TestCase):
         self.assertEqual(self.recorded(), [1])
         self.assertEqual(self.key.stat().st_mode & 0o077, 0)
 
+    def mac_package(self, **changes):
+        """A packaged macOS build next to the Android one."""
+        directory = self.directory / "mac-package"
+        directory.mkdir(exist_ok=True)
+        archive = directory / "arveil-0.1.0-18-macos-arm64.zip"
+        archive.write_bytes(b"a macos packaging fixture")
+        metadata = directory / "BUILD.json"
+        metadata.write_text(json.dumps({
+            "dirty_source": False, "platform": "macos", "architecture": "arm64",
+            "update_config": self.config, "version": "0.1.0", "build": 18, "minimum_os": "12.0",
+            **changes}), encoding="utf-8")
+        (directory / "SHA256SUMS.txt").write_text("".join(
+            f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n" for p in (archive, metadata)),
+            encoding="utf-8")
+        self.args.macos_package = directory
+        self.args.macos_asset_url = (
+            f"https://github.com/example/arveil/releases/download/clients-v0.1.0-beta.1/{archive.name}")
+        return archive
+
+    def test_announces_the_mac_build_beside_the_android_one(self):
+        archive = self.mac_package()
+        data = self.sign(sequence=1)
+        mac = data["platforms"]["macos-arm64"]
+        self.assertEqual(mac["build"], 18)
+        self.assertEqual(mac["minimum_os"], "12.0")
+        self.assertEqual(mac["sha256"], hashlib.sha256(archive.read_bytes()).hexdigest())
+        self.assertEqual(mac["url"], self.args.macos_asset_url)
+        self.assertEqual(mac["notes"], data["platforms"]["android-arm64"]["notes"])
+
+    def test_refuses_a_mac_build_that_does_not_match(self):
+        for changes, message in [({"build": 19}, "same version and build"),
+                                 ({"update_config": {}}, "exact update distribution"),
+                                 ({"dirty_source": True}, "clean, packaged macos"),
+                                 ({"minimum_os": "twelve"}, "minimum macOS")]:
+            with self.subTest(changes=changes):
+                self.mac_package(**changes)
+                with self.assertRaisesRegex(ValueError, message):
+                    self.sign(sequence=1)
+        self.mac_package()
+        self.args.macos_asset_url = "https://example.org/arveil.zip"
+        with self.assertRaisesRegex(ValueError, "release asset URL"):
+            self.sign(sequence=1)
+        self.args.macos_asset_url = None
+        with self.assertRaisesRegex(ValueError, "together"):
+            self.sign(sequence=1)
+        self.assertFalse(self.ledger.exists(), "nothing was recorded")
+
     def test_init_key_encrypts_the_key_and_never_replaces_it(self):
         pem = self.key.read_bytes()
         self.assertTrue(pem.startswith(updates.ENCRYPTED_KEY + b"\n"))

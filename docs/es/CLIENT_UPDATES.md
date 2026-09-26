@@ -10,8 +10,11 @@ incorporarla.
 Las actualizaciones son independientes del realm. Quien distribuye la app elige
 al compilarla un manifiesto HTTPS y una clave pública Ed25519. Una compilación
 normal desde el código no tiene manifiesto y no contacta con ningún servicio
-operado por el proyecto. macOS sigue usando la sustitución manual; este cambio
-no implementa Sparkle ni la rotación automática de la clave de actualización.
+operado por el proyecto. En macOS la app consulta el mismo manifiesto firmado
+y, si hay una versión más reciente, abre su descarga: la persona sustituye la
+app o ejecuta `brew upgrade --cask arveil` (véase [En macOS](#en-macos)). No
+están implementados Sparkle ni la rotación automática de la clave de
+actualización.
 
 *English: [Signed Android updates](../CLIENT_UPDATES.md).*
 
@@ -59,6 +62,25 @@ instalar paquetes. **Ajustes → Diagnóstico** indica `updates:` seguido de
 `none`, del canal, o de `invalid` cuando el build lleva una configuración de
 actualizaciones que la app rechazó; ese build se comporta como uno sin
 actualizaciones.
+
+## En macOS
+
+La app del Mac tiene la misma pantalla **Ajustes → Actualizaciones**, la misma
+comprobación diaria opcional y la misma verificación: firma, canal, secuencia y
+caducidad. Ofrece la entrada `macos-arm64` del anuncio cuando su compilación es
+mayor que la de la propia app (`CFBundleVersion`) y el Mac cumple `minimum_os`.
+**Descargar en el navegador** abre la `url` de esa entrada, el ZIP de la
+release de GitHub; la app nunca descarga, descomprime ni sustituye nada por su
+cuenta. La persona cierra Arveil y sustituye la app en Aplicaciones, o ejecuta
+`brew upgrade --cask arveil` si la instaló con
+[Homebrew](https://github.com/kaicorplabs/homebrew-tap). En los dos casos el
+perfil se queda en el contenedor aislado de la app. Un anuncio sin entrada de
+macOS no ofrece nada en el Mac, y Android ignora la entrada de macOS.
+
+El paquete del Mac lleva la configuración de actualizaciones igual que el APK:
+compílalo con `--update-config` y firma el anuncio también con
+`--macos-package` y `--macos-asset-url`. Los dos paquetes tienen que ser de la
+misma versión y compilación.
 
 ## Configurar una distribución
 
@@ -149,6 +171,8 @@ python3 scripts/client_updates.py sign \
   --sequence 1 --valid-days 30 \
   --notes .local/release-notes.txt \
   --asset-url https://github.com/example/arveil/releases/download/clients-v0.1.0-beta.1/arveil-0.1.0-18-android-arm64.apk \
+  --macos-package dist/clients/0.1.0+18/macos \
+  --macos-asset-url https://github.com/example/arveil/releases/download/clients-v0.1.0-beta.1/arveil-0.1.0-18-macos-arm64.zip \
   --notes-url https://github.com/example/arveil/releases/tag/clients-v0.1.0-beta.1 \
   --output .local/releases/clients-beta-1.json
 ```
@@ -232,10 +256,24 @@ vuelve a serializar el JSON. La carga útil contiene:
       "sha256": "64-lowercase-hex-characters",
       "notes": "Plain-text release notes.",
       "notes_url": "https://example.org/releases/18"
+    },
+    "macos-arm64": {
+      "version": "0.1.0",
+      "build": 18,
+      "minimum_os": "12.0",
+      "url": "https://github.com/example/arveil/releases/download/clients-v0.1.0-beta.1/app.zip",
+      "size": 123,
+      "sha256": "64-lowercase-hex-characters",
+      "notes": "Plain-text release notes.",
+      "notes_url": "https://example.org/releases/18"
     }
   }
 }
 ```
+
+`macos-arm64` es opcional; la entrada de Android siempre está, así que los
+clientes Android anteriores siguen leyendo el manifiesto. Una entrada de macOS
+mal formada rechaza el anuncio entero, igual que una de Android.
 
 El manifiesto está limitado a 64 KiB y el APK a 512 MiB. Las notas de la
 versión son texto plano de como mucho 8000 code points Unicode; el firmador y

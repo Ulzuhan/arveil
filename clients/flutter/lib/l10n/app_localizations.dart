@@ -302,6 +302,30 @@ abstract class AppLocalizations {
   /// **'No se pudo completar la consulta o la descarga. Comprueba la conexión y el espacio disponible y vuelve a intentarlo.'**
   String get updatesErrorNetwork;
 
+  /// No description provided for @updatesExplanationMac.
+  ///
+  /// In es, this message translates to:
+  /// **'Arveil puede avisarte cuando hay una versión nueva y abrir su descarga. La instalas tú: cierra Arveil y sustituye la app en Aplicaciones. Tu perfil y tus conversaciones se conservan; no borres los datos de la app.'**
+  String get updatesExplanationMac;
+
+  /// No description provided for @updatesPrivacyMac.
+  ///
+  /// In es, this message translates to:
+  /// **'La consulta contacta con el servicio de actualizaciones de esta distribución, independientemente de tu servidor. Ese servicio ve tu IP y la hora, pero no recibe tu identidad ni tu versión instalada. La descarga la hace tu navegador desde GitHub.'**
+  String get updatesPrivacyMac;
+
+  /// No description provided for @updatesOpenDownload.
+  ///
+  /// In es, this message translates to:
+  /// **'Descargar en el navegador'**
+  String get updatesOpenDownload;
+
+  /// No description provided for @updatesMacReplace.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuando termine, abre el ZIP, cierra Arveil y arrastra la app nueva a Aplicaciones sustituyendo la anterior. Si la instalaste con Homebrew, usa en su lugar «brew upgrade --cask arveil». La primera vez que abras la versión nueva, macOS te pedirá autorizarla en Ajustes del Sistema → Privacidad y seguridad.'**
+  String get updatesMacReplace;
+
   /// No description provided for @updatesErrorFormat.
   ///
   /// In es, this message translates to:

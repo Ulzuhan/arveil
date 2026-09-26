@@ -1,7 +1,7 @@
 # ADR-010 — Distribution and updates outside the app stores
 
 - **Status:** accepted for Android, on the emulator evidence in the [platform record](../PLATFORMS.md#android-signed-updater-final-acceptance-2026-09-26): criteria 1–7 at API 24, 28, 29 and 35. A check on a physical phone is still pending. Proposed for macOS.
-- **Implementation:** the Android check/download/PackageInstaller path and offline manifest signer are implemented; see [Signed Android updates](../CLIENT_UPDATES.md) for the exact wire format, tests and limitations. macOS/Sparkle and automatic key rotation remain pending. No public feed or personal relay is configured by committing this code.
+- **Implementation:** the Android check/download/PackageInstaller path and offline manifest signer are implemented; see [Signed Android updates](../CLIENT_UPDATES.md) for the exact wire format, tests and limitations. On macOS the app announces new versions from the same feed and opens their download; Sparkle and automatic key rotation remain pending. No public feed or personal relay is configured by committing this code.
 - **Date:** 2026-09-26.
 - **Scope:** how people who are not developers get the Android and macOS apps and their updates while Arveil is not in Google Play or the App Store; how the app learns that an update exists; what that check reveals. Part of M3b.8 in the [Flutter plan](../PHASE3B.md) ("signed updates").
 
@@ -39,7 +39,7 @@ Three constraints shape any answer:
 |---|---|---|
 | Android | Older clients | Website download plus the install guide, installed over the existing app once to gain the updater. Optionally [Obtainium](https://github.com/ImranR98/Obtainium) pointed at the GitHub repository with prereleases enabled and an asset filter for the APK; the OS still enforces the signing certificate |
 | Android | Implemented; accepted on emulators | In-app check (decisions 5–6); the verified APK is handed to the system installer through a `PackageInstaller` session, which needs the `REQUEST_INSTALL_PACKAGES` permission and the user's confirmation |
-| macOS | M3b.8 | [Sparkle](https://sparkle-project.org/) with an appcast generated from the same manifest and signed with the same update key (Sparkle's EdDSA is Ed25519). Until then: download and replace the app, as the install guide says |
+| macOS | Notice implemented; installing is M3b.8 | The app checks the same signed feed and, for a newer build, opens its download; the person replaces the app, or runs `brew upgrade --cask arveil` with the [Homebrew tap](https://github.com/kaicorplabs/homebrew-tap). Installing in-app is left to [Sparkle](https://sparkle-project.org/), with an appcast generated from the same manifest and signed with the same update key (Sparkle's EdDSA is Ed25519), once the app has a Developer ID and notarization |
 | Windows, Linux | M3b.6 | Decided with those builds; the manifest format already has room for them |
 | iOS | M3b.7 | There is no practical distribution outside Apple's (App Store or TestFlight); out of this decision |
 

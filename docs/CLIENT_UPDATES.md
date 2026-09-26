@@ -7,8 +7,11 @@ screen needs one manual installation over the existing app to gain it.
 
 Updates are independent of the realm. A distributor chooses an HTTPS feed and
 an Ed25519 public key at build time. An ordinary source build has no feed and
-does not contact a project-operated service. macOS still uses manual replacement;
-Sparkle and automatic update-key rotation are not implemented by this change.
+does not contact a project-operated service. On macOS the app checks the same
+signed feed and, when there is a newer version, opens its download: the person
+replaces the app, or runs `brew upgrade --cask arveil` (see
+[On macOS](#on-macos)). Sparkle and automatic update-key rotation are not
+implemented.
 
 *Español: [Actualizaciones firmadas](es/CLIENT_UPDATES.md).*
 
@@ -50,6 +53,24 @@ Only builds with a feed request Android's permission to install packages.
 **Settings → Diagnostics** reports `updates:` followed by `none`, the channel,
 or `invalid` when the build carries an update configuration the app refused;
 such a build behaves as one without updates.
+
+## On macOS
+
+The Mac app has the same **Settings → Updates** screen, the same opt-in daily
+check and the same verification: signature, channel, sequence and expiry. It
+offers the `macos-arm64` entry of the announcement when its build is higher
+than the app's own (`CFBundleVersion`) and the Mac meets `minimum_os`.
+**Download in the browser** opens that entry's `url`, the ZIP in the GitHub
+release; the app never downloads, unpacks or replaces anything itself. The
+person quits Arveil and replaces the app in Applications, or runs
+`brew upgrade --cask arveil` if they installed it with
+[Homebrew](https://github.com/kaicorplabs/homebrew-tap). The profile stays in
+the app's sandbox container either way. An announcement without a macOS entry
+offers nothing on the Mac, and Android ignores the macOS entry.
+
+The Mac package carries the update configuration like the APK: build it with
+`--update-config`, and sign the announcement with `--macos-package` and
+`--macos-asset-url` as well. Both packages must be the same version and build.
 
 ## Configure a distribution
 
@@ -135,6 +156,8 @@ python3 scripts/client_updates.py sign \
   --sequence 1 --valid-days 30 \
   --notes .local/release-notes.txt \
   --asset-url https://github.com/example/arveil/releases/download/clients-v0.1.0-beta.1/arveil-0.1.0-18-android-arm64.apk \
+  --macos-package dist/clients/0.1.0+18/macos \
+  --macos-asset-url https://github.com/example/arveil/releases/download/clients-v0.1.0-beta.1/arveil-0.1.0-18-macos-arm64.zip \
   --notes-url https://github.com/example/arveil/releases/tag/clients-v0.1.0-beta.1 \
   --output .local/releases/clients-beta-1.json
 ```
@@ -207,10 +230,24 @@ The payload contains:
       "sha256": "64-lowercase-hex-characters",
       "notes": "Plain-text release notes.",
       "notes_url": "https://example.org/releases/18"
+    },
+    "macos-arm64": {
+      "version": "0.1.0",
+      "build": 18,
+      "minimum_os": "12.0",
+      "url": "https://github.com/example/arveil/releases/download/clients-v0.1.0-beta.1/app.zip",
+      "size": 123,
+      "sha256": "64-lowercase-hex-characters",
+      "notes": "Plain-text release notes.",
+      "notes_url": "https://example.org/releases/18"
     }
   }
 }
 ```
+
+`macos-arm64` is optional; the Android entry is always present, so Android
+clients from before it keep reading the feed. A malformed macOS entry rejects
+the whole announcement, as a malformed Android entry does.
 
 The feed is limited to 64 KiB and the APK to 512 MiB. Release notes are plain
 text of at most 8,000 Unicode code points; the signer and the app count them
