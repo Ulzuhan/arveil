@@ -596,3 +596,11 @@ validation. See [the update protocol and release procedure](CLIENT_UPDATES.md).
 This emulator result does not establish physical-phone, device-policy or
 background-install behavior. No silent/background installation is implemented;
 macOS integration and automatic update-key rotation remain pending.
+
+Source: the run above used the updater from `283467b`; `049fd0d` changed the
+update transport afterwards, and the corrections in the same pull request
+followed. The final revision is still to be accepted on emulators at API 24,
+28, 29 and 35, and [ADR-010](adr/ADR-010-distribution-and-updates.md)
+criteria 3–5 (no traffic with checks off, no identifiers in a check, the same
+behaviour with the realm down or hostile) are not yet recorded, so ADR-010
+stays proposed.
