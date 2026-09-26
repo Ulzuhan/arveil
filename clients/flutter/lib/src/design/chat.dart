@@ -196,25 +196,21 @@ class ConversationTile extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Flexible(
-                                child: Text(
-                                  title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: ArveilType.rowName.copyWith(
-                                    color: c.ink,
+                              Expanded(
+                                child: NameLine(
+                                  name: Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: ArveilType.rowName.copyWith(
+                                      color: c.ink,
+                                    ),
                                   ),
+                                  verified: verified,
+                                  unverified: unverified,
                                 ),
                               ),
-                              if (verified) ...[
-                                const SizedBox(width: 6),
-                                const VerifiedMark(size: 15),
-                              ],
-                              if (unverified) ...[
-                                const SizedBox(width: 8),
-                                const UnverifiedChip(),
-                              ],
-                              const Spacer(),
+                              const SizedBox(width: 8),
                               if (time case final time?)
                                 Text(
                                   time,
@@ -345,9 +341,10 @@ class Composer extends StatelessWidget {
                     hintText: hint ?? context.l10n.messageHint,
                     counterText: '',
                     isDense: true,
+                    // At least 48 dp tall, the touch target a field needs.
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 12,
+                      vertical: 14,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(22),

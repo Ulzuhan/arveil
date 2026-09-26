@@ -419,3 +419,15 @@ but profile reopening, native dialogs and a Mac–Android messaging rerun remain
 pending for build 10. Physical Android, clean-download acceptance, native kit
 selectors and recovery between separate release apps also remain unverified.
 The earlier alpha drafts are unchanged.
+
+## Redesign accessibility (September 25, 2026)
+
+Automated, in `test/accessibility_test.dart`: spoken labels for messages
+("Lucía, 18:40: …" and, for what was sent, its state), the main phone screens
+with touch targets of at least 48 dp and a label on everything tappable, the
+system's reduced-motion setting, and the main screens at 200 % text without
+overflow.
+
+Pending, manual: walk the main flows with TalkBack on a physical Android
+device and with VoiceOver on macOS, and record the result here with the
+device, system version and commit.

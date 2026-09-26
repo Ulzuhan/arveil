@@ -87,17 +87,10 @@ class _ContactsPageState extends State<ContactsPage> {
       key: Key('contact-${c.identityId}'),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: ArveilAvatar(identity: c.identityId, label: c.label, size: 40),
-      title: Row(
-        children: [
-          Flexible(
-            child: Text(c.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-          ),
-          const SizedBox(width: 6),
-          if (c.verified)
-            const VerifiedMark(size: 15)
-          else
-            const UnverifiedChip(),
-        ],
+      title: NameLine(
+        name: Text(c.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        verified: c.verified,
+        unverified: !c.verified,
       ),
       subtitle: Text(
         c.devices.isEmpty

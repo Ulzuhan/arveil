@@ -814,3 +814,22 @@ field-by-field reading, atomic replacement and a broken file, immediate theme,
 accent, size and language changes, and a background that scrolling does not
 repaint) and the golden `test/goldens/wallpapers.png` with two backgrounds in
 light and dark.
+
+## Automated accessibility (September 25, 2026)
+
+- **Messages.** Each bubble reads as one sentence: who, when and what
+  ("Lucía, 18:40: Coming?"), and for what this device sent, its state ("…
+  Accepted by the server"). The long-press action opens its details from a
+  screen reader too. Avatars are decorative.
+- **Motion.** When the system asks for reduced motion, screens appear without
+  sliding or scaling (`MotionAwareTransitions`).
+- **Large text.** At 200 % text the main screens do not overflow: the
+  "Unverified" chip gives way when space runs out (`NameLine`), the enrollment
+  bar shows a described icon instead of "Close profile", and a row's name uses
+  all the width available instead of half.
+- **Touch targets.** The main phone screens meet Flutter's 48 dp and labelled
+  tap target guidelines; the accent swatches and the composer field now
+  measure 48 dp for it.
+
+Evidence: `test/accessibility_test.dart`. The manual TalkBack and VoiceOver
+review is still pending in the [platform matrix](PLATFORMS.md).

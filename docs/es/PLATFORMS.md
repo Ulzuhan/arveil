@@ -436,3 +436,15 @@ reapertura del perfil, selectores nativos y conversación Mac–Android con la
 versión 10. También siguen pendientes Android físico, instalación descargada
 limpia, selectores del kit y recuperación entre apps de release separadas.
 Los borradores alpha anteriores no se han modificado.
+
+## Accesibilidad del rediseño (25 de septiembre de 2026)
+
+Automatizado, en `test/accessibility_test.dart`: etiquetas habladas de los
+mensajes («Lucía, 18:40: …» y, en lo enviado, su estado), las pantallas
+principales de un móvil con objetivos táctiles de al menos 48 dp y etiqueta en
+cada elemento pulsable, la reducción de movimiento del sistema y las
+pantallas principales con el texto al 200 % sin desbordes.
+
+Pendiente, manual: recorrer los flujos principales con TalkBack en un
+Android físico y con VoiceOver en macOS, y anotar aquí el resultado con el
+dispositivo, la versión del sistema y el commit.

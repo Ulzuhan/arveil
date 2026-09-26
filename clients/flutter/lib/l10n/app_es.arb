@@ -784,5 +784,31 @@
   "languageTitle": "Idioma",
   "languageSystem": "Idioma del sistema",
   "sampleReceived": "¿Quedamos el sábado?",
-  "sampleOwn": "¡Perfecto! Llevo el postre."
+  "sampleOwn": "¡Perfecto! Llevo el postre.",
+  "you": "Tú",
+  "bubbleSaid": "{who}: {text}",
+  "@bubbleSaid": {
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "bubbleSaidAt": "{who}, {time}: {text}",
+  "@bubbleSaidAt": {
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  }
 }

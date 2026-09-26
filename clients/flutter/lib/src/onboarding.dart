@@ -140,13 +140,22 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: Colors.transparent,
       actions: [
         if (_session.isOpen)
-          TextButton.icon(
-            onPressed: _session.busy || _session.cancellingPairing
-                ? null
-                : _close,
-            icon: const Icon(Icons.lock_outline),
-            label: Text(context.l10n.profileClose),
-          ),
+          // With large text the label would not fit beside the title.
+          MediaQuery.textScalerOf(context).scale(10) > 13
+              ? IconButton(
+                  onPressed: _session.busy || _session.cancellingPairing
+                      ? null
+                      : _close,
+                  tooltip: context.l10n.profileClose,
+                  icon: const Icon(Icons.lock_outline),
+                )
+              : TextButton.icon(
+                  onPressed: _session.busy || _session.cancellingPairing
+                      ? null
+                      : _close,
+                  icon: const Icon(Icons.lock_outline),
+                  label: Text(context.l10n.profileClose),
+                ),
       ],
     ),
     body: SafeArea(

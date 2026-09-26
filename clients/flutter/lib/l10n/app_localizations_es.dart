@@ -1488,4 +1488,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get sampleOwn => '¡Perfecto! Llevo el postre.';
+
+  @override
+  String get you => 'Tú';
+
+  @override
+  String bubbleSaid(String who, String text) {
+    return '$who: $text';
+  }
+
+  @override
+  String bubbleSaidAt(String who, String time, String text) {
+    return '$who, $time: $text';
+  }
 }
