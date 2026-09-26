@@ -26,6 +26,16 @@ internal object UpdatePackage {
         require(actual == sha256)
     }
 
+    /**
+     * Whether a session this app left behind should be abandoned before a new
+     * attempt. SessionInfo.isSealed exists from API 26 only, and calling it on
+     * API 24–25 threw NoSuchMethodError, so [sealed] is never asked below 26:
+     * there every leftover session goes, since only this flow creates them.
+     * From 26, a sealed session is one already committed and waiting for the
+     * person, and it stays.
+     */
+    fun abandonLeftover(sdk: Int, sealed: () -> Boolean): Boolean = sdk < 26 || !sealed()
+
     fun compatible(installedId: String, installedBuild: Long, installedSigners: Set<String>,
                    candidateId: String, candidateBuild: Long, candidateSigners: Set<String>, expectedBuild: Long): Boolean =
         candidateId == installedId && candidateBuild == expectedBuild &&

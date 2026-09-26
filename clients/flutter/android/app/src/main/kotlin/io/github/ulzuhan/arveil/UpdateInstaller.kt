@@ -1,5 +1,6 @@
 package io.github.ulzuhan.arveil
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -63,6 +64,12 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
 
     private fun allowed() = Build.VERSION.SDK_INT < 26 || packages.canRequestPackageInstalls()
 
+    // isSealed is only reached from API 26: UpdatePackage.abandonLeftover does not ask below it.
+    @SuppressLint("NewApi")
+    private fun leftoverSessions(): List<Int> = installer.mySessions
+        .filter { session -> UpdatePackage.abandonLeftover(Build.VERSION.SDK_INT) { session.isSealed } }
+        .map { it.sessionId }
+
     init {
         active = this
         channel.setMethodCallHandler { call, result ->
@@ -92,7 +99,7 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
                     }
                     else -> result.notImplemented()
                 }
-            } catch (_: Exception) {
+            } catch (_: Throwable) {
                 result.error("install", "Android could not start the requested operation", null)
             }
         }
@@ -110,7 +117,7 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
                 candidate.packageName, version(candidate), signers(candidate), expectedBuild))
             if (Build.VERSION.SDK_INT >= 24) require(candidate.applicationInfo!!.minSdkVersion <= Build.VERSION.SDK_INT)
             // A crash during copying can leave an unsealed session behind.
-            installer.mySessions.filter { !it.isSealed }.forEach { installer.abandonSession(it.sessionId) }
+            leftoverSessions().forEach { installer.abandonSession(it) }
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                 setAppPackageName(activity.packageName)
                 setSize(size)
@@ -134,15 +141,16 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
                         (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
                     callback = PendingIntent.getBroadcast(activity, prepared, intent, flags)
                     installer.openSession(prepared).use { it.commit(callback!!.intentSender) }
-                } catch (_: Exception) { finish("install") }
+                } catch (_: Throwable) { finish("install") }
             }
-        } catch (_: Exception) {
-            if (created >= 0) try { installer.abandonSession(created) } catch (_: Exception) { }
+        } catch (_: Throwable) {
+            // Throwable, not Exception: an Error on this worker thread would end the app.
+            if (created >= 0) try { installer.abandonSession(created) } catch (_: Throwable) { }
             // Neither the archive nor Android exception text is surfaced to Dart.
             try {
                 file.takeIf { it.name == "update.apk" &&
                     it.canonicalFile == File(File(activity.cacheDir, "updates").canonicalFile, "update.apk") }?.delete()
-            } catch (_: Exception) { /* Still report failure if removal is unavailable. */ }
+            } catch (_: Throwable) { /* Still report failure if removal is unavailable. */ }
             activity.runOnUiThread { if (!closed) finish("package") }
         }
     }

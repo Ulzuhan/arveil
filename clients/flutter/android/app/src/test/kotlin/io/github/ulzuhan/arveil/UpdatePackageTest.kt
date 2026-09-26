@@ -28,6 +28,16 @@ class UpdatePackageTest {
         }
     }
 
+    @Test fun neverAsksWhetherASessionIsSealedBelowApi26() {
+        // SessionInfo.isSealed does not exist on API 24–25; asking there crashed the app.
+        val missing = { throw NoSuchMethodError("isSealed") }
+        assertTrue(UpdatePackage.abandonLeftover(24, missing))
+        assertTrue(UpdatePackage.abandonLeftover(25, missing))
+        assertTrue(UpdatePackage.abandonLeftover(26) { false })
+        assertFalse(UpdatePackage.abandonLeftover(26) { true })
+        assertFalse(UpdatePackage.abandonLeftover(35) { true })
+    }
+
     @Test fun requiresSameApplicationCertificateAndStrictlyHigherExpectedBuild() {
         fun compatible(id: String = "test.app", build: Long = 18, signers: Set<String> = setOf("current"), expected: Long = 18) =
             UpdatePackage.compatible("test.app", 17, setOf("current"), id, build, signers, expected)
