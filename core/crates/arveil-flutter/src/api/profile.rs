@@ -935,20 +935,41 @@ impl Profile {
     /// profile closes or when `stop_watching` is called; a listener should
     /// stop before cancelling, since the stream is closed from this side.
     pub fn watch(&self, generation: u64, sink: StreamSink<ProgressView>) {
+        self.watch_with(generation, move |view| sink.add(view).is_ok());
+    }
+
+    /// The loop behind `watch`, on a thread of its own that holds the
+    /// subscription and never this profile. On Android, Back from the first
+    /// screen destroys the engine while the process lives on, and nothing
+    /// stops the watcher; releasing the last handle then still closes the
+    /// profile, which ends the loop, so the next open in that process does
+    /// not find it already open.
+    fn watch_with(
+        &self,
+        generation: u64,
+        mut deliver: impl FnMut(ProgressView) -> bool + Send + 'static,
+    ) {
         let subscription = self.inner.watch();
-        while self.watching.load(AtomicOrdering::Acquire) == generation {
-            match subscription.wait(std::time::Duration::from_millis(100)) {
-                Waited::Event(event) => {
-                    if sink.add(progress_view(event)).is_err() {
-                        break;
+        let watching = Arc::clone(&self.watching);
+        // Without a thread there is nobody to feed: dropping `deliver`
+        // closes the stream.
+        let _ = std::thread::Builder::new()
+            .name("arveil-watch".into())
+            .spawn(move || {
+                while watching.load(AtomicOrdering::Acquire) == generation {
+                    match subscription.wait(std::time::Duration::from_millis(100)) {
+                        Waited::Event(event) => {
+                            if !deliver(progress_view(event)) {
+                                break;
+                            }
+                        }
+                        // Idle only means nothing happened; it is the chance
+                        // to notice that nobody is watching any more.
+                        Waited::Idle => continue,
+                        Waited::Closed => break,
                     }
                 }
-                // Idle only means nothing happened; it is the chance to
-                // notice that nobody is watching any more.
-                Waited::Idle => continue,
-                Waited::Closed => break,
-            }
-        }
+            });
     }
 
     /// Stop the stream this profile is feeding, without closing anything
@@ -1566,5 +1587,58 @@ mod tests {
         assert!(result.event_id.is_none());
         assert!(matches!(result.warning, Some(CommandError::Domain { .. })));
         assert!(chat_mutation(Ok(OperationResult::default())).is_err());
+    }
+
+    fn scratch(name: &str) -> String {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir()
+            .join(format!(
+                "arveil-flutter-{name}-{}-{nanos}",
+                std::process::id()
+            ))
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// Waits for the watcher to drop its sender, which is how it ends.
+    fn ended(rx: &std::sync::mpsc::Receiver<()>) -> bool {
+        matches!(
+            rx.recv_timeout(std::time::Duration::from_secs(10)),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected)
+        )
+    }
+
+    #[test]
+    fn a_watcher_nobody_stopped_does_not_keep_the_profile_open() {
+        let dir = scratch("watch-left");
+        let profile = open_unencrypted_profile(dir.clone()).unwrap();
+        let (feeding, fed) = std::sync::mpsc::channel::<()>();
+        let generation = profile.start_watching();
+        profile.watch_with(generation, move |_| feeding.send(()).is_ok());
+        // What Android does when Back leaves the app: the engine goes away
+        // and only the handle is released, with nobody stopping the stream.
+        drop(profile);
+        assert!(ended(&fed), "closing the profile ends the watcher");
+        let again = open_unencrypted_profile(dir.clone())
+            .expect("the same process opens the profile again");
+        again.close();
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn stopping_a_watcher_ends_it_while_the_profile_stays_open() {
+        let dir = scratch("watch-stop");
+        let profile = open_unencrypted_profile(dir.clone()).unwrap();
+        let (feeding, fed) = std::sync::mpsc::channel::<()>();
+        let generation = profile.start_watching();
+        profile.watch_with(generation, move |_| feeding.send(()).is_ok());
+        profile.stop_watching(generation);
+        assert!(ended(&fed));
+        assert!(profile.setup().is_ok(), "the profile is still open");
+        profile.close();
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
