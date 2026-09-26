@@ -243,7 +243,7 @@ Cada paquete es un PR pequeño con sus propias pruebas. Tamaño relativo: S (has
 - Texto al 200 % sin desbordamientos, con pruebas que usan `textScaler` 2,0.
 - Revisión manual con TalkBack en un Android físico y VoiceOver en macOS, registrada en [la matriz de plataformas](PLATFORMS.md).
 
-La parte automatizada está implementada (véase la [base del cliente](CLIENT_FOUNDATION.md)); la revisión manual sigue pendiente.
+La parte automatizada está implementada (véase la [base del cliente](CLIENT_FOUNDATION.md)). TalkBack se revisó en un emulador y sus hallazgos están corregidos; faltan TalkBack en un Android físico y VoiceOver en macOS, que queda sin probar (véase la [matriz de plataformas](PLATFORMS.md)).
 
 **E2 — Diagnóstico sin secretos (S).** Depende de C5.
 

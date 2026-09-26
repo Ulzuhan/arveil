@@ -837,7 +837,7 @@ light and dark.
   100%"); the value also shows next to the control.
 
 Evidence: `test/accessibility_test.dart`. The TalkBack review is in the
-[platform matrix](PLATFORMS.md); the VoiceOver review is still pending.
+[platform matrix](PLATFORMS.md); VoiceOver is still untested.
 
 ## Secret-free diagnostics (September 25, 2026)
 
