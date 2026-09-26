@@ -59,6 +59,7 @@ declares its own status; "MUST" states a design requirement, and the
 | [ADR-007](adr/ADR-007-optional-realm-redundancy.md) | Optional redundancy after V1; independent relays preferred |
 | [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Noise channel, signed endpoint list, access over LAN, tailnet, tunnel or Internet |
 | [ADR-009](adr/ADR-009-flutter-first.md) | Flutter first for the apps (accepted) |
+| [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribution and signed, opt-in updates outside the app stores (proposed) |
 
 ### Apps
 
