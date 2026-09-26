@@ -153,7 +153,10 @@ The link carries a bearer secret, like today's strings. The mitigations are sing
 - **Protocol:** a new MLS event kind (`hello`) and a rule that authorization follows confirmation. The relay only gains `-link-base` and printed links.
 - **Website:** the three link pages and `assetlinks.json`, deployed with the site.
 - **Removed:** the checkbox "We compared the numbers" and the silent join of conversations started by strangers.
-- **Fixes to ship first:** the order of authorization and confirmation and the binding of routes to root-signed credentials are fixes in their own right. They should not wait for the rest of this record.
+- **Order of work:**
+  - The binding of routes to root-signed credentials is a fix in its own right and ships first.
+  - The rule that authorization follows confirmation ships with the reversed linking of §3, the first part to implement. Retrofitting it to the current flow would change both devices, the CLI and the acceptance scripts twice.
+  - Until then, the current flow gains copy buttons, the server details on the administration device and a wait that resumes by itself.
 
 ## Acceptance criteria
 

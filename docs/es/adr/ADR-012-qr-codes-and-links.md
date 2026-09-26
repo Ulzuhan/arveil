@@ -153,7 +153,10 @@ El enlace lleva un secreto al portador, como las cadenas de hoy. Las mitigacione
 - **Protocolo:** un tipo de evento MLS nuevo (`hello`) y la regla de que la autorización sigue a la confirmación. El relay solo gana `-link-base` y los enlaces impresos.
 - **Web:** las tres páginas de enlace y `assetlinks.json`, desplegadas con el sitio.
 - **Se eliminan:** la casilla «Hemos comparado los números» y la aceptación silenciosa de conversaciones iniciadas por desconocidos.
-- **Arreglos que salen antes:** el orden entre autorización y confirmación y el vínculo de las rutas con credenciales firmadas por la raíz son arreglos por sí mismos. No deben esperar al resto de esta decisión.
+- **Orden de trabajo:**
+  - El vínculo de las rutas con credenciales firmadas por la raíz es un arreglo por sí mismo y sale primero.
+  - La regla de que la autorización sigue a la confirmación sale con la vinculación invertida del §3, la primera parte que se implementa. Adaptarla al flujo actual cambiaría dos veces ambos dispositivos, la CLI y los scripts de aceptación.
+  - Mientras tanto, el flujo actual gana botones de copiar, los datos del servidor en el dispositivo de administración y una espera que se reanuda sola.
 
 ## Criterios de aceptación
 
