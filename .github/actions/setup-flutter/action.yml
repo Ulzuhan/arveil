@@ -1,0 +1,69 @@
+# Installs a pinned Flutter release for CI. It replaces subosito/flutter-action,
+# whose nested actions/cache is referenced by a tag and so cannot run while the
+# repository requires every action, nested ones included, to be pinned to a
+# full commit SHA. It also checks the archive against the SHA-256 that Flutter
+# publishes for it, which that action did not.
+name: Set up Flutter
+description: Install a pinned stable Flutter release from the official archive and cache it.
+inputs:
+  version:
+    description: Stable Flutter version, for example 3.44.1.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Cache the Flutter SDK and the pub cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ${{ runner.tool_cache }}/flutter-${{ inputs.version }}
+          ~/.pub-cache
+        key: flutter-${{ inputs.version }}-${{ runner.os }}-${{ runner.arch }}
+
+    - name: Install Flutter ${{ inputs.version }}
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        SDK: ${{ runner.tool_cache }}/flutter-${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if [ ! -x "$SDK/flutter/bin/flutter" ]; then
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64) platform=linux; archive="stable/linux/flutter_linux_${VERSION}-stable.tar.xz" ;;
+            macOS-ARM64) platform=macos; archive="stable/macos/flutter_macos_arm64_${VERSION}-stable.zip" ;;
+            macOS-X64) platform=macos; archive="stable/macos/flutter_macos_${VERSION}-stable.zip" ;;
+            *) echo "No Flutter archive for $RUNNER_OS-$RUNNER_ARCH" >&2; exit 1 ;;
+          esac
+          base=https://storage.googleapis.com/flutter_infra_release/releases
+          expected=$(curl -fsSL "$base/releases_${platform}.json" | python3 -c '
+        import json, sys
+        archive = sys.argv[1]
+        for release in json.load(sys.stdin)["releases"]:
+            if release["archive"] == archive:
+                print(release["sha256"])
+                break
+        ' "$archive")
+          if [ -z "$expected" ]; then
+            echo "$archive is not in Flutter's release manifest" >&2
+            exit 1
+          fi
+          file="$RUNNER_TEMP/$(basename "$archive")"
+          curl -fsSL -o "$file" "$base/$archive"
+          actual=$(shasum -a 256 "$file" | cut -d' ' -f1)
+          if [ "$actual" != "$expected" ]; then
+            echo "SHA-256 mismatch for $archive: expected $expected, got $actual" >&2
+            exit 1
+          fi
+          mkdir -p "$SDK"
+          case "$file" in
+            *.zip) unzip -q "$file" -d "$SDK" ;;
+            *) tar -xJf "$file" -C "$SDK" ;;
+          esac
+          rm -f "$file"
+        fi
+        echo "FLUTTER_ROOT=$SDK/flutter" >> "$GITHUB_ENV"
+        echo "$SDK/flutter/bin" >> "$GITHUB_PATH"
+
+    - name: Show the Flutter version
+      shell: bash
+      run: flutter --version
