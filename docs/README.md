@@ -1,40 +1,89 @@
-# Arveil — architecture documentation
+# Arveil documentation
 
-**Current client status:** see the [implemented client foundation](CLIENT_FOUNDATION.md), [Flutter implementation plan](PHASE3B.md) and [accepted ADR-009](adr/ADR-009-flutter-first.md). These updates supersede the earlier client proposals below. Flutter is selected; `mls-rs` is already in use. The Flutter client supports encrypted profiles, enrollment, pairing, recovery kits and conversations through Rust; the platform record distinguishes implemented features from acceptance. Earlier unresolved-item lists are historical, not the current backlog.
-
-**Status:** experimental implementation with historical design records · **Language:** English.
+Arveil is a self-hosted, end-to-end encrypted messenger for families and
+small circles of trust. A Go relay moves encrypted envelopes; a Rust core on
+each device owns identity, MLS, local storage and recovery; Flutter apps for
+macOS and Android sit on top of that core. These pages explain how to run it,
+how it is designed and what has been verified.
 
 *Versión en español: [es/README.md](es/README.md)*
 
-Self-hosted messenger for family, friends and small circles of trust. A Go server transports and temporarily retains encrypted data; a Rust core on each client controls identity, MLS, local storage and recovery. The differentiating goal is to combine privacy with simple household operation and understandable recovery.
+**Status (September 26, 2026).** The relay, the Rust core and the CLI are
+complete through Phase 4. The apps implement milestones M3b.0 to M3b.4, and
+the next step is a limited macOS and Android beta (M3b.5). No release has been
+published and the project has not been independently audited. Each ADR
+declares its own status; "MUST" states a design requirement, and the
+[platform record](PLATFORMS.md) says which requirements have been tested.
 
-The relay, Rust core and CLI are implemented; the Flutter client foundation is under development. These documents combine implementation records with historical proposals. Each ADR declares its own status; ADR-009 is accepted. Cross-device acceptance and an independent security review remain pending. "MUST" expresses a design requirement; use the acceptance records to determine which requirements have been tested.
+## Where to start
 
-**Start here:** [Install and try Arveil](INSTALLATION.md) — server, macOS and Android routes, current availability and release requirements.
-
-## Map and reading order
-
-| Document | Content |
+| I want to… | Read |
 |---|---|
-| [INSTALLATION.md](INSTALLATION.md) | Install/try entry point and distribution acceptance |
-| [CLIENT_FOUNDATION.md](CLIENT_FOUNDATION.md) | Implemented changes, evidence and limitations |
-| [PHASE3B.md](PHASE3B.md) | Flutter plan and acceptance criteria |
-| [ADR-009](adr/ADR-009-flutter-first.md) | Accepted Flutter-first decision |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Components, boundaries, deployment, scope and phases |
-| [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, adversaries, metadata, conditional guarantees and tests |
-| [PROTOCOL.md](PROTOCOL.md) | Flows, transport contracts, MLS, delivery and recovery |
-| [DOMAIN_MODEL.md](DOMAIN_MODEL.md) | Entities, keys, persistence, invariants and states |
-| [ADR-001](adr/ADR-001-go-server-rust-core.md) | Go server and secure Rust core |
+| Try Arveil | [Install and try](INSTALLATION.md) |
+| Run a relay for my family | [Running a realm](OPERATIONS.md) · [Rootless Podman](PODMAN.md) |
+| Build or package the apps | [Client packages](CLIENT_RELEASES.md) · [Flutter client README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md) |
+| Understand the security | [Threat model](THREAT_MODEL.md) · [Protocol](PROTOCOL.md) · [Architecture](ARCHITECTURE.md) |
+| Follow the apps | [Phase 3b plan](PHASE3B.md) · [Implementation record](CLIENT_FOUNDATION.md) · [Client design](CLIENT_DESIGN.md) · [Platform record](PLATFORMS.md) |
+| Contribute | [Contributing guide](https://github.com/Ulzuhan/arveil/blob/main/CONTRIBUTING.md) · [Security policy](https://github.com/Ulzuhan/arveil/blob/main/SECURITY.md) |
+
+## Document map
+
+### Using and operating
+
+| Document | Contents |
+|---|---|
+| [Install and try](INSTALLATION.md) | Server, macOS and Android routes, current availability and installation acceptance |
+| [Running a realm](OPERATIONS.md) | Install, addresses and tunnels, limits, health and metrics, backups, restore and upgrades |
+| [Rootless Podman](PODMAN.md) | A private-network relay with SSH, Tailscale and persistent rootless Podman |
+| [Client packages](CLIENT_RELEASES.md) | Building, auditing and publishing the macOS ZIP and Android APK |
+
+### Design
+
+| Document | Contents |
+|---|---|
+| [Architecture](ARCHITECTURE.md) | Components, boundaries, deployment, access paths, scope and phases |
+| [Threat model](THREAT_MODEL.md) | Assets, adversaries, what the server knows, conditional guarantees and invariants I-01 to I-13 |
+| [Protocol](PROTOCOL.md) | Bootstrap, transport, MLS groups, durable delivery, frame catalog and recovery |
+| [Domain model](DOMAIN_MODEL.md) | Entities, key lifecycle, server schema, local atomicity and state machines |
+
+### Decisions
+
+| Record | Decision |
+|---|---|
+| [ADR-001](adr/ADR-001-go-server-rust-core.md) | Go server and a secure Rust core |
 | [ADR-002](adr/ADR-002-mls.md) | MLS for conversations and devices |
-| [ADR-003](adr/ADR-003-zero-trust-server.md) | Untrusted server for content and identity |
-| [ADR-004](adr/ADR-004-sqlite-single-binary.md) | SQLite, filesystem and a single server binary |
+| [ADR-003](adr/ADR-003-zero-trust-server.md) | A server trusted with neither content nor identity |
+| [ADR-004](adr/ADR-004-sqlite-single-binary.md) | SQLite, the filesystem and a single server binary |
 | [ADR-005](adr/ADR-005-cryptographic-identity.md) | Cryptographic identity and authorized devices |
-| [ADR-006](adr/ADR-006-local-first-recovery-first.md) | Local-first, recovery and explicit history |
-| [ADR-007](adr/ADR-007-optional-realm-redundancy.md) | Optional redundancy after V1; independent relays as the preferred direction |
-| [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Noise channel, signed endpoint list and access over LAN, tailnet, tunnel or Internet |
-| [REVIEW-v0.3](REVIEW-v0.3.md) | External viability review: verified references, risks and proposed actions |
+| [ADR-006](adr/ADR-006-local-first-recovery-first.md) | Local-first, recovery-first, explicit history |
+| [ADR-007](adr/ADR-007-optional-realm-redundancy.md) | Optional redundancy after V1; independent relays preferred |
+| [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Noise channel, signed endpoint list, access over LAN, tailnet, tunnel or Internet |
+| [ADR-009](adr/ADR-009-flutter-first.md) | Flutter first for the apps (accepted) |
 
+### Apps
 
+| Document | Contents |
+|---|---|
+| [Phase 3b plan](PHASE3B.md) | Milestones M3b.0 to M3b.8 and their acceptance criteria |
+| [Implementation record](CLIENT_FOUNDATION.md) | What each change implemented, its evidence and its limits |
+| [Client design](CLIENT_DESIGN.md) | Visual system, personalization and the redesign plan |
+| [Platform record](PLATFORMS.md) | Dated acceptance runs: device, system, commit and result |
+
+### Plans, reviews and evidence
+
+| Document | Contents |
+|---|---|
+| Phase plans [0](PHASE0.md) · [1](PHASE1.md) · [2](PHASE2.md) · [3](PHASE3.md) · [4](PHASE4.md) | Milestones, exit conditions and results of each completed phase |
+| [Viability review v0.3](REVIEW-v0.3.md) | External-style review with verified references and open risks |
+| [MLS library comparison](spikes/M0.5-mls-library-comparison.md) | The M0.5 spike behind choosing mls-rs |
+| [Demo transcript](evidence/demo-transcript.txt) · [Q3 capture](evidence/q3-capture-excerpt.txt) | The Phase 0 demo run, and what a TLS-terminating proxy saw of the Noise channel (Q3) |
+| [Noise inside a Cloudflare Tunnel](articles/noise-inside-a-cloudflare-tunnel.md) · [No rooms table](articles/no-rooms-table.md) | Design notes (drafts) |
+
+---
+
+The sections below are the historical design record from September 2026.
+They explain how the design reached its current shape; the documents above
+describe what is true today.
 
 ## Historical v0.4 design background
 
