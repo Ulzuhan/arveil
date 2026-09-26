@@ -23,6 +23,9 @@ Run the acceptance script for the behavior you changed (`scripts/phase*.sh`),
 and `flutter analyze` / `flutter test` from `clients/flutter` for Dart changes.
 Keep dependency lockfiles and generated Rust/Dart bridge bindings committed.
 Regenerate bindings when changing their API; do not edit generated code by hand.
+In workflows, pin every action to a full commit SHA with its version as a
+comment (`uses: owner/action@<sha> # v1.2.3`); Dependabot keeps the pins
+current.
 
 ## Installation is part of a feature
 

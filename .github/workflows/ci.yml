@@ -13,8 +13,8 @@ jobs:
     name: Documentation (strict)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
       - run: pip install "mkdocs-material~=9.7"
@@ -26,8 +26,8 @@ jobs:
     name: Go relay
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
@@ -45,11 +45,11 @@ jobs:
     name: Rust core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - name: Format
@@ -66,12 +66,12 @@ jobs:
     name: Flutter bridge (macOS)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.44.1
           channel: stable
@@ -84,7 +84,7 @@ jobs:
       # default one here.
       - name: Make the pinned toolchain the default
         run: rustup default "$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' core/rust-toolchain.toml | head -1)"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - name: Resolve packages
@@ -116,12 +116,12 @@ jobs:
     name: Flutter bridge (Android)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
           java-version: "17"
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.44.1
           channel: stable
@@ -133,7 +133,7 @@ jobs:
         run: rustup default "$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' core/rust-toolchain.toml | head -1)"
       - name: Add Android targets
         run: rustup target add aarch64-linux-android x86_64-linux-android
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - name: Resolve packages
@@ -158,11 +158,11 @@ jobs:
     name: MLS spike (M0.5)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install toolchain from rust-toolchain.toml
         working-directory: spikes/mls
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: spikes/mls
       - name: Test
@@ -175,15 +175,15 @@ jobs:
     name: Channel interop (Go relay vs Rust client)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - run: ./scripts/interop.sh
@@ -192,15 +192,15 @@ jobs:
     name: Phase 0 demo (MLS chat, relay restart, crash injection, inventory)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - run: sudo apt-get install -y sqlite3
@@ -210,15 +210,15 @@ jobs:
     name: Q3 capture behind a TLS-terminating proxy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - run: ./scripts/q3-capture.sh
@@ -227,15 +227,15 @@ jobs:
     name: Phase 1 acceptance (offline outbox, groups, TTL, endpoints, attachments)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - run: ./scripts/phase1.sh
@@ -248,15 +248,15 @@ jobs:
     name: Phase 2 acceptance (linking, multi-device, revocation, succession, recovery, at rest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - run: ./scripts/phase2.sh
@@ -265,15 +265,15 @@ jobs:
     name: Phase 3 acceptance (pairing, contacts, resumable transfers, push hint, builds)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - run: ./scripts/phase3.sh
@@ -282,15 +282,15 @@ jobs:
     name: Phase 4 acceptance (packaging, limits, health, TLS, backups, client gaps)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - run: ./scripts/phase4.sh
@@ -298,15 +298,15 @@ jobs:
     name: Phase 3b acceptance (repeatable mailbox creation)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: relay/go.mod
           cache-dependency-path: relay/go.sum
       - name: Install toolchain from rust-toolchain.toml
         working-directory: core
         run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: core
       - run: ./scripts/phase3b.sh
