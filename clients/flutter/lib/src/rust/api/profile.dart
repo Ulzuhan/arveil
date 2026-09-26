@@ -192,6 +192,16 @@ abstract class Profile implements RustOpaqueInterface {
     String? safetyNumber,
   });
 
+  /// Text messages of one conversation containing `text`, newest first,
+  /// ignoring case and accents. Each call reads a bounded number of
+  /// events; pass `next` as `before` to keep searching further back.
+  Future<HistoryPageView> searchHistory({
+    required String groupId,
+    required String text,
+    PlatformInt64? before,
+    required int limit,
+  });
+
   /// Read durable setup state after opening, completing or retrying an
   /// enrollment. Progress events are hints; this is the source of truth.
   Future<SetupView> setup();

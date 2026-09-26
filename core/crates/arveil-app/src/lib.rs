@@ -131,6 +131,7 @@ pub enum Operation {
     QueryConversations,
     QueryPeers,
     QueryHistoryPage,
+    SearchHistory,
     MarkRead,
     QueryArchived,
     QueueAttachment,
@@ -287,6 +288,12 @@ pub enum ClientCommand {
         before: Option<i64>,
         limit: usize,
     },
+    SearchHistory {
+        group: Vec<u8>,
+        text: String,
+        before: Option<i64>,
+        limit: usize,
+    },
     MarkRead {
         group: Vec<u8>,
         cursor: i64,
@@ -350,6 +357,7 @@ impl ClientCommand {
             Self::QueryConversations => Operation::QueryConversations,
             Self::QueryPeers { .. } => Operation::QueryPeers,
             Self::QueryHistoryPage { .. } => Operation::QueryHistoryPage,
+            Self::SearchHistory { .. } => Operation::SearchHistory,
             Self::MarkRead { .. } => Operation::MarkRead,
             Self::QueryArchived { .. } => Operation::QueryArchived,
             #[cfg(test)]
@@ -1165,6 +1173,9 @@ pub struct HistoryPage {
 /// client ends up holding a whole database in memory.
 pub const MAX_HISTORY_PAGE: usize = 200;
 
+/// The most events one search call reads before it answers.
+pub const MAX_SEARCH_SCAN: usize = 5_000;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConversationHistory {
     pub group_id: Vec<u8>,
@@ -1391,6 +1402,7 @@ impl ClientCommand {
             Self::QueryConversations
             | Self::QueryPeers { .. }
             | Self::QueryHistoryPage { .. }
+            | Self::SearchHistory { .. }
             | Self::QueryArchived { .. }
             | Self::QueryArchivePage { .. }
             | Self::ExportArchiveFile { .. }
@@ -2466,6 +2478,28 @@ impl Application {
         }
     }
 
+    /// Text messages of one conversation that contain `text`, newest first,
+    /// ignoring case and accents. Each call reads at most
+    /// `MAX_SEARCH_SCAN` events, so a long history answers in bounded time;
+    /// pass `next` as `before` to continue where it stopped.
+    pub fn search_history(
+        &self,
+        group: &[u8],
+        text: &str,
+        before: Option<i64>,
+        limit: usize,
+    ) -> Result<HistoryPage, ApplicationError> {
+        match self.execute(ClientCommand::SearchHistory {
+            group: group.to_vec(),
+            text: text.to_owned(),
+            before,
+            limit,
+        })? {
+            CommandOutput::HistoryPage(page) => Ok(page),
+            _ => unreachable!("search command returned another output type"),
+        }
+    }
+
     /// Mark a conversation read up to `cursor`, usually the newest event a
     /// screen showed. The marker never moves back and never passes the
     /// newest event, so marking twice or late is harmless.
@@ -2863,6 +2897,14 @@ async fn run_command(
         } => history_page(config, &group, before, limit)
             .map(CommandOutput::HistoryPage)
             .map_err(|source| application_error(Operation::QueryHistoryPage, source)),
+        ClientCommand::SearchHistory {
+            group,
+            text,
+            before,
+            limit,
+        } => search_history(config, &group, &text, before, limit)
+            .map(CommandOutput::HistoryPage)
+            .map_err(|source| application_error(Operation::SearchHistory, source)),
         ClientCommand::MarkRead { group, cursor } => mark_read(config, &group, cursor)
             .map(CommandOutput::ReadMarker)
             .map_err(|source| application_error(Operation::MarkRead, source)),
@@ -3132,6 +3174,77 @@ fn history_page(
         events,
         next,
     })
+}
+
+/// Lower case without accents, so "lucia" finds "Lucía".
+fn fold_for_search(text: &str) -> String {
+    text.chars()
+        .flat_map(char::to_lowercase)
+        .filter(|c| !('\u{0300}'..='\u{036f}').contains(c))
+        .map(|c| match c {
+            'á' | 'à' | 'ä' | 'â' | 'ã' | 'å' => 'a',
+            'é' | 'è' | 'ë' | 'ê' => 'e',
+            'í' | 'ì' | 'ï' | 'î' => 'i',
+            'ó' | 'ò' | 'ö' | 'ô' | 'õ' => 'o',
+            'ú' | 'ù' | 'ü' | 'û' => 'u',
+            'ñ' => 'n',
+            'ç' => 'c',
+            other => other,
+        })
+        .collect()
+}
+
+/// Matching text messages, newest first, reading at most `MAX_SEARCH_SCAN`
+/// events. `next` is where the reading stopped, or `None` once it reached
+/// the conversation's start.
+fn search_history(
+    config: &ProfileConfig,
+    group: &[u8],
+    text: &str,
+    before: Option<i64>,
+    limit: usize,
+) -> Result<HistoryPage, CliError> {
+    let needle = fold_for_search(text.trim());
+    let mut page = HistoryPage {
+        group_id: group.to_vec(),
+        events: Vec::new(),
+        next: None,
+    };
+    if needle.is_empty() {
+        return Ok(page);
+    }
+    let session = local(config)?;
+    let now = unix_now();
+    let limit = limit.clamp(1, MAX_HISTORY_PAGE);
+    let mut cursor = before;
+    let mut scanned = 0;
+    'scan: while scanned < MAX_SEARCH_SCAN {
+        let batch = (MAX_SEARCH_SCAN - scanned).min(MAX_HISTORY_PAGE);
+        let rows = session
+            .delivery
+            .events_page(group, cursor, batch)
+            .map_err(storage_error("events"))?;
+        let short = rows.len() < batch;
+        for row in rows {
+            scanned += 1;
+            cursor = Some(row.cursor);
+            let is_text = row.kind == "sent" || row.kind == "received";
+            if is_text && fold_for_search(&String::from_utf8_lossy(&row.body)).contains(&needle) {
+                page.events.push(history_event(&session, group, row, now)?);
+                if page.events.len() == limit {
+                    page.next = cursor;
+                    break 'scan;
+                }
+            }
+        }
+        if short {
+            return Ok(page);
+        }
+    }
+    if page.next.is_none() {
+        page.next = cursor;
+    }
+    Ok(page)
 }
 
 fn mark_read(config: &ProfileConfig, group: &[u8], cursor: i64) -> Result<ReadMarker, CliError> {
@@ -5823,6 +5936,103 @@ mod tests {
         assert_eq!(capped.events.len(), 6);
         assert!(capped.next.is_none());
 
+        app.close();
+        std::fs::remove_dir_all(profile).ok();
+    }
+
+    fn search_profile(name: &str) -> PathBuf {
+        let profile = std::env::temp_dir().join(format!(
+            "arveil-search-{name}-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::remove_dir_all(&profile).ok();
+        std::fs::create_dir_all(&profile).unwrap();
+        profile
+    }
+
+    fn texts(page: &HistoryPage) -> Vec<String> {
+        page.events
+            .iter()
+            .map(|event| String::from_utf8_lossy(&event.body).into_owned())
+            .collect()
+    }
+
+    #[test]
+    fn search_finds_text_newest_first_ignoring_case_and_accents() {
+        let profile = search_profile("match");
+        let group = b"g".to_vec();
+        record_events(
+            &profile,
+            &group,
+            &[
+                ("received", "¿Quién trae el POSTRE?"),
+                ("sent", "yo llevo el postre de Lucía"),
+                ("received", "vale"),
+                ("devices-changed", "postre"),
+                ("sent-file", "postre.pdf"),
+                ("received", "¿y el póstre para Lucia?"),
+            ],
+        );
+        record_events(&profile, b"other", &[("received", "postre en otro grupo")]);
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
+
+        let found = app.search_history(&group, "  Postre ", None, 10).unwrap();
+        assert_eq!(
+            texts(&found),
+            vec![
+                "¿y el póstre para Lucia?",
+                "yo llevo el postre de Lucía",
+                "¿Quién trae el POSTRE?",
+            ],
+            "text messages of this conversation only, newest first"
+        );
+        assert!(found.next.is_none(), "the whole conversation was read");
+
+        let lucia = app.search_history(&group, "lucia", None, 10).unwrap();
+        assert_eq!(lucia.events.len(), 2, "accents fold both ways");
+
+        // A limit stops early and says where to continue.
+        let first = app.search_history(&group, "postre", None, 1).unwrap();
+        assert_eq!(texts(&first), vec!["¿y el póstre para Lucia?"]);
+        let rest = app
+            .search_history(&group, "postre", first.next, 10)
+            .unwrap();
+        assert_eq!(rest.events.len(), 2);
+
+        assert!(
+            app.search_history(&group, "   ", None, 10)
+                .unwrap()
+                .events
+                .is_empty()
+        );
+        app.close();
+        std::fs::remove_dir_all(profile).ok();
+    }
+
+    #[test]
+    fn a_search_reads_a_bounded_number_of_events_per_call() {
+        let profile = search_profile("bounded");
+        let group = b"g".to_vec();
+        let filler: Vec<String> = (0..MAX_SEARCH_SCAN + 10)
+            .map(|i| format!("filler {i}"))
+            .collect();
+        let mut events = vec![("received", "the needle is here")];
+        events.extend(filler.iter().map(|body| ("received", body.as_str())));
+        record_events(&profile, &group, &events);
+        let app = Application::open(ProfileConfig::unencrypted(&profile)).unwrap();
+
+        let first = app.search_history(&group, "needle", None, 10).unwrap();
+        assert!(
+            first.events.is_empty(),
+            "the match lies beyond one call's reach"
+        );
+        let next = first.next.expect("the search says where it stopped");
+        let second = app
+            .search_history(&group, "needle", Some(next), 10)
+            .unwrap();
+        assert_eq!(texts(&second), vec!["the needle is here"]);
+        assert!(second.next.is_none());
         app.close();
         std::fs::remove_dir_all(profile).ok();
     }

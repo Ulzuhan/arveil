@@ -12,6 +12,7 @@ import 'attachment_files.dart';
 import 'chat_list.dart';
 import 'contacts_page.dart';
 import 'conversation_details.dart';
+import 'conversation_search.dart';
 import 'conversation_text.dart';
 import 'design/design.dart';
 import 'message_list.dart';
@@ -56,6 +57,9 @@ class ConversationsPageState extends State<ConversationsPage>
   final Map<String, String> _drafts = {};
   bool _fileDialog = false;
   bool _detailsOpen = false;
+
+  /// The open conversation shows its search instead of its history.
+  bool _searching = false;
   ConversationController get chat => widget.controller;
 
   @override
@@ -81,6 +85,7 @@ class ConversationsPageState extends State<ConversationsPage>
   }
 
   Future<void> _select(String? group) async {
+    if (_searching) setState(() => _searching = false);
     if (chat.selected case final id?) _drafts[id] = _draft.text;
     _draft.text = _drafts[group] ?? '';
     await chat.select(group);
@@ -228,6 +233,12 @@ class ConversationsPageState extends State<ConversationsPage>
     );
   }
 
+  /// Searches the open conversation, or the chat list when none is open.
+  void searchConversation() {
+    if (chat.selected == null) return focusSearch();
+    setState(() => _searching = true);
+  }
+
   /// Closes the open conversation, keeping its draft.
   Future<void> closeConversation() => _select(null);
 
@@ -315,6 +326,14 @@ class ConversationsPageState extends State<ConversationsPage>
     ),
   ];
 
+  Widget get _searchButton => IconButton(
+    key: const Key('open-conversation-search'),
+    tooltip: context.l10n.searchConversation,
+    isSelected: _searching,
+    onPressed: () => setState(() => _searching = !_searching),
+    icon: const Icon(Icons.search),
+  );
+
   Widget _detailsButton(bool wide) => IconButton(
     tooltip: context.l10n.conversationDetails,
     onPressed: _selectedRow == null ? null : () => _showDetails(wide),
@@ -357,7 +376,12 @@ class ConversationsPageState extends State<ConversationsPage>
         canPop: !widget.active || wide || !selected,
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop && widget.active && !wide && chat.selected != null) {
-            unawaited(_select(null));
+            // Back leaves the search before the conversation.
+            if (_searching) {
+              setState(() => _searching = false);
+            } else {
+              unawaited(_select(null));
+            }
           }
         },
         child: wide ? _twoPanes(progress) : _onePane(progress),
@@ -381,7 +405,7 @@ class ConversationsPageState extends State<ConversationsPage>
                 title: _selectedTitle,
                 row: _selectedRow,
               ),
-              actions: [_detailsButton(false)],
+              actions: [_searchButton, _detailsButton(false)],
             )
           : AppBar(title: Text(context.l10n.navChats), actions: _chatActions),
       body: SafeArea(
@@ -439,7 +463,7 @@ class ConversationsPageState extends State<ConversationsPage>
                               title: _selectedTitle,
                               row: row,
                             ),
-                            actions: [_detailsButton(true)],
+                            actions: [_searchButton, _detailsButton(true)],
                           ),
                           ..._banners,
                           Expanded(child: _history(offline: false)),
@@ -548,6 +572,13 @@ class ConversationsPageState extends State<ConversationsPage>
   /// request, and the composer. [offline] adds the connection banner when
   /// the list, which already shows it, is not on screen.
   Widget _history({required bool offline}) {
+    if (_searching) {
+      return ConversationSearch(
+        key: ValueKey('search-${chat.selected}'),
+        chat: chat,
+        onClose: () => setState(() => _searching = false),
+      );
+    }
     final items = historyItems(chat.events).reversed.toList();
     final group = chat.selected!;
     final named = _group;

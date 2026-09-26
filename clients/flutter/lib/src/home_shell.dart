@@ -28,6 +28,10 @@ class SearchChatsIntent extends Intent {
   const SearchChatsIntent();
 }
 
+class SearchConversationIntent extends Intent {
+  const SearchConversationIntent();
+}
+
 /// The previous (-1) or next (1) conversation in the list.
 class AdjacentConversationIntent extends Intent {
   const AdjacentConversationIntent(this.step);
@@ -44,6 +48,7 @@ Map<ShortcutActivator, Intent> homeShortcuts(TargetPlatform platform) {
   return {
     primary(LogicalKeyboardKey.keyN): const NewConversationIntent(),
     primary(LogicalKeyboardKey.keyK): const SearchChatsIntent(),
+    primary(LogicalKeyboardKey.keyF): const SearchConversationIntent(),
     primary(LogicalKeyboardKey.comma): const OpenSettingsIntent(),
     const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):
         const AdjacentConversationIntent(-1),
@@ -216,6 +221,9 @@ class _HomeShellState extends State<HomeShell> {
           ),
           SearchChatsIntent: CallbackAction<SearchChatsIntent>(
             onInvoke: (_) => _inChats((page) => page.focusSearch()),
+          ),
+          SearchConversationIntent: CallbackAction<SearchConversationIntent>(
+            onInvoke: (_) => _inChats((page) => page.searchConversation()),
           ),
           OpenSettingsIntent: CallbackAction<OpenSettingsIntent>(
             onInvoke: (_) => _go(HomeDestination.settings),

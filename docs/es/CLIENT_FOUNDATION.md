@@ -942,3 +942,27 @@ regenera y una prueba comprueba que no se desfasan.
 colores ni textos visibles escritos a mano (solo se permiten
 `Colors.transparent` y el formato técnico `arveil-bootstrap:v0:…`). El nombre
 de la app y los nombres de los idiomas también salen de los ARB.
+
+## Búsqueda dentro de una conversación (25 de septiembre de 2026)
+
+- **Rust.** `Application::search_history` busca en los mensajes de texto de
+  una conversación los que contienen el texto pedido, sin distinguir
+  mayúsculas ni acentos, y los devuelve del más nuevo al más antiguo. Cada
+  llamada lee como mucho 5000 eventos (`MAX_SEARCH_SCAN`) y dice dónde se
+  detuvo, así que un historial largo responde en un tiempo acotado. No
+  entran avisos, adjuntos ni otras conversaciones. El puente la expone como
+  `searchHistory`, con la misma forma que una página del historial.
+- **Interfaz.** El botón de búsqueda de la cabecera, o ⌘F (Ctrl+F fuera de
+  macOS) en escritorio, cambia el historial por un campo y los resultados:
+  quién y cuándo, y el texto. Tocar uno abre sus detalles. «Buscar más atrás»
+  continúa cuando la lectura se detuvo antes del principio, y la pantalla dice
+  cuándo no hay coincidencias. Esc, el botón de cerrar o el gesto de volver en
+  el móvil regresan a la conversación.
+- Llevar al mensaje dentro del historial queda para más adelante: exige cargar
+  las páginas de alrededor.
+
+Evidencia: dos pruebas en `arveil-app` (coincidencia sin mayúsculas ni
+acentos, solo texto de esa conversación, continuación tras el límite y lectura
+acotada a 5000 eventos por llamada) y `test/conversation_search_test.dart`
+(resultados, sin coincidencias, buscar más atrás, ⌘F y Esc en macOS y Linux,
+y volver en el móvil).

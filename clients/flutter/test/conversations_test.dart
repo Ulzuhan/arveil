@@ -69,6 +69,25 @@ class ChatProfile extends FakeProfile {
     );
   }
 
+  final List<String> searches = [];
+  @override
+  Future<HistoryPageView> searchHistory({
+    required String groupId,
+    required String text,
+    int? before,
+    required int limit,
+  }) async {
+    searches.add(text);
+    final wanted = foldForSearch(text);
+    final found = [
+      for (final e in messages.reversed)
+        if ((before == null || e.cursor < before) &&
+            foldForSearch(utf8.decode(e.body)).contains(wanted))
+          e,
+    ];
+    return HistoryPageView(events: found.take(limit).toList(), next: null);
+  }
+
   @override
   Future<SyncView> sync_({required String bootstrap}) async {
     syncs++;

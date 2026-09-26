@@ -65,7 +65,7 @@ class ArveilRust
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -228876902;
+  int get rustContentHash => 1847625941;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -257,6 +257,14 @@ abstract class ArveilRustApi extends BaseApi {
     required String route,
     required String name,
     String? safetyNumber,
+  });
+
+  Future<HistoryPageView> crateApiProfileProfileSearchHistory({
+    required Profile that,
+    required String groupId,
+    required String text,
+    PlatformInt64? before,
+    required int limit,
   });
 
   Future<SetupView> crateApiProfileProfileSetup({required Profile that});
@@ -1681,6 +1689,50 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Future<HistoryPageView> crateApiProfileProfileSearchHistory({
+    required Profile that,
+    required String groupId,
+    required String text,
+    PlatformInt64? before,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_String(groupId, serializer);
+          sse_encode_String(text, serializer);
+          sse_encode_opt_box_autoadd_i_64(before, serializer);
+          sse_encode_u_32(limit, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 37,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_history_page_view,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileSearchHistoryConstMeta,
+        argValues: [that, groupId, text, before, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileSearchHistoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_search_history",
+        argNames: ["that", "groupId", "text", "before", "limit"],
+      );
+
+  @override
   Future<SetupView> crateApiProfileProfileSetup({required Profile that}) {
     return handler.executeNormal(
       NormalTask(
@@ -1693,7 +1745,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1721,7 +1773,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_64,
@@ -1754,7 +1806,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             serializer,
           );
           sse_encode_u_64(generation, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1790,7 +1842,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1829,7 +1881,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1870,7 +1922,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 42,
+              funcId: 43,
               port: port_,
             );
           },
@@ -1902,7 +1954,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1930,7 +1982,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1962,7 +2014,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1991,7 +2043,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 47,
             port: port_,
           );
         },
@@ -5172,6 +5224,22 @@ class ProfileImpl extends RustOpaque implements Profile {
     route: route,
     name: name,
     safetyNumber: safetyNumber,
+  );
+
+  /// Text messages of one conversation containing `text`, newest first,
+  /// ignoring case and accents. Each call reads a bounded number of
+  /// events; pass `next` as `before` to keep searching further back.
+  Future<HistoryPageView> searchHistory({
+    required String groupId,
+    required String text,
+    PlatformInt64? before,
+    required int limit,
+  }) => ArveilRust.instance.api.crateApiProfileProfileSearchHistory(
+    that: this,
+    groupId: groupId,
+    text: text,
+    before: before,
+    limit: limit,
   );
 
   /// Read durable setup state after opening, completing or retrying an

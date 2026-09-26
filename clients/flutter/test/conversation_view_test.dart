@@ -21,6 +21,7 @@ HistoryEventView message(
   String? author,
   List<String> delivery = const [],
   NoticeView? notice,
+  String? text,
 }) => HistoryEventView(
   cursor: at.millisecondsSinceEpoch,
   eventId: id,
@@ -29,7 +30,7 @@ HistoryEventView message(
       : own
       ? 'sent'
       : 'received',
-  body: notice != null ? Uint8List(0) : utf8.encode('text $id'),
+  body: notice != null ? Uint8List(0) : utf8.encode(text ?? 'text $id'),
   delivery: delivery,
   createdAt: seconds(at),
   senderIdentity: own ? null : author,

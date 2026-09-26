@@ -1536,4 +1536,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get languageEnglish => 'English';
+
+  @override
+  String get searchConversation => 'Buscar en la conversación';
+
+  @override
+  String get searchConversationHint => 'Buscar en esta conversación';
+
+  @override
+  String get searchConversationPrompt =>
+      'Escribe para buscar entre los mensajes de esta conversación.';
+
+  @override
+  String searchNoResults(String query) {
+    return 'Ningún mensaje contiene «$query»';
+  }
+
+  @override
+  String get searchNothingRecent => 'Nada entre los mensajes más recientes.';
+
+  @override
+  String get searchOlder => 'Buscar más atrás';
+
+  @override
+  String get searchFailed => 'No se pudo buscar. Vuelve a intentarlo.';
+
+  @override
+  String get closeSearch => 'Cerrar la búsqueda';
 }
