@@ -431,3 +431,19 @@ overflow.
 Pending, manual: walk the main flows with TalkBack on a physical Android
 device and with VoiceOver on macOS, and record the result here with the
 device, system version and commit.
+
+## Redesign candidates (September 25, 2026)
+
+`scripts/package_clients.py` built and audited locally, without publishing,
+the `0.1.0+13` candidates for macOS (arm64, ad-hoc signing) and Android
+(arm64, private release key, minimum SDK 24) from the clean commit `4d5d2c6`
+of the redesign branch (E3). Both passed the script's checks: architecture,
+signing, and no private paths, test markers or keys inside the package. The
+app's diagnostic report carries version `0.1.0+13` and that commit.
+
+Update: the profile scenario with the CLI built from `8b4f5ef`, the exact
+revision of the `0.1.0+10` packages, against the redesign's code keeps
+identity, conversations, history and read marks, and refuses a profile from a
+future schema unchanged. Repeating it at package level (install `0.1.0+10`,
+fill it from the app, install the candidate) on macOS and the Android
+emulator is still pending, following [client packages](CLIENT_RELEASES.md).

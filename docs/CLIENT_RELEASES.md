@@ -54,6 +54,10 @@ recorded in their metadata. The version and commit also reach the app
 (`--dart-define`), which shows them in its diagnostic report; a local build
 without the script says "local build".
 
+`apksigner` needs a Java runtime: if the system has none, point `JAVA_HOME` at
+Android Studio's JDK (`/Applications/Android
+Studio.app/Contents/jbr/Contents/Home`) before building.
+
 Android release builds refuse missing signing configuration. CI can supply
 `ARVEIL_ANDROID_KEYSTORE`, `ARVEIL_ANDROID_STORE_PASSWORD`,
 `ARVEIL_ANDROID_KEY_ALIAS` and `ARVEIL_ANDROID_KEY_PASSWORD` as private

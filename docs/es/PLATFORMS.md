@@ -448,3 +448,21 @@ pantallas principales con el texto al 200 % sin desbordes.
 Pendiente, manual: recorrer los flujos principales con TalkBack en un
 Android físico y con VoiceOver en macOS, y anotar aquí el resultado con el
 dispositivo, la versión del sistema y el commit.
+
+## Candidatos del rediseño (25 de septiembre de 2026)
+
+`scripts/package_clients.py` construyó y auditó en local, sin publicarlos,
+los candidatos `0.1.0+13` para macOS (arm64, firma ad hoc) y Android (arm64,
+clave privada de publicación, SDK mínimo 24) desde el commit limpio `4d5d2c6`
+de la rama del rediseño (E3). Ambos pasaron las comprobaciones del script:
+arquitectura, firma y ausencia de rutas privadas, marcadores de prueba y
+claves dentro del paquete. El informe de diagnóstico de la app lleva la
+versión `0.1.0+13` y ese commit.
+
+Actualización: el escenario de perfiles con el CLI compilado desde
+`8b4f5ef`, la revisión exacta de los paquetes `0.1.0+10`, frente al código
+del rediseño conserva identidad, conversaciones, historial y marcas de
+lectura, y rechaza sin tocarlo un perfil de un esquema futuro. Sigue
+pendiente repetirlo a nivel de paquete (instalar `0.1.0+10`, llenarlo desde
+la app e instalar el candidato) en macOS y en el emulador Android, según
+[paquetes del cliente](CLIENT_RELEASES.md).

@@ -409,5 +409,7 @@
   "diagnosticsSave": "Save report",
   "diagnosticsSaveDialog": "Save diagnostic report",
   "diagnosticsSaved": "Report saved",
-  "diagnosticsSaveFailed": "The report could not be saved"
+  "diagnosticsSaveFailed": "The report could not be saved",
+  "languageSpanish": "Español",
+  "languageEnglish": "English"
 }

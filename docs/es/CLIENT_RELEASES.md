@@ -55,6 +55,10 @@ en sus metadatos. La versión y el commit también llegan a la app
 (`--dart-define`), que los muestra en su informe de diagnóstico; una
 compilación local sin el script dice «local build».
 
+`apksigner` necesita un entorno Java: si el sistema no tiene uno, apunta
+`JAVA_HOME` al JDK de Android Studio (`/Applications/Android
+Studio.app/Contents/jbr/Contents/Home`) antes de compilar.
+
 La compilación Android de producción rechaza la ausencia de firma. CI puede
 usar las variables privadas `ARVEIL_ANDROID_KEYSTORE`,
 `ARVEIL_ANDROID_STORE_PASSWORD`, `ARVEIL_ANDROID_KEY_ALIAS` y

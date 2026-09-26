@@ -922,3 +922,23 @@ nombres, mensajes, ruta, número de seguridad, servidor, rutas del sistema y
 motivos de error marcados como secretos, y comprueba que ninguno aparece en el
 informe y que los recuentos sí; también que la pantalla guarda exactamente lo
 que muestra.
+
+## Capturas y cierre del rediseño (25 de septiembre de 2026)
+
+Las pantallas principales tienen goldens completos en móvil (390×844) y
+escritorio (1280×800), en claro y oscuro (`test/goldens/screens_test.dart`),
+con un círculo inventado de personas y mensajes y horas fijas en hora local,
+así que se ven igual en cualquier zona horaria. Las capturas de la
+documentación son copias de esos goldens: `scripts/update_screenshots.sh` las
+regenera y una prueba comprueba que no se desfasan.
+
+![Chats en un móvil, tema claro](../assets/screens/phone_chats_light.png){ width="260" }
+![Conversación de grupo en un móvil, tema oscuro](../assets/screens/phone_conversation_dark.png){ width="260" }
+![Ajustes por secciones en un móvil](../assets/screens/phone_settings_light.png){ width="260" }
+
+![Escritorio con lista, conversación y detalles](../assets/screens/desktop_conversation_light.png)
+
+`test/hygiene_test.dart` comprueba que fuera de `design/` y `l10n/` no hay
+colores ni textos visibles escritos a mano (solo se permiten
+`Colors.transparent` y el formato técnico `arveil-bootstrap:v0:…`). El nombre
+de la app y los nombres de los idiomas también salen de los ARB.

@@ -819,5 +819,13 @@
   "diagnosticsSave": "Guardar informe",
   "diagnosticsSaveDialog": "Guardar informe de diagnóstico",
   "diagnosticsSaved": "Informe guardado",
-  "diagnosticsSaveFailed": "No se pudo guardar el informe"
+  "diagnosticsSaveFailed": "No se pudo guardar el informe",
+  "languageSpanish": "Español",
+  "@languageSpanish": {
+    "description": "Always the language's own name, in every locale."
+  },
+  "languageEnglish": "English",
+  "@languageEnglish": {
+    "description": "Always the language's own name, in every locale."
+  }
 }

@@ -307,6 +307,15 @@ A y B pueden avanzar en paralelo. F1 y F2 dependen solo de B1.
 - Un nuevo candidato empaquetado supera la auditoría de paquetes y sus resultados quedan en [la matriz de plataformas](PLATFORMS.md).
 - La documentación en español e inglés está actualizada.
 
+Estado el 25 de septiembre de 2026 (paquetes C1–E3): se cumplen la regla de
+tokens y textos (comprobada por `test/hygiene_test.dart`), los goldens de las
+pantallas principales en ambos tamaños y temas con la prueba de contraste, las
+pruebas de Flutter y la documentación en ambos idiomas. Los candidatos
+`0.1.0+13` de macOS y Android pasan la auditoría de paquetes. La actualización
+desde `0.1.0+10` está verificada a nivel de perfil; falta repetirla a nivel de
+paquete en macOS y en el emulador Android. Véase la
+[matriz de plataformas](PLATFORMS.md).
+
 Cumplir estas condiciones no cierra M3b.5. Siguen pendientes la aceptación en hardware físico, los tres usuarios externos, las imágenes versionadas del servidor y la decisión sobre la caducidad de las capabilities; ese trabajo no depende del rediseño y puede avanzar en paralelo.
 
 ## Notas de implementación
