@@ -125,6 +125,7 @@ error_log stderr crit;
 events {{ worker_connections 1024; }}
 http {{
     access_log off;
+    server_tokens off;
     client_max_body_size 1k;
     client_body_temp_path body;
     proxy_temp_path proxy;
@@ -163,9 +164,9 @@ ingress:
     service: http://127.0.0.1:{connector}
   - service: http_status:404
 """
+    # User managers have no network-online.target; waiting for it does nothing.
     proxy_unit = """[Unit]
 Description=Arveil local WebSocket proxy
-After=network-online.target
 
 [Service]
 ExecStart=/usr/sbin/nginx -e stderr -p %h/.local/share/arveil/tunnel/ -c nginx.conf -g "daemon off;"
@@ -184,7 +185,7 @@ WantedBy=default.target
 """
     tunnel_unit = """[Unit]
 Description=Arveil Cloudflare connector
-After=network-online.target arveil-proxy.service
+After=arveil-proxy.service
 Wants=arveil-proxy.service
 
 [Service]

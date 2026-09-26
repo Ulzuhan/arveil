@@ -37,6 +37,14 @@ class TunnelTests(unittest.TestCase):
         self.assertNotIn("$proxy_add_x_forwarded_for", nginx)
         self.assertIn("location / { return 404; }", private)
         self.assertIn("access_log off;", nginx)
+        # Error pages and the Server header must not name the nginx version.
+        self.assertIn("server_tokens off;", nginx)
+
+    def test_user_units_do_not_wait_for_a_system_only_target(self):
+        files = render(self.config)
+        for unit in ("arveil-proxy.service", "arveil-tunnel.service"):
+            self.assertNotIn("network-online", files[unit])
+        self.assertIn("After=arveil-proxy.service\nWants=arveil-proxy.service\n", files["arveil-tunnel.service"])
 
     def test_refuses_configuration_injection_tokens_and_overlapping_ports(self):
         for key, value in (("hostname", "relay.example.org; injected"), ("revision", "main"),
