@@ -24,6 +24,10 @@ pub enum FailureKind {
     Transport,
     Storage,
     Protocol,
+    /// The relay refused because one of its limits was reached (429). It
+    /// answered and nothing was started; retrying before the limit clears
+    /// is refused the same way.
+    Quota,
     Domain,
     FileSystem,
     Internal,
@@ -56,6 +60,7 @@ impl CliError {
                 code: 401 | 403 | 410,
                 ..
             } => FailureKind::Domain,
+            Self::Relay { code: 429, .. } => FailureKind::Quota,
             Self::Relay { .. } => FailureKind::Protocol,
             Self::Domain(_) => FailureKind::Domain,
             Self::FileSystem(_) => FailureKind::FileSystem,
@@ -386,6 +391,28 @@ pub fn block_on<F: std::future::Future>(f: F) -> Result<F::Output, CliError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_relay_limit_is_its_own_kind_by_code_not_by_text() {
+        let refused = |code: u16, message: &str| CliError::Relay {
+            code,
+            message: message.into(),
+        };
+        for message in [
+            "too many pairings from this address; wait and try again",
+            "too many pairings in progress",
+            "mailbox queue full",
+            "",
+        ] {
+            assert_eq!(refused(429, message).kind(), FailureKind::Quota);
+        }
+        assert_eq!(
+            refused(400, "too many pairings").kind(),
+            FailureKind::Protocol
+        );
+        assert_eq!(refused(500, "quota").kind(), FailureKind::Protocol);
+        assert_eq!(refused(403, "").kind(), FailureKind::Domain);
+    }
 
     #[tokio::test]
     async fn late_response_cannot_contaminate_a_second_request() {

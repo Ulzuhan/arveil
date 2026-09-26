@@ -76,6 +76,8 @@ Las cuotas que importan para el almacenamiento son por mailbox y por identidad, 
 
 Pon `-max-conns-per-addr` por encima del número de dispositivos de una casa, o la gente detrás de la misma dirección se rechazará entre sí.
 
+Una cita rechazada, por el límite por dirección o por el tope global, se responde con 429. La app dice entonces que el servidor está limitando los intentos de vinculación desde esa red y que hay que esperar hasta diez minutos antes de generar otro código, porque un reintento dentro de la ventana se rechaza igual. Ese texto supone el `-pairing-window` por defecto; mantenlo en 10m o menos, o avisa a tus usuarios. Quienes salen por una misma dirección, como una casa o la dirección compartida de un operador móvil, comparten el cupo por dirección. Los demás 429 (un mailbox lleno, la cuota de blobs) llegan a la app como un límite alcanzado, no como datos incorrectos.
+
 ## Copias de seguridad
 
 La base de datos es la fuente de verdad; los blobs son adjuntos que quizá los clientes ya no tengan. Respalda ambos con el relay en marcha:

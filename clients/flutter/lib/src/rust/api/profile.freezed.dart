@@ -55,7 +55,7 @@ extension CommandErrorPatterns on CommandError {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CommandError_Busy value)?  busy,TResult Function( CommandError_Panicked value)?  panicked,TResult Function( CommandError_Transport value)?  transport,TResult Function( CommandError_Storage value)?  storage,TResult Function( CommandError_Protocol value)?  protocol,TResult Function( CommandError_Domain value)?  domain,TResult Function( CommandError_FileSystem value)?  fileSystem,TResult Function( CommandError_Internal value)?  internal,TResult Function( CommandError_Interrupted value)?  interrupted,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CommandError_Busy value)?  busy,TResult Function( CommandError_Panicked value)?  panicked,TResult Function( CommandError_Transport value)?  transport,TResult Function( CommandError_Storage value)?  storage,TResult Function( CommandError_Protocol value)?  protocol,TResult Function( CommandError_Quota value)?  quota,TResult Function( CommandError_Domain value)?  domain,TResult Function( CommandError_FileSystem value)?  fileSystem,TResult Function( CommandError_Internal value)?  internal,TResult Function( CommandError_Interrupted value)?  interrupted,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case CommandError_Busy() when busy != null:
@@ -63,7 +63,8 @@ return busy(_that);case CommandError_Panicked() when panicked != null:
 return panicked(_that);case CommandError_Transport() when transport != null:
 return transport(_that);case CommandError_Storage() when storage != null:
 return storage(_that);case CommandError_Protocol() when protocol != null:
-return protocol(_that);case CommandError_Domain() when domain != null:
+return protocol(_that);case CommandError_Quota() when quota != null:
+return quota(_that);case CommandError_Domain() when domain != null:
 return domain(_that);case CommandError_FileSystem() when fileSystem != null:
 return fileSystem(_that);case CommandError_Internal() when internal != null:
 return internal(_that);case CommandError_Interrupted() when interrupted != null:
@@ -85,7 +86,7 @@ return interrupted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CommandError_Busy value)  busy,required TResult Function( CommandError_Panicked value)  panicked,required TResult Function( CommandError_Transport value)  transport,required TResult Function( CommandError_Storage value)  storage,required TResult Function( CommandError_Protocol value)  protocol,required TResult Function( CommandError_Domain value)  domain,required TResult Function( CommandError_FileSystem value)  fileSystem,required TResult Function( CommandError_Internal value)  internal,required TResult Function( CommandError_Interrupted value)  interrupted,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CommandError_Busy value)  busy,required TResult Function( CommandError_Panicked value)  panicked,required TResult Function( CommandError_Transport value)  transport,required TResult Function( CommandError_Storage value)  storage,required TResult Function( CommandError_Protocol value)  protocol,required TResult Function( CommandError_Quota value)  quota,required TResult Function( CommandError_Domain value)  domain,required TResult Function( CommandError_FileSystem value)  fileSystem,required TResult Function( CommandError_Internal value)  internal,required TResult Function( CommandError_Interrupted value)  interrupted,}){
 final _that = this;
 switch (_that) {
 case CommandError_Busy():
@@ -93,7 +94,8 @@ return busy(_that);case CommandError_Panicked():
 return panicked(_that);case CommandError_Transport():
 return transport(_that);case CommandError_Storage():
 return storage(_that);case CommandError_Protocol():
-return protocol(_that);case CommandError_Domain():
+return protocol(_that);case CommandError_Quota():
+return quota(_that);case CommandError_Domain():
 return domain(_that);case CommandError_FileSystem():
 return fileSystem(_that);case CommandError_Internal():
 return internal(_that);case CommandError_Interrupted():
@@ -111,7 +113,7 @@ return interrupted(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CommandError_Busy value)?  busy,TResult? Function( CommandError_Panicked value)?  panicked,TResult? Function( CommandError_Transport value)?  transport,TResult? Function( CommandError_Storage value)?  storage,TResult? Function( CommandError_Protocol value)?  protocol,TResult? Function( CommandError_Domain value)?  domain,TResult? Function( CommandError_FileSystem value)?  fileSystem,TResult? Function( CommandError_Internal value)?  internal,TResult? Function( CommandError_Interrupted value)?  interrupted,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CommandError_Busy value)?  busy,TResult? Function( CommandError_Panicked value)?  panicked,TResult? Function( CommandError_Transport value)?  transport,TResult? Function( CommandError_Storage value)?  storage,TResult? Function( CommandError_Protocol value)?  protocol,TResult? Function( CommandError_Quota value)?  quota,TResult? Function( CommandError_Domain value)?  domain,TResult? Function( CommandError_FileSystem value)?  fileSystem,TResult? Function( CommandError_Internal value)?  internal,TResult? Function( CommandError_Interrupted value)?  interrupted,}){
 final _that = this;
 switch (_that) {
 case CommandError_Busy() when busy != null:
@@ -119,7 +121,8 @@ return busy(_that);case CommandError_Panicked() when panicked != null:
 return panicked(_that);case CommandError_Transport() when transport != null:
 return transport(_that);case CommandError_Storage() when storage != null:
 return storage(_that);case CommandError_Protocol() when protocol != null:
-return protocol(_that);case CommandError_Domain() when domain != null:
+return protocol(_that);case CommandError_Quota() when quota != null:
+return quota(_that);case CommandError_Domain() when domain != null:
 return domain(_that);case CommandError_FileSystem() when fileSystem != null:
 return fileSystem(_that);case CommandError_Internal() when internal != null:
 return internal(_that);case CommandError_Interrupted() when interrupted != null:
@@ -140,14 +143,15 @@ return interrupted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String operation,  int active)?  busy,TResult Function( String operation)?  panicked,TResult Function( String operation,  String reason)?  transport,TResult Function( String operation,  String reason)?  storage,TResult Function( String operation,  String reason)?  protocol,TResult Function( String operation,  String reason)?  domain,TResult Function( String operation,  String reason)?  fileSystem,TResult Function( String operation,  String reason)?  internal,TResult Function( String reason)?  interrupted,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String operation,  int active)?  busy,TResult Function( String operation)?  panicked,TResult Function( String operation,  String reason)?  transport,TResult Function( String operation,  String reason)?  storage,TResult Function( String operation,  String reason)?  protocol,TResult Function( String operation,  String reason)?  quota,TResult Function( String operation,  String reason)?  domain,TResult Function( String operation,  String reason)?  fileSystem,TResult Function( String operation,  String reason)?  internal,TResult Function( String reason)?  interrupted,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case CommandError_Busy() when busy != null:
 return busy(_that.operation,_that.active);case CommandError_Panicked() when panicked != null:
 return panicked(_that.operation);case CommandError_Transport() when transport != null:
 return transport(_that.operation,_that.reason);case CommandError_Storage() when storage != null:
 return storage(_that.operation,_that.reason);case CommandError_Protocol() when protocol != null:
-return protocol(_that.operation,_that.reason);case CommandError_Domain() when domain != null:
+return protocol(_that.operation,_that.reason);case CommandError_Quota() when quota != null:
+return quota(_that.operation,_that.reason);case CommandError_Domain() when domain != null:
 return domain(_that.operation,_that.reason);case CommandError_FileSystem() when fileSystem != null:
 return fileSystem(_that.operation,_that.reason);case CommandError_Internal() when internal != null:
 return internal(_that.operation,_that.reason);case CommandError_Interrupted() when interrupted != null:
@@ -169,14 +173,15 @@ return interrupted(_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String operation,  int active)  busy,required TResult Function( String operation)  panicked,required TResult Function( String operation,  String reason)  transport,required TResult Function( String operation,  String reason)  storage,required TResult Function( String operation,  String reason)  protocol,required TResult Function( String operation,  String reason)  domain,required TResult Function( String operation,  String reason)  fileSystem,required TResult Function( String operation,  String reason)  internal,required TResult Function( String reason)  interrupted,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String operation,  int active)  busy,required TResult Function( String operation)  panicked,required TResult Function( String operation,  String reason)  transport,required TResult Function( String operation,  String reason)  storage,required TResult Function( String operation,  String reason)  protocol,required TResult Function( String operation,  String reason)  quota,required TResult Function( String operation,  String reason)  domain,required TResult Function( String operation,  String reason)  fileSystem,required TResult Function( String operation,  String reason)  internal,required TResult Function( String reason)  interrupted,}) {final _that = this;
 switch (_that) {
 case CommandError_Busy():
 return busy(_that.operation,_that.active);case CommandError_Panicked():
 return panicked(_that.operation);case CommandError_Transport():
 return transport(_that.operation,_that.reason);case CommandError_Storage():
 return storage(_that.operation,_that.reason);case CommandError_Protocol():
-return protocol(_that.operation,_that.reason);case CommandError_Domain():
+return protocol(_that.operation,_that.reason);case CommandError_Quota():
+return quota(_that.operation,_that.reason);case CommandError_Domain():
 return domain(_that.operation,_that.reason);case CommandError_FileSystem():
 return fileSystem(_that.operation,_that.reason);case CommandError_Internal():
 return internal(_that.operation,_that.reason);case CommandError_Interrupted():
@@ -194,14 +199,15 @@ return interrupted(_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String operation,  int active)?  busy,TResult? Function( String operation)?  panicked,TResult? Function( String operation,  String reason)?  transport,TResult? Function( String operation,  String reason)?  storage,TResult? Function( String operation,  String reason)?  protocol,TResult? Function( String operation,  String reason)?  domain,TResult? Function( String operation,  String reason)?  fileSystem,TResult? Function( String operation,  String reason)?  internal,TResult? Function( String reason)?  interrupted,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String operation,  int active)?  busy,TResult? Function( String operation)?  panicked,TResult? Function( String operation,  String reason)?  transport,TResult? Function( String operation,  String reason)?  storage,TResult? Function( String operation,  String reason)?  protocol,TResult? Function( String operation,  String reason)?  quota,TResult? Function( String operation,  String reason)?  domain,TResult? Function( String operation,  String reason)?  fileSystem,TResult? Function( String operation,  String reason)?  internal,TResult? Function( String reason)?  interrupted,}) {final _that = this;
 switch (_that) {
 case CommandError_Busy() when busy != null:
 return busy(_that.operation,_that.active);case CommandError_Panicked() when panicked != null:
 return panicked(_that.operation);case CommandError_Transport() when transport != null:
 return transport(_that.operation,_that.reason);case CommandError_Storage() when storage != null:
 return storage(_that.operation,_that.reason);case CommandError_Protocol() when protocol != null:
-return protocol(_that.operation,_that.reason);case CommandError_Domain() when domain != null:
+return protocol(_that.operation,_that.reason);case CommandError_Quota() when quota != null:
+return quota(_that.operation,_that.reason);case CommandError_Domain() when domain != null:
 return domain(_that.operation,_that.reason);case CommandError_FileSystem() when fileSystem != null:
 return fileSystem(_that.operation,_that.reason);case CommandError_Internal() when internal != null:
 return internal(_that.operation,_that.reason);case CommandError_Interrupted() when interrupted != null:
@@ -542,6 +548,74 @@ class _$CommandError_ProtocolCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
   return _then(CommandError_Protocol(
+operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
+as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class CommandError_Quota extends CommandError {
+  const CommandError_Quota({required this.operation, required this.reason}): super._();
+  
+
+ final  String operation;
+ final  String reason;
+
+/// Create a copy of CommandError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CommandError_QuotaCopyWith<CommandError_Quota> get copyWith => _$CommandError_QuotaCopyWithImpl<CommandError_Quota>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CommandError_Quota&&(identical(other.operation, operation) || other.operation == operation)&&(identical(other.reason, reason) || other.reason == reason));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,operation,reason);
+
+@override
+String toString() {
+  return 'CommandError.quota(operation: $operation, reason: $reason)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CommandError_QuotaCopyWith<$Res> implements $CommandErrorCopyWith<$Res> {
+  factory $CommandError_QuotaCopyWith(CommandError_Quota value, $Res Function(CommandError_Quota) _then) = _$CommandError_QuotaCopyWithImpl;
+@useResult
+$Res call({
+ String operation, String reason
+});
+
+
+
+
+}
+/// @nodoc
+class _$CommandError_QuotaCopyWithImpl<$Res>
+    implements $CommandError_QuotaCopyWith<$Res> {
+  _$CommandError_QuotaCopyWithImpl(this._self, this._then);
+
+  final CommandError_Quota _self;
+  final $Res Function(CommandError_Quota) _then;
+
+/// Create a copy of CommandError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? operation = null,Object? reason = null,}) {
+  return _then(CommandError_Quota(
 operation: null == operation ? _self.operation : operation // ignore: cast_nullable_to_non_nullable
 as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
 as String,

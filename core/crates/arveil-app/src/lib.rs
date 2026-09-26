@@ -672,6 +672,15 @@ pub enum ApplicationError {
         source: CliError,
         partial: OperationResult,
     },
+    /// The relay answered that one of its limits was reached. Waiting for
+    /// it to clear is the remedy: a retry before then is refused again.
+    #[error("relay limit reached during {operation:?}: {source}")]
+    Quota {
+        operation: Operation,
+        #[source]
+        source: CliError,
+        partial: OperationResult,
+    },
     #[error("domain rule failed during {operation:?}: {source}")]
     Domain {
         operation: Operation,
@@ -713,6 +722,7 @@ impl ApplicationError {
             Self::Transport { operation, .. }
             | Self::Storage { operation, .. }
             | Self::Protocol { operation, .. }
+            | Self::Quota { operation, .. }
             | Self::Domain { operation, .. }
             | Self::FileSystem { operation, .. }
             | Self::Internal { operation, .. } => Some(*operation),
@@ -733,6 +743,7 @@ impl ApplicationError {
             Self::Transport { partial, .. }
             | Self::Storage { partial, .. }
             | Self::Protocol { partial, .. }
+            | Self::Quota { partial, .. }
             | Self::Domain { partial, .. }
             | Self::FileSystem { partial, .. }
             | Self::Internal { partial, .. }
@@ -3011,6 +3022,11 @@ fn classified_error(
             partial,
         },
         FailureKind::Protocol => ApplicationError::Protocol {
+            operation,
+            source,
+            partial,
+        },
+        FailureKind::Quota => ApplicationError::Quota {
             operation,
             source,
             partial,
@@ -6968,5 +6984,26 @@ mod tests {
             CliError::Transport("connection ended".into()),
         );
         assert!(matches!(error, ApplicationError::Transport { .. }));
+    }
+
+    #[test]
+    fn a_relay_limit_on_pairing_is_a_quota_error_for_that_operation() {
+        let error = application_error(
+            Operation::BeginPairing,
+            CliError::Relay {
+                code: 429,
+                message: "too many pairings from this address; wait and try again".into(),
+            },
+        );
+        assert!(matches!(error, ApplicationError::Quota { .. }));
+        assert_eq!(error.operation(), Some(Operation::BeginPairing));
+        let other = application_error(
+            Operation::BeginPairing,
+            CliError::Relay {
+                code: 400,
+                message: "bad request".into(),
+            },
+        );
+        assert!(matches!(other, ApplicationError::Protocol { .. }));
     }
 }

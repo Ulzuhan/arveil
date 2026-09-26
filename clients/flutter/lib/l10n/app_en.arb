@@ -93,6 +93,8 @@
   "errorTransport": "Could not connect to the server. Check the connection and follow the pending operation's instructions.",
   "errorDomain": "Check the details and whether the operation is still valid. Keep the profile; do not start a different setup to retry.",
   "errorProtocol": "The server did not accept the operation. Check the details with its administrator; a recovery may need a more recent kit.",
+  "errorPairingQuota": "The server is limiting pairing attempts from this network. Wait a few minutes (up to 10) before generating a new code; retrying sooner does not help.",
+  "errorQuota": "The server reached one of its limits and did not accept the operation. Wait a few minutes before trying again; if it keeps happening, tell whoever runs it.",
   "errorBusy": "Another operation is in progress. Wait and try again.",
   "errorStorage": "Progress could not be saved. Check storage and try again.",
   "errorInterrupted": "The operation was interrupted. You can try again.",
