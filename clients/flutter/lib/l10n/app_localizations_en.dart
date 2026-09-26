@@ -207,7 +207,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enrollBody =>
-      'Ask the administrator for the server details and an invitation. Your identity is created on this device when you continue.';
+      'Ask the administrator for the server details and an invitation. If both came in one message, paste it whole: the app finds each one. Your identity is created on this device when you continue.';
 
   @override
   String get setupRedeeming => 'Waiting to confirm the invitation.';
@@ -1622,6 +1622,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get enrollInviteBody =>
       'Paste the 64-character invitation the administrator gave you.';
+
+  @override
+  String get enrollInviteFound =>
+      'The invitation came in the same message and is already filled in.';
 
   @override
   String get kitOfferTitle => 'Save your identity kit now';

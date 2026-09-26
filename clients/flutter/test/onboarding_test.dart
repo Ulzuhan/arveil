@@ -1,4 +1,5 @@
 import 'package:arveil/main.dart';
+import 'package:arveil/src/onboarding.dart' show splitInvitation;
 import 'package:arveil/src/design/design.dart';
 import 'package:arveil/src/profile_session.dart';
 import 'package:arveil/src/rust/api/profile.dart';
@@ -83,6 +84,54 @@ void main() {
     );
     await tapText(tester, 'Volver al alta');
     expect(find.text('¿Cómo quieres empezar?'), findsOneWidget);
+  });
+
+  test('one message gives the server details and the invitation apart', () {
+    final key = '1f' * 32;
+    final bootstrap =
+        'arveil-bootstrap:v0:${'aa' * 32}:${'bb' * 32}:${'cc' * 32}:'
+        'wss://relay.example.org/v1/channel';
+    final token = 'AB' * 32;
+    expect(splitInvitation('bootstrap: $bootstrap\ninvite: $token\n'), (
+      bootstrap: bootstrap,
+      invite: token.toLowerCase(),
+    ));
+    // The hexadecimal fields inside the server details are not invitations.
+    expect(splitInvitation(bootstrap), (bootstrap: bootstrap, invite: null));
+    expect(
+      splitInvitation('$bootstrap $token $key'),
+      (bootstrap: bootstrap, invite: null),
+      reason: 'two different invitations are not guessed between',
+    );
+    expect(splitInvitation('$token\n$bootstrap\n$token'), (
+      bootstrap: bootstrap,
+      invite: token.toLowerCase(),
+    ));
+    expect(splitInvitation('hola'), (bootstrap: null, invite: null));
+  });
+
+  testWidgets('a message with both fills the invitation step', (tester) async {
+    // FakeProfile checks that enrollment receives exactly the server
+    // details and the invitation, without the labels around them.
+    final profile = FakeProfile();
+    await openProfile(tester, profile);
+    await tapText(tester, 'Unirme con una invitación');
+    await tester.enterText(
+      find.byKey(const Key('bootstrap')),
+      'Datos del servidor:\n$relay\n\nInvitación: $invitation',
+    );
+    await tapText(tester, 'Siguiente');
+    expect(find.text('Paso 2 de 2'), findsOneWidget);
+    expect(find.textContaining('ya está rellenada'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('invite')))
+          .controller!
+          .text,
+      invitation,
+    );
+    await tapText(tester, 'Crear identidad y unirme');
+    expect(profile.enrollments, 1);
   });
 
   testWidgets(
