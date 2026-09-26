@@ -398,7 +398,10 @@ class ConversationController extends ChangeNotifier {
     _changed();
   }
 
-  Future<String?> create(List<String> routes, List<String> numbers) => _create(
+  /// Creates a conversation from pasted routes. [numbers] has one entry per
+  /// route: the safety number compared with that person, or null when it
+  /// was not compared yet, which leaves them unverified.
+  Future<String?> create(List<String> routes, List<String?> numbers) => _create(
     () => profile.createConversation(
       bootstrap: bootstrap,
       routes: routes,
@@ -412,6 +415,22 @@ class ConversationController extends ChangeNotifier {
       recipients: recipients,
     ),
   );
+
+  /// Verifies another person after the two compared [safetyNumber] and
+  /// saw it match. Whether it was saved.
+  Future<bool> verify(String identity, String safetyNumber) async {
+    try {
+      await profile.verifyContact(
+        identityId: identity,
+        safetyNumber: safetyNumber,
+      );
+    } catch (failure) {
+      FailureLog.record(failure);
+      return false;
+    }
+    await refresh();
+    return true;
+  }
 
   Future<String?> _create(Future<ChatMutationView> Function() operation) async {
     if (_disposed || creating) return null;

@@ -25,7 +25,7 @@ Future<void> main() async {
   const token = String.fromEnvironment('ARVEIL_TEST_CONTROL_TOKEN');
   setUpAll(() async => ArveilRust.init());
   testWidgets(
-    'saved contacts, explicit verification, rename, encrypted reopen, duplex text and offline reconnect',
+    'saved contacts, talking before verifying, verification from the conversation, rename, encrypted reopen, duplex text and offline reconnect',
     (tester) async {
       expect(
         bootstrap.isNotEmpty && inviteA.isNotEmpty && inviteB.isNotEmpty,
@@ -159,25 +159,30 @@ Future<void> main() async {
       );
       await tap(find.byKey(const Key('save-contact')));
       expect((await alice.contacts()).single.verified, isFalse);
-      await tap(find.byKey(const Key('contact-compared')));
-      expect((await alice.contacts()).single.verified, isTrue);
       await tap(find.byType(BackButton));
       // Reopen before choosing the saved contact: no route is pasted again.
       await hideProfile();
       alice = await open(0);
       final saved = (await alice.contacts()).single;
       expect(saved.label, 'Contacto de prueba');
-      expect(saved.verified, isTrue);
+      expect(saved.verified, isFalse);
       chat = await showProfile();
       await tap(find.byTooltip('Nueva conversación'));
       await tap(find.byKey(const Key('choose-contacts')));
+      // Talking does not wait for the comparison.
       await tap(find.byKey(Key('select-contact-${saved.identityId}')));
       await tap(find.byKey(const Key('use-contacts')));
-      expect(
-        chat.conversations.single.peers.single.label,
-        'Contacto de prueba',
-      );
+      final peer = chat.conversations.single.peers.single;
+      expect(peer.label, 'Contacto de prueba');
+      expect(peer.verified, isFalse);
+      expect(peer.safetyNumber, aPreview.single.safetyNumber);
+      expect(find.text('Sin verificar · Verificar'), findsOneWidget);
       final group = chat.selected!;
+      // Verified later, through what the conversation details call.
+      expect(await chat.verify(peer.identityId, peer.safetyNumber!), isTrue);
+      await settle();
+      expect(chat.conversations.single.peers.single.verified, isTrue);
+      expect((await alice.contacts()).single.verified, isTrue);
       await destination('Contactos');
       await tap(find.byKey(Key('contact-${saved.identityId}')));
       await tester.enterText(
@@ -197,7 +202,23 @@ Future<void> main() async {
         'Contacto renombrado',
       );
       await bob.sync_(bootstrap: bootstrap);
-      expect((await bob.conversations()).single.groupId, group);
+      final invited = (await bob.conversations()).single;
+      expect(invited.groupId, group);
+      // The receiver has no route for the creator, only the roster, and
+      // verifies from it with the same number.
+      final creator = invited.peers.singleWhere((p) => !p.own);
+      expect(creator.verified, isFalse);
+      expect(creator.safetyNumber, bPreview.single.safetyNumber);
+      await bob.verifyContact(
+        identityId: creator.identityId,
+        safetyNumber: creator.safetyNumber!,
+      );
+      expect(
+        (await bob.conversations()).single.peers
+            .singleWhere((p) => !p.own)
+            .verified,
+        isTrue,
+      );
       await tester.enterText(
         find.byKey(const Key('message-draft')),
         'native online message',

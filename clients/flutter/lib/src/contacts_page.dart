@@ -31,8 +31,9 @@ class _ContactsPageState extends State<ContactsPage> {
     _load();
   }
 
-  bool _available(ContactView c) =>
-      c.verified && c.devices.any((d) => !d.revoked);
+  /// Anyone with a device not known to be revoked can be written to;
+  /// verification can come later, from the conversation.
+  bool _available(ContactView c) => c.devices.any((d) => !d.revoked);
 
   Future<void> _load() async {
     setState(() {

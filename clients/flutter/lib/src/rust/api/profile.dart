@@ -94,10 +94,13 @@ abstract class Profile implements RustOpaqueInterface {
     required List<SavedRecipientView> recipients,
   });
 
+  /// `safety_numbers` has one entry per route: the number compared with
+  /// that person and seen to match, or null when it was not compared. A
+  /// person nobody compared with is saved unverified, to verify later.
   Future<ChatMutationView> createConversation({
     required String bootstrap,
     required List<String> routes,
-    required List<String> safetyNumbers,
+    required List<String?> safetyNumbers,
   });
 
   /// Create this profile's identity. The first step of enrollment, and
@@ -935,6 +938,10 @@ class PeerView {
   final bool named;
   final bool own;
   final bool verified;
+
+  /// The number to compare with this person before verifying them;
+  /// absent for this profile's own devices.
+  final String? safetyNumber;
   final bool revoked;
 
   const PeerView({
@@ -944,6 +951,7 @@ class PeerView {
     required this.named,
     required this.own,
     required this.verified,
+    this.safetyNumber,
     required this.revoked,
   });
 
@@ -955,6 +963,7 @@ class PeerView {
       named.hashCode ^
       own.hashCode ^
       verified.hashCode ^
+      safetyNumber.hashCode ^
       revoked.hashCode;
 
   @override
@@ -968,6 +977,7 @@ class PeerView {
           named == other.named &&
           own == other.own &&
           verified == other.verified &&
+          safetyNumber == other.safetyNumber &&
           revoked == other.revoked;
 }
 

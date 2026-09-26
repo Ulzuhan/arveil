@@ -9,10 +9,13 @@ pub struct RoutePreview {
     pub safety_number: String,
 }
 
+/// A pasted route for a new conversation. `safety_number` is the number
+/// the two people compared and saw match; without it the contact is saved
+/// unverified, to be compared later.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ConfirmedRoute {
+pub struct ConversationRoute {
     pub route: String,
-    pub safety_number: String,
+    pub safety_number: Option<String>,
 }
 
 pub(super) fn own(config: &ProfileConfig) -> Result<String, CliError> {
@@ -74,15 +77,21 @@ pub(super) fn preview(
         .collect()
 }
 
-pub(super) fn confirm(
+/// Saves the identity behind each route as a contact before the
+/// conversation starts. Only a route whose number was compared is pinned as
+/// verified; the others stay unverified. A root that contradicts a verified
+/// contact is refused either way.
+pub(super) fn remember(
     config: &ProfileConfig,
-    values: &[ConfirmedRoute],
+    values: &[ConversationRoute],
 ) -> Result<Vec<String>, CliError> {
     let routes: Vec<String> = values.iter().map(|v| v.route.clone()).collect();
     let previews = preview(config, &routes)?;
     let digits = |s: &str| s.chars().filter(char::is_ascii_digit).collect::<String>();
     for (value, preview) in values.iter().zip(previews) {
-        if digits(&value.safety_number) != digits(&preview.safety_number) {
+        if let Some(number) = &value.safety_number
+            && digits(number) != digits(&preview.safety_number)
+        {
             return Err(CliError::Domain(
                 "route comparison no longer matches".into(),
             ));
@@ -94,13 +103,10 @@ pub(super) fn confirm(
             client
                 .contact_seen(&route.identity_id, &route.root_public)
                 .map_err(crate::storage_error("contact"))?;
-            if !client
-                .contact_verify(
-                    &route.identity_id,
-                    &value.safety_number,
-                    crate::onboarding::now() as i64,
-                )
-                .map_err(crate::storage_error("contact"))?
+            if let Some(number) = &value.safety_number
+                && !client
+                    .contact_verify(&route.identity_id, number, crate::onboarding::now() as i64)
+                    .map_err(crate::storage_error("contact"))?
             {
                 return Err(CliError::Domain("contact comparison did not match".into()));
             }

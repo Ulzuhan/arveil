@@ -23,7 +23,16 @@ class RichProfile extends HistoryProfile {
         [
           chatWith(
             'g',
-            [peer('lucia', 'Lucía Fernández de la Vega')],
+            // Unverified, so the header offers to verify and the details
+            // show the number to compare.
+            [
+              peer(
+                'lucia',
+                'Lucía Fernández de la Vega',
+                verified: false,
+                safetyNumber: '40512 83307 19264 55871 02938 67145 38820 91476',
+              ),
+            ],
             last: text('Un mensaje largo para una sola línea de la lista'),
             unread: 12,
             activity: at.millisecondsSinceEpoch ~/ 1000,
@@ -223,7 +232,10 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'conversation');
       await settle(tester, find.byTooltip('Detalles de la conversación'));
       expect(tester.takeException(), isNull, reason: 'details');
-      await tester.tapAt(const Offset(20, 20));
+      // The number to compare fills the sheet at this size: back closes it.
+      await reveal(tester, find.byKey(const Key('verify-lucia')));
+      expect(tester.takeException(), isNull, reason: 'comparison');
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await settle(tester, find.byTooltip('Volver a conversaciones'));
       await settle(tester, destination('Contactos'));

@@ -139,7 +139,7 @@ def main():
                     "archives": "encrypted export, profile loss, identity recovery, read-only import, archived attachment bytes, duplicates, reopen, no resend/rejoin and a new conversation.",
                     "devices": "device inventory, pairing, offline revocation, encrypted reopen, relay refusal, MLS removal and remaining-peer text.",
                     "attachments": "explicit attachments, offline queue, encrypted reopen, download, export boundary, duplicate names, cancellation and reconnect without duplicates.",
-                    "conversations": "saved contacts, explicit verification, rename, verified group, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates.",
+                    "conversations": "saved contacts, talking before verifying, verification from the conversation on both sides, rename, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates.",
                 }
                 print("PASS: " + summaries[args.scenario])
             finally:

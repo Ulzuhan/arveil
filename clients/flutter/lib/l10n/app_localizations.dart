@@ -1763,7 +1763,7 @@ abstract class AppLocalizations {
   /// No description provided for @contactsNamesLocal.
   ///
   /// In es, this message translates to:
-  /// **'Los nombres son locales. Comprueba la identidad comparando el número de seguridad por otro canal.'**
+  /// **'Los nombres son locales y no verifican a nadie. Puedes conversar ya y comparar el número de seguridad por otro canal más tarde.'**
   String get contactsNamesLocal;
 
   /// No description provided for @contactsDeviceLimit.
@@ -2147,7 +2147,7 @@ abstract class AppLocalizations {
   /// No description provided for @ownRouteShare.
   ///
   /// In es, this message translates to:
-  /// **'Compártela solo con las personas que quieras que puedan escribir a este dispositivo. Comparad después el número de seguridad por otro canal.'**
+  /// **'Compártela solo con las personas que quieras que puedan escribir a este dispositivo. Podéis empezar a hablar enseguida y comparar el número de seguridad por otro canal más tarde, desde los detalles de la conversación.'**
   String get ownRouteShare;
 
   /// No description provided for @ownRouteCopy.
@@ -2303,7 +2303,7 @@ abstract class AppLocalizations {
   /// No description provided for @newConversationRoutesHelp.
   ///
   /// In es, this message translates to:
-  /// **'O utiliza una ruta nueva. Pide a tus contactos su ruta de este servidor. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.'**
+  /// **'O utiliza una ruta nueva. Pide a tus contactos su ruta de este servidor y pega una ruta por línea. Comparar el número de seguridad con cada persona es opcional ahora: puedes hacerlo después desde los detalles de la conversación.'**
   String get newConversationRoutesHelp;
 
   /// No description provided for @newConversationRoutesLabel.
@@ -2318,11 +2318,17 @@ abstract class AppLocalizations {
   /// **'Preparar comparación'**
   String get newConversationPrepare;
 
-  /// No description provided for @newConversationCompared.
+  /// No description provided for @newConversationMatches.
   ///
   /// In es, this message translates to:
-  /// **'Hemos comparado todos los números por otro canal y coinciden.'**
-  String get newConversationCompared;
+  /// **'Lo hemos comparado por otro canal y coincide'**
+  String get newConversationMatches;
+
+  /// No description provided for @newConversationLater.
+  ///
+  /// In es, this message translates to:
+  /// **'Quien no marques aparecerá como sin verificar. Podrás comparar el número después desde los detalles de la conversación.'**
+  String get newConversationLater;
 
   /// No description provided for @newConversationCreate.
   ///
@@ -2581,6 +2587,30 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Coinciden: el contacto se guardará como verificado.'**
   String get comparedWillVerify;
+
+  /// No description provided for @verifyAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificar'**
+  String get verifyAction;
+
+  /// No description provided for @peopleUnverified.
+  ///
+  /// In es, this message translates to:
+  /// **'{count} sin verificar'**
+  String peopleUnverified(int count);
+
+  /// No description provided for @detailsMismatchBody.
+  ///
+  /// In es, this message translates to:
+  /// **'No verifiques a esta persona. Puede que otra identidad se haga pasar por ella: pregúntale por otro canal antes de compartir nada delicado.'**
+  String get detailsMismatchBody;
+
+  /// No description provided for @detailsVerifyFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo guardar la verificación. Vuelve a intentarlo.'**
+  String get detailsVerifyFailed;
 
   /// No description provided for @startTitle.
   ///

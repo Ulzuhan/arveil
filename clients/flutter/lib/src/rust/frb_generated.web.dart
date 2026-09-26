@@ -168,6 +168,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   List<ManagedDeviceView> dco_decode_list_managed_device_view(dynamic raw);
 
   @protected
+  List<String?> dco_decode_list_opt_String(dynamic raw);
+
+  @protected
   List<PeerView> dco_decode_list_peer_view(dynamic raw);
 
   @protected
@@ -440,6 +443,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   List<ManagedDeviceView> sse_decode_list_managed_device_view(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<String?> sse_decode_list_opt_String(SseDeserializer deserializer);
 
   @protected
   List<PeerView> sse_decode_list_peer_view(SseDeserializer deserializer);
@@ -789,6 +795,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
     List<ManagedDeviceView> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_opt_String(List<String?> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_peer_view(List<PeerView> self, SseSerializer serializer);

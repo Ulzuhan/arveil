@@ -239,7 +239,7 @@ void main() {
   );
 
   testWidgets(
-    'saved selection excludes unverified contacts and revoked devices',
+    'saved selection takes unverified contacts but no revoked device or missing route',
     (tester) async {
       final profile = AddressProfile()
         ..people = [
@@ -272,13 +272,14 @@ void main() {
       );
       await tap(tester, find.text('Start'));
       await tap(tester, find.byKey(const Key('choose-contacts')));
+      // Talking does not wait for the comparison.
       expect(
         tester
             .widget<Checkbox>(
               find.byKey(const Key('select-contact-unverified')),
             )
             .onChanged,
-        isNull,
+        isNotNull,
       );
       expect(
         tester
@@ -287,9 +288,11 @@ void main() {
         isNull,
       );
       await tap(tester, find.byKey(const Key('select-contact-alice')));
+      await tap(tester, find.byKey(const Key('select-contact-unverified')));
       await tap(tester, find.byKey(const Key('use-contacts')));
       expect(profile.selectedRecipients, const [
         SavedRecipientView(identityId: 'alice', deviceId: 'active'),
+        SavedRecipientView(identityId: 'unverified', deviceId: 'device-a'),
       ]);
       expect(chat.selected, 'group-a');
       expect(find.text('Start'), findsOneWidget);

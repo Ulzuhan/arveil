@@ -62,6 +62,14 @@ LastEventView last(
   delivery: delivery,
 );
 
+/// Not verified yet: the conversation offers to compare this number.
+final pablo = peer(
+  'pablo',
+  'Pablo',
+  verified: false,
+  safetyNumber: '40512 83307 19264 55871 02938 67145 38820 91476',
+);
+
 /// A small, invented circle of people: nothing here is real.
 class ShowcaseProfile extends HistoryProfile {
   ShowcaseProfile()
@@ -69,7 +77,7 @@ class ShowcaseProfile extends HistoryProfile {
         [
           chatWith(
             'familia',
-            [peer('lucia', 'Lucía'), peer('pablo', 'Pablo', verified: false)],
+            [peer('lucia', 'Lucía'), pablo],
             last: last(
               '¿Quién trae el postre el domingo?',
               at(18, 40),
@@ -91,7 +99,7 @@ class ShowcaseProfile extends HistoryProfile {
           ),
           chatWith(
             'pablo-chat',
-            [peer('pablo', 'Pablo', verified: false)],
+            [pablo],
             last: last('Vale, mañana lo miramos', at(12, 10), author: 'Pablo'),
             activity: seconds(at(12, 10)),
           ),

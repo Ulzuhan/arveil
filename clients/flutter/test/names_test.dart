@@ -212,13 +212,7 @@ void main() {
     await tester.tap(find.text('Preparar comparación'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('new-name-identity')), 'Marta');
-    await tester.dragUntilVisible(
-      find.byKey(const Key('compared-routes')),
-      find.byType(ListView).last,
-      const Offset(0, -200),
-    );
-    await tester.tap(find.byKey(const Key('compared-routes')));
-    await tester.pump();
+    // Named, not compared: created all the same, and saved unverified.
     await tester.dragUntilVisible(
       find.byKey(const Key('create-conversation')),
       find.byType(ListView).last,
@@ -227,6 +221,7 @@ void main() {
     await tester.tap(find.byKey(const Key('create-conversation')));
     await tester.pumpAndSettle();
     expect(profile.creates, 1);
+    expect(profile.createdNumbers, [null]);
     expect(profile.renames, [('identity', 'Marta')]);
     expect(find.text('Marta'), findsWidgets);
     await tester.pumpWidget(const SizedBox());

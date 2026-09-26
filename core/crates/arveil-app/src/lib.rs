@@ -30,7 +30,7 @@ mod history_tests;
 pub use devices::{DeviceInventory, ManagedDevice, RevocationProgress};
 mod conversation_ui;
 pub use contacts::{ContactDevice, ContactSummary, SavedRecipient};
-pub use conversation_ui::{ConfirmedRoute, RoutePreview};
+pub use conversation_ui::{ConversationRoute, RoutePreview};
 mod key_packages;
 mod onboarding;
 mod recovery;
@@ -120,7 +120,7 @@ pub enum Operation {
     CreateContactConversation,
     QueryOwnRoute,
     PreviewRoutes,
-    CreateVerifiedConversation,
+    CreateRouteConversation,
     QueueMessage,
     CreateConversation,
     AddDevice,
@@ -241,9 +241,9 @@ pub enum ClientCommand {
     PreviewRoutes {
         routes: Vec<String>,
     },
-    CreateVerifiedConversation {
+    CreateRouteConversation {
         bootstrap: String,
-        routes: Vec<ConfirmedRoute>,
+        routes: Vec<ConversationRoute>,
     },
     QueueMessage {
         text: String,
@@ -346,7 +346,7 @@ impl ClientCommand {
             Self::CreateContactConversation { .. } => Operation::CreateContactConversation,
             Self::QueryOwnRoute => Operation::QueryOwnRoute,
             Self::PreviewRoutes { .. } => Operation::PreviewRoutes,
-            Self::CreateVerifiedConversation { .. } => Operation::CreateVerifiedConversation,
+            Self::CreateRouteConversation { .. } => Operation::CreateRouteConversation,
             Self::QueueMessage { .. } => Operation::QueueMessage,
             Self::CreateConversation { .. } => Operation::CreateConversation,
             Self::AddDevice { .. } => Operation::AddDevice,
@@ -1137,6 +1137,9 @@ pub struct PeerSummary {
     pub named: bool,
     pub own: bool,
     pub verified: bool,
+    /// The number to compare with this identity, over the root this profile
+    /// keeps for it; absent for this profile's own devices.
+    pub safety_number: Option<String>,
     pub routable: bool,
     pub revoked: bool,
 }
@@ -2317,12 +2320,15 @@ impl Application {
         }
     }
 
-    pub fn create_verified_conversation(
+    /// Starts a conversation from pasted routes and saves their identities
+    /// as contacts. Only the routes that carry a compared safety number are
+    /// saved as verified; the rest can be compared later.
+    pub fn create_route_conversation(
         &self,
         bootstrap: &str,
-        routes: Vec<ConfirmedRoute>,
+        routes: Vec<ConversationRoute>,
     ) -> Result<OperationResult, ApplicationError> {
-        self.operation(ClientCommand::CreateVerifiedConversation {
+        self.operation(ClientCommand::CreateRouteConversation {
             bootstrap: bootstrap.into(),
             routes,
         })
@@ -2679,16 +2685,15 @@ async fn run_command(
         ClientCommand::PreviewRoutes { routes } => conversation_ui::preview(config, &routes)
             .map(CommandOutput::RoutePreviews)
             .map_err(|e| application_error(Operation::PreviewRoutes, e)),
-        ClientCommand::CreateVerifiedConversation { bootstrap, routes } => Box::pin(run_operation(
-            Operation::CreateVerifiedConversation,
-            async {
-                let confirmed = conversation_ui::confirm(config, &routes)?;
-                let routes: Vec<&str> = confirmed.iter().map(String::as_str).collect();
+        ClientCommand::CreateRouteConversation { bootstrap, routes } => {
+            Box::pin(run_operation(Operation::CreateRouteConversation, async {
+                let saved = conversation_ui::remember(config, &routes)?;
+                let routes: Vec<&str> = saved.iter().map(String::as_str).collect();
                 start(config, &bootstrap, &routes).await
-            },
-        ))
-        .await
-        .map(CommandOutput::Operation),
+            }))
+            .await
+            .map(CommandOutput::Operation)
+        }
         ClientCommand::QueueMessage { text, group } => {
             run_operation(Operation::QueueMessage, async {
                 if text.trim().is_empty() || text.len() > 32 * 1024 {
@@ -3113,16 +3118,22 @@ struct LocalRead {
     client: Client,
     delivery: Delivery,
     identity_id: Option<Vec<u8>>,
+    root_public: Option<Vec<u8>>,
 }
 
 fn local(config: &ProfileConfig) -> Result<LocalRead, CliError> {
     let client = open_client(config)?;
     let delivery = client.delivery().map_err(storage_error("delivery"))?;
     let identity_id = client.identity_id().map_err(storage_error("identity"))?;
+    let root_public = client
+        .root_public()
+        .map_err(storage_error("identity"))?
+        .map(|key| key.as_bytes().to_vec());
     Ok(LocalRead {
         client,
         delivery,
         identity_id,
+        root_public,
     })
 }
 
@@ -3148,6 +3159,18 @@ fn peer_summary(session: &LocalRead, peer: &Peer) -> Result<PeerSummary, CliErro
         .client
         .contact(&peer.identity)
         .map_err(storage_error("contact"))?;
+    let own = Some(&peer.identity) == session.identity_id.as_ref();
+    // Verification checks the root kept for the contact; someone known only
+    // from a roster is compared over the root that roster named.
+    let root = contact
+        .as_ref()
+        .map_or(peer.root_public.as_slice(), |c| c.root_public.as_slice());
+    let safety_number = match &session.root_public {
+        Some(mine) if !own && !root.is_empty() => {
+            Some(arveil_core::client::safety_number(mine, root))
+        }
+        _ => None,
+    };
     Ok(PeerSummary {
         identity_id: peer.identity.clone(),
         device_id: peer.device_id.clone(),
@@ -3156,8 +3179,9 @@ fn peer_summary(session: &LocalRead, peer: &Peer) -> Result<PeerSummary, CliErro
             |c| c.label(),
         ),
         named: contact.as_ref().is_some_and(|c| c.name.is_some()),
-        own: Some(&peer.identity) == session.identity_id.as_ref(),
+        own,
         verified: contact.is_some_and(|c| c.verified),
+        safety_number,
         routable: peer.routable(),
         revoked: peer.revoked,
     })
@@ -5244,7 +5268,7 @@ mod tests {
     }
 
     #[test]
-    fn saved_contacts_survive_reopen_and_require_explicit_verification() {
+    fn saved_contacts_survive_reopen_and_are_verified_only_explicitly() {
         let (dir, bootstrap, app) = enrolled_test_application("contacts-a", "ws://127.0.0.1:1");
         let (peer_dir, _, peer) = enrolled_test_application("contacts-b", "ws://127.0.0.1:1");
         let route = peer.own_route().unwrap();
@@ -5258,10 +5282,24 @@ mod tests {
             identity_id: contact.identity_id.clone(),
             device_id: parsed.device_id.clone(),
         };
+        // An unverified contact can be talked to: choosing it gets as far
+        // as the relay, which this test does not have.
+        assert_eq!(
+            contacts::recipient_routes(
+                &ProfileConfig::unencrypted(&dir),
+                std::slice::from_ref(&recipient)
+            )
+            .unwrap(),
+            vec![route.clone()]
+        );
         assert!(matches!(
             app.create_contact_conversation(&bootstrap, vec![recipient.clone()]),
-            Err(ApplicationError::Domain { .. })
+            Err(ApplicationError::Transport { .. })
         ));
+        assert!(
+            !app.contacts().unwrap()[0].verified,
+            "talking is not verifying"
+        );
         assert!(
             app.verify_contact(contact.identity_id.clone(), "00000".into())
                 .is_err()
@@ -5399,23 +5437,37 @@ mod tests {
         assert!(a.preview_routes(vec!["invalid".into()]).is_err());
         assert!(a.preview_routes(vec!["x".repeat(4097)]).is_err());
         let config = ProfileConfig::unencrypted(&a_dir);
-        let mut confirmations = vec![
-            ConfirmedRoute {
-                route: b_route,
-                safety_number: previews[0].safety_number.clone(),
+        let mut routes = vec![
+            ConversationRoute {
+                route: b_route.clone(),
+                safety_number: Some(previews[0].safety_number.clone()),
             },
-            ConfirmedRoute {
-                route: c_route,
-                safety_number: "wrong".into(),
+            ConversationRoute {
+                route: c_route.clone(),
+                safety_number: Some("wrong".into()),
             },
         ];
-        assert!(conversation_ui::confirm(&config, &confirmations).is_err());
+        assert!(conversation_ui::remember(&config, &routes).is_err());
         let client = open_client(&config).unwrap();
         assert!(client.contacts().unwrap().is_empty());
-        confirmations[1].safety_number = previews[1].safety_number.clone();
-        conversation_ui::confirm(&config, &confirmations).unwrap();
-        assert_eq!(client.contacts().unwrap().len(), 2);
-        assert!(client.contacts().unwrap().iter().all(|c| c.verified));
+        // Comparing is optional: only the compared route is pinned.
+        routes[1].safety_number = None;
+        assert_eq!(
+            conversation_ui::remember(&config, &routes).unwrap(),
+            vec![b_route.clone(), c_route.clone()]
+        );
+        let saved = client.contacts().unwrap();
+        assert_eq!(saved.len(), 2);
+        let b_id = parse_route(&b_route).unwrap().identity_id;
+        let c_id = parse_route(&c_route).unwrap().identity_id;
+        let verified = |id: &[u8]| saved.iter().find(|s| s.identity_id == id).unwrap().verified;
+        assert!(verified(&b_id));
+        assert!(!verified(&c_id));
+        assert_eq!(client.contact_routes(&c_id).unwrap().len(), 1);
+        // Leaving a verified contact uncompared does not unverify it.
+        routes[0].safety_number = None;
+        conversation_ui::remember(&config, &routes).unwrap();
+        assert!(client.contact(&b_id).unwrap().unwrap().verified);
         drop(client);
         a.close();
         b.close();
@@ -5423,6 +5475,112 @@ mod tests {
         for dir in [a_dir, b_dir, c_dir] {
             std::fs::remove_dir_all(dir).unwrap();
         }
+    }
+
+    #[test]
+    fn a_route_for_an_identity_verified_under_another_root_is_refused() {
+        let (a_dir, _, a) = enrolled_test_application("pinned-a", "ws://127.0.0.1:1");
+        let (b_dir, _, b) = enrolled_test_application("pinned-b", "ws://127.0.0.1:1");
+        let (c_dir, _, c) = enrolled_test_application("pinned-c", "ws://127.0.0.1:1");
+        let b_route = b.own_route().unwrap();
+        let c_route = c.own_route().unwrap();
+        let number = a.preview_routes(vec![b_route.clone()]).unwrap()[0]
+            .safety_number
+            .clone();
+        let saved = a
+            .save_contact(b_route.clone(), "Bea".into(), Some(number))
+            .unwrap();
+        assert!(saved.verified);
+        // A route cannot name another root for the same identity, so the
+        // stored one stands in for the root the contact was verified under.
+        let conn = SharedConn::open_file(&a_dir.join("client.db")).unwrap();
+        conn.lock()
+            .execute(
+                "UPDATE contacts SET root_public = ?2 WHERE identity_id = ?1",
+                rusqlite::params![saved.identity_id, vec![42u8; 32]],
+            )
+            .unwrap();
+        drop(conn);
+        let config = ProfileConfig::unencrypted(&a_dir);
+        for compared in [None, Some(saved.safety_number.clone())] {
+            let routes = vec![
+                ConversationRoute {
+                    route: c_route.clone(),
+                    safety_number: None,
+                },
+                ConversationRoute {
+                    route: b_route.clone(),
+                    safety_number: compared,
+                },
+            ];
+            assert!(conversation_ui::remember(&config, &routes).is_err());
+        }
+        let contacts = a.contacts().unwrap();
+        assert_eq!(contacts.len(), 1, "a refused route saves nobody");
+        assert!(contacts[0].verified);
+        a.close();
+        b.close();
+        c.close();
+        for dir in [a_dir, b_dir, c_dir] {
+            std::fs::remove_dir_all(dir).unwrap();
+        }
+    }
+
+    #[test]
+    fn a_member_met_in_a_conversation_is_verified_from_its_details() {
+        let (dir, _, app) = enrolled_test_application("member-a", "ws://127.0.0.1:1");
+        let (peer_dir, _, peer) = enrolled_test_application("member-b", "ws://127.0.0.1:1");
+        let config = ProfileConfig::unencrypted(&dir);
+        let own_route = app.own_route().unwrap();
+        let route = parse_route(&peer.own_route().unwrap()).unwrap();
+        // What a received roster leaves: the member, with no saved route.
+        let (s, _) = session(&config).unwrap();
+        let id = vec![5; 16];
+        s.client
+            .conversation_save(&Conversation {
+                group_id: id.clone(),
+                creator: false,
+                peers: vec![peer_from_route(&route)],
+            })
+            .unwrap();
+        drop(s);
+        let expected = peer.preview_routes(vec![own_route]).unwrap()[0]
+            .safety_number
+            .clone();
+        let member = app.peers(&id).unwrap().remove(0);
+        assert!(!member.verified);
+        assert_eq!(member.safety_number.as_deref(), Some(expected.as_str()));
+        assert!(
+            app.verify_contact(route.identity_id.clone(), "00000".into())
+                .is_err()
+        );
+        app.verify_contact(route.identity_id.clone(), expected.clone())
+            .unwrap();
+        assert!(app.peers(&id).unwrap()[0].verified);
+
+        // Known only from the roster, without a contact row: the number
+        // comes from the roster's root, and comparing it pins that root.
+        let conn = SharedConn::open_file(&dir.join("client.db")).unwrap();
+        conn.lock()
+            .execute(
+                "DELETE FROM contacts WHERE identity_id = ?1",
+                rusqlite::params![route.identity_id],
+            )
+            .unwrap();
+        drop(conn);
+        let member = app.peers(&id).unwrap().remove(0);
+        assert!(!member.verified);
+        assert_eq!(member.safety_number.as_deref(), Some(expected.as_str()));
+        let contact = app
+            .verify_contact(route.identity_id.clone(), expected)
+            .unwrap();
+        assert!(contact.verified);
+        assert!(contact.devices.is_empty(), "no route was saved");
+        assert!(app.peers(&id).unwrap()[0].verified);
+        app.close();
+        peer.close();
+        std::fs::remove_dir_all(dir).unwrap();
+        std::fs::remove_dir_all(peer_dir).unwrap();
     }
 
     #[test]
