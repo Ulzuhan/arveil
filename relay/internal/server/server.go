@@ -15,6 +15,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -43,10 +44,11 @@ type Server struct {
 	HandshakeTTL time.Duration
 	// Limits bounds what one address can take. Nil allows everything.
 	Limits *limits.Gate
-	// TrustForwardedFor reads the client address from X-Forwarded-For.
-	// Only turn it on when the proxy in front is yours and overwrites that
-	// header, otherwise a client sets its own address and the limits stop
-	// meaning anything.
+	// TrustForwardedFor reads the client address from the last
+	// X-Forwarded-For entry, the one the proxy in front added. Only turn it
+	// on when that proxy is yours or one you chose, and every connection
+	// reaches the relay through it; otherwise a client sets its own address
+	// and the limits stop meaning anything.
 	TrustForwardedFor bool
 }
 
@@ -57,21 +59,40 @@ func (s *Server) Handler() http.Handler {
 	return mux
 }
 
-// clientAddr is what the limits are keyed on: the peer address, or the
-// first entry of X-Forwarded-For when the operator says the proxy is theirs.
+// clientAddr is what the limits are keyed on (see limitKey): the peer
+// address or, when the operator trusts the proxy in front, the last
+// X-Forwarded-For entry, the one that proxy added. Earlier entries come from
+// the client and prove nothing: reading the first one let a client behind a
+// proxy that appends, as Cloudflare does, pick its own limit bucket. An entry
+// that is not an address falls back to the peer.
 func (s *Server) clientAddr(r *http.Request) string {
+	peer := r.RemoteAddr
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		peer = host
+	}
 	if s.TrustForwardedFor {
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			if first, _, found := strings.Cut(fwd, ","); found {
-				return strings.TrimSpace(first)
+		if chain := r.Header.Values("X-Forwarded-For"); len(chain) > 0 {
+			entries := strings.Split(chain[len(chain)-1], ",")
+			if addr, err := netip.ParseAddr(strings.TrimSpace(entries[len(entries)-1])); err == nil {
+				return limitKey(addr)
 			}
-			return strings.TrimSpace(fwd)
 		}
 	}
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
+	if addr, err := netip.ParseAddr(peer); err == nil {
+		return limitKey(addr)
 	}
-	return r.RemoteAddr
+	return peer
+}
+
+// limitKey groups addresses the way they are handed out. An IPv6 client
+// usually controls a whole /64, so keying on its exact address gave it a
+// fresh bucket per address; IPv4, and IPv4-mapped IPv6, stays per address.
+func limitKey(addr netip.Addr) string {
+	addr = addr.Unmap().WithZone("")
+	if addr.Is6() {
+		return netip.PrefixFrom(addr, 64).Masked().String()
+	}
+	return addr.String()
 }
 
 func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {

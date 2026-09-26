@@ -60,6 +60,9 @@ another device, configure a reachable endpoint using [Running a realm](OPERATION
 The private-network route with authenticated SSH, Tailscale and persistent
 rootless Podman is described step by step in [Podman staging](PODMAN.md).
 All participating devices must be able to reach the chosen network.
+An optional [Cloudflare Tunnel deployment](TUNNEL.md) gives invited users a
+public WSS endpoint without joining the operator's tailnet. Its private
+hostnames and credentials are deployment inputs, not repository configuration.
 
 Stop the local relay with `docker compose -f relay/compose.yaml stop`; start
 it again with `up -d`. Its named volume holds persistent data. Follow the
@@ -110,7 +113,16 @@ migrated. See [platform behavior and acceptance](PLATFORMS.md).
    enter the server (relay) data and then the invitation. A private relay
    requires the phone to be connected to its network.
 
-**Update:** open the newer APK and choose the update/install option over the
+**Update from the app:** builds that include a configured update channel offer
+**Settings → Updates** and an update icon on the closed-profile screen. Choose
+**Check for updates**, download the verified package and press **Install update**.
+If Android asks for Arveil's permission to install packages, grant it and return
+to press Install again. Confirm Android's update prompt. Automatic foreground
+checks are optional and initially off; there is no silent installation. See
+[signed updates and privacy](CLIENT_UPDATES.md).
+
+**Manual update:** older or unconfigured builds can open the newer APK and
+choose the update/install option over the
 existing app. It must use the same signing certificate and a higher build number.
 **Do not uninstall or clear app storage to update:** that deletes the local
 profile/key. An APK signed with another key (including a developer's debug

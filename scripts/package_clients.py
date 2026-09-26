@@ -16,6 +16,8 @@ import sys
 import tempfile
 import zipfile
 
+from client_updates import read_config
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "clients/flutter"
@@ -28,7 +30,7 @@ def run(args, *, cwd=ROOT, env=None):
 
 
 def private_json(path, value):
-    with open(path, "x", opener=lambda p, flags: os.open(p, flags, 0o600)) as output:
+    with open(path, "x", encoding="utf-8", opener=lambda p, flags: os.open(p, flags, 0o600)) as output:
         json.dump(value, output, indent=2)
         output.write("\n")
 
@@ -58,7 +60,9 @@ def init_android(args):
 def signing_environment(path):
     if path.stat().st_mode & 0o077:
         raise ValueError("Signing JSON must be private (chmod 600).")
-    config = json.loads(path.read_text())
+    config = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(config, dict):
+        raise ValueError("Signing JSON must contain a JSON object.")
     store = Path(config["keystore"]).expanduser().resolve()
     if not store.is_file() or store.stat().st_mode & 0o077:
         raise ValueError("Signing keystore must exist and be private (chmod 600).")
@@ -124,18 +128,46 @@ def build_environment(source):
     env["FLUTTER_XCODE_EXCLUDED_ARCHS"] = "x86_64"
     env["FLUTTER_XCODE_CODE_SIGN_IDENTITY"] = "-"
     env["RUSTUP_TOOLCHAIN"] = re.search(
-        r'channel\s*=\s*"([^"]+)"', (ROOT / "core/rust-toolchain.toml").read_text())[1]
+        r'channel\s*=\s*"([^"]+)"', (ROOT / "core/rust-toolchain.toml").read_text(encoding="utf-8"))[1]
     return env
 
 
+def android_details(badging, build, updates):
+    """Check `aapt2 dump badging` output; return the facts BUILD.json records."""
+    if "android.permission.INTERNET" not in badging or "application-debuggable" in badging:
+        raise ValueError("Release APK must have network permission and must not be debuggable.")
+    if "native-code: 'arm64-v8a'" not in badging:
+        raise ValueError("Unexpected Android architecture.")
+    # The installer permission is merged only into builds with an update feed.
+    installer = re.search(r"^uses-permission: name='android\.permission\.REQUEST_INSTALL_PACKAGES'", badging, re.M)
+    if updates and not installer:
+        raise ValueError("An APK with an update feed must request REQUEST_INSTALL_PACKAGES; package withheld.")
+    if not updates and "android.permission.REQUEST_INSTALL_PACKAGES" in badging:
+        raise ValueError("An APK without an update feed must not request REQUEST_INSTALL_PACKAGES; package withheld.")
+    identifier = re.search(r"^package: name='([^']+)'", badging, re.M)
+    if not identifier:
+        raise ValueError("Cannot determine the APK package name; package withheld.")
+    # The updater announces BUILD.json's build; Android installs by versionCode.
+    code = re.search(r"^package: .*\bversionCode='(\d+)'", badging, re.M)
+    if not code or int(code[1]) != build:
+        raise ValueError("The APK versionCode differs from the build number; package withheld.")
+    minimum = re.search(r"(?:minSdkVersion|sdkVersion):'(\d+)'", badging)
+    if not minimum:
+        raise ValueError("Cannot determine the APK minimum SDK; package withheld.")
+    return {"minimum_sdk": int(minimum[1]), "application_id": identifier[1]}
+
+
 def package(args):
+    if args.update_config and args.platform != "android":
+        raise ValueError("--update-config applies only to Android; macOS has no signed updater yet.")
+    update_config = read_config(args.update_config) if args.update_config else None
     if args.platform == "macos" and (sys.platform != "darwin" or platform.machine() != "arm64"):
         raise ValueError("The macOS package requires an Apple silicon Mac.")
     dirty = bool(run(["git", "status", "--porcelain", "--untracked-files=normal"]).strip())
     if dirty and not args.allow_dirty:
         raise ValueError("Commit the source first, or use --allow-dirty for a local, unpublished candidate.")
     version = re.search(r"^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$",
-                        (CLIENT / "pubspec.yaml").read_text(), re.M)
+                        (CLIENT / "pubspec.yaml").read_text(encoding="utf-8"), re.M)
     if not version:
         raise ValueError("pubspec.yaml must contain a numeric version and build number.")
     name, default_build = version.groups()
@@ -195,6 +227,10 @@ def package(args):
                    f"--build-number={number}", f"--split-debug-info={symbols}",
                    f"--dart-define=ARVEIL_VERSION={name}+{number}",
                    f"--dart-define=ARVEIL_REVISION={revision}"]
+        if update_config:
+            defines = scratch / "update-config.json"
+            private_json(defines, update_config)
+            command.append(f"--dart-define-from-file={defines}")
         if args.platform == "android":
             command += ["--target-platform=android-arm64"]
         log = private / f"{args.platform}-{number}.log"
@@ -210,6 +246,10 @@ def package(args):
         metadata = {"version": name, "build": number, "revision": revision,
                     "dirty_source": dirty, "platform": args.platform,
                     "architecture": "arm64", "experimental": True}
+        if update_config:
+            # These are public distribution settings embedded in the APK;
+            # the input file path, private key and realm settings never travel.
+            metadata["update_config"] = update_config
         stem = f"arveil-{name}-{number}"
         if args.platform == "macos":
             app = client / "build/macos/Build/Products/Release/arveil.app"
@@ -237,23 +277,16 @@ def package(args):
             if not fingerprint or "CN=Android Debug" in details:
                 raise ValueError("Expected a valid release certificate, not debug signing.")
             badging = run([str(build_tools[-1].with_name("aapt2")), "dump", "badging", str(artifact)], env=env)
-            if "android.permission.INTERNET" not in badging or "application-debuggable" in badging:
-                raise ValueError("Release APK must have network permission and must not be debuggable.")
-            if "native-code: 'arm64-v8a'" not in badging:
-                raise ValueError("Unexpected Android architecture.")
-            minimum = re.search(r"(?:minSdkVersion|sdkVersion):'(\d+)'", badging)
-            if not minimum:
-                raise ValueError("Cannot determine the APK minimum SDK; package withheld.")
-            metadata.update(minimum_sdk=int(minimum[1]),
+            metadata.update(android_details(badging, number, bool(update_config)),
                             certificate_sha256=fingerprint[1], signing="private release key")
         # Retain an unverified copy privately so audit failures can be diagnosed
         # without rebuilding. Only verified copies reach dist/clients.
         shutil.copyfile(artifact, private / f"unverified-{args.platform}-{number}{artifact.suffix}")
         audit_archive(artifact)
-        (staged / "BUILD.json").write_text(json.dumps(metadata, indent=2) + "\n")
+        (staged / "BUILD.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
         (staged / "SHA256SUMS.txt").write_text("".join(
             f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n"
-            for p in (artifact, staged / "BUILD.json")))
+            for p in (artifact, staged / "BUILD.json")), encoding="utf-8")
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(staged, destination)
     print(f"Package verified: {destination.relative_to(ROOT)}")
@@ -273,6 +306,7 @@ def main():
     build.add_argument("platform", choices=["macos", "android"])
     build.add_argument("--flutter", default="flutter")
     build.add_argument("--signing-config", type=Path)
+    build.add_argument("--update-config", type=Path, help="Private JSON with public feed URL, update public key and channel")
     build.add_argument("--build-number", type=int)
     build.add_argument("--allow-dirty", action="store_true")
     build.set_defaults(action=package)

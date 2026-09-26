@@ -34,6 +34,7 @@ pub use conversation_ui::{ConfirmedRoute, RoutePreview};
 mod key_packages;
 mod onboarding;
 mod recovery;
+pub mod updates;
 pub use key_packages::{KeyPackageLevel, KeyPackageSupply};
 pub use recovery::{KitExport, RecoveryRequest, RecoveryResult};
 

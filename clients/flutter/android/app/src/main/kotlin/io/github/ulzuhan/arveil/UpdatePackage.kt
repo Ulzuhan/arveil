@@ -1,0 +1,70 @@
+package io.github.ulzuhan.arveil
+
+import java.io.InputStream
+import java.io.OutputStream
+import java.security.MessageDigest
+
+/** Limits and digest apply to exactly the bytes written into the OS session. */
+internal object UpdatePackage {
+    const val MAX_BYTES = 512L * 1024 * 1024
+
+    /** The bytes read are not the package that was announced and verified. */
+    class Mismatch : IllegalArgumentException("The package does not match its announcement")
+
+    private fun expect(condition: Boolean) { if (!condition) throw Mismatch() }
+
+    fun copyVerified(input: InputStream, output: OutputStream, size: Long, sha256: String) {
+        expect(size in 1..MAX_BYTES && sha256.matches(Regex("[0-9a-f]{64}")))
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(64 * 1024)
+        var total = 0L
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            total += count
+            expect(total <= size)
+            digest.update(buffer, 0, count)
+            output.write(buffer, 0, count)
+        }
+        expect(total == size)
+        val actual = digest.digest().joinToString("") { "%02x".format(it) }
+        expect(actual == sha256)
+    }
+
+    /**
+     * The code Dart receives when preparing an installation fails. Until the
+     * package is [accepted], and whenever the bytes written differ from it,
+     * the package is at fault and Dart deletes it. A failure while Android
+     * takes an accepted package, such as a full disk or a refused session, is
+     * "storage": the download stays for another attempt.
+     */
+    fun failure(accepted: Boolean, error: Throwable): String =
+        if (!accepted || error is Mismatch) "package" else "storage"
+
+    /**
+     * Whether a session this app left behind should be abandoned before a new
+     * attempt. SessionInfo.isSealed exists from API 26 only, and calling it on
+     * API 24–25 threw NoSuchMethodError, so [sealed] is never asked below 26:
+     * there every leftover session goes, since only this flow creates them.
+     * From 26, a sealed session is one already committed and waiting for the
+     * person, and it stays.
+     */
+    fun abandonLeftover(sdk: Int, sealed: () -> Boolean): Boolean = sdk < 26 || !sealed()
+
+    /**
+     * SHA-256 of each signing certificate. [current] comes from signingInfo
+     * (API 28+), [legacy] from the older signatures field; the legacy set is
+     * used only when signingInfo is missing, as for archives on Android 9-10.
+     * No certificates at all gives an empty set, which [compatible] refuses.
+     */
+    fun signerDigests(current: List<ByteArray>?, legacy: List<ByteArray>?): Set<String> =
+        (current ?: legacy ?: emptyList()).map { certificate ->
+            MessageDigest.getInstance("SHA-256").digest(certificate).joinToString("") { "%02x".format(it) }
+        }.toSet()
+
+    fun compatible(installedId: String, installedBuild: Long, installedSigners: Set<String>,
+                   candidateId: String, candidateBuild: Long, candidateSigners: Set<String>, expectedBuild: Long): Boolean =
+        candidateId == installedId && candidateBuild == expectedBuild &&
+            candidateBuild > installedBuild && expectedBuild <= 2100000000L &&
+            installedSigners.isNotEmpty() && candidateSigners == installedSigners
+}

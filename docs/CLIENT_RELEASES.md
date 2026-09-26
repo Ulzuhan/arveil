@@ -3,6 +3,11 @@
 For installation without development tools, see [Install and try](INSTALLATION.md).
 This page is for maintainers. Packaging does not publish a GitHub release.
 
+For signed in-app Android updates, pass a private `--update-config` file and
+follow [Signed Android updates](CLIENT_UPDATES.md). That guide adds a dedicated
+offline manifest key and a signed announcement to the release process; realm
+configuration never enters the client package.
+
 ## Requirements
 
 Use the pinned [Flutter/Rust toolchain](PLATFORMS.md), Python 3.10 or newer,

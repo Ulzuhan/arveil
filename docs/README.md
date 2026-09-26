@@ -21,8 +21,8 @@ declares its own status; "MUST" states a design requirement, and the
 |---|---|
 | Install the app after an invitation | The website's [step-by-step guide](https://arveil.kaicorplabs.com/install/) |
 | Try Arveil | [Install and try](INSTALLATION.md) |
-| Run a relay for my family | [Running a realm](OPERATIONS.md) · [Rootless Podman](PODMAN.md) |
-| Build or package the apps | [Client packages](CLIENT_RELEASES.md) · [Flutter client README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md) |
+| Run a relay for my family | [Running a realm](OPERATIONS.md) · [Rootless Podman](PODMAN.md) · [Cloudflare Tunnel](TUNNEL.md) |
+| Build or package the apps | [Client packages](CLIENT_RELEASES.md) · [Signed Android updates](CLIENT_UPDATES.md) · [Flutter client README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md) |
 | Understand the security | [Threat model](THREAT_MODEL.md) · [Protocol](PROTOCOL.md) · [Architecture](ARCHITECTURE.md) |
 | Follow the apps | [Phase 3b plan](PHASE3B.md) · [Implementation record](CLIENT_FOUNDATION.md) · [Client design](CLIENT_DESIGN.md) · [Platform record](PLATFORMS.md) |
 | Contribute | [Contributing guide](https://github.com/Ulzuhan/arveil/blob/main/CONTRIBUTING.md) · [Security policy](https://github.com/Ulzuhan/arveil/blob/main/SECURITY.md) |
@@ -36,7 +36,9 @@ declares its own status; "MUST" states a design requirement, and the
 | [Install and try](INSTALLATION.md) | Server, macOS and Android routes, current availability and installation acceptance |
 | [Running a realm](OPERATIONS.md) | Install, addresses and tunnels, limits, health and metrics, backups, restore and upgrades |
 | [Rootless Podman](PODMAN.md) | A private-network relay with SSH, Tailscale and persistent rootless Podman |
+| [Cloudflare Tunnel](TUNNEL.md) | Opening that private relay to the Internet through a tunnel and a local proxy that verifies client addresses |
 | [Client packages](CLIENT_RELEASES.md) | Building, auditing and publishing the macOS ZIP and Android APK |
+| [Signed Android updates](CLIENT_UPDATES.md) | The opt-in update check in the Android app: signing key, signed feed, publishing and what the app verifies |
 
 ### Design
 
@@ -60,7 +62,7 @@ declares its own status; "MUST" states a design requirement, and the
 | [ADR-007](adr/ADR-007-optional-realm-redundancy.md) | Optional redundancy after V1; independent relays preferred |
 | [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Noise channel, signed endpoint list, access over LAN, tailnet, tunnel or Internet |
 | [ADR-009](adr/ADR-009-flutter-first.md) | Flutter first for the apps (accepted) |
-| [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribution and signed, opt-in updates outside the app stores (proposed) |
+| [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribution and signed, opt-in updates outside the app stores (accepted for Android; proposed for macOS) |
 
 ### Apps
 

@@ -2,6 +2,7 @@ import 'package:arveil/src/diagnostics.dart';
 import 'package:arveil/src/diagnostics_page.dart';
 import 'package:arveil/src/profile_session.dart';
 import 'package:arveil/src/rust/api/profile.dart';
+import 'package:arveil/src/updates/manifest.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -184,8 +185,35 @@ void main() {
       expect(report, contains('identity kit: stale'));
       expect(report, contains('recent failures: transport:sync'));
       expect(report, contains('version: local build'));
+      expect(report, contains('updates: none'));
     },
   );
+
+  test('a refused update configuration is reported, never its values', () {
+    const key = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+    const feed = 'https://updates.example.org/clients-beta.json';
+    expect(UpdateConfig.status(url: '', key: ''), 'none');
+    expect(UpdateConfig.status(url: feed, key: key, channel: 'beta'), 'beta');
+    expect(
+      UpdateConfig.status(url: feed, key: key, channel: 'stable'),
+      'stable',
+    );
+    for (final (url, key, channel) in [
+      (feed, '', 'beta'),
+      ('', key, 'beta'),
+      ('http://updates.example.org/clients.json', key, 'beta'),
+      ('$feed?', key, 'beta'),
+      (feed, 'not base64', 'beta'),
+      (feed, 'AAAA', 'beta'),
+      (feed, key, 'nightly'),
+    ]) {
+      expect(
+        UpdateConfig.status(url: url, key: key, channel: channel),
+        'invalid',
+        reason: '$url $key $channel',
+      );
+    }
+  });
 
   testWidgets('the screen shows the report and saves exactly that', (
     tester,

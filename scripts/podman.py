@@ -17,6 +17,20 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
+# prepare_tunnel.py stamps the units it renders with this line. Such a unit
+# publishes the relay on the backend port behind nginx, trusts the forwarded
+# address and advertises the public endpoint; the stock unit deployed here
+# would undo all three and take the relay down, so deploy never replaces one.
+TUNNEL_MARKER = "# PRIVATE: rendered by scripts/prepare_tunnel.py"
+TUNNEL_UPDATE = ("this relay runs behind the public tunnel: its unit was rendered by "
+                 "scripts/prepare_tunnel.py. Build the image with --image-only, set that "
+                 "revision in the operator configuration, render again with prepare_tunnel.py "
+                 "and install the unit as docs/TUNNEL.md describes")
+
+
+def tunnel_unit(text):
+    """Whether a deployed Quadlet came from prepare_tunnel.py."""
+    return any(line.startswith(TUNNEL_MARKER) for line in text.splitlines())
 
 
 class CommandFailed(RuntimeError):
@@ -99,6 +113,12 @@ def deploy(args, remote):
         raise RuntimeError("the staging port must not be exposed through Funnel")
     image = f"localhost/arveil-relay:{revision}"
     home = remote.shell('printf "%s" "$HOME"', text=True).stdout
+    directory = f"{home}/.config/containers/systemd"
+    target = f"{directory}/{args.name}.container"
+    # Decide before building anything, so a tunnelled realm is never touched.
+    existing = remote.shell(f"cat -- {shlex.quote(target)} 2>/dev/null || true", text=True).stdout
+    if tunnel_unit(existing) and not args.image_only:
+        raise RuntimeError(TUNNEL_UPDATE)
     release = f"{home}/.local/share/arveil/releases/{revision}"
     remote.command("mkdir", "-p", release)
     archive = run(["git", "archive", revision, "relay"], cwd=ROOT, capture_output=True).stdout
@@ -113,14 +133,6 @@ def deploy(args, remote):
     version = remote.command("podman", "run", "--rm", "--network=none", image, "-version")
     if revision not in version:
         raise RuntimeError("image reports the wrong revision")
-    template = run(["git", "show", f"{revision}:relay/packaging/arveil-staging.container.in"],
-                   cwd=ROOT, capture_output=True, text=True).stdout
-    for key, value in {"REVISION": revision, "IMAGE": image, "NAME": args.name,
-                       "ADDRESS": args.address, "PORT": str(args.port)}.items():
-        template = template.replace(f"@{key}@", value)
-    directory = f"{home}/.config/containers/systemd"
-    remote.command("mkdir", "-p", directory)
-    target = f"{directory}/{args.name}.container"
     try:
         running = remote.command("podman", "inspect", "--format", "{{.State.Running}}", args.name)
     except CommandFailed:
@@ -128,6 +140,16 @@ def deploy(args, remote):
     if running == "true":
         backup = save_backup(remote, "before-deploy-" + uuid.uuid4().hex[:12])
         print(f"Pre-update backup: {backup}", flush=True)
+    if args.image_only:
+        print(version)
+        print(f"Image ready, service unchanged: {image}")
+        return
+    template = run(["git", "show", f"{revision}:relay/packaging/arveil-staging.container.in"],
+                   cwd=ROOT, capture_output=True, text=True).stdout
+    for key, value in {"REVISION": revision, "IMAGE": image, "NAME": args.name,
+                       "ADDRESS": args.address, "PORT": str(args.port)}.items():
+        template = template.replace(f"@{key}@", value)
+    remote.command("mkdir", "-p", directory)
     # Preserve the previous unit for review; data stays in its named volume.
     q = shlex.quote
     remote.shell(f"if [ -f {q(target)} ]; then cp {q(target)} {q(target + '.previous')}; fi\n"
@@ -262,6 +284,8 @@ def main():
     parser.add_argument("--name", default="arveil-staging")
     parser.add_argument("--revision", default="HEAD")
     parser.add_argument("--known-hosts", help="optional existing SSH known_hosts file")
+    parser.add_argument("--image-only", action="store_true",
+                        help="build and check the image without changing the running service")
     args = parser.parse_args()
     if args.host.startswith("-") or not re.fullmatch(r"[A-Za-z0-9_.@-]+", args.host):
         parser.error("use an SSH alias or user@host")

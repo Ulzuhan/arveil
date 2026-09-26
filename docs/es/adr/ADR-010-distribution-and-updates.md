@@ -1,6 +1,7 @@
 # ADR-010 — Distribución y actualizaciones fuera de las tiendas
 
-- **Estado:** propuesta.
+- **Estado:** aceptada para Android, con la evidencia en emuladores del [registro de plataformas](../PLATFORMS.md#aceptacion-final-del-actualizador-android-firmado-2026-09-26): criterios 1 a 7 con API 24, 28, 29 y 35. Falta una comprobación en un teléfono físico. Propuesta para macOS.
+- **Implementación:** búsqueda, descarga, `PackageInstaller` y firma local de manifiestos para Android; véase [Actualizaciones firmadas](../CLIENT_UPDATES.md). macOS/Sparkle y la rotación automática de claves quedan pendientes. Este código no configura un feed público ni un relay personal.
 - **Fecha:** 2026-09-26.
 - **Alcance:** cómo consiguen las apps de Android y macOS, y sus actualizaciones, personas que no son desarrolladoras mientras Arveil no esté en Google Play ni en la App Store; cómo sabe la app que hay una versión nueva; qué revela esa comprobación. Forma parte de M3b.8 del [plan Flutter](../PHASE3B.md) («actualizaciones firmadas»).
 
@@ -22,7 +23,7 @@ Tres condiciones acotan cualquier respuesta:
 
 **1. Los binarios se quedan en GitHub Releases.** Cada paquete publicado vive en su release `clients-v*`, inmutable una vez publicada (sin `--clobber`, como ya exige la guía de releases). La web enlaza; no aloja copias. Una sola fuente, las sumas de la propia release, y ni ancho de banda ni disco en el servidor de la web.
 
-**2. La versión vigente la anuncia un manifiesto firmado, no «latest».** `releases/latest` de GitHub ignora las prereleases y no distingue `v*` (relay y CLI) de `clients-v*`. Un JSON pequeño, `clients.json`, recoge por plataforma la versión, el número de build, el sistema mínimo, la URL de descarga, el tamaño y el SHA-256, además de la URL de las notas, un `sequence` que sólo crece y una fecha `expires`. Se publica en la web del proyecto y se adjunta a la release.
+**2. La versión vigente la anuncia un manifiesto firmado, no «latest».** `releases/latest` de GitHub ignora las prereleases y no distingue `v*` (relay y CLI) de `clients-v*`. Un JSON pequeño por canal, `clients-<canal>.json` (`clients-beta.json` para quien prueba con el mantenedor, `clients-stable.json` para el resto), recoge por plataforma la versión, el número de build, el sistema mínimo, la URL de descarga, el tamaño y el SHA-256, además de la URL de las notas, un `sequence` que sólo crece y una fecha `expires`. Se publica en la web del proyecto y se adjunta a la release. El canal va compilado en la app y firmado dentro del manifiesto, así que cada build sólo acepta el de su canal.
 
 **3. El manifiesto se firma con una clave de actualizaciones dedicada.** Una clave Ed25519 que no sirve para nada más: ni es la clave de firma de Android ni la de ningún realm. Vive fuera del servidor de la web y fuera de la CI, tiene copia como la de Android, y la firma se hace en la máquina del mantenedor en el mismo momento en que una release pasa de borrador a publicada. La clave pública va compilada en la app. Una clave futura puede anunciarse dentro de un manifiesto firmado por la actual.
 
@@ -36,8 +37,8 @@ Tres condiciones acotan cualquier respuesta:
 
 | Plataforma | Fase | Mecanismo |
 |---|---|---|
-| Android | Ya, sin código | Descarga desde la web y la guía de instalación. Opcionalmente, [Obtainium](https://github.com/ImranR98/Obtainium) apuntando al repositorio de GitHub, con las prereleases activadas y un filtro para el APK; el sistema sigue exigiendo el mismo certificado |
-| Android | M3b.8 | Comprobación en la app (decisiones 5 y 6); el APK verificado se entrega al instalador del sistema con una sesión de `PackageInstaller`, que exige el permiso `REQUEST_INSTALL_PACKAGES` y la confirmación de la persona |
+| Android | Clientes anteriores | Descarga desde la web y la guía de instalación, por encima de la app existente una vez para incorporar el actualizador. Opcionalmente, [Obtainium](https://github.com/ImranR98/Obtainium) con las prereleases activadas y un filtro para el APK; el sistema sigue exigiendo el mismo certificado |
+| Android | Implementado; aceptado en emuladores | Comprobación en la app (decisiones 5 y 6); el APK verificado se entrega al instalador del sistema con una sesión de `PackageInstaller`, que exige el permiso `REQUEST_INSTALL_PACKAGES` y la confirmación de la persona |
 | macOS | M3b.8 | [Sparkle](https://sparkle-project.org/) con un appcast generado desde el mismo manifiesto y firmado con la misma clave de actualizaciones (el EdDSA de Sparkle es Ed25519). Hasta entonces: descargar y sustituir la app, como dice la guía |
 | Windows, Linux | M3b.6 | Se decide con esas compilaciones; el formato del manifiesto ya tiene sitio para ellas |
 | iOS | M3b.7 | No hay distribución práctica fuera de la de Apple (App Store o TestFlight); queda fuera de esta decisión |
@@ -68,9 +69,9 @@ Tres condiciones acotan cualquier respuesta:
 
 Aparece un segundo secreto de larga vida: la clave de actualizaciones, con su copia y su rotación. Perderla obliga a publicar una versión con una clave pública nueva que la gente instala a mano, una vez.
 
-Publicar una versión gana un paso: generar `clients.json`, firmarlo, publicarlo en la web y adjuntarlo a la release. La sección de descargas de la web se genera desde el mismo manifiesto, así que la página y la app no pueden discrepar sobre cuál es la versión vigente.
+Publicar una versión gana un paso: generar el `clients-<canal>.json` del canal, firmarlo, publicarlo en la web y adjuntarlo a la release. La sección de descargas de la web se genera desde el mismo manifiesto, así que la página y la app no pueden discrepar sobre cuál es la versión vigente.
 
-La app de Android necesitará `REQUEST_INSTALL_PACKAGES` desde M3b.8, un permiso que algunas tiendas y políticas de dispositivo miran con recelo; se documentará en el registro de plataformas cuando se añada.
+El actualizador Android usa `REQUEST_INSTALL_PACKAGES`, un permiso que algunas tiendas y políticas de dispositivo restringen; sólo lo declaran los builds con canal de actualizaciones. La prueba del instalador está en el [registro de plataformas](../PLATFORMS.md#aceptacion-del-actualizador-android-firmado-2026-09-26). Esto no completa los demás requisitos de M3b.8.
 
 Que sea opcional significa que la mayoría de las instalaciones no buscará actualizaciones por su cuenta. La guía de instalación y las notas de cada versión siguen siendo el canal principal hasta que la comprobación demuestre su valor.
 
@@ -88,4 +89,3 @@ Que sea opcional significa que la mayoría de las instalaciones no buscará actu
 
 - Si la firma puede pasar a la CI sin dejar la clave al alcance de sus logs y de acciones de terceros.
 - Cuánto dura un manifiesto (`expires`): lo bastante para no romper móviles que pasan semanas sin conexión, y lo bastante poco para notar una actualización retenida.
-- Si ofrecer un canal beta para quien prueba con el mantenedor.

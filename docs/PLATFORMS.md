@@ -567,3 +567,125 @@ installation, physical Android installation/update and Doze/reconnect,
 VoiceOver, TalkBack on a physical device, or the three external-user
 evaluations required by M3b.5. The package upgrade from `0.1.0+10` is recorded
 in the previous section.
+
+## Android signed-updater acceptance — 2026-09-26 {#android-signed-updater-acceptance-2026-09-26}
+
+The private `update_installer_acceptance.dart` entry point was exercised on a
+new disposable Android 15 / API 35 ARM64 emulator. These were debug test APKs,
+builds 901 and 902, not distribution artifacts. The first created an actual
+SQLCipher profile with its key in Android Keystore. The second was installed
+through the app's `PackageInstaller` session and Android's visible **Update**
+confirmation, without `adb install -r`, uninstalling or clearing app storage.
+After relaunch, `ARVEIL_TEST_UPDATER_OK:profile:after` confirmed the same stored
+identity and retained platform key.
+
+Before accepting the update, the same installation also passed:
+
+- Missing installation permission: refused before creating an installation.
+- User cancellation at the Android prompt: returned `cancelled`, retaining
+  build 901 and its profile.
+- A candidate signed with a different disposable certificate: returned
+  `package`, removed the candidate and retained build 901.
+- A same-certificate candidate with a deliberately wrong expected SHA-256:
+  refused and removed before installation.
+
+The automated checks cover signed manifests, an independent OpenSSL signature
+fixture, expiry, persistent sequence protection, opt-in/daily checking,
+download integrity, HTTPS redirects, and native package identity/certificate
+validation. See [the update protocol and release procedure](CLIENT_UPDATES.md).
+This emulator result does not establish physical-phone, device-policy or
+background-install behavior. No silent/background installation is implemented;
+macOS integration and automatic update-key rotation remain pending.
+
+Source: the run above used the updater from `283467b`; `049fd0d` changed the
+update transport afterwards, and the corrections in the same pull request
+followed. The final revision was accepted the same day on emulators at API 24,
+28, 29 and 35, with [ADR-010](adr/ADR-010-distribution-and-updates.md)
+criteria 3–5; see [the next record](#android-signed-updater-final-acceptance-2026-09-26).
+
+## Android signed-updater acceptance, final revision (September 26, 2026) {#android-signed-updater-final-acceptance-2026-09-26}
+
+Source: `e7936a2`, on disposable ARM64 emulators: AOSP images at Android 7.0
+(API 24), 9 (API 28) and 10 (API 29), and a Google APIs image at Android 15
+(API 35).
+
+**Method.** The private `update_flow_acceptance.dart` entry point runs the real
+app with the real update controller, transport, Rust signature check and
+`PackageInstaller` installer. Two profile-mode test APKs, builds 1901 and 1902,
+were signed with the same debug key and built with a local HTTPS feed, served
+from the host (10.0.2.2), and a disposable update key. They differ from a
+release build only in one extra trusted root: the feed's disposable authority.
+Everything was driven from **Settings → Updates** on the real screens; the
+update was never installed with `adb install -r`.
+
+**Result on every API level:**
+
+- The check verified the signed announcement and offered 0.1.0+1902 (44.0 MiB)
+  with its release notes link. The download followed the feed's redirect and
+  matched size and SHA-256.
+- Android asked for confirmation ("Do you want to install an update to this
+  existing application?" on Android 7.0, "Do you want to update this app?" on
+  Android 15). Once accepted, build 1901 became 1902 with no uninstall and no
+  data clearing.
+- The new build opened the same encrypted profile with its Keystore key
+  (`ARVEIL_TEST_UPDATER_OK:profile:after`), kept the accepted sequence and
+  removed the installed package from its cache when it started.
+
+Per level:
+
+- **API 24:** with **Unknown sources** off, as on phones, the app asked for it
+  and opened Security settings; back in the app, the hint was gone. Leaving
+  Android's prompt with Back returned "Installation cancelled" and kept build
+  1901.
+- **API 28, 29 and 35:** the app opened Android's per-app **Install unknown
+  apps** page. API 28 is also the Android 9 case whose package certificates
+  the app now reads with the legacy fallback.
+- **API 35:** dismissing the confirmation by tapping outside it returned
+  "Installation cancelled" without leaving the screen waiting. The release
+  notes link opened in the browser.
+
+**Two defects found and fixed in `e7936a2`:**
+
+- GitHub serves release assets under Let's Encrypt, and Android 7.0 does not
+  carry ISRG Root X1. A probe to GitHub's asset host was untrusted with the
+  system's roots on API 24 and reached with the updater's, which add that
+  root; both reached it on API 28, 29 and 35.
+- On Android 7 the app took installation as allowed and ignored the global
+  **Unknown sources** setting, which phones ship off.
+
+**[ADR-010](adr/ADR-010-distribution-and-updates.md) criteria 3–5.** On API
+29, with the emulator's network captured (`-tcpdump`) and the app's profile
+joined to a disposable local relay:
+
+| Window | Relay connections | Feed connections | Anything else |
+|---|---|---|---|
+| Checks off, 6 minutes of use | 27 | 0 | nothing, not even DNS |
+| Automatic check on, then a manual check | 5 | 2 | nothing |
+| Relay hostile, then down | 24 | 2 | nothing |
+
+- **3.** With checks off, the app joined, synced, opened **Settings →
+  Updates** without checking, came back to the foreground three times and was
+  restarted; it never contacted the feed or any other address.
+- **4.** Every request the feed received carried only `Host` and
+  `Accept-Encoding: identity`: no User-Agent, version, query or cookie, though
+  the server set one on every response. Turning automatic checks on sent
+  nothing; the next return to the app made one check, and a second the same
+  day none.
+- **5.** With the relay replaced by one answering garbage, and then with no
+  relay, the app reported "No connection to your server". Each check still made
+  exactly one request to the feed and showed the same offer. The hostile relay
+  received only `GET /v1/channel`.
+
+Criteria 1, 2, 6 and 7 are covered by the automated tests and by these runs.
+
+**Candidates.** `0.1.0+19` for Android, built with the beta update channel, and
+for macOS, from `e7936a2` with `scripts/package_clients.py`; built and audited,
+not published. The APK has versionCode 19 and requests
+`REQUEST_INSTALL_PACKAGES` because it carries a feed. It is signed with the
+same release certificate as `+17` and `+18`, and installed over `+18` it opens
+and shows the configured channel. The public feed was not yet published
+(HTTP 404).
+
+This does not establish physical phones, installers modified by manufacturers,
+device policies or Play Protect, and the public feed host was not exercised.
+macOS updates are not implemented.

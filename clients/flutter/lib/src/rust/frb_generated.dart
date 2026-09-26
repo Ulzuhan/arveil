@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/profile.dart';
+import 'api/updates.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -65,7 +66,7 @@ class ArveilRust
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1847625941;
+  int get rustContentHash => 2003389269;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -302,6 +303,14 @@ abstract class ArveilRustApi extends BaseApi {
   });
 
   Future<Profile> crateApiProfileOpenUnencryptedProfile({required String dir});
+
+  String crateApiUpdatesUpdateSignatureDomain();
+
+  bool crateApiUpdatesVerifyUpdateSignature({
+    required List<int> payload,
+    required List<int> signature,
+    required List<int> publicKey,
+  });
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Profile;
 
@@ -2063,6 +2072,60 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       const TaskConstMeta(
         debugName: "open_unencrypted_profile",
         argNames: ["dir"],
+      );
+
+  @override
+  String crateApiUpdatesUpdateSignatureDomain() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdatesUpdateSignatureDomainConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdatesUpdateSignatureDomainConstMeta =>
+      const TaskConstMeta(debugName: "update_signature_domain", argNames: []);
+
+  @override
+  bool crateApiUpdatesVerifyUpdateSignature({
+    required List<int> payload,
+    required List<int> signature,
+    required List<int> publicKey,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(payload, serializer);
+          sse_encode_list_prim_u_8_loose(signature, serializer);
+          sse_encode_list_prim_u_8_loose(publicKey, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdatesVerifyUpdateSignatureConstMeta,
+        argValues: [payload, signature, publicKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdatesVerifyUpdateSignatureConstMeta =>
+      const TaskConstMeta(
+        debugName: "verify_update_signature",
+        argNames: ["payload", "signature", "publicKey"],
       );
 
   RustArcIncrementStrongCountFnType

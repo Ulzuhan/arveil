@@ -21,6 +21,137 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navSettings => 'Ajustes';
 
   @override
+  String get updatesTitle => 'Actualizaciones';
+
+  @override
+  String get updatesExplanation =>
+      'Actualiza Arveil conservando tu perfil y tus conversaciones. Android te pedirá confirmar la instalación; no desinstales la app.';
+
+  @override
+  String get updatesPrivacy =>
+      'La consulta contacta con el servicio de actualizaciones de esta distribución, independientemente de tu servidor. Ese servicio ve tu IP y la hora, pero no recibe tu identidad ni tu versión instalada. La descarga contacta con el alojamiento del APK.';
+
+  @override
+  String get updatesUnconfigured =>
+      'Esta compilación no tiene un canal de actualizaciones configurado. Obtén la siguiente versión del distribuidor que te proporcionó la app e instálala encima de esta.';
+
+  @override
+  String get updatesAutomatic => 'Buscar al abrir la app';
+
+  @override
+  String get updatesAutomaticDetail =>
+      'Como máximo una vez al día. Desactivado inicialmente; nunca instala por su cuenta.';
+
+  @override
+  String get updatesCheck => 'Buscar actualizaciones';
+
+  @override
+  String get updatesChecking => 'Buscando actualizaciones…';
+
+  @override
+  String get updatesCurrent => 'No hay una versión más reciente en este canal.';
+
+  @override
+  String get updatesAvailable => 'Hay una actualización de Arveil';
+
+  @override
+  String get updatesView => 'Ver';
+
+  @override
+  String get updatesIncompatible =>
+      'Hay una versión más reciente, pero no es compatible con este dispositivo.';
+
+  @override
+  String updatesVersion(String version) {
+    return 'Arveil $version';
+  }
+
+  @override
+  String updatesSize(String size) {
+    return 'Descarga: $size MiB';
+  }
+
+  @override
+  String get updatesDownload => 'Descargar actualización';
+
+  @override
+  String get updatesDownloading => 'Descargando y verificando…';
+
+  @override
+  String get updatesCancelDownload => 'Cancelar descarga';
+
+  @override
+  String get updatesReady =>
+      'Descarga verificada. Puedes continuar con el instalador de Android.';
+
+  @override
+  String get updatesPermission =>
+      'Android necesita que permitas a Arveil instalar actualizaciones. Activa el permiso, vuelve aquí y pulsa «Instalar actualización».';
+
+  @override
+  String get updatesAllowInstall => 'Abrir permiso de Android';
+
+  @override
+  String get updatesInstall => 'Instalar actualización';
+
+  @override
+  String get updatesInstalling =>
+      'Confirma la actualización en Android. La app se cerrará al actualizarse.';
+
+  @override
+  String get updatesCancelled =>
+      'Instalación cancelada. Puedes volver a intentarlo.';
+
+  @override
+  String get updatesErrorSignature =>
+      'No se pudo verificar el anuncio de actualización. No se ha aceptado ningún paquete.';
+
+  @override
+  String get updatesErrorExpired =>
+      'El anuncio de actualización ha caducado. Comprueba la fecha del dispositivo y vuelve a buscar actualizaciones.';
+
+  @override
+  String get updatesErrorRollback =>
+      'El servicio devolvió un anuncio anterior o contradictorio. Se ha rechazado.';
+
+  @override
+  String get updatesErrorState =>
+      'No se pudo leer o guardar el estado de seguridad del actualizador. Conserva los datos de la app y contacta con quien te la proporcionó.';
+
+  @override
+  String get updatesErrorPackage =>
+      'El paquete no coincide con la actualización esperada o con la firma de esta app. No se instalará.';
+
+  @override
+  String get updatesErrorInstall =>
+      'Android no pudo completar la actualización. Conserva la app instalada y vuelve a intentarlo.';
+
+  @override
+  String get updatesErrorNetwork =>
+      'No se pudo completar la consulta o la descarga. Comprueba la conexión y el espacio disponible y vuelve a intentarlo.';
+
+  @override
+  String get updatesErrorFormat =>
+      'El servicio de actualizaciones envió un anuncio que esta app no puede leer. No se ha aceptado nada.';
+
+  @override
+  String get updatesErrorChannel =>
+      'El anuncio es de un canal de actualizaciones distinto del de esta app. Se ha rechazado.';
+
+  @override
+  String get updatesErrorStorage =>
+      'Android no pudo preparar la instalación. Libera espacio y vuelve a intentarlo; la descarga se conserva.';
+
+  @override
+  String get updatesErrorBrowser =>
+      'Ninguna app pudo abrir el enlace a las notas de la versión.';
+
+  @override
+  String updatesNotesLink(String host) {
+    return 'Notas de la versión en $host';
+  }
+
+  @override
   String get profileClose => 'Cerrar perfil';
 
   @override

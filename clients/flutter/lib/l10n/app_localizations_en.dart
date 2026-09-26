@@ -21,6 +21,135 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navSettings => 'Settings';
 
   @override
+  String get updatesTitle => 'Updates';
+
+  @override
+  String get updatesExplanation =>
+      'Update Arveil while keeping your profile and conversations. Android will ask you to confirm installation; do not uninstall the app.';
+
+  @override
+  String get updatesPrivacy =>
+      'Checks contact this distribution’s update service independently of your server. That service sees your IP address and the time, but receives neither your identity nor your installed version. Downloads contact the APK host.';
+
+  @override
+  String get updatesUnconfigured =>
+      'This build has no update channel configured. Get the next version from the distributor who provided your app and install it over this one.';
+
+  @override
+  String get updatesAutomatic => 'Check when opening the app';
+
+  @override
+  String get updatesAutomaticDetail =>
+      'At most once a day. Initially off; never installs on its own.';
+
+  @override
+  String get updatesCheck => 'Check for updates';
+
+  @override
+  String get updatesChecking => 'Checking for updates…';
+
+  @override
+  String get updatesCurrent => 'There is no newer version on this channel.';
+
+  @override
+  String get updatesAvailable => 'An Arveil update is available';
+
+  @override
+  String get updatesView => 'View';
+
+  @override
+  String get updatesIncompatible =>
+      'A newer version is available, but it is not compatible with this device.';
+
+  @override
+  String updatesVersion(String version) {
+    return 'Arveil $version';
+  }
+
+  @override
+  String updatesSize(String size) {
+    return 'Download: $size MiB';
+  }
+
+  @override
+  String get updatesDownload => 'Download update';
+
+  @override
+  String get updatesDownloading => 'Downloading and verifying…';
+
+  @override
+  String get updatesCancelDownload => 'Cancel download';
+
+  @override
+  String get updatesReady =>
+      'Download verified. You can continue to the Android installer.';
+
+  @override
+  String get updatesPermission =>
+      'Android needs you to allow Arveil to install updates. Enable the permission, return here and press “Install update”.';
+
+  @override
+  String get updatesAllowInstall => 'Open Android permission';
+
+  @override
+  String get updatesInstall => 'Install update';
+
+  @override
+  String get updatesInstalling =>
+      'Confirm the update in Android. The app will close when it updates.';
+
+  @override
+  String get updatesCancelled => 'Installation cancelled. You can try again.';
+
+  @override
+  String get updatesErrorSignature =>
+      'The update announcement could not be verified. No package has been accepted.';
+
+  @override
+  String get updatesErrorExpired =>
+      'The update announcement has expired. Check your device’s date and check for updates again.';
+
+  @override
+  String get updatesErrorRollback =>
+      'The service returned an older or conflicting announcement. It was rejected.';
+
+  @override
+  String get updatesErrorState =>
+      'The updater’s security state could not be read or saved. Keep the app’s data and contact its distributor.';
+
+  @override
+  String get updatesErrorPackage =>
+      'The package does not match the expected update or this app’s signature. It will not be installed.';
+
+  @override
+  String get updatesErrorInstall =>
+      'Android could not complete the update. Keep the installed app and try again.';
+
+  @override
+  String get updatesErrorNetwork =>
+      'The check or download could not complete. Check your connection and available storage, then try again.';
+
+  @override
+  String get updatesErrorFormat =>
+      'The update service sent an announcement this app cannot read. Nothing was accepted.';
+
+  @override
+  String get updatesErrorChannel =>
+      'The announcement is for a different update channel than this app’s. It was rejected.';
+
+  @override
+  String get updatesErrorStorage =>
+      'Android could not prepare the installation. Free up some storage and try again; the download is kept.';
+
+  @override
+  String get updatesErrorBrowser => 'No app could open the release notes link.';
+
+  @override
+  String updatesNotesLink(String host) {
+    return 'Release notes on $host';
+  }
+
+  @override
   String get profileClose => 'Close profile';
 
   @override

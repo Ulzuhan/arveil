@@ -23,8 +23,8 @@ han probado.
 |---|---|
 | Instalar la app tras recibir una invitación | La [guía paso a paso](https://arveil.kaicorplabs.com/es/instalar/) de la web |
 | Probar Arveil | [Instalar y probar](INSTALLATION.md) |
-| Poner un relay para mi familia | [Poner en marcha un realm](OPERATIONS.md) · [Podman sin root](../PODMAN.md) (en inglés) |
-| Compilar o empaquetar las apps | [Paquetes del cliente](CLIENT_RELEASES.md) · [README del cliente Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md) (en inglés) |
+| Poner un relay para mi familia | [Poner en marcha un realm](OPERATIONS.md) · [Podman sin root](../PODMAN.md) (en inglés) · [Cloudflare Tunnel](TUNNEL.md) |
+| Compilar o empaquetar las apps | [Paquetes del cliente](CLIENT_RELEASES.md) · [Actualizaciones Android firmadas](CLIENT_UPDATES.md) · [README del cliente Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md) (en inglés) |
 | Entender la seguridad | [Modelo de amenazas](THREAT_MODEL.md) · [Protocolo](PROTOCOL.md) · [Arquitectura](ARCHITECTURE.md) |
 | Seguir las apps | [Plan de la fase 3b](PHASE3B.md) · [Registro de implementación](CLIENT_FOUNDATION.md) · [Diseño del cliente](CLIENT_DESIGN.md) · [Matriz de plataformas](PLATFORMS.md) |
 | Contribuir | [Guía de contribución](https://github.com/Ulzuhan/arveil/blob/main/CONTRIBUTING.md) · [Política de seguridad](https://github.com/Ulzuhan/arveil/blob/main/SECURITY.md) (en inglés) |
@@ -38,7 +38,9 @@ han probado.
 | [Instalar y probar](INSTALLATION.md) | Rutas para servidor, macOS y Android, disponibilidad actual y aceptación de la instalación |
 | [Poner en marcha un realm](OPERATIONS.md) | Instalación, direcciones y túneles, límites, salud y métricas, copias, restauración y actualizaciones |
 | [Podman sin root](../PODMAN.md) (en inglés) | Un relay en red privada con SSH, Tailscale y Podman sin root persistente |
+| [Cloudflare Tunnel](TUNNEL.md) | Abrir ese relay privado a Internet con un túnel y un proxy local que verifica las direcciones de los clientes |
 | [Paquetes del cliente](CLIENT_RELEASES.md) | Compilar, auditar y publicar el ZIP de macOS y el APK de Android |
+| [Actualizaciones Android firmadas](CLIENT_UPDATES.md) | La búsqueda opcional de actualizaciones de la app Android: clave de firma, canal firmado, publicación y qué verifica la app |
 
 ### Diseño
 
@@ -62,7 +64,7 @@ han probado.
 | [ADR-007](adr/ADR-007-optional-realm-redundancy.md) | Redundancia opcional después de V1; relays independientes como dirección preferente |
 | [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Canal Noise, lista firmada de direcciones y acceso por LAN, tailnet, túnel o Internet |
 | [ADR-009](adr/ADR-009-flutter-first.md) | Flutter primero para las apps (aceptada) |
-| [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribución y actualizaciones firmadas y opcionales fuera de las tiendas (propuesta) |
+| [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribución y actualizaciones firmadas y opcionales fuera de las tiendas (aceptada para Android; propuesta para macOS) |
 
 ### Apps
 

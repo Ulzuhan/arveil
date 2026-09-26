@@ -36,6 +36,11 @@ condition = "AND"
 paths = ['''(^|/)scripts/podman\.py$''']
 regexTarget = "line"
 regexes = ['''^\s*if ipaddress\.ip_address\(args\.address\) not in ipaddress\.ip_network\("100\.64\.0\.0/10"\):$''']
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''(^|/)scripts/prepare_tunnel\.py$''']
+regexTarget = "line"
+regexes = ['''(?m)^TAILNET_RANGE = ipaddress\.IPv4Network\("100\.64\.0\.0/10"\)$''']
 
 [[rules]]
 id = "tailnet-hostname"

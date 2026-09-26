@@ -1,0 +1,24 @@
+{
+  "comment": "Rules the release signer (scripts/client_updates.py) and the app (lib/src/updates/manifest.dart) must apply identically, so the signer never produces an announcement every client rejects. Read by the Python, Dart and Rust tests. Notes are counted in Unicode code points; the emoji is U+1F600, one code point, two UTF-16 units.",
+  "domain": "arveil-client-updates-v1\n",
+  "max_notes": 8000,
+  "notes": [
+    {"ascii": 8000, "emoji": 0, "valid": true},
+    {"ascii": 8001, "emoji": 0, "valid": false},
+    {"ascii": 7000, "emoji": 1000, "valid": true},
+    {"ascii": 7001, "emoji": 1000, "valid": false},
+    {"ascii": 0, "emoji": 8000, "valid": true},
+    {"ascii": 0, "emoji": 8001, "valid": false}
+  ],
+  "urls": [
+    {"url": "https://updates.example.org/clients-beta.json", "feed": true, "link": true},
+    {"url": "https://updates.example.org/clients-beta.json?", "feed": false, "link": true},
+    {"url": "https://updates.example.org/clients-beta.json?channel=beta", "feed": false, "link": true},
+    {"url": "https://example.org/releases/18#", "feed": false, "link": false},
+    {"url": "https://example.org/releases/18#notes", "feed": false, "link": false},
+    {"url": "http://example.org/releases/18", "feed": false, "link": false},
+    {"url": "https://user@example.org/releases/18", "feed": false, "link": false},
+    {"url": "https://user:secret@example.org/releases/18", "feed": false, "link": false},
+    {"url": "https:///releases/18", "feed": false, "link": false}
+  ]
+}

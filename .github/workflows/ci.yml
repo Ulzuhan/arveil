@@ -22,6 +22,28 @@ jobs:
       - name: Release publication regression checks
         run: python3 -m unittest discover -s scripts -p 'test_release_publication.py'
 
+  scripts:
+    name: Operator scripts (updates, tunnel, deploy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Signed update and private tunnel configuration checks
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_client_updates.py'
+          python3 -m unittest discover -s scripts -p 'test_prepare_tunnel.py'
+          python3 -m unittest discover -s scripts -p 'test_podman.py'
+      - name: Install nginx
+        run: |
+          sudo apt-get update || { sleep 10; sudo apt-get update; }
+          sudo apt-get install -y nginx
+          /usr/sbin/nginx -V
+      # ARVEIL_REQUIRE_NGINX makes a missing nginx an error, never a skip.
+      - name: Real proxy checks (address attribution, WebSocket upgrade, idle timeout)
+        env:
+          ARVEIL_NGINX: /usr/sbin/nginx
+          ARVEIL_REQUIRE_NGINX: "1"
+        run: python3 -m unittest discover -s scripts -p 'test_tunnel_proxy.py'
+
   relay:
     name: Go relay
     runs-on: ubuntu-latest
@@ -142,7 +164,7 @@ jobs:
           python3 scripts/package_clients.py init-android-key
           python3 scripts/package_clients.py build android --signing-config .local/signing/android-signing.json
       # Packaging builds in an isolated source tree; prepare this checkout too.
-      - name: Android attachment input tests
+      - name: Android attachment and update package tests
         working-directory: clients/flutter
         run: |
           flutter build apk --debug --config-only

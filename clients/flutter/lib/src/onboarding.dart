@@ -9,6 +9,7 @@ import 'profile_session.dart';
 import 'recovery_panel.dart';
 import 'rust/api/profile.dart';
 import 'settings_page.dart';
+import 'updates/page.dart';
 
 /// How a profile without an identity gets one.
 enum Entry { invitation, pairing, restore }
@@ -139,6 +140,13 @@ class _ProfilePageState extends State<ProfilePage> {
     appBar: AppBar(
       backgroundColor: Colors.transparent,
       actions: [
+        if (UpdateScope.maybeOf(context) case final updates?)
+          IconButton(
+            key: const Key('welcome-updates'),
+            onPressed: () => openUpdates(context, updates),
+            tooltip: context.l10n.updatesTitle,
+            icon: const Icon(Icons.system_update_outlined),
+          ),
         if (_session.isOpen)
           // With large text the label would not fit beside the title.
           MediaQuery.textScalerOf(context).scale(10) > 13

@@ -46,7 +46,7 @@ The channel is carrier independent ([ADR-008](adr/ADR-008-carrier-independent-tr
 |---|---|---|
 | LAN | `-listen 0.0.0.0:8447 -advertise lan=ws://<host>:8447/v1/channel` | Nothing leaves the house, and nothing works away from it |
 | Tailscale | The same, bound to the tailnet address, advertised as `tailnet=` | Your tailnet coordinator learns who connects to what, and when |
-| Cloudflare Tunnel | `cloudflared tunnel run` pointing at `http://127.0.0.1:8447`, advertised as `public=wss://realm.example.org/v1/channel` | Cloudflare sees connection metadata and terminates TLS; it sees opaque frames, never content |
+| Cloudflare Tunnel | `cloudflared tunnel run` pointing at a local proxy, advertised as `public=wss://realm.example.org/v1/channel`; follow [the tunnel recipe](TUNNEL.md) | Cloudflare sees connection metadata and terminates TLS; it sees opaque frames, never content |
 | TLS by the relay | `-tls-cert cert.pem -tls-key key.pem`, advertised as `wss://` | You own certificate renewal, and the port is exposed directly |
 
 Advertise several and clients try them in order, skipping the ones that do not answer:
@@ -55,7 +55,7 @@ Advertise several and clients try them in order, skipping the ones that do not a
 arveil-relay -advertise "lan=ws://192.0.2.10:8447/v1/channel,public=wss://realm.example.org/v1/channel"
 ```
 
-Behind a proxy every connection appears to come from the proxy, so the per-address limits stop separating people. Turn on `-trust-forwarded-for` **only** if that proxy is yours and overwrites `X-Forwarded-For`; a client that sets the header itself would otherwise pick its own address.
+Behind a proxy every connection appears to come from the proxy, so the per-address limits stop separating people. Turn on `-trust-forwarded-for` **only** if every connection reaches the relay through a proxy you trust. The relay then reads the last `X-Forwarded-For` entry, the one that proxy added, and ignores what a client wrote before it; a client that can reach the relay without that proxy could still name its own address. For the limits, IPv6 addresses are grouped by /64, since one client usually holds a whole /64. For Cloudflare Tunnel, follow [the tunnel recipe](TUNNEL.md), which keeps the public entry and a tailnet entry apart.
 
 ## Watching it
 

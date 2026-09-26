@@ -2,6 +2,8 @@ gradle-wrapper.jar
 /.gradle
 /.kotlin/
 /captures/
+# Gradle's own reports (the app's build output goes to ../build).
+/build/
 /gradlew
 /gradlew.bat
 /local.properties

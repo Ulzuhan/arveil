@@ -591,3 +591,134 @@ desde una descarga limpia, la instalación/actualización y Doze/reconexión en
 Android físico, VoiceOver, TalkBack en un dispositivo físico ni las
 evaluaciones de tres personas externas exigidas por M3b.5. La actualización
 del paquete desde `0.1.0+10` consta en la sección anterior.
+
+## Aceptación del actualizador Android firmado (26 de septiembre de 2026) {#aceptacion-del-actualizador-android-firmado-2026-09-26}
+
+Se ejecutó el punto de entrada privado `update_installer_acceptance.dart` en un
+emulador Android 15 / API 35 ARM64 nuevo y desechable. Eran APK de prueba de
+depuración, compilaciones 901 y 902, no artefactos de distribución. La primera
+creó un perfil SQLCipher real con su clave en Android Keystore. La segunda se
+instaló mediante la sesión de `PackageInstaller` de la app y la confirmación
+visible **Update** de Android, sin `adb install -r`, sin desinstalar y sin
+borrar el almacenamiento de la app. Tras volver a abrirla,
+`ARVEIL_TEST_UPDATER_OK:profile:after` confirmó la misma identidad guardada y
+que se conservaba la clave de la plataforma.
+
+Antes de aceptar la actualización, la misma instalación también superó estas
+pruebas:
+
+- Sin permiso de instalación: se rechazó antes de crear una instalación.
+- Cancelación en el diálogo de Android: devolvió `cancelled` y conservó la
+  compilación 901 y su perfil.
+- Un candidato firmado con otro certificado desechable: devolvió `package`,
+  eliminó el candidato y conservó la compilación 901.
+- Un candidato con el mismo certificado y un SHA-256 esperado erróneo a
+  propósito: se rechazó y se eliminó antes de la instalación.
+
+Las pruebas automatizadas cubren manifiestos firmados, un vector de firma
+OpenSSL independiente, caducidad, protección persistente de la secuencia,
+comprobación opcional y diaria, integridad de la descarga, redirecciones HTTPS
+y validación nativa de la identidad y el certificado del paquete. Consulta
+[el protocolo de actualización y el procedimiento de publicación](CLIENT_UPDATES.md).
+Este resultado en emulador no acredita el comportamiento en un teléfono físico,
+con políticas de dispositivo ni con instalación en segundo plano. No hay
+instalación silenciosa ni en segundo plano; la integración con macOS y la
+rotación automática de la clave de actualización siguen pendientes.
+
+Código fuente: la ejecución anterior usó el actualizador de `283467b`; después,
+`049fd0d` cambió el transporte de las actualizaciones, y a continuación llegaron
+las correcciones del mismo pull request. La revisión final se aceptó el mismo
+día en emuladores con API 24, 28, 29 y 35, junto con los criterios 3 a 5 del
+[ADR-010](adr/ADR-010-distribution-and-updates.md); véase
+[el registro siguiente](#aceptacion-final-del-actualizador-android-firmado-2026-09-26).
+
+## Aceptación de la revisión final del actualizador Android firmado (26 de septiembre de 2026) {#aceptacion-final-del-actualizador-android-firmado-2026-09-26}
+
+Código fuente: `e7936a2`, en emuladores ARM64 desechables: imágenes AOSP con
+Android 7.0 (API 24), 9 (API 28) y 10 (API 29), y una imagen con Google APIs
+con Android 15 (API 35).
+
+**Método.** El punto de entrada privado `update_flow_acceptance.dart` ejecuta la
+app real con el controlador de actualizaciones, el transporte, la comprobación
+de firma en Rust y el instalador de `PackageInstaller` reales. Dos APK de prueba
+en modo profile, las compilaciones 1901 y 1902, se firmaron con la misma clave
+de depuración y se compilaron con un canal HTTPS local, servido desde el
+anfitrión (10.0.2.2), y una clave de actualización desechable. Solo se
+diferencian de una compilación de publicación en una raíz de confianza más: la
+autoridad desechable del canal. Todo se hizo desde **Ajustes →
+Actualizaciones** con las pantallas reales; la actualización nunca se instaló
+con `adb install -r`.
+
+**Resultado en todos los niveles de API:**
+
+- La búsqueda verificó el anuncio firmado y ofreció 0.1.0+1902 (44,0 MiB) con
+  el enlace a sus notas. La descarga siguió la redirección del canal y
+  coincidió en tamaño y SHA-256.
+- Android pidió confirmación («Do you want to install an update to this
+  existing application?» en Android 7.0, «Do you want to update this app?» en
+  Android 15). Al aceptarla, la compilación 1901 pasó a 1902 sin desinstalar ni
+  borrar datos.
+- La nueva compilación abrió el mismo perfil cifrado con su clave del Keystore
+  (`ARVEIL_TEST_UPDATER_OK:profile:after`), conservó la secuencia aceptada y
+  eliminó de su caché el paquete instalado al arrancar.
+
+Por nivel:
+
+- **API 24:** con **Orígenes desconocidos** desactivado, como viene en los
+  teléfonos, la app lo pidió y abrió los ajustes de Seguridad; al volver, el
+  aviso había desaparecido. Salir de la confirmación de Android con Atrás
+  devolvió «Instalación cancelada» y conservó la compilación 1901.
+- **API 28, 29 y 35:** la app abrió la página **Instalar apps desconocidas** de
+  Android para esta app. API 28 es además el caso de Android 9 cuyos
+  certificados de paquete la app lee ahora con la alternativa antigua.
+- **API 35:** descartar la confirmación tocando fuera de ella devolvió
+  «Instalación cancelada» sin dejar la pantalla esperando. El enlace a las
+  notas se abrió en el navegador.
+
+**Dos defectos encontrados y corregidos en `e7936a2`:**
+
+- GitHub sirve los recursos de las publicaciones con Let's Encrypt, y Android
+  7.0 no incluye ISRG Root X1. Una prueba contra el host de recursos de GitHub
+  no fue de confianza con las raíces del sistema en API 24 y sí llegó con las
+  del actualizador, que añaden esa raíz; en API 28, 29 y 35 llegaron ambas.
+- En Android 7 la app daba la instalación por permitida e ignoraba el ajuste
+  global **Orígenes desconocidos**, que los teléfonos traen desactivado.
+
+**Criterios 3 a 5 del [ADR-010](adr/ADR-010-distribution-and-updates.md).** En
+API 29, con la red del emulador capturada (`-tcpdump`) y el perfil de la app
+unido a un relay local desechable:
+
+| Ventana | Conexiones al relay | Conexiones al canal | Otras |
+|---|---|---|---|
+| Comprobaciones desactivadas, 6 minutos de uso | 27 | 0 | ninguna, ni siquiera DNS |
+| Comprobación automática activada y luego una manual | 5 | 2 | ninguna |
+| Relay hostil y después caído | 24 | 2 | ninguna |
+
+- **3.** Con las comprobaciones desactivadas, la app se unió, sincronizó, abrió
+  **Ajustes → Actualizaciones** sin buscar, volvió tres veces a primer plano y
+  se reinició; nunca contactó con el canal ni con ninguna otra dirección.
+- **4.** Todas las peticiones que recibió el canal llevaban solo `Host` y
+  `Accept-Encoding: identity`: ni User-Agent, ni versión, ni parámetros, ni
+  cookie, aunque el servidor fijaba una en cada respuesta. Activar la
+  comprobación automática no envió nada; la siguiente vuelta a la app hizo una
+  comprobación, y una segunda el mismo día, ninguna.
+- **5.** Con el relay sustituido por uno que respondía basura, y después sin
+  relay, la app indicó «Sin conexión con tu servidor». Cada búsqueda siguió
+  haciendo exactamente una petición al canal y mostró la misma oferta. El relay
+  hostil solo recibió `GET /v1/channel`.
+
+Los criterios 1, 2, 6 y 7 los cubren las pruebas automáticas y estas
+ejecuciones.
+
+**Candidatas.** `0.1.0+19` para Android, compilada con el canal beta de
+actualizaciones, y para macOS, desde `e7936a2` con
+`scripts/package_clients.py`; compiladas y auditadas, no publicadas. El APK
+tiene versionCode 19 y pide `REQUEST_INSTALL_PACKAGES` porque lleva canal.
+Está firmado con el mismo certificado de publicación que `+17` y `+18`, e
+instalado encima de `+18` se abre y muestra el canal configurado. El canal
+público aún no estaba publicado (HTTP 404).
+
+Esto no demuestra el comportamiento en teléfonos físicos, instaladores
+modificados por fabricantes, políticas de dispositivo ni Play Protect, y no se
+usó el host público del canal. Las actualizaciones de macOS no están
+implementadas.

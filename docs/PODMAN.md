@@ -5,6 +5,11 @@ generated from `relay/packaging/arveil-staging.container.in` (Quadlet).
 Each image is built from a committed Git revision and reports it with
 `/arveil-relay -version`. This server is for disposable CLI and client testing.
 
+For optional public access without inbound router ports, see the separate
+[Cloudflare Tunnel recipe](TUNNEL.md). Personal deployment inputs and rendered
+configuration stay outside version control; the staging helper below does not
+automatically enable a tunnel.
+
 ## Deploy
 
 Local requirements: Python 3, Git and authenticated SSH. Acceptance also needs
@@ -101,6 +106,12 @@ Deploy a new commit with the same command. The image is built and its reported
 revision checked before switching. If staging is running, the helper saves a
 backup before updating it. The old Quadlet is retained as `.container.previous`;
 old images are not pruned.
+
+A realm switched to the [Cloudflare Tunnel recipe](TUNNEL.md) is different:
+its unit was rendered by `scripts/prepare_tunnel.py`, and `deploy` refuses to
+replace it before building anything. Follow
+[updating the relay behind the tunnel](TUNNEL.md#update-the-relay-behind-the-tunnel),
+which builds the image with `--image-only` and installs a newly rendered unit.
 
 Backups live under `~/.local/share/arveil/backups/`, with directory mode 0700
 and archive mode 0600. They contain the realm's private keys. These are local,
