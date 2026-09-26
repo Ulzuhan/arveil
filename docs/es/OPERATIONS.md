@@ -46,7 +46,7 @@ El canal es independiente del portador ([ADR-008](adr/ADR-008-carrier-independen
 |---|---|---|
 | LAN | `-listen 0.0.0.0:8447 -advertise lan=ws://<host>:8447/v1/channel` | Nada sale de casa, y nada funciona fuera de casa |
 | Tailscale | Lo mismo, atado a la dirección del tailnet y anunciado como `tailnet=` | El coordinador de tu tailnet sabe quién conecta con qué, y cuándo |
-| Túnel de Cloudflare | `cloudflared tunnel run` apuntando a `http://127.0.0.1:8447`, anunciado como `public=wss://realm.example.org/v1/channel` | Cloudflare ve metadatos de conexión y termina TLS; ve tramas opacas, nunca contenido |
+| Túnel de Cloudflare | `cloudflared tunnel run` apuntando a un proxy local, anunciado como `public=wss://realm.example.org/v1/channel`; sigue [la receta del túnel](TUNNEL.md) | Cloudflare ve metadatos de conexión y termina TLS; ve tramas opacas, nunca contenido |
 | TLS en el relay | `-tls-cert cert.pem -tls-key key.pem`, anunciado como `wss://` | La renovación del certificado es tuya, y el puerto queda expuesto directamente |
 
 Anuncia varios y los clientes los prueban en orden, saltándose los que no contestan:
@@ -55,7 +55,7 @@ Anuncia varios y los clientes los prueban en orden, saltándose los que no conte
 arveil-relay -advertise "lan=ws://192.0.2.10:8447/v1/channel,public=wss://realm.example.org/v1/channel"
 ```
 
-Detrás de un proxy todas las conexiones parecen venir del proxy, así que los límites por dirección dejan de separar a nadie. Activa `-trust-forwarded-for` **solo** si ese proxy es tuyo y sobrescribe `X-Forwarded-For`; si no, un cliente elige su propia dirección poniendo la cabecera él mismo.
+Detrás de un proxy todas las conexiones parecen venir del proxy, así que los límites por dirección dejan de separar a nadie. Activa `-trust-forwarded-for` **solo** si todas las conexiones llegan al relay a través de un proxy de confianza. El relay lee entonces la última entrada de `X-Forwarded-For`, la que añadió ese proxy, e ignora lo que un cliente escribiera antes; un cliente que pueda llegar al relay sin pasar por ese proxy aún podría declarar su propia dirección. Para los límites, las direcciones IPv6 se agrupan por /64, porque un cliente suele tener un /64 entero. Para el túnel de Cloudflare, sigue [la receta del túnel](TUNNEL.md), que separa la entrada pública de la de la tailnet.
 
 ## Vigilancia
 

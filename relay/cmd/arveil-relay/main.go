@@ -125,7 +125,7 @@ func serve() {
 		maxPerAddr   = flag.Int("max-conns-per-addr", limits.Default().MaxPerAddr, "concurrent channels from one address (0: unlimited)")
 		maxPairings  = flag.Int("max-pairings-per-addr", limits.Default().PairingsPerAddr, "pairing rendezvous one address may open per window (0: unlimited)")
 		pairWindow   = flag.Duration("pairing-window", limits.Default().PairingWindow, "window for -max-pairings-per-addr")
-		trustForward = flag.Bool("trust-forwarded-for", false, "read the client address from X-Forwarded-For; only with a proxy of yours that overwrites it")
+		trustForward = flag.Bool("trust-forwarded-for", false, "read the client address from the last X-Forwarded-For entry; only when every connection comes through a proxy you trust")
 	)
 	flag.Parse()
 

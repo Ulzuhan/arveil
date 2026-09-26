@@ -28,8 +28,11 @@ El proxy tiene dos entradas separadas. La del conector toma la IP de
 `CF-Connecting-IP` y **sustituye** `X-Forwarded-For`, en vez de añadir una IP a
 una cadena potencialmente falsa. La de Tailscale no confía en ninguna de esas
 cabeceras. No actives `-trust-forwarded-for` directamente detrás de cloudflared:
-Cloudflare puede conservar una primera IP aportada por el cliente y el relay
-usa justamente esa primera entrada para sus límites.
+con esa opción el relay lee la última entrada de `X-Forwarded-For`, la que añadió
+el proxy de delante, así que todo camino hasta el relay debe pasar por un proxy
+que la ponga; la entrada de la tailnet no lo haría y sus clientes podrían
+declarar su propia dirección. Para sus límites, el relay agrupa las direcciones
+IPv6 por /64.
 
 Conserva el volumen y las claves del realm existente, haz una copia antes del
 cambio y prepara la vuelta atrás. La receta mueve el backend a otro puerto

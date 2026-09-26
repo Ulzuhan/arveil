@@ -34,13 +34,16 @@ loopback. There is no router port forwarding. All three host listeners bind
 127.0.0.1, and the host firewall should continue denying inbound application
 ports. Only trusted local processes may access the proxy/backend.
 
-**Do not enable `-trust-forwarded-for` directly behind cloudflared.** Cloudflare
-can append the visitor IP to an incoming `X-Forwarded-For` chain, while the
-relay reads its first entry. This recipe uses nginx's real-IP module on a
-dedicated connector listener, takes `CF-Connecting-IP` only there, and replaces
-the entire `X-Forwarded-For` value. Missing/invalid headers are refused. The
-separate Tailscale listener strips incoming address claims and uses the actual
-peer; Serve TCP clients retain the existing shared per-address limit.
+**Do not enable `-trust-forwarded-for` directly behind cloudflared.** With that
+flag the relay reads the last `X-Forwarded-For` entry, the one the proxy in front
+added, so every path to the relay must go through a proxy that sets it; the
+tailnet entry would not, and its clients could name their own address. This
+recipe uses nginx's real-IP module on a dedicated connector listener, takes
+`CF-Connecting-IP` only there, and replaces the entire `X-Forwarded-For` value.
+Missing/invalid headers are refused. The separate Tailscale listener strips
+incoming address claims and uses the actual peer; Serve TCP clients retain the
+existing shared per-address limit. The relay groups IPv6 addresses by /64 for
+its limits.
 
 Keep Cloudflare Pseudo IPv4 **Off** or **Add Header**, not **Overwrite Headers**,
 and leave **Remove visitor IP headers** disabled. Do not attach Workers that
