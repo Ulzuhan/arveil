@@ -50,9 +50,23 @@ class Request implements HttpClientRequest {
   Request(this.response);
   final Response response;
   @override
+  final RequestHeaders headers = RequestHeaders();
+  @override
   bool followRedirects = true;
   @override
   Future<HttpClientResponse> close() async => response;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class RequestHeaders implements HttpHeaders {
+  // Reproduce Dart's default, which survives autoUncompress=false.
+  final values = <String, String>{'accept-encoding': 'gzip'};
+  @override
+  void set(String name, Object value, {bool preserveHeaderCase = false}) {
+    values[name.toLowerCase()] = value.toString();
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -132,9 +146,26 @@ void main() {
       expect(client.requests.single.followRedirects, false);
       expect(client.autoUncompress, false);
       expect(client.closed, true);
-      // Fake request deliberately exposes no cookie/auth/header mutation methods.
+      expect(client.requests.single.headers.values, {
+        'accept-encoding': 'identity',
+      });
     },
   );
+
+  test('an explicit identity encoding is accepted', () async {
+    client.responses.add(
+      Response(
+        [
+          [123, 125],
+        ],
+        values: {'content-encoding': 'Identity'},
+      ),
+    );
+    expect(await transport.manifest(Uri.parse('https://example.org/feed')), [
+      123,
+      125,
+    ]);
+  });
 
   test(
     'manifest size cap applies to streamed bytes without Content-Length',
@@ -195,6 +226,9 @@ void main() {
       expect(counts.last, 5);
       expect(client.urls, hasLength(2));
       expect(client.requests.every((r) => !r.followRedirects), true);
+      for (final request in client.requests) {
+        expect(request.headers.values, {'accept-encoding': 'identity'});
+      }
       expect(File('${directory.path}/update.part').existsSync(), false);
     },
   );

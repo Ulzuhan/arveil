@@ -40,6 +40,9 @@ class HttpsUpdateTransport implements UpdateTransport {
           .getUrl(url)
           .timeout(const Duration(seconds: 20));
       request.followRedirects = false;
+      // autoUncompress=false still leaves Dart's default Accept-Encoding: gzip.
+      // Request exact bytes so size limits and package hashes remain unambiguous.
+      request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       final response = await request.close().timeout(
         const Duration(seconds: 20),
       );
@@ -55,8 +58,12 @@ class HttpsUpdateTransport implements UpdateTransport {
         url = next;
         continue;
       }
+      final encoding = response.headers
+          .value(HttpHeaders.contentEncodingHeader)
+          ?.trim()
+          .toLowerCase();
       if (response.statusCode != HttpStatus.ok ||
-          response.headers.value(HttpHeaders.contentEncodingHeader) != null) {
+          (encoding != null && encoding != 'identity')) {
         throw const UpdateFailure('network');
       }
       return response;

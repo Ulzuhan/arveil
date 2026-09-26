@@ -99,7 +99,8 @@ It writes a new file exclusively; it never publishes or overwrites one.
 Publish the verified APK first, attach the signed announcement under its
 unique sequence filename, and atomically serve those same bytes at the feed's
 fixed URL. Do not redirect the feed or put a browser login/challenge in front
-of it. Use `Content-Type: application/json`, no content compression, and
+of it. The client requests `Accept-Encoding: identity` and rejects compressed
+responses. Use `Content-Type: application/json`, no content compression, and
 `Cache-Control: no-cache` or a short cache lifetime; purge an old cached feed
 when publishing. Downloads may follow at most five HTTPS redirects because
 GitHub assets use a storage host. Never use `releases/latest` or replace an

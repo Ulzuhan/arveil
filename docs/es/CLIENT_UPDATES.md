@@ -49,6 +49,9 @@ No contiene datos de ningún relay personal.
    secuencia y sirve sus mismos bytes en la URL fija del manifiesto, sin
    redirecciones, compresión ni desafíos de navegador. No uses `releases/latest`.
 
+La app solicita `Accept-Encoding: identity` y rechaza respuestas comprimidas
+para comprobar los límites y hashes sobre los bytes exactos.
+
 Cada cambio del anuncio exige una secuencia superior, incluso renovar su
 caducidad sin cambiar el APK. La validez por defecto es de 30 días, hasta 90.
 Lleva un registro privado de secuencias y renueva el anuncio a tiempo. Un
