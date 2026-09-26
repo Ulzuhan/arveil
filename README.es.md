@@ -288,7 +288,7 @@ y [en español](docs/es/README.md).
 |---|---|
 | Usarlo y administrarlo | [Instalación](docs/es/INSTALLATION.md) · [Poner en marcha un realm](docs/es/OPERATIONS.md) · [Podman sin root](docs/PODMAN.md) (en inglés) · [Paquetes del cliente](docs/es/CLIENT_RELEASES.md) |
 | Diseño | [Arquitectura](docs/es/ARCHITECTURE.md) · [Modelo de amenazas](docs/es/THREAT_MODEL.md) · [Protocolo](docs/es/PROTOCOL.md) · [Modelo de dominio](docs/es/DOMAIN_MODEL.md) |
-| Decisiones | [ADR-001 a ADR-009](docs/es/adr/): Go y Rust, MLS, servidor sin confianza, SQLite, identidad, recuperación, redundancia, transporte y Flutter |
+| Decisiones | [ADR-001 a ADR-010](docs/es/adr/): Go y Rust, MLS, servidor sin confianza, SQLite, identidad, recuperación, redundancia, transporte, Flutter, y distribución y actualizaciones |
 | Apps | [Diseño del cliente](docs/es/CLIENT_DESIGN.md) · [Registro de implementación](docs/es/CLIENT_FOUNDATION.md) · [Plan de la fase 3b](docs/es/PHASE3B.md) · [Matriz de plataformas](docs/es/PLATFORMS.md) |
 | Historia | Planes de las fases [0](docs/PHASE0.md) · [1](docs/PHASE1.md) · [2](docs/PHASE2.md) · [3](docs/PHASE3.md) · [4](docs/PHASE4.md) (en inglés) · [Revisión de viabilidad v0.3](docs/es/REVIEW-v0.3.md) |
 
