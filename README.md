@@ -121,20 +121,29 @@ understanding it.
 </tr>
 </table>
 
+<p align="center">
+  <img src="docs/assets/screens/phone_chats_light.png" alt="Chat list on Android with unread counts and verification badges" width="240">
+  &nbsp;
+  <img src="docs/assets/screens/phone_conversation_dark.png" alt="A group conversation in dark mode, with a notice that a contact added a device" width="240">
+  &nbsp;
+  <img src="docs/assets/screens/phone_settings_light.png" alt="Settings with the identity, recovery and device sections" width="240">
+</p>
+
 ## How it works
 
 ```mermaid
 flowchart LR
-  subgraph Device["Your device"]
-    UI["Flutter app"] --> App["arveil-app<br/>operations and executor"]
-    App --> Core["arveil-core<br/>identity · MLS · encrypted storage · recovery"]
+  subgraph Device["On each device"]
+    direction TB
+    UI["Flutter app or CLI"] --> App["arveil-app<br/>operations and executor"]
+    App --> Core["arveil-core<br/>identity · MLS · storage · recovery"]
   end
-  subgraph Realm["Relay: trusted for delivery, not for content"]
-    Relay["arveil-relay<br/>Noise IK over WebSocket"]
-    Relay --> DB[("SQLite<br/>members · mailboxes · queues")]
-    Relay --> Blobs["Filesystem<br/>encrypted blobs"]
+  subgraph Realm["Relay: no access to content"]
+    direction TB
+    Relay["arveil-relay<br/>one Go binary"] --> DB[("SQLite<br/>members · mailboxes · queues")]
+    Relay --> Blobs[("Encrypted blobs<br/>on disk")]
   end
-  Core <-->|"LAN · tailnet · tunnel · Internet"| Relay
+  Core <-->|"Noise IK over WebSocket<br/>LAN · tailnet · tunnel"| Relay
 ```
 
 The Rust core owns identity, MLS ([mls-rs](https://github.com/awslabs/mls-rs)),
