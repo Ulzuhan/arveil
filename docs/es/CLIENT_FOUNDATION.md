@@ -902,7 +902,7 @@ oscuro.
   al control.
 
 Evidencia: `test/accessibility_test.dart`. La revisión con TalkBack está en la
-[matriz de plataformas](PLATFORMS.md); la de VoiceOver sigue pendiente.
+[matriz de plataformas](PLATFORMS.md); VoiceOver queda sin probar.
 
 ## Diagnóstico sin secretos (25 de septiembre de 2026)
 
