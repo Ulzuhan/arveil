@@ -142,6 +142,15 @@ void main() {
       ),
       'profile:too-new',
     );
+    expect(
+      failureCode(
+        const CommandError.quota(
+          operation: 'begin-pairing',
+          reason: 'too many pairings from SECRET-HOST.example',
+        ),
+      ),
+      'quota:begin-pairing',
+    );
     expect(failureCode(StateError('/srv/SECRET-PATH/profile')), 'other');
   });
 

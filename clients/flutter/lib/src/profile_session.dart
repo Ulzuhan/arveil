@@ -325,6 +325,10 @@ String describeFailure(Object failure) {
     CommandError_Transport() => s.errorTransport,
     CommandError_Domain() => s.errorDomain,
     CommandError_Protocol() => s.errorProtocol,
+    // Only pairing has a limit an address can hit on its own, and it clears
+    // within the relay's pairing window.
+    CommandError_Quota(operation: 'begin-pairing') => s.errorPairingQuota,
+    CommandError_Quota() => s.errorQuota,
     CommandError_Busy() => s.errorBusy,
     CommandError_Storage() || CommandError_FileSystem() => s.errorStorage,
     CommandError_Interrupted() => s.errorInterrupted,

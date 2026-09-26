@@ -76,6 +76,8 @@ The quotas that matter for storage are per mailbox and per identity, and they on
 
 Set `-max-conns-per-addr` above the number of devices one household has, or people behind the same address will refuse each other.
 
+A refused rendezvous, by the per-address limit or the global cap, is answered with 429. The app then says the server is limiting pairing attempts from that network and to wait up to ten minutes before generating another code, since a retry inside the window is refused the same way. That wording assumes the default `-pairing-window`; keep it at 10m or less, or tell your users. People behind one address, such as a household or a mobile carrier's shared address, share the per-address budget. Other 429s (a full mailbox, the blob quota) reach the app as a limit reached, not as bad data.
+
 ## Backups
 
 The database is the source of truth; the blobs are attachments the clients may no longer have. Back up both while the relay runs:

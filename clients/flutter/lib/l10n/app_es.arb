@@ -103,6 +103,8 @@
   "errorTransport": "No se pudo conectar con el servidor. Comprueba la conexión y sigue las indicaciones de la operación pendiente.",
   "errorDomain": "Revisa los datos y la vigencia de la operación. Conserva el perfil; no empieces un alta diferente para reintentar.",
   "errorProtocol": "El servidor no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.",
+  "errorPairingQuota": "El servidor está limitando los intentos de vinculación desde esta red. Espera unos minutos (hasta 10) antes de generar un código nuevo; reintentar antes no sirve.",
+  "errorQuota": "El servidor alcanzó uno de sus límites y no aceptó la operación. Espera unos minutos antes de volver a intentarlo; si se repite, avisa a quien lo administra.",
   "errorBusy": "Hay otra operación en curso. Espera y vuelve a intentarlo.",
   "errorStorage": "No se pudo guardar el avance. Comprueba el almacenamiento y vuelve a intentarlo.",
   "errorInterrupted": "La operación se interrumpió. Puedes volver a intentarlo.",

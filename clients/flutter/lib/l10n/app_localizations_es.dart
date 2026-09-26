@@ -348,6 +348,14 @@ class AppLocalizationsEs extends AppLocalizations {
       'El servidor no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.';
 
   @override
+  String get errorPairingQuota =>
+      'El servidor está limitando los intentos de vinculación desde esta red. Espera unos minutos (hasta 10) antes de generar un código nuevo; reintentar antes no sirve.';
+
+  @override
+  String get errorQuota =>
+      'El servidor alcanzó uno de sus límites y no aceptó la operación. Espera unos minutos antes de volver a intentarlo; si se repite, avisa a quien lo administra.';
+
+  @override
   String get errorBusy =>
       'Hay otra operación en curso. Espera y vuelve a intentarlo.';
 

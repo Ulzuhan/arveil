@@ -26,6 +26,7 @@ String failureCode(Object failure) {
     CommandError_Transport(:final operation) => 'transport:${op(operation)}',
     CommandError_Storage(:final operation) => 'storage:${op(operation)}',
     CommandError_Protocol(:final operation) => 'protocol:${op(operation)}',
+    CommandError_Quota(:final operation) => 'quota:${op(operation)}',
     CommandError_Domain(:final operation) => 'domain:${op(operation)}',
     CommandError_FileSystem(:final operation) => 'filesystem:${op(operation)}',
     CommandError_Internal(:final operation) => 'internal:${op(operation)}',

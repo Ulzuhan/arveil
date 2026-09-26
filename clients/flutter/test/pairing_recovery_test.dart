@@ -27,6 +27,8 @@ class RecoveryProfile extends FakeProfile {
   int resumes = 0;
   int confirmations = 0;
   int cancellations = 0;
+  int begins = 0;
+  Object? beginFailure;
   Completer<void>? wait;
   void ready({bool admin = true}) {
     state = SetupView(
@@ -109,6 +111,12 @@ class RecoveryProfile extends FakeProfile {
       );
     }
     ready(admin: false);
+  }
+
+  @override
+  Future<void> beginPairing({required String bootstrap}) async {
+    begins++;
+    if (beginFailure case final failure?) throw failure;
   }
 
   @override
@@ -370,6 +378,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(profile.cancellations, 1);
     expect(session.error, isNull);
+    expect(session.busy, isFalse);
+    expect(find.text('Generar código de vinculación'), findsOneWidget);
+  });
+  testWidgets('a relay limit on a new code says to wait, not to check data', (
+    tester,
+  ) async {
+    final profile = RecoveryProfile()
+      ..state = const SetupView(
+        stage: SetupStage.linkedDevice,
+        administrator: false,
+        recoveryWarning: false,
+        kitStale: false,
+        bootstrap: relay,
+      )
+      ..beginFailure = const CommandError.quota(
+        operation: 'begin-pairing',
+        reason: 'relay refused (429): PRIVATE_DIAGNOSTIC',
+      );
+    final session = await open(tester, profile);
+    await tester.tap(find.text('Generar código de vinculación'));
+    await tester.pumpAndSettle();
+    expect(profile.begins, 1);
+    expect(
+      find.textContaining(
+        'limitando los intentos de vinculación desde esta red',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('hasta 10'), findsOneWidget);
+    expect(find.textContaining('kit más reciente'), findsNothing);
+    expect(find.textContaining('PRIVATE_DIAGNOSTIC'), findsNothing);
     expect(session.busy, isFalse);
     expect(find.text('Generar código de vinculación'), findsOneWidget);
   });

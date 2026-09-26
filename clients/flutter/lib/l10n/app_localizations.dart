@@ -662,6 +662,18 @@ abstract class AppLocalizations {
   /// **'El servidor no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.'**
   String get errorProtocol;
 
+  /// No description provided for @errorPairingQuota.
+  ///
+  /// In es, this message translates to:
+  /// **'El servidor está limitando los intentos de vinculación desde esta red. Espera unos minutos (hasta 10) antes de generar un código nuevo; reintentar antes no sirve.'**
+  String get errorPairingQuota;
+
+  /// No description provided for @errorQuota.
+  ///
+  /// In es, this message translates to:
+  /// **'El servidor alcanzó uno de sus límites y no aceptó la operación. Espera unos minutos antes de volver a intentarlo; si se repite, avisa a quien lo administra.'**
+  String get errorQuota;
+
   /// No description provided for @errorBusy.
   ///
   /// In es, this message translates to:

@@ -457,6 +457,13 @@ sealed class CommandError with _$CommandError implements FrbException {
     required String operation,
     required String reason,
   }) = CommandError_Protocol;
+
+  /// The relay refused because one of its limits was reached. Nothing was
+  /// started; a retry before the limit clears is refused again.
+  const factory CommandError.quota({
+    required String operation,
+    required String reason,
+  }) = CommandError_Quota;
   const factory CommandError.domain({
     required String operation,
     required String reason,

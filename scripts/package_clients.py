@@ -136,8 +136,11 @@ def android_details(badging, build, updates):
     """Check `aapt2 dump badging` output; return the facts BUILD.json records."""
     if "android.permission.INTERNET" not in badging or "application-debuggable" in badging:
         raise ValueError("Release APK must have network permission and must not be debuggable.")
-    if "native-code: 'arm64-v8a'" not in badging:
-        raise ValueError("Unexpected Android architecture.")
+    # Android installs an APK on any device with one of these ABIs. Flutter
+    # and our Rust library exist only for arm64-v8a; another ABI would install
+    # a plugin library alone and crash at launch.
+    if re.findall(r"^\S*native-code:.*$", badging, re.M) != ["native-code: 'arm64-v8a'"]:
+        raise ValueError("The APK must contain native code for arm64-v8a only; package withheld.")
     # The installer permission is merged only into builds with an update feed.
     installer = re.search(r"^uses-permission: name='android\.permission\.REQUEST_INSTALL_PACKAGES'", badging, re.M)
     if updates and not installer:

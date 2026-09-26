@@ -250,6 +250,12 @@ pub enum CommandError {
         operation: String,
         reason: String,
     },
+    /// The relay refused because one of its limits was reached. Nothing was
+    /// started; a retry before the limit clears is refused again.
+    Quota {
+        operation: String,
+        reason: String,
+    },
     Domain {
         operation: String,
         reason: String,
@@ -1396,6 +1402,7 @@ fn command_error(error: ApplicationError) -> CommandError {
         ApplicationError::Transport { .. } => CommandError::Transport { operation, reason },
         ApplicationError::Storage { .. } => CommandError::Storage { operation, reason },
         ApplicationError::Protocol { .. } => CommandError::Protocol { operation, reason },
+        ApplicationError::Quota { .. } => CommandError::Quota { operation, reason },
         ApplicationError::Domain { .. } => CommandError::Domain { operation, reason },
         ApplicationError::FileSystem { .. } => CommandError::FileSystem { operation, reason },
         ApplicationError::Internal { .. } => CommandError::Internal { operation, reason },
@@ -1591,6 +1598,22 @@ mod tests {
         assert!(result.event_id.is_none());
         assert!(matches!(result.warning, Some(CommandError::Domain { .. })));
         assert!(chat_mutation(Ok(OperationResult::default())).is_err());
+    }
+
+    #[test]
+    fn a_relay_limit_reaches_the_interface_as_quota_with_its_operation() {
+        let error = command_error(ApplicationError::Quota {
+            operation: Operation::BeginPairing,
+            source: arveil_app::carrier::CliError::Relay {
+                code: 429,
+                message: "too many pairings from this address; wait and try again".into(),
+            },
+            partial: OperationResult::default(),
+        });
+        let CommandError::Quota { operation, .. } = error else {
+            panic!("expected a quota error, got {error:?}");
+        };
+        assert_eq!(operation, "begin-pairing");
     }
 
     fn scratch(name: &str) -> String {

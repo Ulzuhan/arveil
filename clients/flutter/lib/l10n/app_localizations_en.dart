@@ -345,6 +345,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'The server did not accept the operation. Check the details with its administrator; a recovery may need a more recent kit.';
 
   @override
+  String get errorPairingQuota =>
+      'The server is limiting pairing attempts from this network. Wait a few minutes (up to 10) before generating a new code; retrying sooner does not help.';
+
+  @override
+  String get errorQuota =>
+      'The server reached one of its limits and did not accept the operation. Wait a few minutes before trying again; if it keeps happening, tell whoever runs it.';
+
+  @override
   String get errorBusy =>
       'Another operation is in progress. Wait and try again.';
 
