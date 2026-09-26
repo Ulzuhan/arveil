@@ -11,6 +11,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final clock = DateTime.utc(2030, 1, 1);
+
+/// The Dart check the tests sign and verify with; the app uses the Rust core's.
+Future<bool> ed25519(
+  List<int> payload,
+  List<int> signature,
+  List<int> publicKey,
+) => Ed25519().verify(
+  [...utf8.encode(updateDomain), ...payload],
+  signature: Signature(
+    signature,
+    publicKey: SimplePublicKey(publicKey, type: KeyPairType.ed25519),
+  ),
+);
 final apk = utf8.encode('a test package');
 
 class MemoryStore implements UpdateStore {
@@ -131,6 +144,7 @@ void main() {
   }
 
   UpdateController makeController([UpdateConfig? other]) => UpdateController(
+    verifier: ed25519,
     config: other ?? config,
     store: store,
     transport: transport,
@@ -172,6 +186,7 @@ void main() {
       final verified = await UpdateManifest.verify(
         utf8.encode(jsonEncode(fixture['envelope'])),
         pinned,
+        verifier: ed25519,
       );
       expect(verified.sequence, 7);
       expect(verified.android.build, 18);
@@ -244,7 +259,7 @@ void main() {
         channel: 'beta',
       );
       await expectLater(
-        UpdateManifest.verify(transport.wire, wrong),
+        UpdateManifest.verify(transport.wire, wrong, verifier: ed25519),
         throwsA(isA<UpdateFailure>()),
       );
       final envelope = jsonDecode(utf8.decode(transport.wire)) as Map;
@@ -252,7 +267,11 @@ void main() {
         utf8.encode(jsonEncode(payload(build: 200))),
       );
       await expectLater(
-        UpdateManifest.verify(utf8.encode(jsonEncode(envelope)), config),
+        UpdateManifest.verify(
+          utf8.encode(jsonEncode(envelope)),
+          config,
+          verifier: ed25519,
+        ),
         throwsA(isA<UpdateFailure>()),
       );
     },
@@ -315,7 +334,7 @@ void main() {
         payload()..['platforms'] = {'android-arm64': {}},
       ]) {
         await expectLater(
-          UpdateManifest.verify(await sign(data), config),
+          UpdateManifest.verify(await sign(data), config, verifier: ed25519),
           throwsA(isA<UpdateFailure>()),
         );
       }
@@ -590,5 +609,67 @@ void main() {
     expect(transport.requests, 1);
     expect(controller.available, true);
     expect(installer.installs, 0);
+  });
+
+  group('rules shared with the release signer', () {
+    final vectors =
+        jsonDecode(
+              File(
+                'test/fixtures/update-manifest-vectors.json',
+              ).readAsStringSync(),
+            )
+            as Map;
+
+    test('domain and notes limit match', () {
+      expect(updateDomain, vectors['domain']);
+      expect(maxNotes, vectors['max_notes']);
+    });
+
+    test(
+      'notes are counted in code points, as the signer counts them',
+      () async {
+        for (final vector in (vectors['notes'] as List).cast<Map>()) {
+          final notes =
+              'a' * (vector['ascii'] as int) +
+              '\u{1F600}' * (vector['emoji'] as int);
+          final result = UpdateManifest.verify(
+            await sign(payload(notes: notes)),
+            config,
+            verifier: ed25519,
+          );
+          if (vector['valid'] as bool) {
+            await expectLater(result, completes, reason: '$vector');
+          } else {
+            await expectLater(
+              result,
+              throwsA(isA<UpdateFailure>()),
+              reason: '$vector',
+            );
+          }
+        }
+      },
+    );
+
+    test('feed and link URLs are judged as the signer judges them', () {
+      for (final vector in (vectors['urls'] as List).cast<Map>()) {
+        final url = vector['url'] as String;
+        void link() => updateUri(url);
+        void feed() => UpdateConfig(
+          feed: updateUri(url),
+          publicKey: List.filled(32, 1),
+          channel: 'beta',
+        );
+        for (final (valid, check) in [
+          (vector['link'] as bool, link),
+          (vector['feed'] as bool, feed),
+        ]) {
+          if (valid) {
+            expect(check, returnsNormally, reason: url);
+          } else {
+            expect(check, throwsA(isA<UpdateFailure>()), reason: url);
+          }
+        }
+      }
+    });
   });
 }

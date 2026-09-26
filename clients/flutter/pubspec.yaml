@@ -45,9 +45,11 @@ dependencies:
   path_provider: ^2.1.6
   file_picker: 13.1.0
   crypto: ^3.0.7
-  cryptography: ^2.9.0
 
 dev_dependencies:
+  # Only the tests sign and check with it; the app verifies update signatures
+  # in the Rust core.
+  cryptography: ^2.9.0
   integration_test:
     sdk: flutter
   flutter_test:

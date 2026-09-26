@@ -27,13 +27,25 @@ def openssl(tool, *args, data=None):
                           stderr=subprocess.PIPE, check=True).stdout
 
 
+MAX_NOTES = 8000
+
+
 def https_url(value, *, query=True):
     uri = urlparse(value)
-    if uri.scheme != "https" or not uri.hostname or uri.username or uri.password or uri.fragment:
+    # The app's Uri counts a bare "?" or "#" as a query or fragment, so check
+    # the text rather than the parsed parts, which are empty then.
+    if uri.scheme != "https" or not uri.hostname or uri.username or uri.password or "#" in value:
         raise ValueError("Update URLs must be HTTPS, without credentials or fragments.")
-    if not query and uri.query:
+    if not query and "?" in value:
         raise ValueError("The feed URL must not contain query parameters.")
     return value
+
+
+def check_notes(notes):
+    # Code points, as the app counts them (Dart's runes), not UTF-16 units.
+    if len(notes) > MAX_NOTES:
+        raise ValueError(f"Release notes must be at most {MAX_NOTES} characters.")
+    return notes
 
 
 def read_config(path):
@@ -106,9 +118,7 @@ def sign(args):
         raise ValueError("Invalid minimum Android SDK.")
     if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+", build.get("application_id", "")):
         raise ValueError("Missing or invalid Android application ID.")
-    notes = args.notes.read_text()
-    if len(notes) > 8000:
-        raise ValueError("Release notes must be at most 8000 characters.")
+    notes = check_notes(args.notes.read_text(encoding="utf-8"))
     url = https_url(args.asset_url)
     parsed = urlparse(url)
     # No mutable /latest links, arbitrary websites or versionless download URLs.

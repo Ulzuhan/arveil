@@ -91,9 +91,11 @@ class UpdateController extends ChangeNotifier {
     required this.store,
     required this.transport,
     required this.installer,
+    required this.verifier,
     DateTime Function()? now,
   }) : now = now ?? DateTime.now;
   final UpdateConfig? config;
+  final UpdateSignatureVerifier verifier;
   final UpdateStore store;
   final UpdateTransport transport;
   final UpdateInstaller installer;
@@ -299,7 +301,11 @@ class UpdateController extends ChangeNotifier {
     await _save(attempt: now().toUtc());
     device = await installer.device();
     final wire = await transport.manifest(config!.feed);
-    final candidate = await UpdateManifest.verify(wire, config!);
+    final candidate = await UpdateManifest.verify(
+      wire,
+      config!,
+      verifier: verifier,
+    );
     candidate.checkFreshness(
       now(),
       lastSequence: _sequence,

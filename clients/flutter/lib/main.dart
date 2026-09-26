@@ -13,6 +13,7 @@ import 'src/rust/frb_generated.dart';
 import 'src/updates/controller.dart';
 import 'src/updates/manifest.dart';
 import 'src/updates/page.dart';
+import 'src/rust/api/updates.dart' show verifyUpdateSignature;
 import 'src/updates/transport.dart';
 
 Future<void> main() async {
@@ -30,6 +31,11 @@ Future<void> main() async {
             Directory('${(await getTemporaryDirectory()).path}/updates'),
       ),
       installer: AndroidUpdateInstaller(),
+      verifier: (payload, signature, publicKey) => verifyUpdateSignature(
+        payload: payload,
+        signature: signature,
+        publicKey: publicKey,
+      ),
     );
     await updates.load();
   }

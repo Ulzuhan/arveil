@@ -1,10 +1,25 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as hashes;
-import 'package:cryptography/cryptography.dart';
 
+/// Signed ahead of the payload; the Rust core holds the same constant, and
+/// test/fixtures/update-manifest-vectors.json ties the two together.
 const updateDomain = 'arveil-client-updates-v1\n';
+
+/// Checks an Ed25519 signature by [publicKey] over [updateDomain] followed by
+/// the exact payload bytes. The app passes the Rust core's check, so the
+/// update path has one Ed25519 implementation; tests may pass their own.
+typedef UpdateSignatureVerifier =
+    FutureOr<bool> Function(
+      List<int> payload,
+      List<int> signature,
+      List<int> publicKey,
+    );
 const maxManifestBytes = 65536;
+
+/// Counted in Unicode code points, as the release signer counts them.
+const maxNotes = 8000;
 const maxPackageBytes = 512 * 1024 * 1024;
 
 /// Deliberately carries a stable code, never an HTTP response, URL or path.
@@ -133,8 +148,9 @@ class UpdateManifest {
   /// canonicalization dependency between the publisher and the client.
   static Future<UpdateManifest> verify(
     List<int> wire,
-    UpdateConfig config,
-  ) async {
+    UpdateConfig config, {
+    required UpdateSignatureVerifier verifier,
+  }) async {
     try {
       if (wire.length > maxManifestBytes) throw const UpdateFailure('manifest');
       final envelope = jsonDecode(utf8.decode(wire)) as Map<String, dynamic>;
@@ -142,16 +158,7 @@ class UpdateManifest {
       final payload = base64Decode(envelope['payload'] as String);
       final signature = base64Decode(envelope['signature'] as String);
       if (signature.length != 64 ||
-          !await Ed25519().verify(
-            [...utf8.encode(updateDomain), ...payload],
-            signature: Signature(
-              signature,
-              publicKey: SimplePublicKey(
-                config.publicKey,
-                type: KeyPairType.ed25519,
-              ),
-            ),
-          )) {
+          !await verifier(payload, signature, config.publicKey)) {
         throw const UpdateFailure('signature');
       }
       final data = jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
@@ -171,7 +178,7 @@ class UpdateManifest {
           !RegExp(
             r'^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$',
           ).hasMatch(applicationId) ||
-          notes.length > 8000) {
+          notes.runes.length > maxNotes) {
         throw const UpdateFailure('manifest');
       }
       return UpdateManifest(

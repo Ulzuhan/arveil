@@ -10,6 +10,35 @@ import unittest
 
 import client_updates as updates
 
+VECTORS = json.loads((Path(__file__).resolve().parents[1] /
+                      "clients/flutter/test/fixtures/update-manifest-vectors.json").read_text(encoding="utf-8"))
+
+
+class SharedRuleTests(unittest.TestCase):
+    """The app applies the same rules; a divergence fails both suites."""
+
+    def test_domain_and_notes_limit_match_the_app(self):
+        self.assertEqual(updates.DOMAIN.decode(), VECTORS["domain"])
+        self.assertEqual(updates.MAX_NOTES, VECTORS["max_notes"])
+
+    def test_notes_are_counted_like_the_app(self):
+        for vector in VECTORS["notes"]:
+            notes = "a" * vector["ascii"] + "\U0001F600" * vector["emoji"]
+            with self.subTest(**vector):
+                if vector["valid"]:
+                    self.assertEqual(updates.check_notes(notes), notes)
+                else:
+                    self.assertRaises(ValueError, updates.check_notes, notes)
+
+    def test_urls_are_judged_like_the_app(self):
+        for vector in VECTORS["urls"]:
+            for kind, query in (("feed", False), ("link", True)):
+                with self.subTest(url=vector["url"], kind=kind):
+                    if vector[kind]:
+                        updates.https_url(vector["url"], query=query)
+                    else:
+                        self.assertRaises(ValueError, updates.https_url, vector["url"], query=query)
+
 
 class SigningTests(unittest.TestCase):
     def setUp(self):
