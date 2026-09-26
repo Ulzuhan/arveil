@@ -100,8 +100,14 @@ class UpdateController extends ChangeNotifier {
   final DateTime Function() now;
   bool automatic = false;
   DateTime? lastAttempt;
-  int _sequence = 0;
-  String? _digest;
+
+  /// Rollback history per update identity: the public key and the channel.
+  /// A build with another key or channel starts its own history at zero
+  /// instead of treating the other one as damage. Sequences under another
+  /// key or channel are not comparable, and changing either already takes a
+  /// build signed with the Android key; blocking there only left the person
+  /// with clearing the app's data, which deletes the encrypted profile.
+  final Map<String, ({int sequence, String? digest})> _histories = {};
   bool _stateFailed = false;
   bool _busy = false;
   bool _disposed = false;
@@ -128,35 +134,16 @@ class UpdateController extends ChangeNotifier {
     ...config!.publicKey,
     ...utf8.encode(config!.channel),
   ]).toString();
+  int get _sequence => _histories[_identity]?.sequence ?? 0;
+  String? get _digest => _histories[_identity]?.digest;
+
+  static final _hex64 = RegExp(r'^[0-9a-f]{64}$');
 
   Future<void> load() async {
     if (!configured) return;
     try {
       final raw = await store.read();
-      if (raw != null) {
-        final data = jsonDecode(raw) as Map;
-        final sequence = data['sequence'];
-        final digest = data['digest'];
-        if (data['schema'] != 1 ||
-            data['identity'] != _identity ||
-            data['automatic'] is! bool ||
-            sequence is! int ||
-            sequence < 0 ||
-            sequence > 9007199254740991 ||
-            (sequence == 0
-                ? digest != null
-                : digest is! String ||
-                      !RegExp(r'^[0-9a-f]{64}$').hasMatch(digest))) {
-          throw const UpdateFailure('state');
-        }
-        automatic = data['automatic'] as bool;
-        _sequence = sequence;
-        _digest = digest as String?;
-        if (data['lastAttempt'] != null) {
-          lastAttempt = DateTime.parse(data['lastAttempt'] as String);
-          if (!lastAttempt!.isUtc) throw const UpdateFailure('state');
-        }
-      }
+      if (raw != null) _restore(jsonDecode(raw));
     } catch (_) {
       // Do not silently erase rollback protection after a damaged/failed read.
       _stateFailed = true;
@@ -164,20 +151,80 @@ class UpdateController extends ChangeNotifier {
     }
   }
 
+  void _restore(Object? data) {
+    if (data is! Map || data['automatic'] is! bool) {
+      throw const UpdateFailure('state');
+    }
+    final histories = <String, ({int sequence, String? digest})>{};
+    switch (data['schema']) {
+      case 1:
+        // Builds up to 0.1.0+18 kept a single history at the top level.
+        final identity = data['identity'];
+        if (identity is! String || !_hex64.hasMatch(identity)) {
+          throw const UpdateFailure('state');
+        }
+        histories[identity] = _history(data['sequence'], data['digest']);
+      case 2:
+        final stored = data['feeds'];
+        if (stored is! Map) throw const UpdateFailure('state');
+        for (final MapEntry(:key, :value) in stored.entries) {
+          if (key is! String || !_hex64.hasMatch(key) || value is! Map) {
+            throw const UpdateFailure('state');
+          }
+          histories[key] = _history(value['sequence'], value['digest']);
+        }
+      default:
+        throw const UpdateFailure('state');
+    }
+    DateTime? attempt;
+    final stamp = data['lastAttempt'];
+    if (stamp != null) {
+      if (stamp is! String) throw const UpdateFailure('state');
+      attempt = DateTime.parse(stamp);
+      if (!attempt.isUtc) throw const UpdateFailure('state');
+    }
+    automatic = data['automatic'] as bool;
+    lastAttempt = attempt;
+    _histories
+      ..clear()
+      ..addAll(histories);
+  }
+
+  static ({int sequence, String? digest}) _history(
+    Object? sequence,
+    Object? digest,
+  ) {
+    if (sequence is! int ||
+        sequence < 0 ||
+        sequence > 9007199254740991 ||
+        (sequence == 0
+            ? digest != null
+            : digest is! String || !_hex64.hasMatch(digest))) {
+      throw const UpdateFailure('state');
+    }
+    return (sequence: sequence, digest: digest as String?);
+  }
+
   Future<void> _save({
     bool? enabled,
     DateTime? attempt,
     UpdateManifest? accepted,
   }) async {
+    final histories = {
+      ..._histories,
+      if (accepted != null)
+        _identity: (sequence: accepted.sequence, digest: accepted.digest),
+    };
     try {
       await store.write(
         jsonEncode({
-          'schema': 1,
-          'identity': _identity,
+          'schema': 2,
           'automatic': enabled ?? automatic,
           'lastAttempt': (attempt ?? lastAttempt)?.toUtc().toIso8601String(),
-          'sequence': accepted?.sequence ?? _sequence,
-          'digest': accepted?.digest ?? _digest,
+          'feeds': {
+            for (final MapEntry(:key, :value) in histories.entries)
+              key: {'sequence': value.sequence, 'digest': value.digest},
+          },
         }),
       );
     } catch (_) {
@@ -187,8 +234,10 @@ class UpdateController extends ChangeNotifier {
     if (enabled != null) automatic = enabled;
     if (attempt != null) lastAttempt = attempt;
     if (accepted != null) {
-      _sequence = accepted.sequence;
-      _digest = accepted.digest;
+      _histories[_identity] = (
+        sequence: accepted.sequence,
+        digest: accepted.digest,
+      );
     }
   }
 

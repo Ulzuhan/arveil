@@ -84,9 +84,10 @@ void main() {
     int build = 18,
     String? expires,
     String notes = 'A new version.',
+    String channel = 'beta',
   }) => {
     'schema': 1,
-    'channel': 'beta',
+    'channel': channel,
     'sequence': sequence,
     'expires': expires ?? '2030-02-01T00:00:00Z',
     'platforms': {
@@ -121,8 +122,16 @@ void main() {
     );
   }
 
-  UpdateController makeController() => UpdateController(
-    config: config,
+  /// The accepted sequence of the only history in the state, 0 if none.
+  int storedSequence() {
+    final histories = (jsonDecode(store.value!) as Map)['feeds'] as Map;
+    return histories.isEmpty
+        ? 0
+        : (histories.values.single as Map)['sequence'] as int;
+  }
+
+  UpdateController makeController([UpdateConfig? other]) => UpdateController(
+    config: other ?? config,
     store: store,
     transport: transport,
     installer: installer,
@@ -221,7 +230,7 @@ void main() {
       await controller.check();
       expect(controller.error, 'signature');
       expect(controller.available, false);
-      expect(jsonDecode(store.value!)['sequence'], 0);
+      expect(storedSequence(), 0);
       expect(installer.installs, 0);
     },
   );
@@ -256,7 +265,7 @@ void main() {
     await controller.check();
     expect(controller.error, 'expired');
     expect(controller.available, false);
-    expect(jsonDecode(store.value!)['sequence'], 0);
+    expect(storedSequence(), 0);
   });
 
   test(
@@ -320,6 +329,113 @@ void main() {
     },
   );
 
+  test(
+    'another update key or channel keeps its own history instead of blocking updates',
+    () async {
+      transport.wire = await sign(payload(sequence: 5));
+      await controller.check();
+      expect(controller.error, null);
+
+      // The same installation, now a stable build: its history starts at zero,
+      // and turning automatic checks off still works.
+      final stable = UpdateConfig(
+        feed: config.feed,
+        publicKey: config.publicKey,
+        channel: 'stable',
+      );
+      final switched = makeController(stable);
+      addTearDown(switched.dispose);
+      await switched.load();
+      expect(switched.error, null);
+      await switched.setAutomatic(false);
+      expect(switched.error, null);
+      transport.wire = await sign(payload(sequence: 1, channel: 'stable'));
+      await switched.check();
+      expect(switched.error, null);
+      expect(switched.available, true);
+
+      // A rotated key, as after losing the update key and installing a build
+      // with the new one by hand, also starts at zero.
+      final rotated = UpdateConfig(
+        feed: config.feed,
+        publicKey: List.filled(32, 7),
+        channel: 'beta',
+      );
+      final fresh = makeController(rotated);
+      addTearDown(fresh.dispose);
+      await fresh.load();
+      expect(fresh.error, null);
+
+      // Going back to the first key and channel keeps its rollback protection.
+      final back = makeController();
+      addTearDown(back.dispose);
+      await back.load();
+      transport.wire = await sign(payload(sequence: 4));
+      await back.check();
+      expect(back.error, 'rollback');
+    },
+  );
+
+  test(
+    'state written before per-key histories keeps its rollback protection',
+    () async {
+      transport.wire = await sign(payload(sequence: 5));
+      await controller.check();
+      final current = (jsonDecode(store.value!) as Map)['feeds'] as Map;
+      final entry = current.entries.single;
+      // The format of builds up to 0.1.0+18: one history at the top level.
+      store.value = jsonEncode({
+        'schema': 1,
+        'identity': entry.key,
+        'automatic': true,
+        'lastAttempt': '2030-01-01T00:00:00.000Z',
+        'sequence': (entry.value as Map)['sequence'],
+        'digest': (entry.value as Map)['digest'],
+      });
+      final reopened = makeController();
+      addTearDown(reopened.dispose);
+      await reopened.load();
+      expect(reopened.error, null);
+      expect(reopened.automatic, true);
+      transport.wire = await sign(payload(sequence: 4));
+      await reopened.check();
+      expect(reopened.error, 'rollback');
+      transport.wire = await sign(payload(sequence: 6));
+      await reopened.check();
+      expect(reopened.error, null);
+      expect((jsonDecode(store.value!) as Map)['schema'], 2);
+    },
+  );
+
+  test('a history with a malformed entry still fails closed', () async {
+    for (final damaged in [
+      {
+        'schema': 2,
+        'automatic': true,
+        'feeds': {
+          'not-hex': {'sequence': 1},
+        },
+      },
+      {
+        'schema': 2,
+        'automatic': true,
+        'feeds': {
+          'a' * 64: {'sequence': 3, 'digest': null},
+        },
+      },
+      {'schema': 2, 'automatic': 'yes', 'feeds': {}},
+      {'schema': 3, 'automatic': true, 'feeds': {}},
+    ]) {
+      store.value = jsonEncode(damaged);
+      final reopened = makeController();
+      addTearDown(reopened.dispose);
+      await reopened.load();
+      await reopened.check();
+      expect(reopened.error, 'state', reason: '$damaged');
+    }
+    expect(transport.requests, 0);
+  });
+
   test('damaged state fails closed without contacting any service', () async {
     store.value = '{broken';
     await controller.load();
@@ -354,14 +470,15 @@ void main() {
       await fileStore.write(store.value!);
       expect(await fileStore.read(), store.value);
       expect(File('${directory.path}/updates.json.tmp').existsSync(), false);
-      expect((jsonDecode(store.value!) as Map).keys.toSet(), {
+      final state = jsonDecode(store.value!) as Map;
+      expect(state.keys.toSet(), {
         'schema',
-        'identity',
         'automatic',
         'lastAttempt',
-        'sequence',
-        'digest',
+        'feeds',
       });
+      final history = (state['feeds'] as Map).values.single as Map;
+      expect(history.keys.toSet(), {'sequence', 'digest'});
     },
   );
 
@@ -382,7 +499,7 @@ void main() {
       expect(transport.requests, 1);
       expect(controller.error, 'state');
       expect(controller.available, false);
-      expect(jsonDecode(store.value!)['sequence'], 0);
+      expect(storedSequence(), 0);
     },
   );
 
