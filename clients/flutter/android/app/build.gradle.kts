@@ -24,6 +24,17 @@ val updateFeed = listOf("ARVEIL_UPDATE_URL=", "ARVEIL_UPDATE_PUBLIC_KEY=").all {
     dartDefines.any { it.startsWith(name) && it.length > name.length }
 }
 
+// Flutter's plugin lists every ABI it supports, but builds libflutter.so,
+// the Dart snapshot and our Rust library only for the requested target
+// platforms. A plugin library for another ABI (jni ships libdartjni.so for
+// all three) would let Android install the APK where it cannot start, so
+// package only the ABIs Flutter built. Split-per-ABI builds filter
+// themselves and reject ndk filters; builds without a target keep the default.
+val flutterAbis = mapOf("android-arm" to "armeabi-v7a", "android-arm64" to "arm64-v8a", "android-x64" to "x86_64")
+val targetAbis = (findProperty("target-platform") as String?)
+    ?.takeUnless { findProperty("split-per-abi")?.toString().toBoolean() }
+    ?.split(",")?.map { flutterAbis.getValue(it) }
+
 android {
     namespace = "io.github.ulzuhan.arveil"
     // flutter_secure_storage, which keeps the profile key in the Keystore,
@@ -42,6 +53,12 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        if (targetAbis != null) {
+            ndk {
+                abiFilters.clear()
+                abiFilters += targetAbis
+            }
+        }
     }
 
     signingConfigs {

@@ -106,6 +106,9 @@ migrated. See [platform behavior and acceptance](PLATFORMS.md).
 
 ### Android: ARM64, Android 7.0 / API 24 or newer
 
+The APK contains ARM64 code only. Android refuses it on 32-bit-only phones and
+x86-64 emulators; `clients-v0.1.0-beta.1` installs there anyway and closes at launch.
+
 1. Download the `android-arm64.apk` file on the phone and open it.
 2. If prompted, permit **Install unknown apps** for the browser or file manager
    used to open this APK. Install Arveil; you can turn that permission off afterward.

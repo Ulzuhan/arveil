@@ -109,6 +109,10 @@ perfiles creados con el anterior backend Data Protection. Consulta las
 
 ### Android: ARM64, Android 7.0 / API 24 o posterior
 
+El APK solo contiene código ARM64. Android lo rechaza en teléfonos solo de 32
+bits y en emuladores x86-64; `clients-v0.1.0-beta.1` se instala igualmente en
+ellos y se cierra al abrirse.
+
 1. Descarga el archivo `android-arm64.apk` en el teléfono y ábrelo.
 2. Si lo pide, permite **Instalar aplicaciones desconocidas** al navegador o
    gestor de archivos que abre ese APK. Instala Arveil; después puedes retirar
