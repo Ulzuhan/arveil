@@ -158,7 +158,24 @@ Native clients and the updater's requests without a User-Agent can be legitimate
 false positives. HTTP 403 with Cloudflare error 1010 is a diagnostic clue; do
 not treat every 403 as BIC or disable unrelated protections to fix it.
 
-If this check prevents native access, create a **Configuration Rule** in the
+**Keep BIC enabled unless a real client fails because of it.** A diagnostic
+script is not a substitute for the shipped clients: for example, Python's
+`urllib` sends its own User-Agent by default. Its rejection does not establish
+that a client without that header, or with a different one, will be rejected.
+Check the effective rule setting, then exercise the native WebSocket/Noise
+connection and the Android updater's actual HTTP transport. A missing feed's
+404 can establish that the request passed the edge, but does not validate
+manifest publication, signature verification or installation.
+
+If a failure is specific to the User-Agent, compare otherwise identical
+requests with an honest, shared application identifier. Avoid device IDs,
+profile information and browser impersonation. A User-Agent is public,
+spoofable metadata, not authentication, and acceptance is not guaranteed by
+the presence of the header alone. Do not change working clients merely to
+make a diagnostic script pass.
+
+If BIC still prevents the supported native clients from working after these
+checks, document the evidence before creating a **Configuration Rule** in the
 selected zone under **Rules → Overview**, setting only **Browser Integrity
 Check = Off**. Match the exact relay channel and, if hosted through Cloudflare,
 the exact distribution feed. Example values only:

@@ -53,7 +53,23 @@ clientes nativos legítimos y la consulta de actualizaciones, que no envía ese
 identificador. Un HTTP 403 con error Cloudflare 1010 es una pista concreta;
 no atribuyas cualquier 403 a BIC ni desactives otras protecciones por probar.
 
-Si impide el acceso, crea una **Configuration Rule** en la zona correspondiente,
+**Mantén BIC activado salvo que bloquee a un cliente real.** Un script de
+diagnóstico no sustituye a los clientes distribuidos: por ejemplo, `urllib`
+de Python ya envía su propio User-Agent. Su rechazo no demuestra que falle un
+cliente sin esa cabecera o con otro valor. Comprueba el ajuste efectivo y prueba
+la conexión nativa WebSocket/Noise y el transporte HTTP real del actualizador
+Android. Un 404 de un feed inexistente puede confirmar que la petición supera
+el filtro, pero no valida la publicación del manifiesto, su firma ni la instalación.
+
+Si el fallo depende del User-Agent, compara peticiones idénticas cambiando solo
+esa cabecera por un identificador propio y común de la aplicación. Evita datos
+del dispositivo o del perfil y hacer pasar el cliente por un navegador. El
+User-Agent es metadato público que cualquiera puede copiar, no autenticación;
+añadirlo no garantiza superar BIC. No cambies clientes que ya funcionan solo
+para que pase un script de diagnóstico.
+
+Si BIC sigue impidiendo el uso de los clientes soportados después de estas
+comprobaciones, documenta la evidencia antes de crear una **Configuration Rule** en la zona correspondiente,
 desde **Rules → Overview**, con **Browser Integrity Check = Off**. El filtro debe
 limitarse al método GET y a las rutas exactas del canal y del feed, si este último
 también pasa por Cloudflare. Ejemplo genérico:
