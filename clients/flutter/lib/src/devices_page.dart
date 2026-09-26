@@ -9,9 +9,14 @@ class DevicesPage extends StatefulWidget {
     super.key,
     required this.profile,
     required this.bootstrap,
+    this.onChanged,
   });
   final Profile profile;
   final String bootstrap;
+
+  /// Reload shared profile state after a mutation or sync, including when
+  /// a lost response follows a durable local device change.
+  final Future<void> Function()? onChanged;
 
   @override
   State<DevicesPage> createState() => _DevicesPageState();
@@ -43,6 +48,7 @@ class _DevicesPageState extends State<DevicesPage> {
     } catch (_) {
       error = l10n.devicesOperationFailed;
     }
+    if (action != null) await widget.onChanged?.call();
     try {
       final inventory = await widget.profile.devices();
       if (mounted) setState(() => _inventory = inventory);

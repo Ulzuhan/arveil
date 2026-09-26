@@ -363,10 +363,35 @@ class ConversationsPageState extends State<ConversationsPage>
       ),
   ];
 
+  /// Sync continues behind other destinations and routes, but only a
+  /// displayed history can advance the local read marker.
+  void _markDisplayedHistory(BuildContext context) {
+    final routeIsCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    final group = chat.selected;
+    if (!widget.active ||
+        !routeIsCurrent ||
+        _searching ||
+        group == null ||
+        chat.events.isEmpty) {
+      return;
+    }
+    final cursor = chat.events.last.cursor;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !widget.active ||
+          _searching ||
+          ModalRoute.of(this.context)?.isCurrent == false) {
+        return;
+      }
+      unawaited(chat.markVisible(group, cursor));
+    });
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: chat,
     builder: (context, _) {
+      _markDisplayedHistory(context);
       final wide = widget.twoPane ?? WindowSize.of(context).twoPane;
       final selected = chat.selected != null;
       final progress = chat.syncing
