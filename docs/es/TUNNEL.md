@@ -47,11 +47,11 @@ el proxy de delante, así que todo camino hasta el relay debe pasar por un proxy
 que la ponga; la entrada de la tailnet no lo haría y sus clientes podrían
 declarar su propia dirección. Esta receta usa el módulo real-IP de nginx en una
 escucha dedicada al conector, toma `CF-Connecting-IP` solo ahí y sustituye el
-valor completo de `X-Forwarded-For`. Se rechazan las cabeceras ausentes o no
-válidas. La escucha separada de Tailscale descarta las direcciones que declaren
-las peticiones entrantes y usa la del par real; los clientes de Serve TCP
-conservan el límite por dirección compartido que ya tenían. Para sus límites,
-el relay agrupa las direcciones IPv6 por /64.
+valor completo de `X-Forwarded-For`. Se rechazan las cabeceras de dirección
+ausentes, no válidas, encadenadas o repetidas. La escucha separada de Tailscale
+descarta las direcciones que declaren las peticiones entrantes y usa la del par
+real; los clientes de Serve TCP conservan el límite por dirección compartido
+que ya tenían. Para sus límites, el relay agrupa las direcciones IPv6 por /64.
 
 Deja Pseudo IPv4 de Cloudflare en **Off** o **Add Header**, no en **Overwrite
 Headers**, y mantén desactivado **Remove visitor IP headers**. No asocies a este
@@ -62,10 +62,19 @@ claves de la sesión Noise.
 ## Preparar en privado
 
 Requisitos: el DNS del dominio en Cloudflare, un túnel con nombre **gestionado
-localmente**, cloudflared, nginx con `http_realip_module` y el
+localmente**, cloudflared, nginx 1.23 o posterior con `http_realip_module` y el
 [despliegue con Podman](../PODMAN.md) sin root que ya tienes. Instala versiones
 mantenidas desde sus fuentes oficiales. Restringe la administración de la
 cuenta con MFA y conserva Tailscale para SSH.
+
+Las versiones anteriores de nginx solo leen la primera de varias líneas de
+cabecera repetidas, así que no pueden rechazar una petición que lleve dos
+cabeceras `CF-Connecting-IP`. Debian 12, por ejemplo, incluye nginx 1.22:
+instala una versión más reciente, como los paquetes propios de nginx.org, en
+lugar de relajar la comprobación. La unidad del proxy generada se niega a
+arrancar con un nginx anterior y explica el motivo en su journal; si un nginx
+anterior carga la configuración de todos modos, la escucha del conector
+rechaza todas las peticiones.
 
 Autentícate y crea el túnel con nombre desde la máquina del mantenedor siguiendo
 la [guía de Cloudflare para túneles gestionados localmente](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/).
@@ -109,10 +118,11 @@ directorios de salida que ya existan. Crea, con permisos privados,
 `cloudflared.yml`, `nginx.conf`, la Quadlet del relay y dos unidades systemd de
 usuario. No usa SSH, no cambia el DNS, no arranca nada y no crea credenciales.
 Mantén en privado sus archivos, logs e inventarios. Revisa las rutas de los
-ejecutables de los servicios (`/usr/sbin/nginx`, `/usr/local/bin/cloudflared`)
-para la distribución de destino. Las unidades de referencia necesitan un gestor
-de usuario de systemd que admita sus directivas de aislamiento; compruébalas en
-el servidor real antes del cambio.
+ejecutables de los servicios (`/usr/sbin/nginx`, que aparece dos veces en la
+unidad del proxy, y `/usr/local/bin/cloudflared`) para la distribución de
+destino. Las unidades de referencia necesitan un gestor de usuario de systemd
+que admita sus directivas de aislamiento; compruébalas en el servidor real
+antes del cambio.
 
 ## Validar y cambiar
 
@@ -121,7 +131,8 @@ el servidor real antes del cambio.
    Conserva la imagen y los datos antiguos.
 2. Copia las configuraciones a `~/.local/share/arveil/tunnel/` (directorio 0700,
    archivos 0600) y las unidades de servicio a `~/.config/systemd/user/`.
-   Comprueba la configuración:
+   Comprueba la configuración; `nginx -V` debe indicar la versión 1.23 o
+   posterior e incluir `--with-http_realip_module`:
 
    ```sh
    nginx -V
@@ -140,7 +151,8 @@ el servidor real antes del cambio.
    interno de salud del relay y `ss -lnt`: todos los puertos del host anteriores
    deben estar en loopback. Confirma que nginx rechaza `/metrics`, `/healthz` y
    cualquier ruta salvo la del canal; una petición al canal sin upgrade a
-   WebSocket, o con la dirección de Cloudflare ausente o no válida, debe fallar.
+   WebSocket, o con la dirección de Cloudflare ausente, no válida o repetida,
+   debe fallar.
    Verifica que Tailscale sigue funcionando y que no puede suplantar otra
    dirección con ninguna de las dos cabeceras de reenvío.
 5. Crea hacia este túnel con nombre una ruta DNS **solo para el nombre de host

@@ -16,6 +16,11 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 TAILNET_RANGE = ipaddress.IPv4Network("100.64.0.0/10")
+# nginx before 1.23 reads only the first of repeated header lines, so it could
+# not refuse two CF-Connecting-IP headers. Refused as a $nginx_version regex in
+# nginx.conf and as sh case patterns over `nginx -v` in the proxy unit.
+OLD_NGINX = r"^(0|1\.([0-9]|1[0-9]|2[0-2]))\."
+OLD_NGINX_VERSIONS = "*nginx/0.*|*nginx/1.[0-9].*|*nginx/1.1[0-9].*|*nginx/1.2[0-2].*"
 
 
 def private_path(path, what="Operator configuration and output"):
@@ -132,14 +137,23 @@ http {{
     fastcgi_temp_path fastcgi;
     uwsgi_temp_path uwsgi;
     scgi_temp_path scgi;
+    # nginx joins repeated header lines into $http_* only since 1.23; older
+    # versions show just the first, so a duplicated address would pass.
+    map $nginx_version $arveil_nginx_too_old {{
+        "~{OLD_NGINX}" 1;
+        default 0;
+    }}
     server {{
         listen 127.0.0.1:{connector};
         server_name {hostname};
+        if ($arveil_nginx_too_old) {{ return 500; }}
         set_real_ip_from 127.0.0.1;
         real_ip_header CF-Connecting-IP;
         real_ip_recursive off;
+        # $http_cf_connecting_ip joins repeated lines with ", ", so this
+        # refuses duplicated as well as chained values.
         if ($http_cf_connecting_ip ~ "[,[:space:]]") {{ return 400; }}
-        # Invalid/missing/multiple address headers leave the peer as loopback.
+        # Invalid or missing address headers leave the peer as loopback.
         # They must not become arbitrary buckets in the relay's rate limiter.
         if ($remote_addr = 127.0.0.1) {{ return 400; }}
         if ($remote_addr = ::1) {{ return 400; }}
@@ -165,10 +179,12 @@ ingress:
   - service: http_status:404
 """
     # User managers have no network-online.target; waiting for it does nothing.
-    proxy_unit = """[Unit]
+    proxy_unit = f"""[Unit]
 Description=Arveil local WebSocket proxy
 
 [Service]
+# Refuse to start on an nginx that cannot see duplicated address headers.
+ExecStartPre=/bin/sh -c 'case "$$(/usr/sbin/nginx -v 2>&1)" in {OLD_NGINX_VERSIONS}) echo "Arveil proxy: nginx 1.23 or later is required to refuse duplicate CF-Connecting-IP headers." >&2; exit 1;; esac'
 ExecStart=/usr/sbin/nginx -e stderr -p %h/.local/share/arveil/tunnel/ -c nginx.conf -g "daemon off;"
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure

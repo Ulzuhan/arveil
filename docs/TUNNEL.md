@@ -42,10 +42,10 @@ added, so every path to the relay must go through a proxy that sets it; the
 tailnet entry would not, and its clients could name their own address. This
 recipe uses nginx's real-IP module on a dedicated connector listener, takes
 `CF-Connecting-IP` only there, and replaces the entire `X-Forwarded-For` value.
-Missing/invalid headers are refused. The separate Tailscale listener strips
-incoming address claims and uses the actual peer; Serve TCP clients retain the
-existing shared per-address limit. The relay groups IPv6 addresses by /64 for
-its limits.
+Missing, invalid, chained or repeated address headers are refused. The
+separate Tailscale listener strips incoming address claims and uses the actual
+peer; Serve TCP clients retain the existing shared per-address limit. The relay
+groups IPv6 addresses by /64 for its limits.
 
 Keep Cloudflare Pseudo IPv4 **Off** or **Add Header**, not **Overwrite Headers**,
 and leave **Remove visitor IP headers** disabled. Do not attach Workers that
@@ -55,9 +55,17 @@ proxy are trusted for IP attribution; they do not gain the Noise session keys.
 ## Prepare privately
 
 Requirements: domain DNS on Cloudflare, a named **locally managed** tunnel,
-cloudflared, nginx with `http_realip_module`, and the existing rootless
-[Podman deployment](PODMAN.md). Install maintained versions from their official
-sources. Restrict account administration with MFA and retain Tailscale for SSH.
+cloudflared, nginx 1.23 or later with `http_realip_module`, and the existing
+rootless [Podman deployment](PODMAN.md). Install maintained versions from their
+official sources. Restrict account administration with MFA and retain Tailscale
+for SSH.
+
+Older nginx releases read only the first of repeated header lines, so they
+cannot refuse a request that carries two `CF-Connecting-IP` headers. Debian 12,
+for example, ships nginx 1.22: install a newer build, such as nginx.org's own
+packages, instead of relaxing the check. The rendered proxy unit refuses to
+start on an older nginx and gives the reason in its journal; if an older nginx
+loads the configuration anyway, the connector listener refuses every request.
 
 Authenticate/create the named tunnel from the maintainer's machine following
 [Cloudflare's local tunnel guide](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/).
@@ -97,16 +105,18 @@ The renderer refuses non-ignored Git locations and existing output directories.
 It creates private `cloudflared.yml`, `nginx.conf`, relay Quadlet and two user
 systemd units. It performs no SSH, DNS changes, startup or credential creation.
 Keep its files, logs and inventories private. Review the service executable
-paths (`/usr/sbin/nginx`, `/usr/local/bin/cloudflared`) for the target distribution.
-The reference units need a user manager supporting their sandbox directives;
-check them on the actual server before switching.
+paths (`/usr/sbin/nginx`, twice in the proxy unit, and
+`/usr/local/bin/cloudflared`) for the target distribution. The reference units
+need a user manager supporting their sandbox directives; check them on the
+actual server before switching.
 
 ## Validate and switch
 
 1. Save the existing Quadlet and a realm backup privately. Verify the pinned
    relay image exists and its `-version` matches. Keep the old image and data.
 2. Copy configs to `~/.local/share/arveil/tunnel/` (directory 0700, files 0600)
-   and the service units to `~/.config/systemd/user/`. Check configuration:
+   and the service units to `~/.config/systemd/user/`. Check configuration;
+   `nginx -V` must report 1.23 or later and list `--with-http_realip_module`:
 
    ```sh
    nginx -V
@@ -123,9 +133,9 @@ check them on the actual server before switching.
 4. Validate locally before creating the public DNS route. Check the relay's
    internal health command and `ss -lnt`: every host port above must be loopback.
    Confirm nginx refuses `/metrics`, `/healthz` and every path except the
-   channel; a channel request without WebSocket upgrade or a missing/invalid
-   Cloudflare address must fail. Verify Tailscale still works and cannot spoof
-   a different address with either forwarding header.
+   channel; a channel request without WebSocket upgrade or with a missing,
+   invalid or repeated Cloudflare address must fail. Verify Tailscale still
+   works and cannot spoof a different address with either forwarding header.
 5. Create a DNS route for **only the chosen relay hostname** to this named
    tunnel. Keep the landing hostname unchanged. Enable WebSockets, bypass
    cache on this hostname, and avoid browser-only Access logins, JavaScript
