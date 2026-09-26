@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../l10n/l10n.dart';
 import 'profile_session.dart';
 import 'rust/api/profile.dart';
+import 'updates/manifest.dart';
 
 /// Set by the packaging script; empty in a local build.
 const appVersion = String.fromEnvironment('ARVEIL_VERSION');
@@ -60,8 +61,8 @@ abstract final class FailureLog {
 }
 
 /// A report for whoever helps with a problem: versions, system, language,
-/// the profile's state in counts, and failure codes. No keys, identifiers,
-/// routes, addresses, invitations, names or content.
+/// the update channel, the profile's state in counts, and failure codes. No
+/// keys, identifiers, routes, addresses, invitations, names or content.
 Future<String> diagnosticReport(
   ProfileSession session, {
   String? language,
@@ -100,6 +101,9 @@ Future<String> diagnosticReport(
     'revision: ${appRevision.isEmpty ? 'none' : appRevision}',
     'system: ${system ?? '${Platform.operatingSystem} ${Platform.operatingSystemVersion}'}',
     'language: ${language ?? currentStrings.localeName}',
+    // A build whose update settings were refused would otherwise look like
+    // one without updates.
+    'updates: ${UpdateConfig.status()}',
     'profile: ${profile == null ? 'closed' : 'open'}',
     'setup: ${setup?.stage.name ?? 'unknown'}',
     'role: ${setup == null

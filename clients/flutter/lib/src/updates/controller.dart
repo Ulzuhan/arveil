@@ -43,6 +43,9 @@ abstract interface class UpdateInstaller {
   Future<bool> allowed();
   Future<void> requestPermission();
   Future<void> install(File apk, AndroidUpdate update);
+
+  /// Opens the signed release notes link in the browser.
+  Future<void> open(Uri url);
 }
 
 class AndroidUpdateInstaller implements UpdateInstaller {
@@ -71,6 +74,9 @@ class AndroidUpdateInstaller implements UpdateInstaller {
         'size': update.size,
         'sha256': update.sha256,
       });
+  @override
+  Future<void> open(Uri url) =>
+      _channel.invokeMethod('open', {'url': url.toString()});
 }
 
 enum UpdatePhase {
@@ -120,6 +126,7 @@ class UpdateController extends ChangeNotifier {
   UpdateManifest? manifest;
   File? _apk;
   int received = 0;
+  int _percent = -1;
   bool needsPermission = false;
 
   bool get configured => config != null;
@@ -142,6 +149,13 @@ class UpdateController extends ChangeNotifier {
   static final _hex64 = RegExp(r'^[0-9a-f]{64}$');
 
   Future<void> load() async {
+    // Nothing is downloading yet in a new process, so a package still here
+    // was installed already or is from a run that ended before installing.
+    try {
+      await transport.discard();
+    } catch (_) {
+      // The cache may be cleared by Android as well; never block startup.
+    }
     if (!configured) return;
     try {
       final raw = await store.read();
@@ -263,7 +277,7 @@ class UpdateController extends ChangeNotifier {
     } on UpdateFailure catch (e) {
       error = _cancelled ? null : e.code;
     } on PlatformException catch (e) {
-      error = ['permission', 'package', 'cancelled'].contains(e.code)
+      error = ['permission', 'package', 'storage', 'cancelled'].contains(e.code)
           ? e.code
           : 'install';
     } catch (_) {
@@ -283,8 +297,12 @@ class UpdateController extends ChangeNotifier {
 
   Future<void> checkAutomatically() async {
     if (!automatic || _busy || !configured || _stateFailed || _disposed) return;
-    if (lastAttempt != null &&
-        now().difference(lastAttempt!) < const Duration(days: 1)) {
+    // An attempt dated in the future was made with a wrong clock; waiting for
+    // that date could stop checks for years, so it counts as due.
+    final last = lastAttempt;
+    if (last != null &&
+        !last.isAfter(now()) &&
+        now().difference(last) < const Duration(days: 1)) {
       return;
     }
     // Keep a downloaded package until the person installs or explicitly checks.
@@ -293,50 +311,103 @@ class UpdateController extends ChangeNotifier {
   }
 
   Future<void> check() => _run(() async {
+    final previous = phase;
     phase = UpdatePhase.checking;
+    _notify();
+    try {
+      // Persist the attempt before networking, so failures/restarts do not
+      // poll.
+      await _save(attempt: now().toUtc());
+      device = await installer.device();
+      final wire = await transport.manifest(config!.feed);
+      final candidate = await UpdateManifest.verify(
+        wire,
+        config!,
+        verifier: verifier,
+      );
+      candidate.checkFreshness(
+        now(),
+        lastSequence: _sequence,
+        lastDigest: _digest,
+      );
+      await _save(
+        accepted: candidate,
+      ); // Persistence must succeed before offering.
+      if (_disposed || _cancelled) return;
+      await _removeApk();
+      manifest = candidate;
+      phase = !candidate.android.newerThan(device!)
+          ? UpdatePhase.current
+          : candidate.android.compatibleWith(device!)
+          ? UpdatePhase.available
+          : UpdatePhase.incompatible;
+    } catch (_) {
+      await _keepOffer(previous);
+      rethrow;
+    }
+  });
+
+  /// After a failed check, an offer that is still valid stays, with its
+  /// package if one was downloaded: a dropped connection or a bad reply from
+  /// the service says nothing against an announcement already verified.
+  Future<void> _keepOffer(UpdatePhase previous) async {
+    final offered = manifest;
+    if (offered != null &&
+        [UpdatePhase.available, UpdatePhase.ready].contains(previous)) {
+      try {
+        offered.checkFreshness(
+          now(),
+          lastSequence: _sequence,
+          lastDigest: _digest,
+        );
+        phase = previous;
+        return;
+      } on UpdateFailure {
+        // Expired meanwhile: dropped below.
+      }
+    }
+    await _dropOffer();
+  }
+
+  /// An offer that expired or was overtaken can never be downloaded or
+  /// installed, so it leaves the screen instead of failing on every tap.
+  Future<void> _dropOffer() async {
     manifest = null;
     await _removeApk();
-    _notify();
-    // Persist the attempt before networking, so failures/restarts do not poll.
-    await _save(attempt: now().toUtc());
-    device = await installer.device();
-    final wire = await transport.manifest(config!.feed);
-    final candidate = await UpdateManifest.verify(
-      wire,
-      config!,
-      verifier: verifier,
-    );
-    candidate.checkFreshness(
-      now(),
-      lastSequence: _sequence,
-      lastDigest: _digest,
-    );
-    await _save(
-      accepted: candidate,
-    ); // Persistence must succeed before offering.
-    if (_disposed || _cancelled) return;
-    manifest = candidate;
-    phase = !candidate.android.newerThan(device!)
-        ? UpdatePhase.current
-        : candidate.android.compatibleWith(device!)
-        ? UpdatePhase.available
-        : UpdatePhase.incompatible;
-  });
+    phase = UpdatePhase.idle;
+  }
+
+  /// The freshness test [check] made, repeated before each use of an offer;
+  /// an offer that fails it is dropped.
+  Future<void> _fresh(UpdateManifest selected) async {
+    try {
+      selected.checkFreshness(
+        now(),
+        lastSequence: _sequence,
+        lastDigest: _digest,
+      );
+    } on UpdateFailure {
+      await _dropOffer();
+      rethrow;
+    }
+  }
 
   Future<void> download() => _run(() async {
     final selected = manifest;
     if (selected == null || !available) return;
-    selected.checkFreshness(
-      now(),
-      lastSequence: _sequence,
-      lastDigest: _digest,
-    );
+    await _fresh(selected);
     phase = UpdatePhase.downloading;
     received = 0;
+    _percent = 0;
     _notify();
     final file = await transport.download(selected.android, (count) {
       received = count;
-      _notify();
+      // Once per percentage point, not for every piece of the download.
+      final percent = count * 100 ~/ selected.android.size;
+      if (percent != _percent) {
+        _percent = percent;
+        _notify();
+      }
     });
     _apk = file;
     if (_disposed || _cancelled) {
@@ -344,11 +415,7 @@ class UpdateController extends ChangeNotifier {
       return;
     }
     try {
-      selected.checkFreshness(
-        now(),
-        lastSequence: _sequence,
-        lastDigest: _digest,
-      );
+      await _fresh(selected);
       needsPermission = !await installer.allowed();
       phase = UpdatePhase.ready;
     } catch (_) {
@@ -361,26 +428,33 @@ class UpdateController extends ChangeNotifier {
     await installer.requestPermission();
   });
 
+  Future<void> openNotes() async {
+    final link = manifest?.android.notesUrl;
+    if (link == null || _disposed) return;
+    try {
+      await installer.open(link);
+    } catch (_) {
+      error = 'browser';
+      _notify();
+    }
+  }
+
   Future<void> install() => _run(() async {
     final selected = manifest;
     if (selected == null || _apk == null || phase != UpdatePhase.ready) return;
-    try {
-      selected.checkFreshness(
-        now(),
-        lastSequence: _sequence,
-        lastDigest: _digest,
-      );
-    } on UpdateFailure {
-      await _removeApk();
-      phase = UpdatePhase.available;
-      rethrow;
-    }
+    await _fresh(selected);
     device = await installer.device();
-    if (!selected.android.newerThan(device!) ||
-        !selected.android.compatibleWith(device!)) {
+    // The installed build may have caught up meanwhile, for example from a
+    // package installed by hand; that is not a problem with this one.
+    if (!selected.android.newerThan(device!)) {
       await _removeApk();
-      phase = UpdatePhase.idle;
-      throw const UpdateFailure('package');
+      phase = UpdatePhase.current;
+      return;
+    }
+    if (!selected.android.compatibleWith(device!)) {
+      await _removeApk();
+      phase = UpdatePhase.incompatible;
+      return;
     }
     needsPermission = !await installer.allowed();
     if (needsPermission) throw const UpdateFailure('permission');
@@ -389,12 +463,17 @@ class UpdateController extends ChangeNotifier {
     try {
       await installer.install(_apk!, selected.android);
     } on PlatformException catch (e) {
+      // 'storage' means Android could not take the package, not that it is
+      // wrong: it stays for another attempt once there is room.
       if (e.code == 'package') {
         await _removeApk();
         phase = UpdatePhase.available;
       }
       rethrow;
     }
+    // Usually Android replaces the app before this point.
+    await _removeApk();
+    phase = UpdatePhase.current;
   });
 
   void cancelDownload() {

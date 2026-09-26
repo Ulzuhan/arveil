@@ -1,27 +1,73 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../l10n/l10n.dart';
 import '../design/design.dart';
 import 'controller.dart';
 
-class UpdateScope extends InheritedNotifier<UpdateController> {
+/// Hands the controller down without rebuilding on its changes: those come
+/// once per percentage point of a download, and only the parts that show
+/// its state listen to it.
+class UpdateScope extends InheritedWidget {
   const UpdateScope({
     super.key,
-    required UpdateController controller,
+    required this.controller,
     required super.child,
-  }) : super(notifier: controller);
+  });
+  final UpdateController controller;
   static UpdateController? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<UpdateScope>()?.notifier;
+      context.dependOnInheritedWidgetOfExactType<UpdateScope>()?.controller;
+
+  @override
+  bool updateShouldNotify(UpdateScope oldWidget) =>
+      controller != oldWidget.controller;
 }
 
-void openUpdates(BuildContext context, UpdateController controller) =>
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => UpdatesPage(controller: controller),
-      ),
+const _updatesRoute = 'updates';
+
+Future<void> openUpdates(BuildContext context, UpdateController controller) =>
+    Navigator.of(context).push(_updatesPage(controller));
+
+MaterialPageRoute<void> _updatesPage(UpdateController controller) =>
+    MaterialPageRoute<void>(
+      settings: const RouteSettings(name: _updatesRoute),
+      builder: (_) => UpdatesPage(controller: controller),
     );
+
+/// Follows the app navigator's top route for the update banner, which sits
+/// above the navigator: the banner hides under the updates page and is
+/// covered like the page below when a dialog or sheet is open.
+class UpdateRoutes extends NavigatorObserver {
+  final top = ValueNotifier<Route<dynamic>?>(null);
+
+  // Navigator reports while it builds; the banner above it updates after.
+  void _set(Route<dynamic>? route) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => top.value = route);
+    } else {
+      top.value = route;
+    }
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(route);
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(previousRoute);
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (identical(top.value, route)) _set(previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    if (identical(top.value, oldRoute)) _set(newRoute);
+  }
+}
 
 /// Only foreground checks: no push token, background job or notification service.
 class UpdateLifecycle extends StatefulWidget {
@@ -29,10 +75,12 @@ class UpdateLifecycle extends StatefulWidget {
     super.key,
     required this.controller,
     required this.navigator,
+    required this.routes,
     required this.child,
   });
   final UpdateController controller;
   final GlobalKey<NavigatorState> navigator;
+  final UpdateRoutes routes;
   final Widget child;
   @override
   State<UpdateLifecycle> createState() => _UpdateLifecycleState();
@@ -40,7 +88,6 @@ class UpdateLifecycle extends StatefulWidget {
 
 class _UpdateLifecycleState extends State<UpdateLifecycle>
     with WidgetsBindingObserver {
-  bool _showing = false;
   @override
   void initState() {
     super.initState();
@@ -65,46 +112,68 @@ class _UpdateLifecycleState extends State<UpdateLifecycle>
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) => Column(
-      children: [
-        if (widget.controller.available && !_showing)
-          Material(
-            color: Theme.of(context).colorScheme.secondaryContainer,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.system_update_outlined),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(context.l10n.updatesAvailable)),
-                    TextButton(
-                      onPressed: () async {
-                        setState(() => _showing = true);
-                        await widget.navigator.currentState?.push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                UpdatesPage(controller: widget.controller),
-                          ),
-                        );
-                        if (mounted) setState(() => _showing = false);
-                      },
-                      child: Text(context.l10n.updatesView),
-                    ),
-                  ],
-                ),
-              ),
+    listenable: Listenable.merge([widget.controller, widget.routes.top]),
+    builder: (context, _) {
+      final top = widget.routes.top.value;
+      final shown =
+          widget.controller.available && top?.settings.name != _updatesRoute;
+      return Column(
+        children: [
+          if (shown) _banner(context, top is PopupRoute ? top : null),
+          Expanded(
+            // The banner took the status bar's inset; the pages below must
+            // not add it again.
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: shown,
+              child: widget.child,
             ),
           ),
-        Expanded(child: widget.child),
-      ],
-    ),
+        ],
+      );
+    },
   );
+
+  Widget _banner(BuildContext context, PopupRoute<dynamic>? popup) {
+    final banner = Material(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              const Icon(Icons.system_update_outlined),
+              const SizedBox(width: 12),
+              Expanded(child: Text(context.l10n.updatesAvailable)),
+              TextButton(
+                onPressed: () => widget.navigator.currentState?.push(
+                  _updatesPage(widget.controller),
+                ),
+                child: Text(context.l10n.updatesView),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (popup == null) return banner;
+    // A dialog's barrier covers only the navigator; this one extends it over
+    // the banner, so it can be neither tapped nor read behind the dialog.
+    return Stack(
+      children: [
+        ExcludeSemantics(child: banner),
+        Positioned.fill(
+          child: ModalBarrier(
+            color: popup.barrierColor,
+            dismissible: popup.barrierDismissible,
+            barrierSemanticsDismissible: false,
+            onDismiss: () => widget.navigator.currentState?.maybePop(),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class UpdatesPage extends StatelessWidget {
@@ -112,14 +181,18 @@ class UpdatesPage extends StatelessWidget {
   final UpdateController controller;
 
   String _error(AppLocalizations l10n, String code) => switch (code) {
-    'signature' || 'manifest' => l10n.updatesErrorSignature,
+    'signature' => l10n.updatesErrorSignature,
+    'format' => l10n.updatesErrorFormat,
+    'channel' => l10n.updatesErrorChannel,
     'expired' => l10n.updatesErrorExpired,
     'rollback' => l10n.updatesErrorRollback,
     'state' => l10n.updatesErrorState,
     'package' => l10n.updatesErrorPackage,
+    'storage' => l10n.updatesErrorStorage,
     'permission' => l10n.updatesPermission,
     'cancelled' => l10n.updatesCancelled,
     'install' => l10n.updatesErrorInstall,
+    'browser' => l10n.updatesErrorBrowser,
     _ => l10n.updatesErrorNetwork,
   };
 
@@ -196,7 +269,18 @@ class UpdatesPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(update.notes),
-                      const SizedBox(height: 16),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: TextButton.icon(
+                          key: const Key('updates-notes'),
+                          onPressed: controller.openNotes,
+                          icon: const Icon(Icons.open_in_new),
+                          label: Text(
+                            l10n.updatesNotesLink(update.notesUrl.host),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       if (downloading) ...[
                         LinearProgressIndicator(
                           value: controller.received / update.size,

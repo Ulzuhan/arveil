@@ -68,7 +68,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String updatesSize(String size) {
-    return 'Descarga: $size MB';
+    return 'Descarga: $size MiB';
   }
 
   @override
@@ -86,7 +86,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get updatesPermission =>
-      'Android necesita que permitas a Arveil instalar actualizaciones. Activa el permiso, vuelve aquí y pulsa Instalar.';
+      'Android necesita que permitas a Arveil instalar actualizaciones. Activa el permiso, vuelve aquí y pulsa «Instalar actualización».';
 
   @override
   String get updatesAllowInstall => 'Abrir permiso de Android';
@@ -129,6 +129,27 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get updatesErrorNetwork =>
       'No se pudo completar la consulta o la descarga. Comprueba la conexión y el espacio disponible y vuelve a intentarlo.';
+
+  @override
+  String get updatesErrorFormat =>
+      'El servicio de actualizaciones envió un anuncio que esta app no puede leer. No se ha aceptado nada.';
+
+  @override
+  String get updatesErrorChannel =>
+      'El anuncio es de un canal de actualizaciones distinto del de esta app. Se ha rechazado.';
+
+  @override
+  String get updatesErrorStorage =>
+      'Android no pudo preparar la instalación. Libera espacio y vuelve a intentarlo; la descarga se conserva.';
+
+  @override
+  String get updatesErrorBrowser =>
+      'Ninguna app pudo abrir el enlace a las notas de la versión.';
+
+  @override
+  String updatesNotesLink(String host) {
+    return 'Notas de la versión en $host';
+  }
 
   @override
   String get profileClose => 'Cerrar perfil';

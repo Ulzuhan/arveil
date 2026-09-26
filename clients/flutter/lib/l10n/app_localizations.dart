@@ -203,7 +203,7 @@ abstract class AppLocalizations {
   /// No description provided for @updatesSize.
   ///
   /// In es, this message translates to:
-  /// **'Descarga: {size} MB'**
+  /// **'Descarga: {size} MiB'**
   String updatesSize(String size);
 
   /// No description provided for @updatesDownload.
@@ -233,7 +233,7 @@ abstract class AppLocalizations {
   /// No description provided for @updatesPermission.
   ///
   /// In es, this message translates to:
-  /// **'Android necesita que permitas a Arveil instalar actualizaciones. Activa el permiso, vuelve aquí y pulsa Instalar.'**
+  /// **'Android necesita que permitas a Arveil instalar actualizaciones. Activa el permiso, vuelve aquí y pulsa «Instalar actualización».'**
   String get updatesPermission;
 
   /// No description provided for @updatesAllowInstall.
@@ -301,6 +301,36 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se pudo completar la consulta o la descarga. Comprueba la conexión y el espacio disponible y vuelve a intentarlo.'**
   String get updatesErrorNetwork;
+
+  /// No description provided for @updatesErrorFormat.
+  ///
+  /// In es, this message translates to:
+  /// **'El servicio de actualizaciones envió un anuncio que esta app no puede leer. No se ha aceptado nada.'**
+  String get updatesErrorFormat;
+
+  /// No description provided for @updatesErrorChannel.
+  ///
+  /// In es, this message translates to:
+  /// **'El anuncio es de un canal de actualizaciones distinto del de esta app. Se ha rechazado.'**
+  String get updatesErrorChannel;
+
+  /// No description provided for @updatesErrorStorage.
+  ///
+  /// In es, this message translates to:
+  /// **'Android no pudo preparar la instalación. Libera espacio y vuelve a intentarlo; la descarga se conserva.'**
+  String get updatesErrorStorage;
+
+  /// No description provided for @updatesErrorBrowser.
+  ///
+  /// In es, this message translates to:
+  /// **'Ninguna app pudo abrir el enlace a las notas de la versión.'**
+  String get updatesErrorBrowser;
+
+  /// No description provided for @updatesNotesLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Notas de la versión en {host}'**
+  String updatesNotesLink(String host);
 
   /// No description provided for @profileClose.
   ///

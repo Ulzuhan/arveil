@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 
 import 'manifest.dart';
 
@@ -9,16 +10,31 @@ abstract interface class UpdateTransport {
   Future<List<int>> manifest(Uri url);
   Future<File> download(AndroidUpdate update, void Function(int) progress);
   void cancel();
+
+  /// Removes a package left from an earlier run: one already installed, or
+  /// one whose process ended before it was.
+  Future<void> discard();
 }
 
 /// Separate, short-lived HTTP clients: no cookies, auth, profile data, version
 /// query parameters or persistent connection to the update service.
 class HttpsUpdateTransport implements UpdateTransport {
-  HttpsUpdateTransport(this.directory, {HttpClient Function()? client})
-    : _client = client ?? HttpClient.new;
+  HttpsUpdateTransport(
+    this.directory, {
+    HttpClient Function()? client,
+    @visibleForTesting this.idle = const Duration(seconds: 30),
+  }) : _client = client ?? HttpClient.new;
   final Future<Directory> Function() directory;
   final HttpClient Function() _client;
+
+  /// The longest wait for the next piece of a download.
+  final Duration idle;
   HttpClient? _active;
+
+  /// A whole download gets ten minutes plus one second for each 16 KiB, so
+  /// a slow but moving connection still finishes a large package; a stalled
+  /// one is ended by [idle] first.
+  static Duration limit(int size) => Duration(seconds: 600 + size ~/ 16384);
 
   HttpClient _start() {
     final client = _client()
@@ -77,14 +93,14 @@ class HttpsUpdateTransport implements UpdateTransport {
       return await (() async {
         final response = await _get(client, url, redirects: false);
         if (response.contentLength > maxManifestBytes) {
-          throw const UpdateFailure('manifest');
+          throw const UpdateFailure('format');
         }
         final bytes = <int>[];
         await for (final chunk in response.timeout(
           const Duration(seconds: 20),
         )) {
           if (bytes.length + chunk.length > maxManifestBytes) {
-            throw const UpdateFailure('manifest');
+            throw const UpdateFailure('format');
           }
           bytes.addAll(chunk);
         }
@@ -108,7 +124,6 @@ class HttpsUpdateTransport implements UpdateTransport {
     final client = _start();
     File? partial;
     File? complete;
-    IOSink? output;
     var accepted = false;
     try {
       final destination = await directory();
@@ -122,31 +137,31 @@ class HttpsUpdateTransport implements UpdateTransport {
             response.contentLength != update.size) {
           throw const UpdateFailure('package');
         }
-        output = partial!.openWrite();
-        // Attach a handler immediately; disk-full errors may arrive before
-        // the network stream finishes and flush/close are awaited below.
-        unawaited(output!.done.catchError((Object _) {}));
+        final output = await partial!.open(mode: FileMode.writeOnly);
         var received = 0;
-        await for (final chunk in response.timeout(
-          const Duration(seconds: 30),
-        )) {
-          received += chunk.length;
-          if (received > update.size || received > maxPackageBytes) {
-            throw const UpdateFailure('package');
+        try {
+          await for (final chunk in response.timeout(idle)) {
+            received += chunk.length;
+            if (received > update.size || received > maxPackageBytes) {
+              throw const UpdateFailure('package');
+            }
+            // Awaiting each write holds the network back while the disk is
+            // slower, and surfaces a full disk at the piece that hit it.
+            await output.writeFrom(chunk);
+            progress(received);
           }
-          output!.add(chunk);
-          await output!.flush();
-          progress(received);
+        } catch (_) {
+          await output.close().catchError((Object _) {});
+          rethrow;
         }
-        await output!.close();
-        output = null;
+        await output.close();
         if (received != update.size ||
             (await sha256.bind(partial.openRead()).first).toString() !=
                 update.sha256) {
           throw const UpdateFailure('package');
         }
       })().timeout(
-        const Duration(minutes: 10),
+        limit(update.size),
         onTimeout: () {
           client.close(force: true);
           throw const UpdateFailure('network');
@@ -162,11 +177,6 @@ class HttpsUpdateTransport implements UpdateTransport {
     } finally {
       client.close(force: true);
       if (identical(_active, client)) _active = null;
-      try {
-        await output?.close();
-      } catch (_) {
-        /* Still remove the partial. */
-      }
       if (!accepted) {
         for (final file in [partial, complete]) {
           if (file != null && await file.exists()) await file.delete();
@@ -177,4 +187,13 @@ class HttpsUpdateTransport implements UpdateTransport {
 
   @override
   void cancel() => _active?.close(force: true);
+
+  @override
+  Future<void> discard() async {
+    final destination = await directory();
+    for (final name in ['update.apk', 'update.part']) {
+      final file = File('${destination.path}/$name');
+      if (await file.exists()) await file.delete();
+    }
+  }
 }

@@ -309,12 +309,15 @@ class SettingsPage extends StatelessWidget {
                           children: [
                             if (UpdateScope.maybeOf(context)
                                 case final updates?)
-                              SettingsRow(
-                                key: const Key('open-updates'),
-                                icon: Icons.system_update_outlined,
-                                title: l10n.updatesTitle,
-                                attention: updates.available,
-                                onTap: () => openUpdates(context, updates),
+                              ListenableBuilder(
+                                listenable: updates,
+                                builder: (context, _) => SettingsRow(
+                                  key: const Key('open-updates'),
+                                  icon: Icons.system_update_outlined,
+                                  title: l10n.updatesTitle,
+                                  attention: updates.available,
+                                  onTap: () => openUpdates(context, updates),
+                                ),
                               ),
                             if (AppearanceScope.maybeOf(context)
                                 case final appearance?)

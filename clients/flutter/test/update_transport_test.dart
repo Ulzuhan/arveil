@@ -12,8 +12,12 @@ class Response extends Stream<List<int>> implements HttpClientResponse {
     this.statusCode = 200,
     this.contentLength = -1,
     this.values = const {},
+    this.stream,
   });
   final List<List<int>> body;
+
+  /// Replaces [body] for a response that arrives over time.
+  final Stream<List<int>>? stream;
   final Map<String, String> values;
   @override
   final int statusCode;
@@ -27,7 +31,7 @@ class Response extends Stream<List<int>> implements HttpClientResponse {
     Function? onError,
     void Function()? onDone,
     bool? cancelOnError,
-  }) => Stream.fromIterable(body).listen(
+  }) => (stream ?? Stream.fromIterable(body)).listen(
     onData,
     onError: onError,
     onDone: onDone,
@@ -76,6 +80,7 @@ class Client implements HttpClient {
   final urls = <Uri>[];
   final requests = <Request>[];
   bool closed = false;
+  void Function()? onClose;
   @override
   String? userAgent = 'default';
   @override
@@ -93,6 +98,7 @@ class Client implements HttpClient {
   @override
   void close({bool force = false}) {
     closed = true;
+    onClose?.call();
   }
 
   @override
@@ -124,6 +130,7 @@ void main() {
     transport = HttpsUpdateTransport(
       () async => directory,
       client: () => client,
+      idle: const Duration(milliseconds: 200),
     );
   });
   tearDown(() => directory.delete(recursive: true));
@@ -278,6 +285,100 @@ void main() {
       expect(await directory.list().toList(), isEmpty);
     },
   );
+
+  test('a refused or failed response is a network failure', () async {
+    for (final status in [404, 500, 503]) {
+      client.responses.add(Response([], statusCode: status));
+      await expectLater(
+        transport.manifest(Uri.parse('https://example.org/feed')),
+        throwsA(isA<UpdateFailure>().having((e) => e.code, 'code', 'network')),
+      );
+      client.responses.add(Response([bytes], statusCode: status));
+      await expectLater(
+        transport.download(update(), (_) {}),
+        throwsA(isA<UpdateFailure>().having((e) => e.code, 'code', 'network')),
+      );
+      expect(await directory.list().toList(), isEmpty);
+    }
+  });
+
+  test('a feed announced above the size cap is not read', () async {
+    var read = false;
+    client.responses.add(
+      Response(
+        [],
+        contentLength: maxManifestBytes + 1,
+        // Only listening runs this, so it records whether the body was read.
+        stream: Stream.multi((body) {
+          read = true;
+          body
+            ..add([1])
+            ..close();
+        }),
+      ),
+    );
+    await expectLater(
+      transport.manifest(Uri.parse('https://example.org/feed')),
+      throwsA(isA<UpdateFailure>().having((e) => e.code, 'code', 'format')),
+    );
+    expect(read, false);
+    expect(client.closed, true);
+  });
+
+  test('cancelling a download stops it and deletes the partial file', () async {
+    final body = StreamController<List<int>>();
+    client.onClose = () {
+      if (!body.isClosed) {
+        body.addError(const HttpException('Connection closed'));
+        body.close();
+      }
+    };
+    client.responses.add(Response([], contentLength: 5, stream: body.stream));
+    final started = Completer<void>();
+    final result = transport.download(update(), (_) {
+      if (!started.isCompleted) started.complete();
+    });
+    body.add([1, 2]);
+    await started.future;
+    expect(File('${directory.path}/update.part').existsSync(), true);
+    transport.cancel();
+    await expectLater(result, throwsA(isA<UpdateFailure>()));
+    expect(await directory.list().toList(), isEmpty);
+  });
+
+  test('a stalled download times out and deletes the partial file', () async {
+    final body = StreamController<List<int>>();
+    addTearDown(body.close);
+    client.responses.add(Response([], contentLength: 5, stream: body.stream));
+    final result = transport.download(update(), (_) {});
+    body.add([1, 2]);
+    await expectLater(
+      result,
+      throwsA(isA<UpdateFailure>().having((e) => e.code, 'code', 'network')),
+    );
+    expect(await directory.list().toList(), isEmpty);
+    expect(client.closed, true);
+  });
+
+  test('the whole-download limit grows with the package', () {
+    expect(HttpsUpdateTransport.limit(1), const Duration(minutes: 10));
+    expect(
+      HttpsUpdateTransport.limit(40 * 1024 * 1024),
+      const Duration(seconds: 600 + 2560),
+    );
+    expect(
+      HttpsUpdateTransport.limit(maxPackageBytes),
+      greaterThan(const Duration(hours: 9)),
+    );
+  });
+
+  test('a package left from an earlier run is discarded', () async {
+    await File('${directory.path}/update.apk').writeAsBytes(bytes);
+    await File('${directory.path}/update.part').writeAsBytes(bytes);
+    await transport.discard();
+    expect(await directory.list().toList(), isEmpty);
+    await transport.discard();
+  });
 
   test('redirect loops are bounded', () async {
     client.responses.addAll(

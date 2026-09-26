@@ -63,6 +63,7 @@ class ArveilApp extends StatefulWidget {
 
 class _ArveilAppState extends State<ArveilApp> {
   final _navigator = GlobalKey<NavigatorState>();
+  final _routes = UpdateRoutes();
   late final AppearanceController _appearance =
       widget.appearance ?? AppearanceController(MemoryAppearanceStore());
 
@@ -73,6 +74,7 @@ class _ArveilAppState extends State<ArveilApp> {
       final look = _appearance.value;
       return MaterialApp(
         navigatorKey: _navigator,
+        navigatorObservers: [_routes],
         onGenerateTitle: (context) => context.l10n.appTitle,
         debugShowCheckedModeBanner: false,
         theme: ArveilTheme.light(accent: look.accent),
@@ -98,6 +100,7 @@ class _ArveilAppState extends State<ArveilApp> {
                       child: UpdateLifecycle(
                         controller: widget.updates!,
                         navigator: _navigator,
+                        routes: _routes,
                         child: child!,
                       ),
                     ),

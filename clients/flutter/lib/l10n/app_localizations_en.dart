@@ -68,7 +68,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String updatesSize(String size) {
-    return 'Download: $size MB';
+    return 'Download: $size MiB';
   }
 
   @override
@@ -86,7 +86,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updatesPermission =>
-      'Android needs you to allow Arveil to install updates. Enable the permission, return here and press Install.';
+      'Android needs you to allow Arveil to install updates. Enable the permission, return here and press “Install update”.';
 
   @override
   String get updatesAllowInstall => 'Open Android permission';
@@ -128,6 +128,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get updatesErrorNetwork =>
       'The check or download could not complete. Check your connection and available storage, then try again.';
+
+  @override
+  String get updatesErrorFormat =>
+      'The update service sent an announcement this app cannot read. Nothing was accepted.';
+
+  @override
+  String get updatesErrorChannel =>
+      'The announcement is for a different update channel than this app’s. It was rejected.';
+
+  @override
+  String get updatesErrorStorage =>
+      'Android could not prepare the installation. Free up some storage and try again; the download is kept.';
+
+  @override
+  String get updatesErrorBrowser => 'No app could open the release notes link.';
+
+  @override
+  String updatesNotesLink(String host) {
+    return 'Release notes on $host';
+  }
 
   @override
   String get profileClose => 'Close profile';

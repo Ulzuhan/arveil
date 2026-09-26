@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +9,7 @@ import 'package:arveil/src/updates/page.dart';
 import 'package:arveil/src/updates/transport.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final clock = DateTime.utc(2030, 1, 1);
@@ -44,11 +46,14 @@ class MemoryStore implements UpdateStore {
 class FakeTransport implements UpdateTransport {
   List<int> wire = [];
   int requests = 0;
+  int discards = 0;
   bool fail = false;
-  Future<File> Function()? fetch;
+  Completer<void>? hold;
+  Future<File> Function(void Function(int) progress)? fetch;
   @override
   Future<List<int>> manifest(Uri url) async {
     requests++;
+    await hold?.future;
     if (fail) throw const UpdateFailure('network');
     return wire;
   }
@@ -57,15 +62,19 @@ class FakeTransport implements UpdateTransport {
   Future<File> download(
     AndroidUpdate update,
     void Function(int) progress,
-  ) async => fetch == null ? throw UnimplementedError() : fetch!();
+  ) async => fetch == null ? throw UnimplementedError() : fetch!(progress);
   @override
   void cancel() {}
+  @override
+  Future<void> discard() async => discards++;
 }
 
 class FakeInstaller implements UpdateInstaller {
   int build = 17;
   int installs = 0;
   bool permissionAllowed = true;
+  String? failure;
+  final opened = <Uri>[];
   @override
   Future<UpdateDevice> device() async => UpdateDevice(
     build: build,
@@ -80,7 +89,11 @@ class FakeInstaller implements UpdateInstaller {
   @override
   Future<void> install(File apk, AndroidUpdate update) async {
     installs++;
+    if (failure case final code?) throw PlatformException(code: code);
   }
+
+  @override
+  Future<void> open(Uri url) async => opened.add(url);
 }
 
 void main() {
@@ -298,14 +311,16 @@ void main() {
       await reopened.check();
       expect(reopened.error, null);
       expect(reopened.available, true);
+      // An older or conflicting reply is refused and never replaces the offer
+      // already verified, which stays valid.
       transport.wire = await sign(payload(sequence: 4));
       await reopened.check();
       expect(reopened.error, 'rollback');
-      expect(reopened.available, false);
+      expect(reopened.manifest!.sequence, 5);
       transport.wire = await sign(payload(sequence: 5, notes: 'different'));
       await reopened.check();
       expect(reopened.error, 'rollback');
-      expect(reopened.available, false);
+      expect(reopened.manifest!.android.notes, 'A new version.');
       transport.wire = await sign(payload(sequence: 6));
       await reopened.check();
       expect(reopened.error, null);
@@ -328,14 +343,14 @@ void main() {
   test(
     'channel mismatch, HTTP download and non-UTC expiry are rejected',
     () async {
-      for (final data in [
-        payload()..['channel'] = 'stable',
-        payload(expires: '2030-02-01T00:00:00'),
-        payload()..['platforms'] = {'android-arm64': {}},
+      for (final (data, code) in [
+        (payload()..['channel'] = 'stable', 'channel'),
+        (payload(expires: '2030-02-01T00:00:00'), 'format'),
+        (payload()..['platforms'] = {'android-arm64': {}}, 'format'),
       ]) {
         await expectLater(
           UpdateManifest.verify(await sign(data), config, verifier: ed25519),
-          throwsA(isA<UpdateFailure>()),
+          throwsA(isA<UpdateFailure>().having((e) => e.code, 'code', code)),
         );
       }
       for (final url in [
@@ -473,6 +488,17 @@ void main() {
       expect(transport.requests, 0);
       expect(controller.error, 'state');
       expect(controller.available, false);
+
+      // The attempt is saved, then saving the accepted sequence fails.
+      store.fail = false;
+      store.failAt = store.writes + 2;
+      final reopened = makeController();
+      addTearDown(reopened.dispose);
+      await reopened.check();
+      expect(transport.requests, 1);
+      expect(reopened.error, 'state');
+      expect(reopened.available, false);
+      expect(reopened.manifest, null);
     },
   );
 
@@ -530,7 +556,7 @@ void main() {
       );
       addTearDown(() => directory.delete(recursive: true));
       final file = await File('${directory.path}/update.apk').writeAsBytes(apk);
-      transport.fetch = () async => file;
+      transport.fetch = (_) async => file;
       await controller.check();
       await controller.download();
       expect(controller.phase, UpdatePhase.ready);
@@ -540,10 +566,53 @@ void main() {
       expect(controller.error, 'permission');
       expect(installer.installs, 0);
       installer.permissionAllowed = true;
+      // The installed build caught up meanwhile: nothing is wrong with the
+      // package, there is simply nothing left to install.
       installer.build = 18;
       await controller.install();
-      expect(controller.error, 'package');
+      expect(controller.error, null);
+      expect(controller.phase, UpdatePhase.current);
       expect(installer.installs, 0);
+      expect(await file.exists(), false);
+    },
+  );
+
+  test('installing hands the package over once, then removes it', () async {
+    final directory = await Directory.systemTemp.createTemp('arveil-install-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = await File('${directory.path}/update.apk').writeAsBytes(apk);
+    transport.fetch = (_) async => file;
+    await controller.check();
+    await controller.download();
+    await controller.install();
+    expect(controller.error, null);
+    expect(installer.installs, 1);
+    expect(controller.phase, UpdatePhase.current);
+    expect(await file.exists(), false);
+  });
+
+  test(
+    'a storage failure keeps the package; a refused package is deleted',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'arveil-install-failure-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = await File('${directory.path}/update.apk').writeAsBytes(apk);
+      transport.fetch = (_) async => file;
+      await controller.check();
+      await controller.download();
+      for (final code in ['storage', 'cancelled']) {
+        installer.failure = code;
+        await controller.install();
+        expect(controller.error, code);
+        expect(controller.phase, UpdatePhase.ready, reason: code);
+        expect(await file.exists(), true, reason: code);
+      }
+      installer.failure = 'package';
+      await controller.install();
+      expect(controller.error, 'package');
+      expect(controller.phase, UpdatePhase.available);
       expect(await file.exists(), false);
     },
   );
@@ -556,18 +625,131 @@ void main() {
       );
       addTearDown(() => directory.delete(recursive: true));
       final file = await File('${directory.path}/update.apk').writeAsBytes(apk);
-      transport.fetch = () async {
+      transport.fetch = (_) async {
         time = DateTime.utc(2030, 3, 1);
         return file;
       };
       await controller.check();
       await controller.download();
       expect(controller.error, 'expired');
-      expect(controller.phase, UpdatePhase.available);
+      expect(controller.phase, UpdatePhase.idle);
+      expect(controller.manifest, null);
       expect(await file.exists(), false);
       expect(installer.installs, 0);
     },
   );
+
+  test('an offer that expired leaves instead of failing every tap', () async {
+    await controller.check();
+    expect(controller.available, true);
+    time = DateTime.utc(2030, 3, 1);
+    await controller.download();
+    expect(controller.error, 'expired');
+    expect(controller.available, false);
+    expect(controller.manifest, null);
+    await controller.download();
+    expect(controller.error, null);
+  });
+
+  test(
+    'a failed check keeps a valid offer and its package, but not an expired one',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'arveil-kept-offer-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = await File('${directory.path}/update.apk').writeAsBytes(apk);
+      transport.fetch = (_) async => file;
+      await controller.check();
+      await controller.setAutomatic(true);
+      transport.fail = true;
+      time = time.add(const Duration(days: 2));
+      await controller.checkAutomatically();
+      expect(controller.error, 'network');
+      expect(controller.phase, UpdatePhase.available);
+
+      await controller.download();
+      await controller.check();
+      expect(controller.error, 'network');
+      expect(controller.phase, UpdatePhase.ready);
+      expect(await file.exists(), true);
+
+      time = DateTime.utc(2030, 3, 1);
+      await controller.check();
+      expect(controller.phase, UpdatePhase.idle);
+      expect(controller.manifest, null);
+      expect(await file.exists(), false);
+    },
+  );
+
+  test('an attempt dated in the future does not stop checks', () async {
+    await controller.load();
+    await controller.setAutomatic(true);
+    // Checked while the clock said 2035, then the clock was corrected.
+    time = DateTime.utc(2035, 1, 1);
+    await controller.check();
+    time = clock;
+    await controller.checkAutomatically();
+    expect(transport.requests, 2);
+    await controller.checkAutomatically();
+    expect(transport.requests, 2);
+  });
+
+  test('a package left by an earlier run is removed at start', () async {
+    await controller.load();
+    expect(transport.discards, 1);
+    final unconfigured = UpdateController(
+      verifier: ed25519,
+      config: null,
+      store: store,
+      transport: transport,
+      installer: installer,
+    );
+    addTearDown(unconfigured.dispose);
+    await unconfigured.load();
+    expect(transport.discards, 2);
+    expect(transport.requests, 0);
+  });
+
+  test('two checks at once make a single request', () async {
+    transport.hold = Completer<void>();
+    final first = controller.check();
+    final second = controller.check();
+    transport.hold!.complete();
+    await Future.wait([first, second]);
+    expect(transport.requests, 1);
+    expect(controller.available, true);
+  });
+
+  test('download progress notifies once per percentage point', () async {
+    final directory = await Directory.systemTemp.createTemp('arveil-progress-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = await File('${directory.path}/update.apk').writeAsBytes(apk);
+    await controller.check();
+    var notifications = 0;
+    controller.addListener(() => notifications++);
+    transport.fetch = (progress) async {
+      // 14 bytes, each reported many times over, as small pieces would be.
+      for (var count = 1; count <= 14; count++) {
+        for (var repeat = 0; repeat < 50; repeat++) {
+          progress(count);
+        }
+      }
+      return file;
+    };
+    await controller.download();
+    expect(controller.phase, UpdatePhase.ready);
+    expect(controller.received, 14);
+    expect(notifications, lessThan(20));
+  });
+
+  test('the signed release notes link opens on request', () async {
+    await controller.openNotes();
+    expect(installer.opened, isEmpty);
+    await controller.check();
+    await controller.openNotes();
+    expect(installer.opened, [Uri.parse('https://example.org/releases/18')]);
+  });
 
   test(
     'a cancelled download that finishes concurrently is discarded',
@@ -577,7 +759,7 @@ void main() {
       );
       addTearDown(() => directory.delete(recursive: true));
       final file = await File('${directory.path}/update.apk').writeAsBytes(apk);
-      transport.fetch = () async {
+      transport.fetch = (_) async {
         controller.cancelDownload();
         return file;
       };
@@ -609,6 +791,121 @@ void main() {
     expect(transport.requests, 1);
     expect(controller.available, true);
     expect(installer.installs, 0);
+  });
+
+  /// The app's arrangement: the banner above the navigator it watches.
+  Widget app({required void Function(double) inset}) {
+    final navigator = GlobalKey<NavigatorState>();
+    final routes = UpdateRoutes();
+    return MaterialApp(
+      navigatorKey: navigator,
+      navigatorObservers: [routes],
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => UpdateScope(
+        controller: controller,
+        child: UpdateLifecycle(
+          controller: controller,
+          navigator: navigator,
+          routes: routes,
+          child: child!,
+        ),
+      ),
+      home: Builder(
+        builder: (context) {
+          inset(MediaQuery.paddingOf(context).top);
+          return Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => const AlertDialog(content: Text('Dialog')),
+                ),
+                child: const Text('Open dialog'),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  testWidgets('foreground checks run after the first frame and on resume', (
+    tester,
+  ) async {
+    await controller.load();
+    await controller.setAutomatic(true);
+    await tester.pumpWidget(app(inset: (_) {}));
+    await tester.pumpAndSettle();
+    expect(transport.requests, 1);
+    for (final (advance, requests) in [
+      (const Duration(hours: 1), 1),
+      (const Duration(days: 1), 2),
+    ]) {
+      time = time.add(advance);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(transport.requests, requests);
+    }
+  });
+
+  testWidgets(
+    'the banner takes the status bar inset, is covered by dialogs and hides on the updates page',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24);
+      addTearDown(tester.view.reset);
+      var inset = -1.0;
+      await tester.pumpWidget(app(inset: (value) => inset = value));
+      await tester.pumpAndSettle();
+      expect(inset, 24);
+      expect(find.text('View'), findsNothing);
+
+      await controller.check();
+      await tester.pumpAndSettle();
+      expect(find.text('An Arveil update is available'), findsOneWidget);
+      expect(inset, 0);
+
+      // Under a dialog, a tap on the banner reaches the dialog's barrier,
+      // which closes it, and never the banner's button.
+      await tester.tap(find.text('Open dialog'));
+      await tester.pumpAndSettle();
+      expect(find.text('Dialog'), findsOneWidget);
+      await tester.tap(find.text('View'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('Dialog'), findsNothing);
+      expect(find.byType(UpdatesPage), findsNothing);
+
+      await tester.tap(find.text('View'));
+      await tester.pumpAndSettle();
+      expect(find.byType(UpdatesPage), findsOneWidget);
+      expect(find.text('An Arveil update is available'), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('An Arveil update is available'), findsOneWidget);
+    },
+  );
+
+  testWidgets('the page shows the size in MiB and links the release notes', (
+    tester,
+  ) async {
+    await controller.check();
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: UpdatesPage(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Download: 0.0 MiB'), findsOneWidget);
+    await tester.tap(find.text('Release notes on example.org'));
+    await tester.pumpAndSettle();
+    expect(installer.opened, [Uri.parse('https://example.org/releases/18')]);
   });
 
   group('rules shared with the release signer', () {
