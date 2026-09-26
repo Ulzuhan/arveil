@@ -35,10 +35,13 @@ def private_path(path, what="Operator configuration and output"):
     return path
 
 
-def render(config):
+def render(config, *, idle_timeout=100):
     """Return the private files by name.
 
-    Errors name the field and its constraint, never the value.
+    Errors name the field and its constraint, never the value. idle_timeout
+    (seconds) exists only so tests can watch nginx close an idle channel;
+    operators cannot set it, and its default stays above the relay's 90 s
+    read timeout.
     """
     if not isinstance(config, dict):
         raise ValueError("The operator JSON must be an object of named fields.")
@@ -93,6 +96,8 @@ def render(config):
         if not tailscale:
             raise ValueError(f"tailnet_address: omit it, or use this host's Tailscale IPv4 address "
                              f"(inside {TAILNET_RANGE}).")
+    if type(idle_timeout) is not int or idle_timeout < 1:
+        raise ValueError("idle_timeout: use a whole number of seconds.")
     advertise = f"public=wss://{hostname}/v1/channel"
     if address:
         advertise += f",tailnet=ws://{address}:{tailnet}/v1/channel"
@@ -118,8 +123,10 @@ def render(config):
             proxy_set_header Forwarded "";
             proxy_buffering off;
             proxy_cache off;
-            proxy_read_timeout 100s;
-            proxy_send_timeout 100s;
+            # nginx closes an idle upgraded connection after this. Kept above
+            # the relay's read timeout, so the relay's keepalive rule decides.
+            proxy_read_timeout {idle_timeout}s;
+            proxy_send_timeout {idle_timeout}s;
         }}
         location / {{ return 404; }}
 """

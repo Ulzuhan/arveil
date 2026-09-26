@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from prepare_tunnel import TAILNET_RANGE, main, private_path, render
+from prepare_tunnel import ROOT, TAILNET_RANGE, main, private_path, render
 
 
 class TunnelTests(unittest.TestCase):
@@ -75,6 +75,24 @@ class TunnelTests(unittest.TestCase):
                 with self.subTest(version=version):
                     self.assertEqual(result.returncode, 1 if version in old else 0)
                     self.assertEqual("nginx 1.23 or later is required" in result.stderr, version in old)
+
+    def test_channel_timeouts_outlast_the_relay_read_timeout(self):
+        # A real idle wait of 90 s or more does not belong in CI; the proxy
+        # tests shorten the timeout instead and watch nginx apply it.
+        relay = re.search(r"ReadTimeout:\s+(\d+) \* time\.Second",
+                          (ROOT / "relay/cmd/arveil-relay/main.go").read_text())
+        self.assertIsNotNone(relay, "the relay's read timeout moved; update this test")
+        nginx = render(self.config)["nginx.conf"]
+        for directive in ("proxy_read_timeout", "proxy_send_timeout"):
+            values = re.findall(rf"^ +{directive} (\d+)s;$", nginx, re.MULTILINE)
+            self.assertEqual(len(values), 2)  # connector and tailnet listeners
+            for value in values:
+                self.assertGreater(int(value), int(relay.group(1)))
+        shortened = render(self.config, idle_timeout=1)["nginx.conf"]
+        self.assertEqual(len(re.findall(r"proxy_(?:read|send)_timeout 1s;", shortened)), 4)
+        for value in (0, "1", 1.5, True):
+            self.assertRaisesRegex(ValueError, "^idle_timeout", render, self.config, idle_timeout=value)
+        self.assertRaisesRegex(ValueError, "Unknown operator field", render, dict(self.config, idle_timeout=1))
 
     def test_refuses_configuration_injection_tokens_and_overlapping_ports(self):
         for key, value in (("hostname", "relay.example.org; injected"), ("revision", "main"),
