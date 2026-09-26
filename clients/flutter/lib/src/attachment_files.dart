@@ -3,6 +3,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/l10n.dart';
+
 const maximumAttachmentBytes = 25 * 1024 * 1024 - 16;
 
 class PickedAttachment {
@@ -35,17 +37,19 @@ class AttachmentFiles {
       if (picked == null) return null;
       final bytes = picked['bytes'] as Uint8List;
       if (bytes.length > maximumAttachmentBytes) {
-        throw const FormatException('El archivo debe ocupar menos de 25 MiB.');
+        throw const FormatException('The file must be smaller than 25 MiB.');
       }
       return PickedAttachment(
         safeAttachmentName(picked['name'] as String),
         bytes,
       );
     }
-    final file = await FilePicker.pickFile(dialogTitle: 'Elegir archivo');
+    final file = await FilePicker.pickFile(
+      dialogTitle: currentStrings.dialogChooseFile,
+    );
     if (file == null) return null;
     if ((file.lengthSync() ?? 0) > maximumAttachmentBytes) {
-      throw const FormatException('El archivo debe ocupar menos de 25 MiB.');
+      throw const FormatException('The file must be smaller than 25 MiB.');
     }
     return PickedAttachment(
       safeAttachmentName(file.name),
@@ -55,7 +59,7 @@ class AttachmentFiles {
 
   Future<bool> save(String name, Uint8List bytes) async =>
       await FilePicker.saveFile(
-        dialogTitle: 'Guardar copia del archivo',
+        dialogTitle: currentStrings.dialogSaveFileCopy,
         fileName: safeAttachmentName(name),
         bytes: bytes,
       ) !=
@@ -66,7 +70,7 @@ Future<Uint8List> readBoundedAttachment(Stream<List<int>> stream) async {
   final bytes = BytesBuilder(copy: false);
   await for (final chunk in stream) {
     if (chunk.length > maximumAttachmentBytes - bytes.length) {
-      throw const FormatException('El archivo debe ocupar menos de 25 MiB.');
+      throw const FormatException('The file must be smaller than 25 MiB.');
     }
     bytes.add(chunk);
   }

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 
+import '../l10n/l10n.dart';
 import 'profile_session.dart';
 
 /// Only the encrypted kit crosses a native file dialog. Its secret is shown
@@ -12,7 +13,7 @@ class KitFiles {
 
   Future<bool> save(List<int> encrypted) async =>
       await FilePicker.saveFile(
-        dialogTitle: 'Guardar kit de identidad cifrado',
+        dialogTitle: currentStrings.dialogSaveKit,
         fileName: 'arveil-identity.age',
         bytes: Uint8List.fromList(encrypted),
       ) !=
@@ -20,21 +21,17 @@ class KitFiles {
 
   Future<Uint8List?> open() async {
     final file = await FilePicker.pickFile(
-      dialogTitle: 'Abrir kit de identidad',
+      dialogTitle: currentStrings.dialogOpenKit,
     );
     if (file == null) return null;
     final size = await file.length();
     if (size != null && size > maximumBytes) {
-      throw const ProfileAccessException(
-        'El kit supera el tamaño máximo de 4 MiB.',
-      );
+      throw ProfileAccessException(currentStrings.kitTooLarge);
     }
     final bytes = BytesBuilder(copy: false);
     await for (final chunk in file.readAsByteStream()) {
       if (bytes.length + chunk.length > maximumBytes) {
-        throw const ProfileAccessException(
-          'El kit supera el tamaño máximo de 4 MiB.',
-        );
+        throw ProfileAccessException(currentStrings.kitTooLarge);
       }
       bytes.add(chunk);
     }

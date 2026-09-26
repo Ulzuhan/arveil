@@ -98,7 +98,10 @@ void main() {
       await tester.tap(find.text('Comprobar disponibilidad'));
       await tester.pumpAndSettle();
       expect(find.text('Última consulta: quedan pocas claves'), findsOneWidget);
-      expect(find.text('2 claves disponibles según el relay.'), findsOneWidget);
+      expect(
+        find.text('2 claves disponibles según el servidor.'),
+        findsOneWidget,
+      );
       expect(find.text('Reponer claves'), findsOneWidget);
     },
   );
@@ -129,7 +132,7 @@ void main() {
       profile.publishing!.complete();
       await tester.pumpAndSettle();
       expect(
-        find.text('10 claves disponibles según el relay.'),
+        find.text('10 claves disponibles según el servidor.'),
         findsOneWidget,
       );
       expect(find.text('Reponer claves'), findsNothing);
@@ -168,7 +171,10 @@ void main() {
       await open(tester, profile);
       await tester.tap(find.text('Comprobar disponibilidad'));
       await tester.pumpAndSettle();
-      expect(find.text('7 claves disponibles según el relay.'), findsOneWidget);
+      expect(
+        find.text('7 claves disponibles según el servidor.'),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('key-package-unavailable')), findsOneWidget);
       expect(find.textContaining('Consultado el'), findsOneWidget);
       expect(find.textContaining('PRIVATE_DIAGNOSTIC'), findsNothing);

@@ -308,7 +308,7 @@ void main() {
       expect(find.text('received body'), findsOneWidget);
       expect(find.text('Recibido en este dispositivo'), findsOneWidget);
       expect(
-        find.text('Aceptado por el relay · lectura sin confirmar'),
+        find.text('Aceptado por el servidor · lectura sin confirmar'),
         findsOneWidget,
       );
     },

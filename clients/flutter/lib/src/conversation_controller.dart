@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../l10n/l10n.dart';
 import 'attachment_files.dart';
 import 'rust/api/profile.dart';
 
@@ -13,23 +14,21 @@ enum SyncState { never, syncing, synced, offline, refused }
 
 /// One line about synchronization, relative to `now`.
 String syncStatusText(SyncState state, DateTime? lastSynced, DateTime now) {
+  final s = currentStrings;
   String since(DateTime at) {
     final minutes = now.difference(at).inMinutes;
-    if (minutes < 1) return 'ahora';
-    if (minutes < 60) return 'hace $minutes min';
-    String two(int n) => n.toString().padLeft(2, '0');
-    return 'a las ${two(at.hour)}:${two(at.minute)}';
+    if (minutes < 1) return s.syncWhenNow;
+    if (minutes < 60) return s.syncWhenMinutes(minutes);
+    return s.syncWhenTime(clockTime(at));
   }
 
-  final last = lastSynced == null
-      ? ''
-      : ' · última sincronización ${since(lastSynced)}';
+  final last = lastSynced == null ? '' : s.syncLastSuffix(since(lastSynced));
   return switch (state) {
-    SyncState.never => 'Aún sin sincronizar',
-    SyncState.syncing => 'Sincronizando…',
-    SyncState.synced => 'Sincronizado ${since(lastSynced ?? now)}',
-    SyncState.offline => 'Sin conexión con tu servidor$last',
-    SyncState.refused => 'El servidor rechazó la sincronización$last',
+    SyncState.never => s.syncNever,
+    SyncState.syncing => s.syncSyncing,
+    SyncState.synced => s.syncSynced(since(lastSynced ?? now)),
+    SyncState.offline => s.syncOffline(last),
+    SyncState.refused => s.syncRefused(last),
   };
 }
 
@@ -134,8 +133,7 @@ class ConversationController extends ChangeNotifier {
         _changed();
       } while (_refreshAgain && !_disposed);
     } catch (_) {
-      error =
-          'No se pudo leer el historial local. Conserva el perfil y vuelve a abrirlo.';
+      error = currentStrings.chatErrorHistory;
       _changed();
     }
   }
@@ -155,7 +153,7 @@ class ConversationController extends ChangeNotifier {
       await _readSelected();
     } catch (_) {
       if (version == _selection) {
-        error = 'No se pudo leer esta conversación. Vuelve a intentarlo.';
+        error = currentStrings.chatErrorConversation;
       }
     } finally {
       if (version == _selection) loading = false;
@@ -239,8 +237,7 @@ class ConversationController extends ChangeNotifier {
       before = page.next;
     } catch (_) {
       if (version == _selection) {
-        error =
-            'No se pudieron leer los mensajes anteriores. Puedes reintentar.';
+        error = currentStrings.chatErrorOlder;
       }
     } finally {
       if (version == _selection) loadingOlder = false;
@@ -279,8 +276,8 @@ class ConversationController extends ChangeNotifier {
               ? SyncState.offline
               : SyncState.refused;
           networkError = syncState == SyncState.offline
-              ? 'Sincronización pendiente. Puedes leer y escribir sin conexión; usa Sincronizar para reintentar.'
-              : 'El servidor no aceptó la sincronización. Tus mensajes siguen guardados en este dispositivo; comprueba los datos del servidor con quien lo administra.';
+              ? currentStrings.chatSyncPending
+              : currentStrings.chatSyncRefused;
           _syncAgain = false;
         }
         await refresh();
@@ -295,7 +292,7 @@ class ConversationController extends ChangeNotifier {
     final group = selected;
     if (_disposed || sending || group == null) return false;
     if (text.trim().isEmpty || utf8.encode(text).length > 32768) {
-      error = 'Escribe un mensaje de hasta 32 KiB.';
+      error = currentStrings.chatMessageTooLong;
       _changed();
       return false;
     }
@@ -307,13 +304,12 @@ class ConversationController extends ChangeNotifier {
       // Acceptance comes only from the durable receipt, never a UI insertion.
       notice = result.warning == null
           ? null
-          : 'Mensaje guardado. Reintenta la sincronización; no vuelvas a enviarlo.';
+          : currentStrings.chatSavedRetrySync;
       unawaited(refresh());
       unawaited(sync());
       return true;
     } catch (_) {
-      error =
-          'No se confirmó el guardado. Conserva el borrador y consulta el historial antes de reintentar.';
+      error = currentStrings.chatSaveUnconfirmed;
       return false;
     } finally {
       sending = false;
@@ -333,8 +329,7 @@ class ConversationController extends ChangeNotifier {
       unawaited(resumeAttachment(group, id));
       return true;
     } catch (_) {
-      error =
-          'No se confirmó el guardado del archivo. Consulta el historial antes de volver a adjuntarlo.';
+      error = currentStrings.chatFileSaveUnconfirmed;
       _changed();
       return false;
     }
@@ -354,8 +349,7 @@ class ConversationController extends ChangeNotifier {
         eventId: id,
       );
     } catch (_) {
-      error =
-          'La operación no se completó. Consulta el estado del archivo: reanuda su transferencia o sincroniza si ya está preparado.';
+      error = currentStrings.chatTransferIncomplete;
     } finally {
       activeTransfers.remove(id);
       if (activeTransfers.isEmpty) {
@@ -372,8 +366,7 @@ class ConversationController extends ChangeNotifier {
       await profile.cancelAttachment(groupId: group, eventId: id);
       error = null;
     } catch (_) {
-      error =
-          'No se pudo cancelar. La transferencia puede haber terminado; consulta su estado.';
+      error = currentStrings.chatCancelFailed;
     }
     await refresh();
     _changed();
@@ -404,13 +397,12 @@ class ConversationController extends ChangeNotifier {
       if (_disposed) return null;
       notice = result.warning == null
           ? null
-          : 'Conversación guardada. Sincroniza para completar el envío de la invitación; no la crees de nuevo.';
+          : currentStrings.chatCreatedSyncPending;
       await refresh();
       await select(result.groupId);
       return result.groupId;
     } catch (_) {
-      error =
-          'No se confirmó la creación. Comprueba las rutas, la conexión y que tus contactos tengan claves disponibles. Consulta la lista antes de reintentar.';
+      error = currentStrings.chatCreateUnconfirmed;
       return null;
     } finally {
       creating = false;

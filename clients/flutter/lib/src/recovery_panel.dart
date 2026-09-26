@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import 'kit_files.dart';
 import 'export_secret.dart';
 import 'profile_session.dart';
@@ -88,9 +89,7 @@ class _RecoveryPanelState extends State<RecoveryPanel>
         _secretInput.text.trim().isEmpty ||
         !_relay.text.trim().startsWith('arveil-bootstrap:v0:')) {
       session.reportFailure(
-        const ProfileAccessException(
-          'Selecciona el kit, introduce su clave y los datos del relay, y confirma las consecuencias de la recuperación.',
-        ),
+        ProfileAccessException(context.l10n.recoveryIncomplete),
       );
       return;
     }
@@ -113,13 +112,11 @@ class _RecoveryPanelState extends State<RecoveryPanel>
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        'Kit de recuperación',
+        context.l10n.kitTitle,
         style: Theme.of(context).textTheme.titleLarge,
       ),
       const SizedBox(height: 12),
-      const Text(
-        'El kit recupera tu identidad, no el historial ni el estado de los grupos. Guarda el archivo cifrado y su clave por separado; juntos permiten tomar el control de la identidad.',
-      ),
+      Text(context.l10n.kitExplanation),
       const SizedBox(height: 12),
       if (_exportedSecret.pending)
         OutlinedButton(
@@ -127,18 +124,14 @@ class _RecoveryPanelState extends State<RecoveryPanel>
             () =>
                 _exportedSecret.reveal(WidgetsBinding.instance.lifecycleState),
           ),
-          child: const Text('Mostrar clave del kit guardado'),
+          child: Text(context.l10n.kitRevealSavedKey),
         ),
       if (_exportedSecret.visible case final secret?) ...[
-        const Text(
-          'Archivo guardado. Guarda ahora esta clave por separado, por ejemplo en tu gestor de contraseñas. Arveil no la conserva.',
-        ),
+        Text(context.l10n.kitSavedKeyNow),
         const SizedBox(height: 12),
         SelectableText(secret, key: const Key('kit-export-secret')),
         const SizedBox(height: 12),
-        const Text(
-          'La clave desaparece al salir de esta pantalla o cambiar de aplicación. Si la pierdes, crea un kit nuevo.',
-        ),
+        Text(context.l10n.kitKeyDisappears),
         const SizedBox(height: 12),
         FilledButton(
           onPressed: () {
@@ -148,30 +141,27 @@ class _RecoveryPanelState extends State<RecoveryPanel>
             });
             session.confirmKitSaved();
           },
-          child: const Text('He guardado la clave por separado'),
+          child: Text(context.l10n.kitKeySavedConfirm),
         ),
       ] else ...[
-        if (_saved)
-          const Text(
-            'Kit y clave guardados según tu confirmación. Exporta uno nuevo después de cambiar tus dispositivos.',
-          ),
+        if (_saved) Text(context.l10n.kitSavedByConfirmation),
         if (_deferred)
-          const Text(
-            'Kit pospuesto: perder el dispositivo administrador sin un kit puede impedir recuperar tu identidad.',
+          Text(
+            context.l10n.kitDeferredWarning,
             key: Key('kit-deferred-warning'),
           ),
         const SizedBox(height: 12),
         FilledButton.icon(
           onPressed: session.busy ? null : _save,
           icon: const Icon(Icons.save_alt),
-          label: const Text('Guardar kit cifrado'),
+          label: Text(context.l10n.kitSaveEncrypted),
         ),
         if (!_saved && !_deferred)
           TextButton(
             onPressed: session.busy
                 ? null
                 : () => setState(() => _deferred = true),
-            child: const Text('Posponer el kit'),
+            child: Text(context.l10n.kitPostpone),
           ),
       ],
     ],
@@ -181,13 +171,11 @@ class _RecoveryPanelState extends State<RecoveryPanel>
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        'Recuperar mi identidad',
+        context.l10n.recoveryTitle,
         style: Theme.of(context).textTheme.headlineMedium,
       ),
       const SizedBox(height: 16),
-      const Text(
-        'Usa el kit más reciente y su clave. Esta recuperación crea un dispositivo administrador nuevo y revoca los dispositivos anteriores incluidos en el manifiesto. El historial no se recupera; tendrás que incorporarte de nuevo a los grupos.',
-      ),
+      Text(context.l10n.recoveryExplanation),
       const SizedBox(height: 20),
       TextFormField(
         key: const Key('recovery-bootstrap'),
@@ -198,9 +186,7 @@ class _RecoveryPanelState extends State<RecoveryPanel>
         enableIMEPersonalizedLearning: false,
         minLines: 2,
         maxLines: 4,
-        decoration: const InputDecoration(
-          labelText: 'Datos del relay original',
-        ),
+        decoration: InputDecoration(labelText: context.l10n.recoveryRelayLabel),
       ),
       const SizedBox(height: 16),
       OutlinedButton.icon(
@@ -208,8 +194,8 @@ class _RecoveryPanelState extends State<RecoveryPanel>
         icon: const Icon(Icons.folder_open),
         label: Text(
           _encrypted == null
-              ? 'Seleccionar kit cifrado'
-              : 'Kit seleccionado: cambiar archivo',
+              ? context.l10n.recoveryChooseKit
+              : context.l10n.recoveryKitChosen,
         ),
       ),
       const SizedBox(height: 16),
@@ -221,7 +207,7 @@ class _RecoveryPanelState extends State<RecoveryPanel>
         autocorrect: false,
         enableSuggestions: false,
         enableIMEPersonalizedLearning: false,
-        decoration: const InputDecoration(labelText: 'Clave del kit'),
+        decoration: InputDecoration(labelText: context.l10n.recoveryKitKey),
       ),
       const SizedBox(height: 12),
       CheckboxListTile(
@@ -231,14 +217,12 @@ class _RecoveryPanelState extends State<RecoveryPanel>
         onChanged: session.busy || _picking
             ? null
             : (value) => setState(() => _confirmed = value ?? false),
-        title: const Text(
-          'Entiendo que se revocarán los dispositivos anteriores y no se recuperará su historial.',
-        ),
+        title: Text(context.l10n.recoveryConsent),
       ),
       const SizedBox(height: 12),
       FilledButton(
         onPressed: session.busy || _picking || !_confirmed ? null : _restore,
-        child: const Text('Restaurar identidad y revocar dispositivos'),
+        child: Text(context.l10n.recoveryRestore),
       ),
     ],
   );
@@ -253,17 +237,15 @@ class RecoveryResumePanel extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        'Continúa la recuperación',
+        context.l10n.recoveryResumeTitle,
         style: Theme.of(context).textTheme.headlineMedium,
       ),
       const SizedBox(height: 16),
-      const Text(
-        'La identidad y las claves del nuevo dispositivo están guardadas. El relay puede haber aceptado ya la revocación de los anteriores. Reanuda esta misma operación; no necesitas volver a abrir el kit ni crear otro perfil.',
-      ),
+      Text(context.l10n.recoveryResumeBody),
       const SizedBox(height: 20),
       FilledButton(
         onPressed: session.busy ? null : session.resumeRecovery,
-        child: const Text('Reanudar recuperación'),
+        child: Text(context.l10n.recoveryResume),
       ),
     ],
   );

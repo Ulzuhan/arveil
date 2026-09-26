@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import 'tokens.dart';
 import 'typography.dart';
 
@@ -72,7 +73,7 @@ class VerifiedMark extends StatelessWidget {
     Icons.verified_user_outlined,
     size: size,
     color: ArveilColors.of(context).accent,
-    semanticLabel: 'Verificado',
+    semanticLabel: context.l10n.verified,
   );
 }
 
@@ -90,7 +91,7 @@ class UnverifiedChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        'Sin verificar',
+        context.l10n.unverified,
         style: ArveilType.label.copyWith(fontSize: 11.5, color: c.onAttention),
       ),
     );
@@ -106,7 +107,7 @@ class UnreadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = ArveilColors.of(context);
     return Semantics(
-      label: count == 1 ? '1 mensaje sin leer' : '$count mensajes sin leer',
+      label: context.l10n.unreadMessages(count),
       excludeSemantics: true,
       child: Container(
         constraints: const BoxConstraints(minWidth: 22),
@@ -159,14 +160,14 @@ class DeliveryIcon extends StatelessWidget {
   /// The colour of the surrounding meta text, for pending and accepted.
   final Color? color;
 
-  static String label(DeliveryStatus status) => switch (status) {
-    DeliveryStatus.none =>
-      'Guardado solo en este dispositivo: no hay destinatarios disponibles',
-    DeliveryStatus.pending => 'Pendiente de envío',
-    DeliveryStatus.accepted => 'Aceptado por el servidor',
-    DeliveryStatus.rejected => 'Algún buzón rechazó el mensaje',
-    DeliveryStatus.expired => 'Entrega caducada o desconocida',
-  };
+  static String label(AppLocalizations l10n, DeliveryStatus status) =>
+      switch (status) {
+        DeliveryStatus.none => l10n.deliveryNone,
+        DeliveryStatus.pending => l10n.deliveryWaiting,
+        DeliveryStatus.accepted => l10n.deliveryAcceptedShort,
+        DeliveryStatus.rejected => l10n.deliveryRejected,
+        DeliveryStatus.expired => l10n.deliveryExpired,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +179,12 @@ class DeliveryIcon extends StatelessWidget {
       DeliveryStatus.none ||
       DeliveryStatus.expired => (Icons.error_outline, c.onAttention),
     };
-    return Icon(icon, size: size, color: tint, semanticLabel: label(status));
+    return Icon(
+      icon,
+      size: size,
+      color: tint,
+      semanticLabel: label(context.l10n, status),
+    );
   }
 }
 
@@ -398,7 +404,7 @@ class SafetyNumberGrid extends StatelessWidget {
       child: Column(
         children: [
           Semantics(
-            label: 'Número de seguridad: ${groups.join(', ')}',
+            label: context.l10n.safetyNumberLabel(groups.join(', ')),
             excludeSemantics: true,
             child: Column(
               children: [

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/l10n.dart';
 import 'conversation_controller.dart';
 import 'attachment_card.dart';
 import 'attachment_files.dart';
@@ -20,13 +21,13 @@ bool isGroup(ConversationView row) =>
 /// What a device-change notice says: who changed which devices. Counts
 /// only; Rust never names the devices.
 String noticeText(String? who, NoticeView notice) {
-  String devices(int n, String verb) =>
-      n == 1 ? 'ha $verb un dispositivo' : 'ha $verb $n dispositivos';
-  final parts = [
-    if (notice.added > 0) devices(notice.added, 'añadido'),
-    if (notice.removed > 0) devices(notice.removed, 'retirado'),
-  ];
-  return '${who ?? 'Un contacto'} ${parts.join(' y ')}.';
+  final s = currentStrings;
+  final added = notice.added > 0 ? s.noticeAdded(notice.added) : null;
+  final removed = notice.removed > 0 ? s.noticeRemoved(notice.removed) : null;
+  final change = added != null && removed != null
+      ? s.noticeBoth(added, removed)
+      : added ?? removed ?? '';
+  return s.noticeSentence(who ?? s.noticeSomeone, change);
 }
 
 /// One line about a conversation's newest event, for its row in the list.
@@ -37,9 +38,9 @@ String rowPreview(ConversationView row, LastEventView last) {
   final text = last.preview.isNotEmpty
       ? last.preview
       : last.attachmentName != null
-      ? 'Adjunto: ${last.attachmentName}'
-      : 'Evento de conversación';
-  if (last.own) return 'Tú: $text';
+      ? currentStrings.previewAttachment(last.attachmentName!)
+      : currentStrings.conversationEvent;
+  if (last.own) return currentStrings.previewOwn(text);
   final label = last.senderLabel;
   return isGroup(row) && label != null ? '$label: $text' : text;
 }
@@ -50,7 +51,7 @@ String conversationTitle(ConversationView row) {
       if (!p.own) p.identityId: p.label,
   };
   return people.isEmpty
-      ? 'Conversación ${shortId(row.groupId)}'
+      ? currentStrings.conversationFallback(shortId(row.groupId))
       : people.values.join(', ');
 }
 
@@ -119,21 +120,25 @@ class _ConversationsPageState extends State<ConversationsPage>
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Enviar archivo'),
+          title: Text(context.l10n.sendFile),
           content: SingleChildScrollView(
             child: Text(
-              '${file.name}\n${attachmentSize(BigInt.from(file.bytes.length))}\n\nConversación: $_selectedTitle\n\nSe guardará una copia privada cifrada para completar o reanudar el envío.',
+              context.l10n.attachConfirm(
+                file.name,
+                attachmentSize(BigInt.from(file.bytes.length)),
+                _selectedTitle,
+              ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
+              child: Text(context.l10n.cancel),
             ),
             FilledButton(
               key: const Key('confirm-attachment'),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Enviar archivo'),
+              child: Text(context.l10n.sendFile),
             ),
           ],
         ),
@@ -143,13 +148,9 @@ class _ConversationsPageState extends State<ConversationsPage>
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No se pudo leer el archivo. Elige uno accesible que ocupe menos de 25 MiB.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.fileReadFailed)));
       }
     } finally {
       if (mounted) setState(() => _fileDialog = false);
@@ -163,19 +164,17 @@ class _ConversationsPageState extends State<ConversationsPage>
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Guardar copia fuera de Arveil'),
-          content: const Text(
-            'La copia quedará fuera del perfil cifrado de Arveil y puede entrar en las copias de seguridad del destino. Elige dónde guardarla.',
-          ),
+          title: Text(context.l10n.exportTitle),
+          content: Text(context.l10n.exportWarning),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
+              child: Text(context.l10n.cancel),
             ),
             FilledButton(
               key: const Key('confirm-export'),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Elegir destino'),
+              child: Text(context.l10n.exportChoose),
             ),
           ],
         ),
@@ -191,21 +190,15 @@ class _ConversationsPageState extends State<ConversationsPage>
         bytes,
       );
       if (saved && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Copia guardada en el destino elegido.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.exportSaved)));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No se pudo guardar la copia. El archivo privado se conserva; vuelve a intentarlo.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.exportFailed)));
       }
     } finally {
       if (mounted) setState(() => _fileDialog = false);
@@ -230,7 +223,7 @@ class _ConversationsPageState extends State<ConversationsPage>
   String get _selectedTitle {
     final rows = chat.conversations.where((c) => c.groupId == chat.selected);
     return rows.isEmpty
-        ? 'Conversación ${shortId(chat.selected!)}'
+        ? context.l10n.conversationFallback(shortId(chat.selected!))
         : conversationTitle(rows.first);
   }
 
@@ -240,7 +233,7 @@ class _ConversationsPageState extends State<ConversationsPage>
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Participantes'),
+        title: Text(context.l10n.participants),
         content: SizedBox(
           width: 440,
           child: ListView(
@@ -248,15 +241,17 @@ class _ConversationsPageState extends State<ConversationsPage>
             children: [
               for (final peer in rows.first.peers)
                 ListTile(
-                  title: Text(peer.own ? 'Tu identidad' : peer.label),
+                  title: Text(
+                    peer.own ? context.l10n.participantsYou : peer.label,
+                  ),
                   subtitle: Text(
-                    '${shortId(peer.identityId)} · dispositivo ${shortId(peer.deviceId)}\n${peer.revoked
-                        ? "Revocado"
+                    '${context.l10n.participantDevice(shortId(peer.identityId), shortId(peer.deviceId))}\n${peer.revoked
+                        ? context.l10n.revoked
                         : peer.own
-                        ? "Dispositivo propio"
+                        ? context.l10n.ownDevice
                         : peer.verified
-                        ? "Verificado"
-                        : "Sin verificar"}',
+                        ? context.l10n.verified
+                        : context.l10n.unverified}',
                   ),
                   isThreeLine: true,
                 ),
@@ -266,7 +261,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: Text(context.l10n.close),
           ),
         ],
       ),
@@ -280,15 +275,13 @@ class _ConversationsPageState extends State<ConversationsPage>
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Tu ruta de contacto'),
+          title: Text(context.l10n.ownRouteTitle),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Compártela solo con las personas que quieras que puedan escribir a este dispositivo. Comparad después el número de seguridad por otro canal.',
-                ),
+                Text(context.l10n.ownRouteShare),
                 const SizedBox(height: 16),
                 SelectableText(route, key: const Key('own-route')),
               ],
@@ -297,25 +290,23 @@ class _ConversationsPageState extends State<ConversationsPage>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar'),
+              child: Text(context.l10n.close),
             ),
             FilledButton(
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: route));
                 if (context.mounted) Navigator.pop(context);
               },
-              child: const Text('Copiar ruta'),
+              child: Text(context.l10n.ownRouteCopy),
             ),
           ],
         ),
       );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo obtener la ruta de este dispositivo.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.ownRouteFailed)));
       }
     }
   }
@@ -336,32 +327,34 @@ class _ConversationsPageState extends State<ConversationsPage>
             appBar: AppBar(
               leading: !wide && selected
                   ? IconButton(
-                      tooltip: 'Volver a conversaciones',
+                      tooltip: context.l10n.backToConversations,
                       onPressed: () => _select(null),
                       icon: const Icon(Icons.arrow_back),
                     )
                   : null,
               title: Text(
-                !wide && selected ? _selectedTitle : 'Conversaciones',
+                !wide && selected
+                    ? _selectedTitle
+                    : context.l10n.conversationsTitle,
               ),
               actions: [
                 IconButton(
-                  tooltip: 'Contactos',
+                  tooltip: context.l10n.contactsTitle,
                   onPressed: _contacts,
                   icon: const Icon(Icons.contacts_outlined),
                 ),
                 IconButton(
-                  tooltip: 'Mi ruta',
+                  tooltip: context.l10n.myRoute,
                   onPressed: _shareRoute,
                   icon: const Icon(Icons.share_outlined),
                 ),
                 IconButton(
-                  tooltip: 'Nueva conversación',
+                  tooltip: context.l10n.newConversation,
                   onPressed: chat.creating ? null : _create,
                   icon: const Icon(Icons.edit_square),
                 ),
                 IconButton(
-                  tooltip: 'Sincronizar',
+                  tooltip: context.l10n.sync,
                   onPressed: chat.syncing ? null : chat.sync,
                   icon: const Icon(Icons.sync),
                 ),
@@ -371,8 +364,8 @@ class _ConversationsPageState extends State<ConversationsPage>
               child: Column(
                 children: [
                   if (chat.syncing)
-                    const LinearProgressIndicator(
-                      semanticsLabel: 'Sincronizando',
+                    LinearProgressIndicator(
+                      semanticsLabel: context.l10n.syncing,
                     ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
@@ -399,9 +392,9 @@ class _ConversationsPageState extends State<ConversationsPage>
                               Expanded(
                                 child: selected
                                     ? _history()
-                                    : const Center(
+                                    : Center(
                                         child: Text(
-                                          'Elige una conversación para leerla.',
+                                          context.l10n.chooseConversation,
                                         ),
                                       ),
                               ),
@@ -438,15 +431,13 @@ class _ConversationsPageState extends State<ConversationsPage>
           children: [
             const Icon(Icons.forum_outlined, size: 40),
             const SizedBox(height: 16),
-            const Text('Todavía no hay conversaciones guardadas.'),
+            Text(context.l10n.conversationsEmpty),
             const SizedBox(height: 12),
-            const Text(
-              'Crea una con una ruta de contacto o sincroniza para recibir una invitación.',
-            ),
+            Text(context.l10n.conversationsEmptyHelp),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: chat.creating ? null : _create,
-              child: const Text('Nueva conversación'),
+              child: Text(context.l10n.newConversation),
             ),
           ],
         )
@@ -466,8 +457,10 @@ class _ConversationsPageState extends State<ConversationsPage>
               subtitle: Text(
                 switch (row.lastEvent) {
                   final last? => rowPreview(row, last),
-                  null =>
-                    '${row.peerDevices} dispositivos · ${row.eventCount} mensajes',
+                  null => context.l10n.conversationCounts(
+                    row.peerDevices,
+                    row.eventCount,
+                  ),
                 },
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -485,9 +478,7 @@ class _ConversationsPageState extends State<ConversationsPage>
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Semantics(
-                        label: row.unread == 1
-                            ? '1 mensaje sin leer'
-                            : '${row.unread} mensajes sin leer',
+                        label: context.l10n.unreadMessages(row.unread),
                         excludeSemantics: true,
                         child: Badge.count(
                           key: Key('unread-${row.groupId}'),
@@ -518,16 +509,16 @@ class _ConversationsPageState extends State<ConversationsPage>
   Widget _history() => Column(
     children: [
       if (chat.sending)
-        const LinearProgressIndicator(semanticsLabel: 'Guardando mensaje'),
+        LinearProgressIndicator(semanticsLabel: context.l10n.savingMessage),
       ListTile(
         title: Text(
           _selectedTitle,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: Text('Historial local · ${shortId(chat.selected!)}'),
+        subtitle: Text(context.l10n.localHistory(shortId(chat.selected!))),
         trailing: IconButton(
-          tooltip: 'Participantes',
+          tooltip: context.l10n.participants,
           onPressed: _participants,
           icon: const Icon(Icons.people_outline),
         ),
@@ -536,7 +527,7 @@ class _ConversationsPageState extends State<ConversationsPage>
         child: chat.loading
             ? const Center(child: CircularProgressIndicator())
             : chat.events.isEmpty
-            ? const Center(child: Text('Escribe el primer mensaje.'))
+            ? Center(child: Text(context.l10n.firstMessage))
             : ListView.builder(
                 key: ValueKey('history-${chat.selected}'),
                 padding: const EdgeInsets.symmetric(
@@ -550,7 +541,9 @@ class _ConversationsPageState extends State<ConversationsPage>
                     return TextButton(
                       onPressed: chat.loadingOlder ? null : chat.older,
                       child: Text(
-                        chat.loadingOlder ? 'Leyendo…' : 'Cargar anteriores',
+                        chat.loadingOlder
+                            ? context.l10n.reading
+                            : context.l10n.loadOlder,
                       ),
                     );
                   }
@@ -580,7 +573,7 @@ class _ConversationsPageState extends State<ConversationsPage>
           children: [
             IconButton(
               key: const Key('attach-file'),
-              tooltip: 'Adjuntar archivo',
+              tooltip: context.l10n.attachFile,
               onPressed: _fileDialog ? null : _attach,
               icon: const Icon(Icons.attach_file),
             ),
@@ -594,8 +587,8 @@ class _ConversationsPageState extends State<ConversationsPage>
                 autocorrect: false,
                 enableSuggestions: false,
                 enableIMEPersonalizedLearning: false,
-                decoration: const InputDecoration(
-                  labelText: 'Mensaje',
+                decoration: InputDecoration(
+                  labelText: context.l10n.messageHint,
                   counterText: '',
                 ),
               ),
@@ -603,7 +596,7 @@ class _ConversationsPageState extends State<ConversationsPage>
             const SizedBox(width: 8),
             IconButton.filled(
               key: const Key('send-message'),
-              tooltip: 'Enviar',
+              tooltip: context.l10n.send,
               onPressed: chat.sending ? null : _send,
               icon: const Icon(Icons.send),
             ),
@@ -652,8 +645,8 @@ class MessageBubble extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               senderVerified
-                  ? 'El cambio está firmado por su identidad verificada.'
-                  : 'Compara su número de seguridad si no esperabas este cambio.',
+                  ? context.l10n.noticeSigned
+                  : context.l10n.noticeCompare,
               textAlign: TextAlign.center,
               style: theme.textTheme.labelSmall,
             ),
@@ -676,21 +669,21 @@ class MessageBubble extends StatelessWidget {
     final text = event.kind == 'received' || sent
         ? utf8.decode(event.body, allowMalformed: true)
         : event.kind.startsWith('file')
-        ? 'Adjunto (consulta disponible desde la CLI)'
-        : 'Evento de conversación';
+        ? context.l10n.legacyAttachment
+        : currentStrings.conversationEvent;
     final status = !sent
         ? mine
-              ? 'Enviado desde otro de tus dispositivos'
-              : 'Recibido en este dispositivo'
+              ? context.l10n.sentFromOtherDevice
+              : context.l10n.receivedHere
         : event.delivery.isEmpty
-        ? 'Guardado localmente · sin destinatarios disponibles'
+        ? context.l10n.deliveryNoRecipients
         : event.delivery.any((s) => s.startsWith('undeliverable'))
-        ? 'Algún buzón rechazó el mensaje'
+        ? context.l10n.deliveryRejected
         : event.delivery.any((s) => s == 'expired/unknown')
-        ? 'Entrega caducada o desconocida'
+        ? context.l10n.deliveryExpired
         : event.delivery.every((s) => s.startsWith('accepted'))
-        ? 'Aceptado por el relay · lectura sin confirmar'
-        : 'Guardado localmente · envío pendiente';
+        ? context.l10n.deliveryAccepted
+        : context.l10n.deliveryPending;
     final sender = showSender && !mine ? event.senderLabel : null;
     final meta = Theme.of(context).textTheme.labelSmall;
     return Align(
@@ -747,11 +740,10 @@ class MessageBubble extends StatelessWidget {
 String recordedTime(int seconds, {DateTime? now}) {
   final at = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
   final today = now ?? DateTime.now();
-  String two(int n) => n.toString().padLeft(2, '0');
-  final hour = '${two(at.hour)}:${two(at.minute)}';
+  final hour = clockTime(at);
   final sameDay =
       at.year == today.year && at.month == today.month && at.day == today.day;
-  return sameDay ? hour : '${at.day}/${at.month}/${at.year} $hour';
+  return sameDay ? hour : '${numericDate(currentStrings, at)} $hour';
 }
 
 class NewConversationPage extends StatefulWidget {
@@ -818,10 +810,7 @@ class _NewConversationPageState extends State<NewConversationPage> {
       }
     } catch (_) {
       if (mounted && revision == _revision) {
-        setState(
-          () => _error =
-              'Revisa las rutas completas: entre uno y dieciséis dispositivos distintos, sin incluir este dispositivo.',
-        );
+        setState(() => _error = context.l10n.newConversationRoutesInvalid);
       }
     } finally {
       if (mounted) setState(() => _checking = false);
@@ -849,7 +838,7 @@ class _NewConversationPageState extends State<NewConversationPage> {
       return PopScope(
         canPop: !widget.chat.creating,
         child: Scaffold(
-          appBar: AppBar(title: const Text('Nueva conversación')),
+          appBar: AppBar(title: Text(context.l10n.newConversation)),
           body: SafeArea(
             child: Center(
               child: ConstrainedBox(
@@ -861,12 +850,10 @@ class _NewConversationPageState extends State<NewConversationPage> {
                       key: const Key('choose-contacts'),
                       onPressed: busy ? null : _chooseContacts,
                       icon: const Icon(Icons.contacts_outlined),
-                      label: const Text('Elegir contactos guardados'),
+                      label: Text(context.l10n.newConversationChooseContacts),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
-                      'O utiliza una ruta nueva. Pide a tus contactos su ruta de este relay. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.',
-                    ),
+                    Text(context.l10n.newConversationRoutesHelp),
                     const SizedBox(height: 20),
                     TextField(
                       key: const Key('peer-routes'),
@@ -878,8 +865,8 @@ class _NewConversationPageState extends State<NewConversationPage> {
                       autocorrect: false,
                       enableSuggestions: false,
                       enableIMEPersonalizedLearning: false,
-                      decoration: const InputDecoration(
-                        labelText: 'Rutas de contacto',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.newConversationRoutesLabel,
                         counterText: '',
                       ),
                       onChanged: (_) => setState(() {
@@ -893,7 +880,7 @@ class _NewConversationPageState extends State<NewConversationPage> {
                     const SizedBox(height: 16),
                     OutlinedButton(
                       onPressed: busy ? null : _preview,
-                      child: const Text('Preparar comparación'),
+                      child: Text(context.l10n.newConversationPrepare),
                     ),
                     for (final preview in _previews)
                       Card(
@@ -903,7 +890,10 @@ class _NewConversationPageState extends State<NewConversationPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Identidad ${shortId(preview.identityId)} · dispositivo ${shortId(preview.deviceId)}',
+                                context.l10n.identityDevice(
+                                  shortId(preview.identityId),
+                                  shortId(preview.deviceId),
+                                ),
                               ),
                               const SizedBox(height: 12),
                               SelectableText(
@@ -923,14 +913,12 @@ class _NewConversationPageState extends State<NewConversationPage> {
                         onChanged: busy
                             ? null
                             : (v) => setState(() => _compared = v!),
-                        title: const Text(
-                          'Hemos comparado todos los números por otro canal y coinciden.',
-                        ),
+                        title: Text(context.l10n.newConversationCompared),
                       ),
                       FilledButton(
                         key: const Key('create-conversation'),
                         onPressed: busy || !_compared ? null : _create,
-                        child: const Text('Crear conversación'),
+                        child: Text(context.l10n.newConversationCreate),
                       ),
                     ],
                     if (busy)

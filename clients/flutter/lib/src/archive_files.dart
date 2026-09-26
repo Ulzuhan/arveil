@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 
+import '../l10n/l10n.dart';
+
 /// Only encrypted bytes cross the archive selectors. The secret travels separately.
 class ArchiveFiles {
   const ArchiveFiles();
@@ -8,7 +10,7 @@ class ArchiveFiles {
 
   Future<bool> save(Uint8List encrypted) async =>
       await FilePicker.saveFile(
-        dialogTitle: 'Guardar historial cifrado',
+        dialogTitle: currentStrings.dialogSaveHistory,
         fileName: 'arveil-history.age',
         bytes: encrypted,
       ) !=
@@ -16,11 +18,11 @@ class ArchiveFiles {
 
   Future<Uint8List?> open() async {
     final file = await FilePicker.pickFile(
-      dialogTitle: 'Abrir historial cifrado',
+      dialogTitle: currentStrings.dialogOpenHistory,
     );
     if (file == null) return null;
     if ((await file.length() ?? 0) > maximumBytes) {
-      throw const FormatException('El archivo supera 64 MiB.');
+      throw const FormatException('The file exceeds 64 MiB.');
     }
     return readBoundedArchive(file.readAsByteStream());
   }
@@ -30,7 +32,7 @@ Future<Uint8List> readBoundedArchive(Stream<List<int>> stream) async {
   final bytes = BytesBuilder(copy: false);
   await for (final chunk in stream) {
     if (chunk.length > ArchiveFiles.maximumBytes - bytes.length) {
-      throw const FormatException('El archivo supera 64 MiB.');
+      throw const FormatException('The file exceeds 64 MiB.');
     }
     bytes.add(chunk);
   }
