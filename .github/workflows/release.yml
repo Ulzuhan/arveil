@@ -6,6 +6,11 @@
 # What this does not do: platform code signing. There is no Apple
 # notarization and no Windows Authenticode certificate, so macOS and Windows
 # will still warn on first run. That is stated here rather than implied away.
+#
+# Nothing is built, attested or published until a maintainer approves the
+# run in the `release` environment, which only accepts v* tags and main (for
+# a manual run). A tag pushed by mistake, or by a tool holding a
+# maintainer's token, stops at that approval.
 name: Release
 
 on:
@@ -14,14 +19,26 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
+  approve:
+    name: Maintainer approval
+    runs-on: ubuntu-latest
+    environment: release
+    permissions: {}
+    steps:
+      - name: Record what was approved
+        run: echo "Approved ${GITHUB_REF} at ${GITHUB_SHA}"
+
   build:
     name: ${{ matrix.target }}
+    needs: approve
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -97,6 +114,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

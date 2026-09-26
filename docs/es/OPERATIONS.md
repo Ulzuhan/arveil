@@ -24,6 +24,8 @@ también con el commit completo y con procedencia firmada
 (`gh attestation verify oci://ghcr.io/ulzuhan/arveil-relay:<versión> --owner
 Ulzuhan`). El binario de cada imagen informa de ese commit con `-version`. Los
 pull requests que tocan el relay compilan ambas arquitecturas sin publicar.
+Con una etiqueta, no se compila ni se publica nada hasta que una persona
+mantenedora aprueba la ejecución en el entorno `release` del repositorio.
 Hasta que haya una versión etiquetada, compila la imagen como arriba.
 
 **systemd.** Copia [`relay/packaging/arveil-relay.service`](https://github.com/Ulzuhan/arveil/blob/main/relay/packaging/arveil-relay.service), que corre con su propio usuario, con una sección de servicio endurecida y sus datos en `/var/lib/arveil`.
