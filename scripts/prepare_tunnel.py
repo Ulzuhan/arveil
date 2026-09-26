@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TAILNET_RANGE = ipaddress.IPv4Network("100.64.0.0/10")
 
 
-def private_path(path):
+def private_path(path, what="Operator configuration and output"):
     path = path.resolve()
     # Also works for linked worktrees, whose .git is a file.
     ancestor = next((p for p in (path, *path.parents) if (p / ".git").exists()), None)
@@ -26,39 +26,68 @@ def private_path(path):
         ignored = subprocess.run(["git", "check-ignore", "--quiet", "--", str(path)],
                                  cwd=ancestor, check=False).returncode == 0
         if not ignored:
-            raise ValueError("Operator configuration and output must be outside Git or Git-ignored.")
+            raise ValueError(f"{what} must be outside Git or Git-ignored.")
     return path
 
 
 def render(config):
+    """Return the private files by name.
+
+    Errors name the field and its constraint, never the value.
+    """
+    if not isinstance(config, dict):
+        raise ValueError("The operator JSON must be an object of named fields.")
     allowed = {"hostname", "tunnel_id", "credentials_file", "revision", "name", "tailnet_address",
                "tailnet_port", "connector_port", "backend_port", "metrics_port"}
-    if set(config) - allowed:
-        raise ValueError("Unknown operator fields; do not put tokens or keys in this configuration.")
+    # A pasted secret could arrive as a key: name only plain field-like keys.
+    unknown = sorted({k if re.fullmatch(r"[a-z][a-z0-9_]{0,31}", k) else "(name not shown)"
+                      for k in set(config) - allowed})
+    if unknown:
+        raise ValueError(f"Unknown operator field(s): {', '.join(unknown)}. "
+                         "Do not put tokens or keys in this configuration.")
+    missing = [k for k in ("hostname", "tunnel_id", "credentials_file", "revision") if k not in config]
+    if missing:
+        raise ValueError(f"Missing operator field(s): {', '.join(missing)}.")
     hostname = config["hostname"]
     if not isinstance(hostname, str) or len(hostname) > 253 or not re.fullmatch(
             r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}", hostname):
-        raise ValueError("Use a DNS hostname, without a scheme, port or path.")
-    if not isinstance(config["tunnel_id"], str):
-        raise ValueError("Use the tunnel UUID string.")
-    tunnel = str(uuid.UUID(config["tunnel_id"]))
+        raise ValueError("hostname: use a lowercase DNS hostname, without a scheme, port or path.")
+    try:
+        tunnel = str(uuid.UUID(config["tunnel_id"]))
+    except (AttributeError, TypeError, ValueError):
+        raise ValueError("tunnel_id: use the tunnel UUID string.") from None
     credentials = config["credentials_file"]
     if not isinstance(credentials, str) or not re.fullmatch(r"/[A-Za-z0-9_./-]+\.json", credentials) or ".." in Path(credentials).parts:
-        raise ValueError("Use a simple absolute remote path for the tunnel credentials JSON.")
+        raise ValueError("credentials_file: use a simple absolute path on the server to the tunnel "
+                         "credentials JSON (letters, digits and _ . / -, ending in .json, no '..').")
     revision = config["revision"]
-    if not re.fullmatch(r"[0-9a-f]{40}", revision):
-        raise ValueError("Use the full committed relay revision, never a moving image tag.")
+    if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("revision: use the full 40-character lowercase commit hash of the relay, "
+                         "never a branch or a moving image tag.")
     name = config.get("name", "arveil-staging")
-    if not re.fullmatch(r"arveil-[a-z0-9][a-z0-9-]{0,40}", name):
-        raise ValueError("Use an arveil-* service/container name.")
-    ports = [config.get(k, v) for k, v in (("tailnet_port", 8447), ("connector_port", 8448),
-                                          ("backend_port", 8449), ("metrics_port", 20241))]
-    if any(type(p) is not int or not 1024 <= p <= 65535 for p in ports) or len(set(ports)) != 4:
-        raise ValueError("Use four distinct unprivileged local ports.")
-    tailnet, connector, backend, metrics = ports
+    if not isinstance(name, str) or not re.fullmatch(r"arveil-[a-z0-9][a-z0-9-]{0,40}", name):
+        raise ValueError("name: use the arveil-* service/container name: lowercase letters, digits "
+                         "and hyphens, at most 48 characters.")
+    ports = {}
+    for key, default in (("tailnet_port", 8447), ("connector_port", 8448),
+                         ("backend_port", 8449), ("metrics_port", 20241)):
+        port = config.get(key, default)
+        if type(port) is not int or not 1024 <= port <= 65535:
+            raise ValueError(f"{key}: use an unprivileged local port number (1024-65535).")
+        clash = next((other for other, used in ports.items() if used == port), None)
+        if clash:
+            raise ValueError(f"{key}: must differ from {clash}; the four local ports must be distinct.")
+        ports[key] = port
+    tailnet, connector, backend, metrics = ports.values()
     address = config.get("tailnet_address")
-    if address is not None and ipaddress.IPv4Address(address) not in TAILNET_RANGE:
-        raise ValueError("The optional tailnet address must be a Tailscale IPv4 address.")
+    if address is not None:
+        try:
+            tailscale = isinstance(address, str) and ipaddress.IPv4Address(address) in TAILNET_RANGE
+        except ValueError:  # its message would quote the address
+            tailscale = False
+        if not tailscale:
+            raise ValueError(f"tailnet_address: omit it, or use this host's Tailscale IPv4 address "
+                             f"(inside {TAILNET_RANGE}).")
     advertise = f"public=wss://{hostname}/v1/channel"
     if address:
         advertise += f",tailnet=ws://{address}:{tailnet}/v1/channel"
@@ -183,18 +212,29 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
-        source = private_path(args.config)
-        output = private_path(args.output)
+        source = private_path(args.config, "The operator configuration")
+        output = private_path(args.output, "The output directory")
         if source.stat().st_mode & 0o077:
-            raise ValueError("Operator JSON must be private (chmod 600).")
-        rendered = render(json.loads(source.read_text()))
+            raise ValueError("The operator JSON must be private (chmod 600).")
+        try:
+            config = json.loads(source.read_text(encoding="utf-8"))
+        except UnicodeDecodeError:  # its message would quote input bytes
+            raise ValueError("The operator JSON must be UTF-8 text.") from None
+        except json.JSONDecodeError as error:
+            raise ValueError(f"The operator JSON is malformed: {error.msg} at line {error.lineno}, "
+                             f"column {error.colno}.") from None
+        rendered = render(config)
         output.mkdir(parents=True, exist_ok=False, mode=0o700)
         for name, data in rendered.items():
             with open(output / name, "x", opener=lambda p, f: os.open(p, f, 0o600)) as file:
                 file.write(data)
         print("Private configuration prepared. Review paths and run the validation/cutover in docs/TUNNEL.md.")
-    except (ValueError, OSError, KeyError, TypeError):
-        print("Tunnel preparation failed. Check the private input, permissions and output location; no deployment was attempted.", file=sys.stderr)
+    except (ValueError, OSError) as error:
+        # Reasons name a field, a constraint or a path; never an input value.
+        if isinstance(error, OSError) and error.filename:
+            error = f"{error.strerror}: {error.filename}"
+        print(f"Tunnel preparation failed: {error}", file=sys.stderr)
+        print("No deployment was attempted.", file=sys.stderr)
         return 1
     return 0
 

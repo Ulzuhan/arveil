@@ -1,9 +1,15 @@
+from contextlib import redirect_stderr, redirect_stdout
 import copy
+import io
+import json
+import os
 from pathlib import Path
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
-from prepare_tunnel import TAILNET_RANGE, private_path, render
+from prepare_tunnel import TAILNET_RANGE, main, private_path, render
 
 
 class TunnelTests(unittest.TestCase):
@@ -38,8 +44,60 @@ class TunnelTests(unittest.TestCase):
                            ("connector_port", 8447), ("backend_port", 80), ("backend_port", True),
                            ("tailnet_address", "192.0.2.1"), ("token", "not accepted")):
             config = copy.deepcopy(self.config); config[key] = value
-            with self.subTest(field=key), self.assertRaises(ValueError):
+            with self.subTest(field=key), self.assertRaises(ValueError) as refused:
                 render(config)
+            self.assertIn(key, str(refused.exception))
+            self.assertNotIn(str(value), str(refused.exception))
+
+    def test_errors_name_the_field_and_constraint_never_the_value(self):
+        for key, value in (("tunnel_id", "not-a-uuid"), ("tunnel_id", 7), ("revision", 7),
+                           ("name", ["arveil-x"]), ("tailnet_address", 1681915905),
+                           ("tailnet_address", "100.64.1"), ("hostname", "Relay.Example.org"),
+                           ("metrics_port", "20241")):
+            config = copy.deepcopy(self.config); config[key] = value
+            with self.subTest(field=key, value=value), self.assertRaises(ValueError) as refused:
+                render(config)
+            message = str(refused.exception)
+            self.assertTrue(message.startswith(f"{key}: "), message)
+            self.assertNotIn(str(value), message)
+        config = copy.deepcopy(self.config); del config["revision"], config["hostname"]
+        self.assertRaisesRegex(ValueError, "^Missing operator field\\(s\\): hostname, revision\\.$", render, config)
+        config = copy.deepcopy(self.config); config["Example-Pasted-Token-0000"] = True
+        with self.assertRaises(ValueError) as refused:
+            render(config)
+        self.assertIn("(name not shown)", str(refused.exception))
+        self.assertNotIn("Pasted", str(refused.exception))
+        self.assertRaisesRegex(ValueError, "object", render, [self.config])
+
+    def test_command_line_reports_the_reason_and_writes_nothing(self):
+        previous = os.umask(0o077)  # main() sets it for the whole process
+        self.addCleanup(os.umask, previous)
+        with tempfile.TemporaryDirectory() as directory:
+            source, output = Path(directory) / "operator.json", Path(directory) / "rendered"
+            def run(config):
+                source.write_text(config if isinstance(config, str) else json.dumps(config))
+                source.chmod(0o600)
+                stderr = io.StringIO()
+                with mock.patch.object(sys, "argv", ["prepare_tunnel.py", "--config", str(source),
+                                                     "--output", str(output)]), \
+                        redirect_stderr(stderr), redirect_stdout(io.StringIO()):
+                    return main(), stderr.getvalue()
+            status, stderr = run(dict(self.config, credentials_file="/srv/private/kept-secret"))
+            self.assertEqual(status, 1)
+            self.assertIn("credentials_file: use a simple absolute path", stderr)
+            self.assertIn("No deployment was attempted.", stderr)
+            self.assertNotIn("kept-secret", stderr)
+            self.assertFalse(output.exists())
+            status, stderr = run('{"hostname": "kept-secret"')
+            self.assertEqual(status, 1)
+            self.assertIn("The operator JSON is malformed", stderr)
+            self.assertNotIn("kept-secret", stderr)
+            self.assertEqual(run(self.config)[0], 0)
+            self.assertEqual(sorted(p.name for p in output.iterdir()), sorted(render(self.config)))
+            self.assertEqual(output.stat().st_mode & 0o777, 0o700)
+            status, stderr = run(self.config)
+            self.assertEqual(status, 1)
+            self.assertIn(f"File exists: {output.resolve()}", stderr)
 
     def test_refuses_nonignored_repository_output(self):
         with self.assertRaises(ValueError):
