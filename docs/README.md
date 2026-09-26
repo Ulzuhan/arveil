@@ -63,6 +63,7 @@ declares its own status; "MUST" states a design requirement, and the
 | [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Noise channel, signed endpoint list, access over LAN, tailnet, tunnel or Internet |
 | [ADR-009](adr/ADR-009-flutter-first.md) | Flutter first for the apps (accepted) |
 | [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribution and signed, opt-in updates outside the app stores (accepted for Android; proposed for macOS) |
+| [ADR-011](adr/ADR-011-shared-display-names.md) | Names people choose for themselves, shared end to end with their conversations (proposed) |
 
 ### Apps
 
