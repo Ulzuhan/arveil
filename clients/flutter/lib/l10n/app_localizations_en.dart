@@ -840,7 +840,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pairingShareCode =>
-      'On the administration device, open “Link another device” and paste this code through a private channel.';
+      'Copy this code and paste it on the administration device, in “Link another device”, through a private channel.';
+
+  @override
+  String get pairingCopyCode => 'Copy code';
+
+  @override
+  String get pairingCodeCopied =>
+      'Code copied. You can leave Arveil to send it: when you come back, this screen keeps waiting.';
 
   @override
   String pairingExpiresIn(int seconds) {
@@ -874,6 +881,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairingOtherTitle => 'Link another device';
 
   @override
+  String get pairingServerDetailsStep =>
+      'On the new device, choose “Link with my other device”. It first asks for this server\'s details: copy them here and send them to it.';
+
+  @override
+  String get pairingCopyServerDetails => 'Copy server details';
+
+  @override
+  String get pairingServerDetailsCopied => 'Server details copied.';
+
+  @override
   String get pairingAdminCompare =>
       'Compare this code with the new device\'s and enter it there to finish.';
 
@@ -899,7 +916,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pairingKeepOpen =>
-      'Keep both devices open during the wait, which lasts up to 90 seconds.';
+      'Then go back to Arveil on the new device: this screen waits up to 90 seconds for it to answer.';
 
   @override
   String get archiveFailed =>

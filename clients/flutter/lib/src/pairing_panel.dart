@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 import 'profile_session.dart';
@@ -28,6 +29,7 @@ class _PairingPanelState extends State<PairingPanel> {
   final _code = TextEditingController();
   final _comparison = TextEditingController();
   Timer? _clock;
+  late final AppLifecycleListener _lifecycle;
   ProfileSession get session => widget.session;
 
   @override
@@ -37,10 +39,40 @@ class _PairingPanelState extends State<PairingPanel> {
     _clock = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && session.setup?.pairing != null) setState(() {});
     });
+    _lifecycle = AppLifecycleListener(onResume: _listen);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _listen());
+  }
+
+  /// Leaving the app to send the code is the normal way to use it, and the
+  /// system may stop the wait meanwhile. A code that is still valid is
+  /// listened for again when this screen opens and when the app comes back.
+  void _listen() {
+    if (!mounted || widget.administration) return;
+    final pairing = session.setup?.pairing;
+    if (pairing == null ||
+        pairing.committing ||
+        pairing.expired ||
+        pairing.verificationCode != null ||
+        pairing.expiresAt.toInt() <=
+            DateTime.now().millisecondsSinceEpoch ~/ 1000 ||
+        session.busy ||
+        session.cancellingPairing) {
+      return;
+    }
+    unawaited(session.waitForPairing());
+  }
+
+  Future<void> _copy(String text, String done) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(done)));
   }
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     _clock?.cancel();
     _relay.dispose();
     _code.dispose();
@@ -169,6 +201,17 @@ class _PairingPanelState extends State<PairingPanel> {
             Text(context.l10n.pairingShareCode),
             const SizedBox(height: 12),
             SelectableText(pairing.code, key: const Key('pair-code')),
+            const SizedBox(height: 8),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: OutlinedButton.icon(
+                key: const Key('pair-copy-code'),
+                onPressed: () =>
+                    _copy(pairing.code, context.l10n.pairingCodeCopied),
+                icon: const Icon(Icons.copy_outlined),
+                label: Text(context.l10n.pairingCopyCode),
+              ),
+            ),
             const SizedBox(height: 12),
             Text(context.l10n.pairingExpiresIn(remaining > 0 ? remaining : 0)),
             const SizedBox(height: 12),
@@ -240,6 +283,23 @@ class _PairingPanelState extends State<PairingPanel> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (session.setup?.bootstrap case final bootstrap?) ...[
+                Text(context.l10n.pairingServerDetailsStep),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton.icon(
+                    key: const Key('pair-copy-bootstrap'),
+                    onPressed: () => _copy(
+                      bootstrap,
+                      context.l10n.pairingServerDetailsCopied,
+                    ),
+                    icon: const Icon(Icons.copy_outlined),
+                    label: Text(context.l10n.pairingCopyServerDetails),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               Text(context.l10n.pairingPasteOwnCode),
               const SizedBox(height: 12),
               TextFormField(

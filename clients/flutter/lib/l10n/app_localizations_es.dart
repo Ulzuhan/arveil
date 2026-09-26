@@ -848,7 +848,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get pairingShareCode =>
-      'En el administrador, abre «Vincular otro dispositivo» y pega este código por un canal privado.';
+      'Copia este código y pégalo en el administrador, en «Vincular otro dispositivo», por un canal privado.';
+
+  @override
+  String get pairingCopyCode => 'Copiar código';
+
+  @override
+  String get pairingCodeCopied =>
+      'Código copiado. Puedes salir de Arveil para enviarlo: al volver, esta pantalla seguirá esperando.';
 
   @override
   String pairingExpiresIn(int seconds) {
@@ -882,6 +889,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get pairingOtherTitle => 'Vincular otro dispositivo';
 
   @override
+  String get pairingServerDetailsStep =>
+      'En el dispositivo nuevo, elige «Vincular con mi otro dispositivo». Primero te pedirá los datos de este servidor: cópialos aquí y envíaselos.';
+
+  @override
+  String get pairingCopyServerDetails => 'Copiar datos del servidor';
+
+  @override
+  String get pairingServerDetailsCopied => 'Datos del servidor copiados.';
+
+  @override
   String get pairingAdminCompare =>
       'Compara este código con el del nuevo dispositivo e introdúcelo allí para terminar.';
 
@@ -907,7 +924,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get pairingKeepOpen =>
-      'Mantén ambos dispositivos abiertos durante la espera, de hasta 90 segundos.';
+      'Después vuelve a Arveil en el dispositivo nuevo: esta pantalla espera hasta 90 segundos a que responda.';
 
   @override
   String get archiveFailed =>

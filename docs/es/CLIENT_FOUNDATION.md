@@ -79,15 +79,20 @@ El alta ofrece invitación, vinculación y restauración. El dispositivo nuevo
 compara manualmente el código corto antes de aplicar su autorización; un código
 incorrecto impide finalizar. El dispositivo nuevo escucha mientras su código
 es válido (la vida de la cita en el relay, diez minutos por defecto), porque el
-código viaja a mano hasta el administrador. Si esa espera se interrumpe **antes
-de recibir la comparación**, «Seguir esperando» la retoma mientras el código
-siga siendo válido; una interrupción a mitad del intercambio sigue exigiendo
-cancelar y generar otro código. La comparación recibida
+código viaja a mano hasta el administrador. El código tiene un botón «Copiar
+código». Salir de la app para enviarlo es lo normal: al abrir la pantalla de
+vinculación o al volver la app a primer plano, un código todavía válido se
+vuelve a escuchar sin preguntar. Si esa espera se interrumpe **antes de recibir
+la comparación**, «Seguir esperando» también la retoma a mano; una interrupción
+a mitad del intercambio sigue exigiendo cancelar y generar otro código. La comparación recibida
 sobrevive a la reapertura; tras confirmar, la finalización retoma el mismo
 dispositivo y buzón. Cancelar solo detiene el alta local: no revoca una
 autorización ya emitida por el administrador. Su pantalla lo explica antes
-de autorizar y muestra después la comparación. La espera del administrador
-está acotada a 90 segundos; todavía no dispone de cancelación.
+de autorizar y muestra después la comparación. También ofrece «Copiar datos del
+servidor», el bootstrap que el dispositivo nuevo pide primero y que, si no, solo
+muestra el log del relay. La espera del administrador está acotada a 90
+segundos, y la pantalla indica volver mientras tanto a Arveil en el dispositivo
+nuevo; todavía no dispone de cancelación.
 
 La exportación guarda solo el archivo cifrado mediante el diálogo del sistema.
 Su clave separada aparece únicamente tras guardar, desaparece al salir o pasar
