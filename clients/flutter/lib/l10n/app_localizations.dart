@@ -2503,6 +2503,60 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'{who}, {time}: {text}'**
   String bubbleSaidAt(String who, String time, String text);
+
+  /// No description provided for @diagnosticsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Diagnóstico'**
+  String get diagnosticsTitle;
+
+  /// No description provided for @diagnosticsSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'Un informe sin secretos para pedir ayuda'**
+  String get diagnosticsSummary;
+
+  /// No description provided for @diagnosticsExplanation.
+  ///
+  /// In es, this message translates to:
+  /// **'Si algo falla, este informe ayuda a entender por qué. Revísalo antes de compartirlo: es exactamente lo que se guardará.'**
+  String get diagnosticsExplanation;
+
+  /// No description provided for @diagnosticsPrivacyTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin datos que te identifiquen'**
+  String get diagnosticsPrivacyTitle;
+
+  /// No description provided for @diagnosticsPrivacyBody.
+  ///
+  /// In es, this message translates to:
+  /// **'No incluye claves, identificadores, rutas, direcciones, invitaciones, nombres ni el contenido de tus conversaciones.'**
+  String get diagnosticsPrivacyBody;
+
+  /// No description provided for @diagnosticsSave.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar informe'**
+  String get diagnosticsSave;
+
+  /// No description provided for @diagnosticsSaveDialog.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar informe de diagnóstico'**
+  String get diagnosticsSaveDialog;
+
+  /// No description provided for @diagnosticsSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Informe guardado'**
+  String get diagnosticsSaved;
+
+  /// No description provided for @diagnosticsSaveFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo guardar el informe'**
+  String get diagnosticsSaveFailed;
 }
 
 class _AppLocalizationsDelegate

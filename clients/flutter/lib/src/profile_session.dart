@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
+import 'diagnostics.dart';
 import 'profile_keys.dart';
 import 'profile_location.dart';
 import 'rust/api/profile.dart';
@@ -54,6 +55,12 @@ class ProfileSession extends ChangeNotifier {
 
   Profile? get profile => _profile;
 
+  /// Keeps the failure's code for diagnostics and says what happened.
+  String _failed(Object failure) {
+    FailureLog.record(failure);
+    return describeFailure(failure);
+  }
+
   bool get isOpen => _profile != null;
 
   void _changed() {
@@ -69,7 +76,7 @@ class ProfileSession extends ChangeNotifier {
       await action();
       return true;
     } catch (failure) {
-      if (!_cancelledWait) error = describeFailure(failure);
+      if (!_cancelledWait) error = _failed(failure);
       return false;
     } finally {
       _cancelledWait = false;
@@ -212,7 +219,7 @@ class ProfileSession extends ChangeNotifier {
       error = cancelled ? null : currentStrings.pairingConfirmationStarted;
       return cancelled;
     } catch (failure) {
-      error = describeFailure(failure);
+      error = _failed(failure);
       return false;
     } finally {
       cancellingPairing = false;
@@ -269,7 +276,7 @@ class ProfileSession extends ChangeNotifier {
   });
 
   void reportFailure(Object failure) {
-    error = describeFailure(failure);
+    error = _failed(failure);
     _changed();
   }
 

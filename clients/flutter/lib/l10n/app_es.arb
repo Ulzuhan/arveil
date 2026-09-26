@@ -810,5 +810,14 @@
         "type": "String"
       }
     }
-  }
+  },
+  "diagnosticsTitle": "Diagnóstico",
+  "diagnosticsSummary": "Un informe sin secretos para pedir ayuda",
+  "diagnosticsExplanation": "Si algo falla, este informe ayuda a entender por qué. Revísalo antes de compartirlo: es exactamente lo que se guardará.",
+  "diagnosticsPrivacyTitle": "Sin datos que te identifiquen",
+  "diagnosticsPrivacyBody": "No incluye claves, identificadores, rutas, direcciones, invitaciones, nombres ni el contenido de tus conversaciones.",
+  "diagnosticsSave": "Guardar informe",
+  "diagnosticsSaveDialog": "Guardar informe de diagnóstico",
+  "diagnosticsSaved": "Informe guardado",
+  "diagnosticsSaveFailed": "No se pudo guardar el informe"
 }

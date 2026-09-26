@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../l10n/l10n.dart';
 import 'attachment_files.dart';
+import 'diagnostics.dart';
 import 'rust/api/profile.dart';
 
 /// What the screen can honestly say about reaching the server. Nothing
@@ -132,7 +133,8 @@ class ConversationController extends ChangeNotifier {
         await _readSelected();
         _changed();
       } while (_refreshAgain && !_disposed);
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       error = currentStrings.chatErrorHistory;
       _changed();
     }
@@ -151,7 +153,8 @@ class ConversationController extends ChangeNotifier {
     final version = _selection;
     try {
       await _readSelected();
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       if (version == _selection) {
         error = currentStrings.chatErrorConversation;
       }
@@ -209,7 +212,8 @@ class ConversationController extends ChangeNotifier {
       _marked[group] = marker.cursor;
       final row = conversations.where((c) => c.groupId == group).firstOrNull;
       if (row != null && row.unread != marker.unread) unawaited(refresh());
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       // The marker stays where it was; the next read tries again.
     }
   }
@@ -235,7 +239,8 @@ class ConversationController extends ChangeNotifier {
       events = merged.values.toList()
         ..sort((a, b) => a.cursor.compareTo(b.cursor));
       before = page.next;
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       if (version == _selection) {
         error = currentStrings.chatErrorOlder;
       }
@@ -270,6 +275,7 @@ class ConversationController extends ChangeNotifier {
           lastSynced = DateTime.now();
           syncState = SyncState.synced;
         } catch (failure) {
+          FailureLog.record(failure);
           // Only a transport failure means the server was not reached; any
           // other typed refusal came from a server that answered.
           syncState = failure is CommandError_Transport
@@ -308,7 +314,8 @@ class ConversationController extends ChangeNotifier {
       unawaited(refresh());
       unawaited(sync());
       return true;
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       error = currentStrings.chatSaveUnconfirmed;
       return false;
     } finally {
@@ -328,7 +335,8 @@ class ConversationController extends ChangeNotifier {
       unawaited(refresh());
       unawaited(resumeAttachment(group, id));
       return true;
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       error = currentStrings.chatFileSaveUnconfirmed;
       _changed();
       return false;
@@ -348,7 +356,8 @@ class ConversationController extends ChangeNotifier {
         groupId: group,
         eventId: id,
       );
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       error = currentStrings.chatTransferIncomplete;
     } finally {
       activeTransfers.remove(id);
@@ -365,7 +374,8 @@ class ConversationController extends ChangeNotifier {
     try {
       await profile.cancelAttachment(groupId: group, eventId: id);
       error = null;
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       error = currentStrings.chatCancelFailed;
     }
     await refresh();
@@ -401,7 +411,8 @@ class ConversationController extends ChangeNotifier {
       await refresh();
       await select(result.groupId);
       return result.groupId;
-    } catch (_) {
+    } catch (failure) {
+      FailureLog.record(failure);
       error = currentStrings.chatCreateUnconfirmed;
       return null;
     } finally {

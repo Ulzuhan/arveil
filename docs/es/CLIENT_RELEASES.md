@@ -51,7 +51,9 @@ La versión y el número de compilación se leen de `clients/flutter/pubspec.yam
 Incrementa ese número para actualizar, o usa `--build-number 3`. Los números
 de Android deben aumentar. `--flutter` acepta la ruta del ejecutable Flutter.
 `--allow-dirty` es solo para candidatos locales sin publicar y queda registrado
-en sus metadatos.
+en sus metadatos. La versión y el commit también llegan a la app
+(`--dart-define`), que los muestra en su informe de diagnóstico; una
+compilación local sin el script dice «local build».
 
 La compilación Android de producción rechaza la ausencia de firma. CI puede
 usar las variables privadas `ARVEIL_ANDROID_KEYSTORE`,

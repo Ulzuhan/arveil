@@ -6,6 +6,7 @@ import 'appearance_page.dart';
 import 'archives_page.dart';
 import 'design/design.dart';
 import 'devices_page.dart';
+import 'diagnostics_page.dart';
 import 'key_packages_panel.dart';
 import 'kit_files.dart';
 import 'own_route.dart';
@@ -315,6 +316,19 @@ class SettingsPage extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                            SettingsRow(
+                              key: const Key('open-diagnostics'),
+                              icon: Icons.bug_report_outlined,
+                              title: l10n.diagnosticsTitle,
+                              subtitle: l10n.diagnosticsSummary,
+                              onTap: () => _push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      DiagnosticsPage(session: session),
+                                ),
+                              ),
+                            ),
                             SettingsRow(
                               icon: Icons.description_outlined,
                               title: l10n.licenses,
