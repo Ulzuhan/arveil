@@ -66,6 +66,8 @@ han probado.
 | [ADR-009](adr/ADR-009-flutter-first.md) | Flutter primero para las apps (aceptada) |
 | [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribución y actualizaciones firmadas y opcionales fuera de las tiendas (aceptada para Android; propuesta para macOS) |
 | [ADR-011](adr/ADR-011-shared-display-names.md) | Nombres que cada persona elige para sí, compartidos de extremo a extremo con sus conversaciones (propuesta) |
+| [ADR-012](adr/ADR-012-qr-codes-and-links.md) | Códigos QR y enlaces para unirse, vincular dispositivos y añadir contactos; la verificación como paso aparte y opcional (propuesta) |
+| [ADR-013](adr/ADR-013-realm-administration-from-the-app.md) | Roles del realm y administración desde la app, con el servidor como último recurso (propuesta) |
 
 ### Apps
 
