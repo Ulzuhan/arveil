@@ -107,6 +107,12 @@ GitHub assets use a storage host. Never use `releases/latest` or replace an
 existing APK. Check the public feed against the locally signed bytes after
 publication. Serve the feed separately from any personal realm.
 
+If Cloudflare Browser Integrity Check rejects the updater's header profile,
+use the [exact-path exception and re-enable procedure](TUNNEL.md#browser-integrity-check).
+Keep the actual rule ID, scope, approval and reversal history in private operator
+notes. Re-enabling BIC may block update checks again; the app must continue to
+reject invalid signatures rather than bypassing verification to recover access.
+
 The default expiry is 30 days (maximum 90). Refresh it with a new sequence
 before it expires, even when there is no new APK. Expiry prevents offering
 updates from a stale announcement; it does not disable messaging. A host can

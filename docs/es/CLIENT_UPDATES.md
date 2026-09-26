@@ -52,6 +52,12 @@ No contiene datos de ningún relay personal.
 La app solicita `Accept-Encoding: identity` y rechaza respuestas comprimidas
 para comprobar los límites y hashes sobre los bytes exactos.
 
+Si Cloudflare Browser Integrity Check bloquea esta consulta, aplica la
+[excepción de ruta exacta y su procedimiento de reactivación](TUNNEL.md#browser-integrity-check-excepcion-y-vuelta-atras).
+Guarda el ID, alcance, autorización e historial de cambios en notas privadas.
+Al reactivarlo pueden volver a fallar las consultas; nunca desactives la
+verificación de firmas para recuperar el acceso.
+
 Cada cambio del anuncio exige una secuencia superior, incluso renovar su
 caducidad sin cambiar el APK. La validez por defecto es de 30 días, hasta 90.
 Lleva un registro privado de secuencias y renueva el anuncio a tiempo. Un

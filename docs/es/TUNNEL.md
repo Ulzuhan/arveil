@@ -44,3 +44,67 @@ métricas no sean accesibles y que el bootstrap y la lista firmada anuncien el
 endpoint WSS correcto. Que Cloudflare muestre «conectado» no sustituye estas
 comprobaciones. Las pruebas destructivas de staging no deben ejecutarse sobre
 un realm que ya tenga usuarios reales.
+
+## Browser Integrity Check: excepción y vuelta atrás
+
+[Browser Integrity Check (BIC)](https://developers.cloudflare.com/waf/tools/browser-integrity-check/)
+filtra peticiones por sus cabeceras HTTP, incluido el User-Agent. Puede bloquear
+clientes nativos legítimos y la consulta de actualizaciones, que no envía ese
+identificador. Un HTTP 403 con error Cloudflare 1010 es una pista concreta;
+no atribuyas cualquier 403 a BIC ni desactives otras protecciones por probar.
+
+Si impide el acceso, crea una **Configuration Rule** en la zona correspondiente,
+desde **Rules → Overview**, con **Browser Integrity Check = Off**. El filtro debe
+limitarse al método GET y a las rutas exactas del canal y del feed, si este último
+también pasa por Cloudflare. Ejemplo genérico:
+
+```text
+(http.request.method eq "GET" and (
+  (http.host eq "relay.example.org" and http.request.uri.path eq "/v1/channel")
+  or
+  (http.host eq "project.example.org" and http.request.uri.path eq "/updates/clients-beta.json")
+))
+```
+
+Omite la segunda condición si alojas el feed en otro sitio. Evita excepciones
+para toda la zona o todo el subdominio. Revisa el orden: si varias reglas cambian
+la misma opción, prevalece la última que coincida. Esta regla solo ajusta BIC;
+no omite todo el WAF.
+
+Se pierde ese filtro para las peticiones seleccionadas: algunos bots podrán
+llegar al servicio y aumentar los intentos de conexión o la carga. Se mantienen
+TLS, Noise, invitaciones, límites del relay, verificación de las actualizaciones
+y las demás protecciones de Cloudflare configuradas. BIC no autentica usuarios.
+
+Guarda **en un registro privado**, fuera de Git o en un directorio ignorado:
+fecha, motivo, autorización, filtro exacto, nombre/ID/enlace de la regla, valor
+de BIC, posición y resultados antes/después. Los dominios y datos reales de ese
+registro no pertenecen a esta guía ni a un PR público.
+
+Después de aplicarla, comprueba el filtro guardado y la regla activa. Verifica
+una conexión Noise pública y la consulta de actualizaciones con los clientes
+reales, sin fingir ser un navegador. Un GET al canal sin negociación WebSocket
+debe seguir siendo rechazado por el proxy. El feed publicado debe devolver el
+JSON firmado exacto; un 404 de un feed todavía inexistente solo confirma que BIC
+ya no lo bloquea. Comprueba también peticiones excluidas por el filtro.
+
+### Cómo volver a activarlo
+
+1. Abre el enlace de la regla guardado en el registro privado, o localízala en
+   **Rules → Overview → Configuration Rules** de la zona correcta.
+2. Conserva el filtro y cambia **Browser Integrity Check a On**. Guarda/despliega
+   y deja la regla activa. Comprueba que ninguna regla posterior lo sobrescriba;
+   utiliza el simulador/Trace de Cloudflare si hace falta.
+3. Prueba la conexión pública y las actualizaciones: podrían reaparecer errores
+   403/1010 en peticiones legítimas. Tailscale y los perfiles guardados no cambian.
+   Anota fecha, resultado y, si hay error, el identificador de petición Cloudflare
+   en el registro privado.
+4. Para recuperar la compatibilidad, vuelve a **Off** en esa misma regla, guarda
+   y repite las comprobaciones. No requiere recompilar el APK, cambiar claves ni
+   restaurar datos del relay.
+
+Desactivar o borrar la regla solo recupera la configuración heredada: **no
+garantiza que BIC quede activado**. Antes de hacerlo, revisa el ajuste de la zona
+y otras reglas que coincidan. Activar BIC tampoco garantiza cerrar el acceso
+público; para retirarlo, sigue el plan privado para detener el conector dedicado
+o eliminar únicamente su registro DNS.

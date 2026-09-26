@@ -125,7 +125,9 @@ check them on the actual server before switching.
    tunnel. Keep the landing hostname unchanged. Enable WebSockets, bypass
    cache on this hostname, and avoid browser-only Access logins, JavaScript
    challenges or CAPTCHA on the channel. Arveil's Noise/invite authentication
-   remains required. Do not weaken protections on unrelated services.
+   remains required. If Browser Integrity Check blocks native clients, use the
+   [scoped exception and reversal procedure](#browser-integrity-check) below.
+   Do not weaken protections on unrelated services.
 6. From outside the tailnet, complete a real Arveil enrollment with a disposable
    one-use invitation and exchange messages. Test reconnect after restarting
    the connector, attachments within the relay's limits, and limits with
@@ -147,6 +149,71 @@ restart; leave the same volume intact when only networking changed. Remove
 only the new DNS route if it is no longer wanted. If also changing relay code
 or database format, use the [backup/rollback procedure](PODMAN.md#updates-backups-and-rollback)
 instead of assuming an older binary can read the current database.
+
+## Browser Integrity Check
+
+Cloudflare's [Browser Integrity Check (BIC)](https://developers.cloudflare.com/waf/tools/browser-integrity-check/)
+uses HTTP headers, including the User-Agent, to reject some automated traffic.
+Native clients and the updater's requests without a User-Agent can be legitimate
+false positives. HTTP 403 with Cloudflare error 1010 is a diagnostic clue; do
+not treat every 403 as BIC or disable unrelated protections to fix it.
+
+If this check prevents native access, create a **Configuration Rule** in the
+selected zone under **Rules → Overview**, setting only **Browser Integrity
+Check = Off**. Match the exact relay channel and, if hosted through Cloudflare,
+the exact distribution feed. Example values only:
+
+```text
+(http.request.method eq "GET" and (
+  (http.host eq "relay.example.org" and http.request.uri.path eq "/v1/channel")
+  or
+  (http.host eq "project.example.org" and http.request.uri.path eq "/updates/clients-beta.json")
+))
+```
+
+Omit the feed clause if it is hosted elsewhere. Do not use a whole-zone or
+whole-host exception. Other paths and methods keep their existing settings.
+Review rule ordering: when configuration rules set the same option, the last
+matching rule wins. This is a BIC setting override, not a blanket WAF skip.
+
+The tradeoff is that some automated requests previously rejected by BIC can
+reach these endpoints, increasing exposure to connection attempts and load.
+TLS, Noise, invitation requirements, relay limits and update signature checks
+are unchanged. This rule does not disable other configured Cloudflare security
+rules or DDoS protection. BIC itself is a header heuristic, not authentication.
+
+Keep a **private change record**, outside Git or in an ignored directory, with
+the date, reason, operator approval, exact expression, rule name/ID/dashboard
+link, BIC value, rule order and before/after observations. Never copy that
+record or its real hostnames into this public guide or a PR.
+
+After deployment, verify the saved expression and active setting in Cloudflare.
+Test a real public Noise connection and an update check without spoofing a
+browser. An ordinary GET to the channel without a WebSocket upgrade should
+still be rejected by the proxy. A published feed must return the exact signed
+JSON; a missing feed returning 404 only verifies that BIC no longer blocks it.
+Check excluded paths as well as the allowed requests, and record the results.
+
+### Re-enable the check
+
+1. Open the rule using its privately recorded dashboard link, or find it under
+   **Rules → Overview → Configuration Rules** in the correct zone.
+2. Keep the same expression. Change **Browser Integrity Check to On** and
+   deploy/save the change. Leave the rule active and verify no later matching
+   rule overrides it; use Cloudflare's rule simulator/Trace when needed.
+3. Test the app's public connection and update check. BIC can again return
+   403/1010 to legitimate native requests. Tailscale access and stored profiles
+   are unaffected. Record the time, outcome and any Cloudflare request ID in
+   the private change record.
+4. To restore native compatibility, set BIC back to **Off** in that same scoped
+   rule, deploy and repeat those checks. No APK rebuild, key rotation or relay
+   data restoration is required for this setting change.
+
+Disabling or deleting the exception merely restores inherited settings; it
+does **not** guarantee BIC is On. Check the zone setting and other matching
+rules before choosing that alternative. Re-enabling BIC is also not a reliable
+way to withdraw public service: to do that, stop the dedicated connector or
+remove its specific DNS route using the private deployment rollback plan.
 
 References: [Cloudflare headers](https://developers.cloudflare.com/fundamentals/reference/http-headers/),
 [nginx real-IP module](https://nginx.org/en/docs/http/ngx_http_realip_module.html),
