@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
+import 'package:arveil/l10n/l10n.dart';
 import 'package:arveil/main.dart';
 import 'package:arveil/src/conversation_controller.dart';
 import 'package:arveil/src/conversations_page.dart';
@@ -309,11 +310,20 @@ void main() {
         ),
       );
       expect(find.text('received body'), findsOneWidget);
+      // The bubble shows an icon; its details say what the server did.
+      await tester.longPress(find.text('received body'));
+      await tester.pumpAndSettle();
       expect(find.text('Recibido en este dispositivo'), findsOneWidget);
+      await tester.tap(find.text('Cerrar'));
+      await tester.pumpAndSettle();
+      await tester.longPress(find.text('sent body'));
+      await tester.pumpAndSettle();
+      expect(find.text('Buzón 1'), findsOneWidget);
       expect(
         find.text('Aceptado por el servidor · lectura sin confirmar'),
         findsOneWidget,
       );
+      expect(find.textContaining('leído'), findsNothing);
     },
   );
   Future<ConversationController> open(
@@ -412,6 +422,8 @@ void main() {
     (tester) async {
       final profile = ChatProfile()..partialCreate = true;
       await open(tester, profile);
+      await tester.tap(find.byTooltip('Volver a conversaciones'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Nueva conversación'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -485,25 +497,25 @@ void main() {
           ),
         ),
       );
-      expect(find.byKey(const Key('sender-lucia')), findsOneWidget);
-      expect(find.text('Lucía'), findsOneWidget);
+      Finder inBubble(String id, Finder finder) =>
+          find.descendant(of: find.byKey(Key('message-$id')), matching: finder);
+      expect(inBubble('lucia', find.text('Lucía')), findsOneWidget);
       // One other person: the author is obvious and not repeated.
-      expect(find.byKey(const Key('sender-pair')), findsNothing);
-      expect(find.byKey(const Key('sender-mine')), findsNothing);
+      expect(inBubble('pair', find.text('Pablo')), findsNothing);
+      final time = clockTime(
+        DateTime.fromMillisecondsSinceEpoch(1790000000 * 1000),
+      );
+      expect(inBubble('lucia', find.text(time)), findsOneWidget);
+      final mine = tester.widget<Align>(
+        inBubble('mine', find.byType(Align)).first,
+      );
+      expect(mine.alignment, Alignment.centerRight);
+      await tester.longPress(find.text('body mine'));
+      await tester.pumpAndSettle();
       expect(
         find.text('Enviado desde otro de tus dispositivos'),
         findsOneWidget,
       );
-      expect(find.byKey(const Key('time-lucia')), findsOneWidget);
-      final mine = tester.widget<Align>(
-        find
-            .ancestor(
-              of: find.byKey(const Key('message-mine')),
-              matching: find.byType(Align),
-            )
-            .first,
-      );
-      expect(mine.alignment, Alignment.centerRight);
     },
   );
 

@@ -589,19 +589,7 @@
       }
     }
   },
-  "participantDevice": "{identity} · dispositivo {device}",
-  "@participantDevice": {
-    "placeholders": {
-      "identity": {
-        "type": "String"
-      },
-      "device": {
-        "type": "String"
-      }
-    }
-  },
   "revoked": "Revocado",
-  "ownDevice": "Dispositivo propio",
   "close": "Cerrar",
   "ownRouteTitle": "Tu ruta de contacto",
   "ownRouteShare": "Compártela solo con las personas que quieras que puedan escribir a este dispositivo. Comparad después el número de seguridad por otro canal.",
@@ -635,14 +623,6 @@
     }
   },
   "savingMessage": "Guardando mensaje",
-  "localHistory": "Historial local · {id}",
-  "@localHistory": {
-    "placeholders": {
-      "id": {
-        "type": "String"
-      }
-    }
-  },
   "firstMessage": "Escribe el primer mensaje.",
   "reading": "Leyendo…",
   "loadOlder": "Cargar anteriores",
@@ -654,7 +634,6 @@
   "legacyAttachment": "Adjunto (consulta disponible desde la CLI)",
   "sentFromOtherDevice": "Enviado desde otro de tus dispositivos",
   "receivedHere": "Recibido en este dispositivo",
-  "deliveryPending": "Guardado localmente · envío pendiente",
   "newConversationRoutesInvalid": "Revisa las rutas completas: entre uno y dieciséis dispositivos distintos, sin incluir este dispositivo.",
   "newConversationChooseContacts": "Elegir contactos guardados",
   "newConversationRoutesHelp": "O utiliza una ruta nueva. Pide a tus contactos su ruta de este servidor. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.",
@@ -689,5 +668,45 @@
   "kitReminderStaleTitle": "Actualiza tu kit de identidad",
   "recoveryWarningTitle": "Comprueba las revocaciones",
   "offlineTitle": "Sin conexión",
-  "syncRefusedTitle": "Sincronización rechazada"
+  "syncRefusedTitle": "Sincronización rechazada",
+  "conversationDetails": "Detalles de la conversación",
+  "conversationPeople": "{count, plural, =1{1 persona} other{{count} personas}}",
+  "@conversationPeople": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "detailsFiles": "Archivos",
+  "detailsNoFiles": "No hay archivos en el historial cargado.",
+  "messageDetails": "Detalles del mensaje",
+  "messageRecordedAt": "Registrado en este dispositivo: {when}",
+  "@messageRecordedAt": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "deliveryPerMailbox": "Entrega por buzón",
+  "mailboxNumber": "Buzón {number}",
+  "@mailboxNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "mailboxRejected": "El buzón rechazó el mensaje",
+  "copyText": "Copiar texto",
+  "textCopied": "Texto copiado",
+  "devicesCount": "{count, plural, =1{1 dispositivo} other{{count} dispositivos}}",
+  "@devicesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

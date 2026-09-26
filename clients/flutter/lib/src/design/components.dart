@@ -489,6 +489,27 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+/// A section title inside a panel or a list, announced as a heading.
+class SectionTitle extends StatelessWidget {
+  const SectionTitle(this.text, {super.key});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
+    child: Semantics(
+      header: true,
+      child: Text(
+        text,
+        style: ArveilType.label.copyWith(
+          fontSize: 13,
+          color: ArveilColors.of(context).inkMuted,
+        ),
+      ),
+    ),
+  );
+}
+
 /// Settings rows grouped on one card, with inset dividers.
 class SettingsGroup extends StatelessWidget {
   const SettingsGroup({super.key, this.title, required this.children});

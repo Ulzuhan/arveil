@@ -690,3 +690,40 @@ Evidence: `test/chat_list_test.dart` covers rows (avatar, verification,
 delivery and unread), times, accent-insensitive search and clearing it, ⌘K
 and Esc on macOS and Windows, the empty state and its action, the kit
 reminder, and the list at 200 % text on a phone.
+
+## Conversation (September 25, 2026)
+
+The open conversation now uses the design system's components.
+
+- **History.** Messages are bubbles as wide as their content. Messages from
+  one author less than ten minutes apart on the same day form a run: only the
+  first bubble has the tail and, in a group, the author's name in their
+  colour. A separator says "Today", "Yesterday" or the date when the local day
+  changes. Device notices sit centred and always stand alone. Loading earlier
+  messages is kept.
+- **Delivery.** Each bubble shows the time and, for what this device sent, a
+  status icon. A long press or a secondary click opens its details: when it
+  was recorded here, the state of each mailbox (accepted by the server,
+  pending, refused or expired, never "read"), and copying the text.
+- **Attachments.** They sit in a bubble with an icon, name, size, state,
+  progress and the same actions as before. The bubble does not merge its
+  semantics, so each button stays reachable on its own.
+- **Header and details.** The header shows the avatar, the name, and whether
+  the other person was verified or how many people the group has. The details
+  list each person with their verification and devices, your devices, and the
+  files in the loaded history. From 1200 dp they stay in a panel beside the
+  conversation; on phones they open in a sheet and elsewhere in a dialog.
+- **Offline.** In a single column the conversation shows the offline or
+  refused notice, which two columns already show above the list. The composer
+  is the design system's, with the same limits and without the keyboard
+  learning what is typed.
+- On desktop each column has its own bar: the list with its actions, the
+  conversation with its header, and the details with their title.
+
+Evidence:
+
+- `test/conversation_view_test.dart` covers runs and separators, names on the
+  first message of each run, per-mailbox details and copying from a secondary
+  click, the panel from 1200 dp and the dialog below it, the offline notice on
+  phones, and an empty conversation.
+- The component goldens were regenerated with bubbles sized to their content.
