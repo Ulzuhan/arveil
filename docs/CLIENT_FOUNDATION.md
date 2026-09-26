@@ -62,15 +62,20 @@ The setup offers invitation, linking and restore. A linked device compares the
 short code manually before applying its grant; a wrong code cannot finalize it.
 The new device listens for as long as its code is valid (the relay's rendezvous
 lifetime, ten minutes by default), because the code travels to the
-administration device by hand. If that wait is interrupted **before receiving
-the comparison**, **Keep waiting** resumes it while the code is valid; an
-interruption in the middle of the exchange still needs cancellation and a new
-code. Once the comparison is stored it survives reopening; once
+administration device by hand. The code has a **Copy code** button. Leaving
+the app to send it is expected: when the linking screen opens or the app
+returns to the foreground, a code that is still valid is listened for again
+without asking. If that wait is interrupted **before receiving the
+comparison**, **Keep waiting** also resumes it by hand; an interruption in the
+middle of the exchange still needs cancellation and a new code. Once the comparison is stored it survives reopening; once
 confirmation commits, finalization resumes using the same device/mailbox.
 Cancellation is local and does not revoke authorization already issued by the
 administrator. The administration screen states this before issuing a grant
-and keeps the comparison visible afterwards. Its network wait is bounded to
-90 seconds; cancelling that administration wait is not implemented.
+and keeps the comparison visible afterwards. It also offers **Copy server
+details**, the bootstrap the new device asks for first, which otherwise only
+the relay's log shows. Its network wait is bounded to 90 seconds, and it tells
+the person to go back to Arveil on the new device meanwhile; cancelling that
+administration wait is not implemented.
 
 Kit export uses a native save dialog for ciphertext only. The separate secret
 appears only after a successful save, disappears on leaving/backgrounding the

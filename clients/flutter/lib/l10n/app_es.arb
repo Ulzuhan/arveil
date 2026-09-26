@@ -347,7 +347,9 @@
   "pairingCompareHelp": "Comprueba ambas pantallas. Introduce aquí el código que muestra el dispositivo administrador. Si son distintos, cancela.",
   "pairingOtherCode": "Código del otro dispositivo",
   "pairingConfirmComparison": "Confirmar comparación",
-  "pairingShareCode": "En el administrador, abre «Vincular otro dispositivo» y pega este código por un canal privado.",
+  "pairingShareCode": "Copia este código y pégalo en el administrador, en «Vincular otro dispositivo», por un canal privado.",
+  "pairingCopyCode": "Copiar código",
+  "pairingCodeCopied": "Código copiado. Puedes salir de Arveil para enviarlo: al volver, esta pantalla seguirá esperando.",
   "pairingExpiresIn": "{seconds, plural, =1{Caduca en 1 segundo.} other{Caduca en {seconds} segundos.}}",
   "@pairingExpiresIn": {
     "placeholders": {
@@ -362,6 +364,9 @@
   "pairingCancel": "Cancelar vinculación",
   "pairingCancelNote": "Cancelar detiene este alta local. Si el administrador ya emitió una autorización, no la revoca.",
   "pairingOtherTitle": "Vincular otro dispositivo",
+  "pairingServerDetailsStep": "En el dispositivo nuevo, elige «Vincular con mi otro dispositivo». Primero te pedirá los datos de este servidor: cópialos aquí y envíaselos.",
+  "pairingCopyServerDetails": "Copiar datos del servidor",
+  "pairingServerDetailsCopied": "Datos del servidor copiados.",
   "pairingAdminCompare": "Compara este código con el del nuevo dispositivo e introdúcelo allí para terminar.",
   "pairingAuthorizationIssued": "Ya se ha emitido la autorización. Cerrar esta comparación no la revoca. Si no reconoces la solicitud, revoca ese dispositivo desde la CLI.",
   "pairingCloseComparison": "Cerrar comparación",
@@ -369,7 +374,7 @@
   "pairingCodeLabel": "Código de vinculación",
   "pairingCodeInvalid": "Pega el código de vinculación completo.",
   "pairingAuthorize": "Autorizar y comparar",
-  "pairingKeepOpen": "Mantén ambos dispositivos abiertos durante la espera, de hasta 90 segundos.",
+  "pairingKeepOpen": "Después vuelve a Arveil en el dispositivo nuevo: esta pantalla espera hasta 90 segundos a que responda.",
   "archiveFailed": "No se pudo completar la operación. Comprueba el archivo, su clave y que pertenece a tu identidad. Máximo 10.000 registros; exportación de hasta 48 MiB de contenido e importación de archivos de hasta 64 MiB.",
   "archiveSaved": "Archivo guardado: {records} registros, {files} adjuntos con copia, {missing} sin copia.",
   "@archiveSaved": {

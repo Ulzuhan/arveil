@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:arveil/main.dart';
 import 'package:arveil/src/kit_files.dart';
 import 'package:arveil/src/profile_session.dart';
 import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'widget_test.dart'
@@ -164,6 +164,7 @@ void main() {
     WidgetTester tester,
     RecoveryProfile profile, {
     KitFiles files = const KitFiles(),
+    bool settle = true,
   }) async {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     tester.view.physicalSize = const Size(1200, 1800);
@@ -174,7 +175,14 @@ void main() {
     addTearDown(session.dispose);
     await tester.pumpWidget(ArveilApp(session: session, kitFiles: files));
     await tester.tap(find.text('Abrir perfil'));
-    await tester.pumpAndSettle();
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      // A wait that starts by itself keeps a progress indicator running.
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
     return session;
   }
 
@@ -365,44 +373,55 @@ void main() {
     expect(profile.cancellations, 1);
     expect(find.text('Generar código de vinculación'), findsOneWidget);
   });
-  testWidgets('cancel remains available during the network wait', (
+  testWidgets('a valid code is listened for as soon as the profile opens', (
     tester,
   ) async {
     final profile = RecoveryProfile()
       ..pendingPair()
       ..wait = Completer<void>();
-    final session = await open(tester, profile);
-    final waiting = session.waitForPairing();
-    await tester.pump();
-    expect(session.busy, isTrue);
-    await tester.tap(find.text('Cancelar vinculación'));
-    await waiting;
-    await tester.pumpAndSettle();
-    expect(profile.cancellations, 1);
-    expect(session.error, isNull);
-    expect(session.busy, isFalse);
-    expect(find.text('Generar código de vinculación'), findsOneWidget);
-  });
-  testWidgets('an interrupted wait resumes while the code is still valid', (
-    tester,
-  ) async {
-    final profile = RecoveryProfile()
-      ..pendingPair()
-      ..wait = Completer<void>();
-    final session = await open(tester, profile);
-    expect(
-      find.textContaining('el código sigue siendo válido'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('genera otro código'), findsNothing);
-    await tester.tap(find.text('Seguir esperando'));
-    await tester.pump();
+    final session = await open(tester, profile, settle: false);
     expect(profile.waits, 1);
     expect(session.waitingForPairing, isTrue);
     expect(
       find.text('Esperando al dispositivo administrador…'),
       findsOneWidget,
     );
+    // Cancel stays available during the network wait.
+    await tester.tap(find.text('Cancelar vinculación'));
+    await tester.pumpAndSettle();
+    expect(profile.cancellations, 1);
+    expect(session.error, isNull);
+    expect(session.busy, isFalse);
+    expect(find.text('Generar código de vinculación'), findsOneWidget);
+  });
+  testWidgets('a wait stopped while away resumes when the app comes back', (
+    tester,
+  ) async {
+    final profile = RecoveryProfile()
+      ..pendingPair()
+      ..wait = Completer<void>();
+    final session = await open(tester, profile, settle: false);
+    expect(profile.waits, 1);
+    // The system cut the network while the person was sending the code.
+    profile.wait!.completeError(
+      const CommandError.transport(
+        operation: 'await-pairing',
+        reason: 'PRIVATE_DIAGNOSTIC',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(session.waitingForPairing, isFalse);
+    expect(
+      find.textContaining('el código sigue siendo válido'),
+      findsOneWidget,
+    );
+    expect(find.text('Seguir esperando'), findsOneWidget);
+    profile.wait = Completer<void>();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(profile.waits, 2);
+    expect(session.waitingForPairing, isTrue);
     expect(find.text('Seguir esperando'), findsNothing);
     // The administration device answers during the resumed wait.
     profile.pendingPair(comparison: sas);
@@ -410,6 +429,73 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.error, isNull);
     expect(find.text('Confirmar comparación'), findsOneWidget);
+    // Coming back again once the comparison arrived starts no other wait.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(profile.waits, 2);
+  });
+  testWidgets('Keep waiting still resumes by hand', (tester) async {
+    final profile = RecoveryProfile()
+      ..pendingPair()
+      ..wait = Completer<void>();
+    final session = await open(tester, profile, settle: false);
+    profile.wait!.completeError(
+      const CommandError.transport(
+        operation: 'await-pairing',
+        reason: 'PRIVATE_DIAGNOSTIC',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('genera otro código'), findsNothing);
+    profile.wait = Completer<void>();
+    await tester.tap(find.text('Seguir esperando'));
+    await tester.pump();
+    expect(profile.waits, 2);
+    expect(session.waitingForPairing, isTrue);
+    profile.wait!.complete();
+    await tester.pumpAndSettle();
+  });
+  testWidgets('both devices copy what the other one needs', (tester) async {
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final newDevice = RecoveryProfile()
+      ..pendingPair()
+      ..wait = Completer<void>();
+    await open(tester, newDevice, settle: false);
+    await tester.tap(find.byKey(const Key('pair-copy-code')));
+    await tester.pump();
+    expect(copied, ['arveil-pair:v1:fixture']);
+    expect(find.textContaining('Código copiado'), findsOneWidget);
+    newDevice.wait!.complete();
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(const SizedBox());
+    final administration = RecoveryProfile()..ready();
+    await open(tester, administration);
+    await openSetting(tester, 'open-pairing');
+    expect(
+      find.textContaining('Vincular con mi otro dispositivo'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('pair-copy-bootstrap')));
+    await tester.pump();
+    expect(copied.last, relay);
+    expect(find.text('Datos del servidor copiados.'), findsOneWidget);
   });
   testWidgets('a relay limit on a new code says to wait, not to check data', (
     tester,
