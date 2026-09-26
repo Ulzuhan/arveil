@@ -1352,4 +1352,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get comparedWillVerify =>
       'They match: the contact will be saved as verified.';
+
+  @override
+  String get startTitle => 'How do you want to start?';
+
+  @override
+  String get startBody =>
+      'Your identity is created on this device and only you keep it.';
+
+  @override
+  String get entryInvitation => 'Join with an invitation';
+
+  @override
+  String get entryInvitationHelp =>
+      'With the server details and the invitation you were given.';
+
+  @override
+  String get entryPairingHelp =>
+      'Your administration device authorizes this one.';
+
+  @override
+  String get entryRestoreHelp =>
+      'Recover your identity with the kit and its key.';
+
+  @override
+  String enrollStep(int step, int total) {
+    return 'Step $step of $total';
+  }
+
+  @override
+  String get enrollServerTitle => 'Server details';
+
+  @override
+  String get enrollNext => 'Next';
+
+  @override
+  String get enrollPrevious => 'Back';
+
+  @override
+  String get enrollInviteTitle => 'Your invitation';
+
+  @override
+  String get enrollInviteBody =>
+      'Paste the 64-character invitation the administrator gave you.';
+
+  @override
+  String get kitOfferTitle => 'Save your identity kit now';
+
+  @override
+  String get kitOfferRiskTitle => 'If you leave it for later';
 }

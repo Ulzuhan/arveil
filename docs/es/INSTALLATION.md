@@ -108,8 +108,9 @@ perfiles creados con el anterior backend Data Protection. Consulta las
 2. Si lo pide, permite **Instalar aplicaciones desconocidas** al navegador o
    gestor de archivos que abre ese APK. Instala Arveil; después puedes retirar
    ese permiso.
-3. Abre Arveil, pulsa **Abrir perfil** e introduce datos del relay e invitación.
-   Si el relay es privado, el teléfono debe estar conectado a su red.
+3. Abre Arveil, pulsa **Abrir perfil** y después **Unirme con una invitación**, e
+   introduce los datos del servidor (relay) y luego la invitación. Si el relay es
+   privado, el teléfono debe estar conectado a su red.
 
 **Actualizar:** abre el APK nuevo e instálalo sobre la app existente. Debe usar
 el mismo certificado y un número de compilación superior. **No desinstales ni

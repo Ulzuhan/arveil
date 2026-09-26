@@ -358,5 +358,19 @@
   "numbersDiffer": "They differ",
   "mismatchTitle": "The numbers do not match",
   "mismatchBody": "Do not verify this contact. The route may not be theirs or may have changed: ask them to send it again through another channel.",
-  "comparedWillVerify": "They match: the contact will be saved as verified."
+  "comparedWillVerify": "They match: the contact will be saved as verified.",
+  "startTitle": "How do you want to start?",
+  "startBody": "Your identity is created on this device and only you keep it.",
+  "entryInvitation": "Join with an invitation",
+  "entryInvitationHelp": "With the server details and the invitation you were given.",
+  "entryPairingHelp": "Your administration device authorizes this one.",
+  "entryRestoreHelp": "Recover your identity with the kit and its key.",
+  "enrollStep": "Step {step} of {total}",
+  "enrollServerTitle": "Server details",
+  "enrollNext": "Next",
+  "enrollPrevious": "Back",
+  "enrollInviteTitle": "Your invitation",
+  "enrollInviteBody": "Paste the 64-character invitation the administrator gave you.",
+  "kitOfferTitle": "Save your identity kit now",
+  "kitOfferRiskTitle": "If you leave it for later"
 }

@@ -2251,6 +2251,90 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Coinciden: el contacto se guardará como verificado.'**
   String get comparedWillVerify;
+
+  /// No description provided for @startTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cómo quieres empezar?'**
+  String get startTitle;
+
+  /// No description provided for @startBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu identidad se crea en este dispositivo y solo tú la guardas.'**
+  String get startBody;
+
+  /// No description provided for @entryInvitation.
+  ///
+  /// In es, this message translates to:
+  /// **'Unirme con una invitación'**
+  String get entryInvitation;
+
+  /// No description provided for @entryInvitationHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Con los datos del servidor y la invitación que te dieron.'**
+  String get entryInvitationHelp;
+
+  /// No description provided for @entryPairingHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu dispositivo administrador autoriza este.'**
+  String get entryPairingHelp;
+
+  /// No description provided for @entryRestoreHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Recupera tu identidad con el kit y su clave.'**
+  String get entryRestoreHelp;
+
+  /// No description provided for @enrollStep.
+  ///
+  /// In es, this message translates to:
+  /// **'Paso {step} de {total}'**
+  String enrollStep(int step, int total);
+
+  /// No description provided for @enrollServerTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Datos del servidor'**
+  String get enrollServerTitle;
+
+  /// No description provided for @enrollNext.
+  ///
+  /// In es, this message translates to:
+  /// **'Siguiente'**
+  String get enrollNext;
+
+  /// No description provided for @enrollPrevious.
+  ///
+  /// In es, this message translates to:
+  /// **'Atrás'**
+  String get enrollPrevious;
+
+  /// No description provided for @enrollInviteTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu invitación'**
+  String get enrollInviteTitle;
+
+  /// No description provided for @enrollInviteBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Pega la invitación de 64 caracteres que te dio el administrador.'**
+  String get enrollInviteBody;
+
+  /// No description provided for @kitOfferTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Guarda ahora tu kit de identidad'**
+  String get kitOfferTitle;
+
+  /// No description provided for @kitOfferRiskTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Si lo dejas para más tarde'**
+  String get kitOfferRiskTitle;
 }
 
 class _AppLocalizationsDelegate

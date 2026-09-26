@@ -305,6 +305,10 @@ void main() {
       await tester.tap(find.text('Reanudar recuperación'));
       await tester.pumpAndSettle();
       expect(profile.resumes, 1);
+      // A new administration device is offered its kit, with the risk.
+      expect(find.byKey(const Key('kit-offer-risk')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('kit-offer-later')));
+      await tester.pumpAndSettle();
       expect(home, findsOneWidget);
     },
   );
