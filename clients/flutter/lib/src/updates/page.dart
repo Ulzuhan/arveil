@@ -100,6 +100,7 @@ class _UpdateLifecycleState extends State<UpdateLifecycle>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(widget.controller.refreshPermission());
       unawaited(widget.controller.checkAutomatically());
     }
   }
@@ -303,6 +304,7 @@ class UpdatesPage extends StatelessWidget {
                                 : controller.permission,
                             child: Text(l10n.updatesAllowInstall),
                           ),
+                          const SizedBox(height: 12),
                         ],
                         FilledButton.icon(
                           key: const Key('updates-install'),

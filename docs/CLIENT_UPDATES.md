@@ -27,7 +27,8 @@ opening a profile or connecting to a realm.
 
 The app verifies the announcement before showing its release notes. Download
 size and SHA-256 must match. **Install update** may first require Android's
-per-app permission to install packages; return to Arveil and press
+per-app permission to install packages (on Android 7, the global **Unknown
+sources** setting, off by default on phones); return to Arveil and press
 **Install update** again. Before creating a `PackageInstaller` session, the app
 checks the package ID, a higher build number and the current signing
 certificate, and hashes the bytes again as it copies them into the session. On
@@ -164,7 +165,9 @@ of it. The client requests `Accept-Encoding: identity` and rejects compressed
 responses, so its limits and hashes apply to the exact bytes. Use `Content-Type: application/json`, no content compression, and
 `Cache-Control: no-cache` or a short cache lifetime; purge an old cached feed
 when publishing. Downloads may follow at most five HTTPS redirects because
-GitHub assets use a storage host. Never use `releases/latest` or replace an
+GitHub assets use a storage host. The app trusts the system's certificate
+authorities plus ISRG Root X1: GitHub serves those assets under Let's Encrypt,
+and Android 7.0 does not carry that root. Never use `releases/latest` or replace an
 existing APK. Check the public feed against the locally signed bytes after
 publication. Serve the feed separately from any personal realm.
 
@@ -264,3 +267,15 @@ system confirmation. After installation, launch again and require
 certificate and tampering; each must preserve the installed app. Do not use
 `adb install -r` for the second APK in this test: the point is to exercise the
 app's own `PackageInstaller` path. Never distribute either acceptance APK.
+
+For the whole flow, use `integration_test/update_flow_acceptance.dart`. It runs
+the real app with the real update controller, transport, Rust signature check
+and installer; the only difference is one more trusted root, the disposable
+authority of a local HTTPS test feed, passed as `ARVEIL_TEST_UPDATE_CA`. Build a
+`before` and an `after` APK with the feed's URL and a disposable update key,
+sign an announcement for the second with that key, serve both from the test
+feed, and use **Settings → Updates** in the first: check, download, install
+and confirm. The second must report `ARVEIL_TEST_UPDATER_OK:profile:after` and
+its `ARVEIL_TEST_UPDATER_STATE` line the kept sequence and the removed package.
+`ARVEIL_TEST_TRUST_PROBE` makes both report whether an HTTPS address is reached
+with the system's roots and with the updater's.

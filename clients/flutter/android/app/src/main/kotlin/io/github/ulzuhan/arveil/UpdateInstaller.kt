@@ -86,7 +86,12 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
         return UpdatePackage.signerDigests(current?.map { it.toByteArray() }, info.signatures?.map { it.toByteArray() })
     }
 
-    private fun allowed() = Build.VERSION.SDK_INT < 26 || packages.canRequestPackageInstalls()
+    // Before Android 8 there is no per-app permission, only the global
+    // "Unknown sources" setting, off by default on phones; without it the
+    // system answers the confirmation with "Install blocked".
+    @Suppress("DEPRECATION")
+    private fun allowed() = if (Build.VERSION.SDK_INT >= 26) packages.canRequestPackageInstalls()
+        else Settings.Secure.getInt(activity.contentResolver, Settings.Secure.INSTALL_NON_MARKET_APPS, 0) == 1
 
     // isSealed is only reached from API 26: UpdatePackage.abandonLeftover does not ask below it.
     @SuppressLint("NewApi")
@@ -103,10 +108,9 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
                         "applicationId" to activity.packageName, "arm64" to Build.SUPPORTED_ABIS.contains("arm64-v8a")))
                     "allowed" -> result.success(allowed())
                     "permission" -> {
-                        if (Build.VERSION.SDK_INT >= 26) {
-                            activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                "package:${activity.packageName}".toUri()))
-                        }
+                        activity.startActivity(if (Build.VERSION.SDK_INT >= 26)
+                            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${activity.packageName}".toUri())
+                            else Intent(Settings.ACTION_SECURITY_SETTINGS))
                         result.success(null)
                     }
                     "open" -> {

@@ -743,6 +743,25 @@ void main() {
     expect(notifications, lessThan(20));
   });
 
+  test('the permission hint goes once Android allows installing', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'arveil-permission-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = await File('${directory.path}/update.apk').writeAsBytes(apk);
+    transport.fetch = (_) async => file;
+    installer.permissionAllowed = false;
+    await controller.check();
+    await controller.download();
+    expect(controller.needsPermission, true);
+    await controller.refreshPermission();
+    expect(controller.needsPermission, true);
+    installer.permissionAllowed = true;
+    await controller.refreshPermission();
+    expect(controller.needsPermission, false);
+    expect(installer.installs, 0);
+  });
+
   test('the signed release notes link opens on request', () async {
     await controller.openNotes();
     expect(installer.opened, isEmpty);

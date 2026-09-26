@@ -428,6 +428,20 @@ class UpdateController extends ChangeNotifier {
     await installer.requestPermission();
   });
 
+  /// Back in the app, perhaps from Android's settings: the hint to allow
+  /// installation goes once the permission is there.
+  Future<void> refreshPermission() async {
+    if (_busy || _disposed || phase != UpdatePhase.ready || !needsPermission) {
+      return;
+    }
+    try {
+      needsPermission = !await installer.allowed();
+    } catch (_) {
+      return; // The install button asks again anyway.
+    }
+    _notify();
+  }
+
   Future<void> openNotes() async {
     final link = manifest?.android.notesUrl;
     if (link == null || _disposed) return;

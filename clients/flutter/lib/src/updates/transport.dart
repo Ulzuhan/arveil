@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import 'manifest.dart';
+import 'trust.dart';
 
 abstract interface class UpdateTransport {
   Future<List<int>> manifest(Uri url);
@@ -23,7 +24,7 @@ class HttpsUpdateTransport implements UpdateTransport {
     this.directory, {
     HttpClient Function()? client,
     @visibleForTesting this.idle = const Duration(seconds: 30),
-  }) : _client = client ?? HttpClient.new;
+  }) : _client = client ?? (() => HttpClient(context: updateTrust()));
   final Future<Directory> Function() directory;
   final HttpClient Function() _client;
 

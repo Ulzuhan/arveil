@@ -32,7 +32,9 @@ ni conectar con un realm.
 
 La app verifica el anuncio antes de mostrar sus notas de la versión. El tamaño
 y el SHA-256 de la descarga deben coincidir. **Instalar actualización** puede
-pedir primero el permiso de Android para que esta app instale paquetes; vuelve
+pedir primero el permiso de Android para que esta app instale paquetes (en
+Android 7, el ajuste global **Orígenes desconocidos**, desactivado de fábrica en
+los teléfonos); vuelve
 a Arveil y pulsa **Instalar actualización** otra vez. Antes de crear una sesión
 de `PackageInstaller`, la app comprueba el ID del paquete, que el número de
 compilación sea mayor y el certificado de firma actual, y vuelve a calcular el
@@ -183,7 +185,9 @@ a los bytes exactos. Usa `Content-Type: application/json`, sin
 compresión del contenido, y `Cache-Control: no-cache` o una vida de caché
 corta; al publicar, purga el manifiesto antiguo que siga en caché. Las
 descargas pueden seguir como máximo cinco redirecciones HTTPS, porque los
-recursos de GitHub se sirven desde un host de almacenamiento. Nunca uses
+recursos de GitHub se sirven desde un host de almacenamiento. La app confía en
+las autoridades de certificación del sistema y además en ISRG Root X1: GitHub
+sirve esos recursos con Let's Encrypt, y Android 7.0 no incluye esa raíz. Nunca uses
 `releases/latest` ni sustituyas un APK ya publicado. Después de publicar,
 compara el manifiesto público con los bytes firmados en local. Sirve el
 manifiesto por separado de cualquier realm personal.
@@ -295,3 +299,16 @@ cancelación, un certificado erróneo y la manipulación; en todos los casos deb
 conservarse la app instalada. No uses `adb install -r` para el segundo APK en
 esta prueba: se trata de ejercitar la ruta propia de `PackageInstaller` de la
 app. Nunca distribuyas ninguno de los dos APK de aceptación.
+
+Para el flujo completo, usa `integration_test/update_flow_acceptance.dart`.
+Ejecuta la app real con el controlador, el transporte, la comprobación de firma
+en Rust y el instalador reales; la única diferencia es una raíz de confianza
+más, la autoridad desechable de un canal de prueba HTTPS local, que se pasa en
+`ARVEIL_TEST_UPDATE_CA`. Compila un APK `before` y otro `after` con la URL de
+ese canal y una clave de actualización desechable, firma con ella un anuncio
+para el segundo, sirve ambos desde el canal de prueba y usa **Ajustes →
+Actualizaciones** en el primero: buscar, descargar, instalar y confirmar. El
+segundo debe indicar `ARVEIL_TEST_UPDATER_OK:profile:after`, y su línea
+`ARVEIL_TEST_UPDATER_STATE`, la secuencia conservada y el paquete eliminado.
+`ARVEIL_TEST_TRUST_PROBE` hace que ambos indiquen si llegan a una dirección
+HTTPS con las raíces del sistema y con las del actualizador.

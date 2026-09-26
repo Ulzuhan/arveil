@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:arveil/src/updates/manifest.dart';
 import 'package:arveil/src/updates/transport.dart';
+import 'package:arveil/src/updates/trust.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -378,6 +380,20 @@ void main() {
     await transport.discard();
     expect(await directory.list().toList(), isEmpty);
     await transport.discard();
+  });
+
+  test('the root added for Android 7.0 is ISRG Root X1', () {
+    final der = base64Decode(
+      isrgRootX1
+          .split('\n')
+          .where((line) => line.isNotEmpty && !line.startsWith('-----'))
+          .join(),
+    );
+    expect(
+      sha256.convert(der).toString(),
+      '96bcec06264976f37460779acf28c5a7cfe8a3c0aae11a8ffcee05c0bddf08c6',
+    );
+    expect(updateTrust, returnsNormally);
   });
 
   test('redirect loops are bounded', () async {
