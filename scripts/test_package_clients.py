@@ -64,6 +64,16 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "debuggable"):
             package.android_details(BADGING + "application-debuggable\n", 18, updates=False)
 
+    def test_apk_native_code_must_be_arm64_only(self):
+        # clients-v0.1.0-beta.1 carried a plugin library for two ABIs without
+        # libflutter.so; Android installed it there and it crashed at launch.
+        arm64 = "native-code: 'arm64-v8a'\n"
+        for native in ("native-code: 'arm64-v8a' 'armeabi-v7a' 'x86_64'\n", "native-code: 'armeabi-v7a'\n",
+                       "native-code: 'x86_64' 'arm64-v8a'\n", "native-code: 'arm64-v8a' \n",
+                       arm64 + "alt-native-code: 'armeabi-v7a'\n", arm64 + arm64, ""):
+            with self.subTest(native=native), self.assertRaisesRegex(ValueError, "arm64-v8a only"):
+                package.android_details(BADGING.replace(arm64, native), 18, updates=False)
+
     def test_update_configuration_is_refused_for_macos_before_building(self):
         args = SimpleNamespace(platform="macos", update_config=Path("distribution.json"), allow_dirty=False,
                                build_number=None, flutter="flutter", signing_config=None)

@@ -85,8 +85,8 @@ Output is under `dist/clients/<version>+<build>/<platform>/`:
 Logs, debug symbols and unverified audit candidates stay under `.local/client-builds/`. Only the three output
 files belong in a release. Output directories are never overwritten. macOS
 packages have ad-hoc signatures, with no Developer ID or Apple notarization.
-Android packages are checked for a valid release certificate, ARM64 support,
-network permission and a non-debuggable manifest.
+Android packages are checked for a valid release certificate, native code for
+ARM64 (`arm64-v8a`) only, network permission and a non-debuggable manifest.
 
 CI exercises both packaging paths. Its Android signing key is disposable and
 its test APK is not uploaded. Public APKs must always use the maintained key.

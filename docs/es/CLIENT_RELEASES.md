@@ -82,8 +82,8 @@ La salida está en `dist/clients/<versión>+<compilación>/<plataforma>/`:
 Los registros, símbolos y candidatos sin verificar permanecen en `.local/client-builds/`. Solo los tres
 archivos de salida deben adjuntarse a una release. Los directorios de salida
 no se sobrescriben. macOS tiene firma ad hoc, sin Developer ID ni notarización.
-En Android se verifican certificado de release, ARM64, permiso de red y que
-el manifiesto no permita depuración.
+En Android se verifican certificado de release, código nativo solo ARM64
+(`arm64-v8a`), permiso de red y que el manifiesto no permita depuración.
 
 CI comprueba ambas rutas de empaquetado. Su clave Android es desechable y su
 APK de prueba no se sube como descarga. Los APK públicos siempre deben usar
