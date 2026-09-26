@@ -64,14 +64,17 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "debuggable"):
             package.android_details(BADGING + "application-debuggable\n", 18, updates=False)
 
-    def test_update_configuration_is_refused_for_macos_before_building(self):
+    def test_macos_reads_the_update_configuration_before_building(self):
+        # The Mac app announces updates from the same signed feed, so its
+        # package carries the configuration too; it is checked first.
         args = SimpleNamespace(platform="macos", update_config=Path("distribution.json"), allow_dirty=False,
                                build_number=None, flutter="flutter", signing_config=None)
-        with patch.object(package, "run") as run, patch.object(package, "read_config") as read_config:
-            with self.assertRaisesRegex(ValueError, "only to Android"):
+        with patch.object(package, "run") as run, patch.object(
+                package, "read_config", side_effect=ValueError("checked")) as read_config:
+            with self.assertRaisesRegex(ValueError, "checked"):
                 package.package(args)
+        read_config.assert_called_once_with(Path("distribution.json"))
         run.assert_not_called()
-        read_config.assert_not_called()
 
     def test_signing_configuration_must_be_private(self):
         with tempfile.TemporaryDirectory() as directory:

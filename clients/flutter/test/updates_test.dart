@@ -74,6 +74,7 @@ class FakeInstaller implements UpdateInstaller {
   int installs = 0;
   bool permissionAllowed = true;
   String? failure;
+  String? osVersion;
   final opened = <Uri>[];
   @override
   Future<UpdateDevice> device() async => UpdateDevice(
@@ -81,6 +82,7 @@ class FakeInstaller implements UpdateInstaller {
     sdk: 36,
     applicationId: 'io.github.ulzuhan.arveil',
     arm64: true,
+    osVersion: osVersion,
   );
   @override
   Future<bool> allowed() async => permissionAllowed;
@@ -111,6 +113,7 @@ void main() {
     String? expires,
     String notes = 'A new version.',
     String channel = 'beta',
+    Map<String, Object>? mac,
   }) => {
     'schema': 1,
     'channel': channel,
@@ -130,7 +133,21 @@ void main() {
         'notes': notes,
         'notes_url': 'https://example.org/releases/18',
       },
+      'macos-arm64': ?mac,
     },
+  };
+
+  Map<String, Object> macEntry({int build = 18, String minimumOs = '12.0'}) => {
+    'version': '0.1.0',
+    'build': build,
+    'minimum_os': minimumOs,
+    'url':
+        'https://github.com/example/arveil/releases/download/clients-v0.1.0/app.zip',
+    'size': 21,
+    'sha256':
+        '41bf7e7830bb983ab8facedd2983ffec17fe9a9775b4b5d2c4ac3ba9a1d2cffe',
+    'notes': 'A new version.',
+    'notes_url': 'https://example.org/releases/18',
   };
 
   Future<List<int>> sign(Map<String, Object> value) async {
@@ -156,14 +173,16 @@ void main() {
         : (histories.values.single as Map)['sequence'] as int;
   }
 
-  UpdateController makeController([UpdateConfig? other]) => UpdateController(
-    verifier: ed25519,
-    config: other ?? config,
-    store: store,
-    transport: transport,
-    installer: installer,
-    now: () => time,
-  );
+  UpdateController makeController([UpdateConfig? other, bool mac = false]) =>
+      UpdateController(
+        verifier: ed25519,
+        config: other ?? config,
+        store: store,
+        transport: transport,
+        installer: installer,
+        notifyOnly: mac,
+        now: () => time,
+      );
 
   setUp(() async {
     key = await Ed25519().newKeyPairFromSeed(List.generate(32, (i) => i));
@@ -925,6 +944,102 @@ void main() {
     await tester.tap(find.text('Release notes on example.org'));
     await tester.pumpAndSettle();
     expect(installer.opened, [Uri.parse('https://example.org/releases/18')]);
+  });
+
+  group('the Mac app only announces', () {
+    late UpdateController mac;
+    setUp(() {
+      installer.osVersion = '14.6.1';
+      mac = makeController(null, true);
+    });
+    tearDown(() => mac.dispose());
+
+    test('it offers the macOS entry and opens its download', () async {
+      transport.wire = await sign(payload(mac: macEntry()));
+      await mac.check();
+      expect(mac.error, null);
+      expect(mac.phase, UpdatePhase.available);
+      expect(mac.offer, isA<MacUpdate>());
+      await mac.download();
+      await mac.install();
+      expect(installer.installs, 0);
+      expect(mac.phase, UpdatePhase.available);
+      await mac.openDownload();
+      expect(installer.opened, [
+        Uri.parse(
+          'https://github.com/example/arveil/releases/download/clients-v0.1.0/app.zip',
+        ),
+      ]);
+    });
+
+    test('an announcement without a macOS entry offers nothing', () async {
+      await mac.check();
+      expect(mac.error, null);
+      expect(mac.phase, UpdatePhase.current);
+      expect(mac.offer, null);
+    });
+
+    test('the installed build and the macOS version are respected', () async {
+      transport.wire = await sign(payload(mac: macEntry(build: 17)));
+      await mac.check();
+      expect(mac.phase, UpdatePhase.current);
+      transport.wire = await sign(
+        payload(sequence: 2, mac: macEntry(minimumOs: '15.0')),
+      );
+      await mac.check();
+      expect(mac.phase, UpdatePhase.incompatible);
+    });
+
+    test('an expired offer is not opened', () async {
+      transport.wire = await sign(payload(mac: macEntry()));
+      await mac.check();
+      time = DateTime.utc(2030, 3, 1);
+      await mac.openDownload();
+      expect(mac.error, 'expired');
+      expect(installer.opened, isEmpty);
+      expect(mac.available, false);
+    });
+
+    test('a malformed macOS entry rejects the announcement', () async {
+      transport.wire = await sign(
+        payload(mac: {...macEntry(), 'minimum_os': 'twelve'}),
+      );
+      await mac.check();
+      expect(mac.error, 'format');
+      expect(mac.available, false);
+    });
+
+    test('Android ignores the macOS entry', () async {
+      transport.wire = await sign(payload(mac: macEntry(build: 99)));
+      await controller.check();
+      expect(controller.offer, isA<AndroidUpdate>());
+      expect(controller.offer!.build, 18);
+    });
+
+    testWidgets('the page opens the download instead of installing', (
+      tester,
+    ) async {
+      transport.wire = await sign(payload(mac: macEntry()));
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: UpdatesPage(controller: mac),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('updates-check')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('updates-download')), findsNothing);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('updates-open-download')),
+        200,
+      );
+      await tester.tap(find.byKey(const Key('updates-open-download')));
+      await tester.pumpAndSettle();
+      expect(installer.opened, hasLength(1));
+      expect(find.textContaining('brew upgrade --cask arveil'), findsOneWidget);
+    });
   });
 
   group('rules shared with the release signer', () {

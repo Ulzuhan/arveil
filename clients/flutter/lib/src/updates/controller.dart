@@ -79,6 +79,34 @@ class AndroidUpdateInstaller implements UpdateInstaller {
       _channel.invokeMethod('open', {'url': url.toString()});
 }
 
+/// The Mac app's side: it reads its build and opens links, and never
+/// installs; the person downloads the new version and replaces the app.
+class MacUpdateNotifier implements UpdateInstaller {
+  static const _channel = MethodChannel('io.github.ulzuhan.arveil/updates');
+  @override
+  Future<UpdateDevice> device() async {
+    final data = (await _channel.invokeMapMethod<String, dynamic>('device'))!;
+    return UpdateDevice(
+      build: data['build'] as int,
+      sdk: 0,
+      applicationId: data['applicationId'] as String,
+      arm64: data['arm64'] as bool,
+      osVersion: data['osVersion'] as String,
+    );
+  }
+
+  @override
+  Future<bool> allowed() async => false;
+  @override
+  Future<void> requestPermission() async {}
+  @override
+  Future<void> install(File apk, AndroidUpdate update) =>
+      throw UnsupportedError('The Mac app does not install updates');
+  @override
+  Future<void> open(Uri url) =>
+      _channel.invokeMethod('open', {'url': url.toString()});
+}
+
 enum UpdatePhase {
   idle,
   checking,
@@ -98,9 +126,14 @@ class UpdateController extends ChangeNotifier {
     required this.transport,
     required this.installer,
     required this.verifier,
+    this.notifyOnly = false,
     DateTime Function()? now,
   }) : now = now ?? DateTime.now;
   final UpdateConfig? config;
+
+  /// On the Mac the controller checks, verifies and offers, and the offer
+  /// opens the download in the browser; it never downloads or installs.
+  final bool notifyOnly;
   final UpdateSignatureVerifier verifier;
   final UpdateStore store;
   final UpdateTransport transport;
@@ -336,9 +369,10 @@ class UpdateController extends ChangeNotifier {
       if (_disposed || _cancelled) return;
       await _removeApk();
       manifest = candidate;
-      phase = !candidate.android.newerThan(device!)
+      final target = _target(candidate);
+      phase = target == null || !target.newerThan(device!)
           ? UpdatePhase.current
-          : candidate.android.compatibleWith(device!)
+          : target.compatibleWith(device!)
           ? UpdatePhase.available
           : UpdatePhase.incompatible;
     } catch (_) {
@@ -393,6 +427,7 @@ class UpdateController extends ChangeNotifier {
   }
 
   Future<void> download() => _run(() async {
+    if (notifyOnly) return;
     final selected = manifest;
     if (selected == null || !available) return;
     await _fresh(selected);
@@ -442,8 +477,30 @@ class UpdateController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> openNotes() async {
-    final link = manifest?.android.notesUrl;
+  PlatformUpdate? _target(UpdateManifest manifest) =>
+      notifyOnly ? manifest.macos : manifest.android;
+
+  /// What the announcement offers this platform.
+  PlatformUpdate? get offer => manifest == null ? null : _target(manifest!);
+
+  Future<void> openNotes() => _open(offer?.notesUrl);
+
+  /// On the Mac: opens the new version's download in the browser, after
+  /// checking the offer is still fresh.
+  Future<void> openDownload() async {
+    final selected = manifest;
+    if (!notifyOnly || selected == null || _disposed) return;
+    try {
+      await _fresh(selected);
+    } on UpdateFailure catch (e) {
+      error = e.code;
+      _notify();
+      return;
+    }
+    await _open(offer?.url);
+  }
+
+  Future<void> _open(Uri? link) async {
     if (link == null || _disposed) return;
     try {
       await installer.open(link);
@@ -454,6 +511,7 @@ class UpdateController extends ChangeNotifier {
   }
 
   Future<void> install() => _run(() async {
+    if (notifyOnly) return;
     final selected = manifest;
     if (selected == null || _apk == null || phase != UpdatePhase.ready) return;
     await _fresh(selected);

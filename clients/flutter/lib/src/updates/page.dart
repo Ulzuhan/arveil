@@ -205,7 +205,8 @@ class UpdatesPage extends StatelessWidget {
         listenable: controller,
         builder: (context, _) {
           final l10n = context.l10n;
-          final update = controller.manifest?.android;
+          final update = controller.offer;
+          final mac = controller.notifyOnly;
           final downloading = controller.phase == UpdatePhase.downloading;
           return Align(
             alignment: Alignment.topCenter,
@@ -214,12 +215,14 @@ class UpdatesPage extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
-                  Text(l10n.updatesExplanation),
+                  Text(
+                    mac ? l10n.updatesExplanationMac : l10n.updatesExplanation,
+                  ),
                   const SizedBox(height: 16),
                   if (!controller.configured)
                     Text(l10n.updatesUnconfigured)
                   else ...[
-                    Text(l10n.updatesPrivacy),
+                    Text(mac ? l10n.updatesPrivacyMac : l10n.updatesPrivacy),
                     const SizedBox(height: 12),
                     SwitchListTile.adaptive(
                       key: const Key('updates-automatic'),
@@ -282,7 +285,16 @@ class UpdatesPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      if (downloading) ...[
+                      if (mac) ...[
+                        FilledButton.icon(
+                          key: const Key('updates-open-download'),
+                          onPressed: controller.openDownload,
+                          icon: const Icon(Icons.download_outlined),
+                          label: Text(l10n.updatesOpenDownload),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(l10n.updatesMacReplace),
+                      ] else if (downloading) ...[
                         LinearProgressIndicator(
                           value: controller.received / update.size,
                           semanticsLabel: l10n.updatesDownloading,

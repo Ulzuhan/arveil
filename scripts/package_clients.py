@@ -158,8 +158,6 @@ def android_details(badging, build, updates):
 
 
 def package(args):
-    if args.update_config and args.platform != "android":
-        raise ValueError("--update-config applies only to Android; macOS has no signed updater yet.")
     update_config = read_config(args.update_config) if args.update_config else None
     if args.platform == "macos" and (sys.platform != "darwin" or platform.machine() != "arm64"):
         raise ValueError("The macOS package requires an Apple silicon Mac.")
