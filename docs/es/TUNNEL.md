@@ -45,6 +45,44 @@ endpoint WSS correcto. Que Cloudflare muestre «conectado» no sustituye estas
 comprobaciones. Las pruebas destructivas de staging no deben ejecutarse sobre
 un realm que ya tenga usuarios reales.
 
+## Actualizar el relay detrás del túnel
+
+Cuando un realm funciona detrás del túnel, `scripts/podman.py deploy` ya no
+sustituye su unidad: la unidad estándar publicaría el relay en el puerto que
+usa nginx, quitaría `-trust-forwarded-for` y olvidaría el endpoint público, y
+la siguiente actualización dejaría el relay caído. Se detiene antes de
+compilar nada y lo explica. Actualízalo así:
+
+1. Compila y comprueba la imagen nueva sin tocar el servicio en marcha. Si el
+   realm está en marcha, también guarda una copia previa, como un despliegue
+   normal:
+
+   ```sh
+   python3 scripts/podman.py deploy --host <alias-ssh> \
+     --address <ipv4-de-tailscale> --revision <commit> --image-only
+   ```
+
+2. Pon ese commit en `revision` de `.local/tunnel/operator.json` y genera la
+   configuración en un directorio nuevo, porque el generador nunca sobrescribe
+   uno existente:
+
+   ```sh
+   python3 scripts/prepare_tunnel.py \
+     --config .local/tunnel/operator.json --output .local/tunnel/rendered-<commit>
+   ```
+
+3. Compara la Quadlet nueva del relay con la instalada. Solo deben cambiar las
+   líneas de la imagen y la revisión; si cambia algo más, detente y revísalo.
+   Conserva la instalada como `.container.previous`, instala la nueva con modo
+   0600, ejecuta `systemctl --user daemon-reload` y reinicia solo el servicio
+   del realm. El proxy y el conector siguen en marcha.
+4. Comprueba el healthcheck interno del relay y que `-version` informe del
+   commit nuevo, y repite las comprobaciones externas de la sección anterior.
+
+Para volver atrás, restaura `.container.previous` y reinicia el servicio del
+realm. Si el relay nuevo migró su base de datos, sigue además el
+[procedimiento de copia y vuelta atrás](../PODMAN.md#updates-backups-and-rollback).
+
 ## Browser Integrity Check: excepción y vuelta atrás {#browser-integrity-check-excepcion-y-vuelta-atras}
 
 [Browser Integrity Check (BIC)](https://developers.cloudflare.com/waf/tools/browser-integrity-check/)

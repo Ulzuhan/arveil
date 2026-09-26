@@ -150,6 +150,43 @@ only the new DNS route if it is no longer wanted. If also changing relay code
 or database format, use the [backup/rollback procedure](PODMAN.md#updates-backups-and-rollback)
 instead of assuming an older binary can read the current database.
 
+## Update the relay behind the tunnel
+
+Once a realm runs behind the tunnel, `scripts/podman.py deploy` no longer
+replaces its unit: the stock unit would publish the relay on the port nginx
+uses, drop `-trust-forwarded-for` and forget the public endpoint, which takes
+the relay down on the next update. It stops before building anything and says
+so. Update it this way instead:
+
+1. Build and check the new image without touching the running service. If the
+   realm is running, this also saves a pre-update backup, as an ordinary
+   deploy does:
+
+   ```sh
+   python3 scripts/podman.py deploy --host <ssh-alias> \
+     --address <tailscale-ipv4> --revision <commit> --image-only
+   ```
+
+2. Set `revision` in `.local/tunnel/operator.json` to that commit and render
+   into a new directory, since the renderer never overwrites one:
+
+   ```sh
+   python3 scripts/prepare_tunnel.py \
+     --config .local/tunnel/operator.json --output .local/tunnel/rendered-<commit>
+   ```
+
+3. Compare the new relay Quadlet with the installed one. Only the image and
+   revision lines should differ; if anything else changed, stop and review
+   it. Keep the installed unit as `.container.previous`, install the new one
+   with mode 0600, then run `systemctl --user daemon-reload` and restart only
+   the realm's service. The proxy and the connector keep running.
+4. Check the relay's internal health command and that `-version` reports the
+   new commit, then repeat the external checks in step 6 above.
+
+To go back, restore `.container.previous` and restart the realm's service. If
+the new relay migrated its database, follow the
+[backup/rollback procedure](PODMAN.md#updates-backups-and-rollback) as well.
+
 ## Browser Integrity Check
 
 Cloudflare's [Browser Integrity Check (BIC)](https://developers.cloudflare.com/waf/tools/browser-integrity-check/)
