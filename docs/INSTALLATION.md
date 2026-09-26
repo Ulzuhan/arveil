@@ -52,7 +52,9 @@ docker compose -f relay/compose.yaml exec arveil-relay /arveil-relay invite -dat
 ```
 
 The `bootstrap:` line identifies the relay. Give it and the invitation to the
-intended client privately. The app's enrollment form asks for both.
+intended client privately. The app's enrollment form asks for both. They can
+travel in one message: pasted whole into the server details, the app keeps the
+`arveil-bootstrap:` string and fills the invitation from the same text.
 
 **This default is local-only.** The published port and advertised address use
 loopback. On a phone, `127.0.0.1` means the phone itself. Before testing from
@@ -113,8 +115,9 @@ x86-64 emulators; `clients-v0.1.0-beta.1` installs there anyway and closes at la
 2. If prompted, permit **Install unknown apps** for the browser or file manager
    used to open this APK. Install Arveil; you can turn that permission off afterward.
 3. Open Arveil, select **Abrir perfil**, then **Unirme con una invitación**, and
-   enter the server (relay) data and then the invitation. A private relay
-   requires the phone to be connected to its network.
+   enter the server (relay) data and then the invitation. If both came in one
+   message, paste it whole in the first step. A private relay requires the phone
+   to be connected to its network.
 
 **Update from the app:** builds that include a configured update channel offer
 **Settings → Updates** and an update icon on the closed-profile screen. Choose

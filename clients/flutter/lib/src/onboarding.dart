@@ -14,6 +14,27 @@ import 'updates/page.dart';
 /// How a profile without an identity gets one.
 enum Entry { invitation, pairing, restore }
 
+/// What one pasted message holds: the server details and, when the
+/// administrator sent both together, the invitation. Labels and other text
+/// around them are ignored, and two different invitations are not guessed
+/// between.
+({String? bootstrap, String? invite}) splitInvitation(String text) {
+  final bootstrap = RegExp(
+    r'arveil-bootstrap:v0:\S+',
+  ).firstMatch(text)?.group(0);
+  final rest = bootstrap == null ? text : text.replaceFirst(bootstrap, ' ');
+  final invites = {
+    for (final match in RegExp(
+      r'(?<![0-9A-Fa-f:])[0-9A-Fa-f]{64}(?![0-9A-Fa-f:])',
+    ).allMatches(rest))
+      match.group(0)!.toLowerCase(),
+  };
+  return (
+    bootstrap: bootstrap,
+    invite: invites.length == 1 ? invites.single : null,
+  );
+}
+
 /// Opens the profile and routes it: the welcome while closed, the three
 /// ways to get an identity, enrollment until the identity is ready, an
 /// offer to save the kit right after, and then the main navigation.
@@ -36,6 +57,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   /// Second step of the invitation: the server details are in.
   bool _serverDone = false;
+
+  /// The invitation came in the same message as the server details.
+  bool _inviteFound = false;
 
   /// An identity just became ready here without a current kit.
   bool _offerKit = false;
@@ -86,15 +110,29 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       _entry = entry;
       _serverDone = false;
+      _inviteFound = false;
     });
   }
 
+  /// Keeps only the server details in their field, and fills an empty
+  /// invitation from the same message.
+  void _split() {
+    final found = splitInvitation(_bootstrap.text);
+    if (found.bootstrap case final bootstrap?) _bootstrap.text = bootstrap;
+    if (found.invite case final invite? when _invite.text.trim().isEmpty) {
+      _invite.text = invite;
+      _inviteFound = true;
+    }
+  }
+
   void _nextStep() {
+    _split();
     if (!(_serverForm.currentState?.validate() ?? false)) return;
     setState(() => _serverDone = true);
   }
 
   Future<void> _enroll() async {
+    _split();
     if (!(_form.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
     final success = await _session.enroll(
@@ -467,7 +505,11 @@ class _ProfilePageState extends State<ProfilePage> {
     return [
       _stepLabel(context, 2),
       _title(context, l10n.enrollInviteTitle),
-      Text(l10n.enrollInviteBody, style: muted),
+      Text(
+        _inviteFound ? l10n.enrollInviteFound : l10n.enrollInviteBody,
+        key: const Key('invite-body'),
+        style: muted,
+      ),
       const SizedBox(height: 20),
       if (!fresh) _status(context, setup),
       Form(

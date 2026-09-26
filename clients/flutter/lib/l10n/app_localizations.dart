@@ -431,7 +431,7 @@ abstract class AppLocalizations {
   /// No description provided for @enrollBody.
   ///
   /// In es, this message translates to:
-  /// **'Pide al administrador los datos del servidor y una invitación. Tu identidad se crea en este dispositivo al continuar.'**
+  /// **'Pide al administrador los datos del servidor y una invitación. Si te llegaron en un mismo mensaje, pégalo entero: la app encuentra cada cosa. Tu identidad se crea en este dispositivo al continuar.'**
   String get enrollBody;
 
   /// No description provided for @setupRedeeming.
@@ -2653,6 +2653,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Pega la invitación de 64 caracteres que te dio el administrador.'**
   String get enrollInviteBody;
+
+  /// No description provided for @enrollInviteFound.
+  ///
+  /// In es, this message translates to:
+  /// **'La invitación venía en el mismo mensaje y ya está rellenada.'**
+  String get enrollInviteFound;
 
   /// No description provided for @kitOfferTitle.
   ///

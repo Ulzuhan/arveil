@@ -55,6 +55,9 @@ docker compose -f relay/compose.yaml exec arveil-relay /arveil-relay invite -dat
 
 La línea `bootstrap:` identifica el relay. Comparte esa cadena y la invitación
 por un canal privado con el cliente previsto. El formulario de alta pide ambas.
+Pueden ir en un mismo mensaje: si se pega entero en los datos del servidor, la
+app se queda con la cadena `arveil-bootstrap:` y rellena la invitación con el
+mismo texto.
 
 **La configuración predeterminada es solo local.** El puerto publicado y la
 dirección anunciada usan loopback. En un teléfono, `127.0.0.1` es el propio
@@ -118,8 +121,9 @@ ellos y se cierra al abrirse.
    gestor de archivos que abre ese APK. Instala Arveil; después puedes retirar
    ese permiso.
 3. Abre Arveil, pulsa **Abrir perfil** y después **Unirme con una invitación**, e
-   introduce los datos del servidor (relay) y luego la invitación. Si el relay es
-   privado, el teléfono debe estar conectado a su red.
+   introduce los datos del servidor (relay) y luego la invitación. Si te llegaron
+   en un mismo mensaje, pégalo entero en el primer paso. Si el relay es privado,
+   el teléfono debe estar conectado a su red.
 
 **Actualizar desde la app:** las builds con un canal configurado ofrecen
 **Ajustes → Actualizaciones** y un icono con el perfil cerrado. Pulsa **Buscar

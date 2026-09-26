@@ -208,7 +208,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get enrollBody =>
-      'Pide al administrador los datos del servidor y una invitación. Tu identidad se crea en este dispositivo al continuar.';
+      'Pide al administrador los datos del servidor y una invitación. Si te llegaron en un mismo mensaje, pégalo entero: la app encuentra cada cosa. Tu identidad se crea en este dispositivo al continuar.';
 
   @override
   String get setupRedeeming => 'Pendiente de confirmar la invitación.';
@@ -1616,6 +1616,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get enrollInviteBody =>
       'Pega la invitación de 64 caracteres que te dio el administrador.';
+
+  @override
+  String get enrollInviteFound =>
+      'La invitación venía en el mismo mensaje y ya está rellenada.';
 
   @override
   String get kitOfferTitle => 'Guarda ahora tu kit de identidad';
