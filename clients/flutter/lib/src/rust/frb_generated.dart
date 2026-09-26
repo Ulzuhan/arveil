@@ -2365,21 +2365,26 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           reason: dco_decode_String(raw[2]),
         );
       case 5:
-        return CommandError_Domain(
+        return CommandError_Quota(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
       case 6:
-        return CommandError_FileSystem(
+        return CommandError_Domain(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
       case 7:
-        return CommandError_Internal(
+        return CommandError_FileSystem(
           operation: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
       case 8:
+        return CommandError_Internal(
+          operation: dco_decode_String(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 9:
         return CommandError_Interrupted(reason: dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -3234,25 +3239,29 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       case 5:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Domain(
-          operation: var_operation,
-          reason: var_reason,
-        );
+        return CommandError_Quota(operation: var_operation, reason: var_reason);
       case 6:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_FileSystem(
+        return CommandError_Domain(
           operation: var_operation,
           reason: var_reason,
         );
       case 7:
         var var_operation = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
-        return CommandError_Internal(
+        return CommandError_FileSystem(
           operation: var_operation,
           reason: var_reason,
         );
       case 8:
+        var var_operation = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return CommandError_Internal(
+          operation: var_operation,
+          reason: var_reason,
+        );
+      case 9:
         var var_reason = sse_decode_String(deserializer);
         return CommandError_Interrupted(reason: var_reason);
       default:
@@ -4307,29 +4316,33 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
         sse_encode_i_32(4, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Domain(
-        operation: final operation,
-        reason: final reason,
-      ):
+      case CommandError_Quota(operation: final operation, reason: final reason):
         sse_encode_i_32(5, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_FileSystem(
+      case CommandError_Domain(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(6, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Internal(
+      case CommandError_FileSystem(
         operation: final operation,
         reason: final reason,
       ):
         sse_encode_i_32(7, serializer);
         sse_encode_String(operation, serializer);
         sse_encode_String(reason, serializer);
-      case CommandError_Interrupted(reason: final reason):
+      case CommandError_Internal(
+        operation: final operation,
+        reason: final reason,
+      ):
         sse_encode_i_32(8, serializer);
+        sse_encode_String(operation, serializer);
+        sse_encode_String(reason, serializer);
+      case CommandError_Interrupted(reason: final reason):
+        sse_encode_i_32(9, serializer);
         sse_encode_String(reason, serializer);
     }
   }

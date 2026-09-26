@@ -33,6 +33,9 @@ pub(crate) fn cli_error(error: ApplicationError) -> CliError {
         | ApplicationError::Protocol {
             source, partial, ..
         }
+        | ApplicationError::Quota {
+            source, partial, ..
+        }
         | ApplicationError::Domain {
             source, partial, ..
         }

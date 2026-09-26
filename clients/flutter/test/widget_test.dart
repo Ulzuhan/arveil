@@ -250,6 +250,31 @@ void main() {
     }
   });
 
+  test('a relay limit asks for a wait, never for other data or a kit', () {
+    final pairing = describeFailure(
+      const CommandError.quota(
+        operation: 'begin-pairing',
+        reason: 'PRIVATE_TOKEN_AND_PATH',
+      ),
+    );
+    expect(pairing, contains('desde esta red'));
+    expect(pairing, contains('hasta 10'));
+    expect(pairing, contains('reintentar antes no sirve'));
+    final other = describeFailure(
+      const CommandError.quota(
+        operation: 'sync',
+        reason: 'PRIVATE_TOKEN_AND_PATH',
+      ),
+    );
+    expect(other, contains('Espera unos minutos'));
+    expect(other, isNot(contains('vinculación')));
+    for (final message in [pairing, other]) {
+      expect(message, isNot(contains('Comprueba los datos')));
+      expect(message, isNot(contains('kit')));
+      expect(message, isNot(contains('PRIVATE_TOKEN_AND_PATH')));
+    }
+  });
+
   test('a profile from a newer app asks for an update, not for its key', () {
     final message = describeFailure(
       const ProfileError.tooNew(

@@ -81,6 +81,12 @@ void main() {
       noticeText(null, const NoticeView(added: 2, removed: 1)),
       'A contact added 2 devices and removed a device.',
     );
+    expect(
+      describeFailure(
+        const CommandError.quota(operation: 'begin-pairing', reason: ''),
+      ),
+      contains('from this network'),
+    );
     final at = DateTime(2026, 9, 25, 18, 4);
     expect(
       recordedTime(
