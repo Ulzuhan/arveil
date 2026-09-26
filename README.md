@@ -17,7 +17,7 @@ End-to-end encrypted with MLS (RFC 9420) · one Go relay binary on SQLite · app
 [Install](docs/INSTALLATION.md) ·
 [Threat model](docs/THREAT_MODEL.md) ·
 [Protocol](docs/PROTOCOL.md) ·
-[Español](docs/es/README.md)
+[Español](README.es.md)
 
 </div>
 

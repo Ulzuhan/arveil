@@ -1,40 +1,91 @@
-# Arveil — documentación de arquitectura
+# Documentación de Arveil
 
-**Estado actual del cliente:** la [base implementada](CLIENT_FOUNDATION.md), el [plan Flutter](PHASE3B.md) y la [ADR-009 aceptada](adr/ADR-009-flutter-first.md) actualizan las propuestas anteriores. Flutter está elegido y `mls-rs` ya se utiliza. El cliente Flutter abre perfiles cifrados, da de alta por invitación, vincula dispositivos y exporta/restaura kits de identidad mediante Rust. La interfaz permite crear conversaciones, leer y enviar texto; la aceptación por plataforma se registra por separado. Las listas históricas de cuestiones abiertas que aparecen más abajo no son el backlog actual.
-
-**Estado:** implementación experimental con documentos históricos de diseño · **Idioma:** español.
+Arveil es un mensajero autoalojado y cifrado de extremo a extremo para
+familias y pequeños círculos de confianza. Un relay en Go transporta sobres
+cifrados; un núcleo Rust en cada dispositivo se encarga de la identidad, MLS,
+el almacenamiento local y la recuperación; las apps Flutter para macOS y
+Android funcionan sobre ese núcleo. Estas páginas explican cómo ponerlo en
+marcha, cómo está diseñado y qué se ha verificado.
 
 *English version: [../README.md](../README.md)*
 
-Messenger autohosteado para familiares, amigos y pequeños círculos de confianza. Un servidor Go transporta y conserva temporalmente datos cifrados; un core Rust en cada cliente controla identidad, MLS, almacenamiento local y recuperación. El objetivo diferencial es combinar privacidad con una operación doméstica sencilla y una recuperación comprensible.
+**Estado (26 de septiembre de 2026).** El relay, el núcleo Rust y la CLI
+están completos hasta la fase 4. Las apps implementan los hitos M3b.0 a
+M3b.4, y el siguiente paso es una beta limitada para macOS y Android (M3b.5).
+No hay ninguna versión publicada y el proyecto no ha pasado una auditoría
+independiente. Cada ADR declara su estado; «DEBE» expresa un requisito del
+diseño, y la [matriz de plataformas](PLATFORMS.md) indica qué requisitos se
+han probado.
 
-El relay, el núcleo Rust y la CLI están implementados; la base del cliente Flutter está en desarrollo. Esta documentación combina registros de implementación con propuestas históricas. Cada ADR declara su estado; ADR-009 está aceptada. La aceptación entre dispositivos físicos y una revisión de seguridad independiente siguen pendientes. «DEBE» expresa un requisito del diseño; los registros de aceptación indican qué requisitos se han probado.
+## Por dónde empezar
 
-**Empieza aquí:** [Instalar y probar Arveil](INSTALLATION.md) — rutas para servidor, macOS y Android, disponibilidad actual y criterios de distribución.
+| Quiero… | Lee |
+|---|---|
+| Probar Arveil | [Instalar y probar](INSTALLATION.md) |
+| Poner un relay para mi familia | [Poner en marcha un realm](OPERATIONS.md) · [Podman sin root](../PODMAN.md) (en inglés) |
+| Compilar o empaquetar las apps | [Paquetes del cliente](CLIENT_RELEASES.md) · [README del cliente Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md) (en inglés) |
+| Entender la seguridad | [Modelo de amenazas](THREAT_MODEL.md) · [Protocolo](PROTOCOL.md) · [Arquitectura](ARCHITECTURE.md) |
+| Seguir las apps | [Plan de la fase 3b](PHASE3B.md) · [Registro de implementación](CLIENT_FOUNDATION.md) · [Diseño del cliente](CLIENT_DESIGN.md) · [Matriz de plataformas](PLATFORMS.md) |
+| Contribuir | [Guía de contribución](https://github.com/Ulzuhan/arveil/blob/main/CONTRIBUTING.md) · [Política de seguridad](https://github.com/Ulzuhan/arveil/blob/main/SECURITY.md) (en inglés) |
 
-## Mapa y orden de lectura
+## Mapa de documentos
+
+### Uso y administración
 
 | Documento | Contenido |
 |---|---|
-| [INSTALLATION.md](INSTALLATION.md) | Entrada de instalación/pruebas y aceptación de distribución |
-| [CLIENT_FOUNDATION.md](CLIENT_FOUNDATION.md) | Cambios implementados, evidencia y límites |
-| [PHASE3B.md](PHASE3B.md) | Plan Flutter y criterios de aceptación |
-| [ADR-009](adr/ADR-009-flutter-first.md) | Flutter primero, decisión aceptada |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Componentes, límites, despliegue, alcance y fases |
-| [THREAT_MODEL.md](THREAT_MODEL.md) | Activos, adversarios, metadatos, garantías condicionadas y pruebas |
-| [PROTOCOL.md](PROTOCOL.md) | Flujos, contratos de transporte, MLS, entrega y recuperación |
-| [DOMAIN_MODEL.md](DOMAIN_MODEL.md) | Entidades, claves, persistencia, invariantes y estados |
-| [ADR-001](adr/ADR-001-go-server-rust-core.md) | Servidor Go y core seguro Rust |
+| [Instalar y probar](INSTALLATION.md) | Rutas para servidor, macOS y Android, disponibilidad actual y aceptación de la instalación |
+| [Poner en marcha un realm](OPERATIONS.md) | Instalación, direcciones y túneles, límites, salud y métricas, copias, restauración y actualizaciones |
+| [Podman sin root](../PODMAN.md) (en inglés) | Un relay en red privada con SSH, Tailscale y Podman sin root persistente |
+| [Paquetes del cliente](CLIENT_RELEASES.md) | Compilar, auditar y publicar el ZIP de macOS y el APK de Android |
+
+### Diseño
+
+| Documento | Contenido |
+|---|---|
+| [Arquitectura](ARCHITECTURE.md) | Componentes, límites, despliegue, vías de acceso, alcance y fases |
+| [Modelo de amenazas](THREAT_MODEL.md) | Activos, adversarios, qué sabe el servidor, garantías condicionadas e invariantes I-01 a I-13 |
+| [Protocolo](PROTOCOL.md) | Arranque, transporte, grupos MLS, entrega duradera, catálogo de frames y recuperación |
+| [Modelo de dominio](DOMAIN_MODEL.md) | Entidades, ciclo de vida de las claves, esquema del servidor, atomicidad local y máquinas de estados |
+
+### Decisiones
+
+| Registro | Decisión |
+|---|---|
+| [ADR-001](adr/ADR-001-go-server-rust-core.md) | Servidor Go y núcleo seguro en Rust |
 | [ADR-002](adr/ADR-002-mls.md) | MLS para conversaciones y dispositivos |
-| [ADR-003](adr/ADR-003-zero-trust-server.md) | Servidor no confiable para contenido e identidad |
-| [ADR-004](adr/ADR-004-sqlite-single-binary.md) | SQLite, filesystem y un binario servidor |
+| [ADR-003](adr/ADR-003-zero-trust-server.md) | Un servidor al que no se confía ni el contenido ni la identidad |
+| [ADR-004](adr/ADR-004-sqlite-single-binary.md) | SQLite, el sistema de archivos y un único binario de servidor |
 | [ADR-005](adr/ADR-005-cryptographic-identity.md) | Identidad criptográfica y dispositivos autorizados |
-| [ADR-006](adr/ADR-006-local-first-recovery-first.md) | Local-first, recuperación e historial explícito |
+| [ADR-006](adr/ADR-006-local-first-recovery-first.md) | Primero local, primero la recuperación, historial explícito |
 | [ADR-007](adr/ADR-007-optional-realm-redundancy.md) | Redundancia opcional después de V1; relays independientes como dirección preferente |
-| [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Canal Noise, lista firmada de endpoints y acceso por LAN, tailnet, túnel o Internet |
-| [REVIEW-v0.3](REVIEW-v0.3.md) | Revisión de viabilidad externa: referencias verificadas, riesgos y acciones propuestas |
+| [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Canal Noise, lista firmada de direcciones y acceso por LAN, tailnet, túnel o Internet |
+| [ADR-009](adr/ADR-009-flutter-first.md) | Flutter primero para las apps (aceptada) |
 
+### Apps
 
+| Documento | Contenido |
+|---|---|
+| [Plan de la fase 3b](PHASE3B.md) | Hitos M3b.0 a M3b.8 y sus criterios de aceptación (texto normativo) |
+| [Registro de implementación](CLIENT_FOUNDATION.md) | Qué implementó cada cambio, su evidencia y sus límites |
+| [Diseño del cliente](CLIENT_DESIGN.md) | Sistema visual, personalización y plan del rediseño |
+| [Matriz de plataformas](PLATFORMS.md) | Pruebas de aceptación fechadas: dispositivo, sistema, commit y resultado |
+
+### Planes, revisiones y evidencias
+
+| Documento | Contenido |
+|---|---|
+| Planes de las fases [0](../PHASE0.md) · [1](../PHASE1.md) · [2](../PHASE2.md) · [3](../PHASE3.md) · [4](../PHASE4.md) (en inglés) | Hitos, condiciones de salida y resultados de cada fase completada |
+| [Revisión de viabilidad v0.3](REVIEW-v0.3.md) | Revisión de estilo externo con referencias verificadas y riesgos abiertos |
+| [Comparación de bibliotecas MLS](../spikes/M0.5-mls-library-comparison.md) (en inglés) | El spike M0.5 que llevó a elegir mls-rs |
+| [Transcripción de la demo](../evidence/demo-transcript.txt) · [Captura Q3](../evidence/q3-capture-excerpt.txt) | La demo de la fase 0 y lo que vio del canal Noise un proxy que termina TLS (Q3) |
+| [Noise dentro de un túnel de Cloudflare](../articles/noise-inside-a-cloudflare-tunnel.md) · [Sin tabla de salas](../articles/no-rooms-table.md) (en inglés) | Notas de diseño (borradores) |
+
+---
+
+Las secciones siguientes son el registro histórico del diseño de septiembre
+de 2026. Explican cómo llegó el diseño a su forma actual; los documentos de
+arriba describen lo que es cierto hoy.
 
 ## Antecedentes de diseño v0.4 (históricos)
 
