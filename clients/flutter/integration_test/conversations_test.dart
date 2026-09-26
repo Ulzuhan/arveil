@@ -2,10 +2,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:arveil/main.dart';
+import 'package:arveil/src/appearance.dart';
 import 'package:arveil/src/conversation_controller.dart';
 import 'package:arveil/src/conversations_page.dart';
+import 'package:arveil/src/design/design.dart';
 import 'package:arveil/src/profile_keys.dart';
 import 'package:arveil/src/profile_location.dart';
+import 'package:arveil/src/profile_session.dart';
 import 'package:arveil/src/rust/api/profile.dart';
 import 'package:arveil/src/rust/frb_generated.dart';
 import 'package:flutter/material.dart';
@@ -52,7 +56,11 @@ Future<void> main() async {
 
       var alice = await open(0);
       final bob = await open(1);
+      ProfileSession? uiSession;
       addTearDown(() async {
+        await tester.pumpWidget(const SizedBox());
+        await uiSession?.close();
+        uiSession?.dispose();
         await alice.close();
         await bob.close();
         for (final key in keys) {
@@ -84,6 +92,42 @@ Future<void> main() async {
         await settle();
       }
 
+      Future<ConversationController> showProfile() async {
+        uiSession = ProfileSession(opener: () async => alice);
+        await tester.pumpWidget(
+          ArveilApp(
+            session: uiSession,
+            appearance: AppearanceController(
+              MemoryAppearanceStore(),
+              const Appearance(language: LanguageChoice.spanish),
+            ),
+          ),
+        );
+        await tap(find.text('Abrir perfil'));
+        return tester
+            .widget<ConversationsPage>(find.byType(ConversationsPage))
+            .controller;
+      }
+
+      Future<void> hideProfile() async {
+        await tester.pumpWidget(const SizedBox());
+        await uiSession?.close();
+        uiSession?.dispose();
+        uiSession = null;
+      }
+
+      Future<void> destination(String label) async {
+        // A phone's open conversation hides its bottom navigation.
+        if (find.byKey(const Key('navigation-rail')).evaluate().isEmpty &&
+            find.byKey(const Key('navigation-bar')).evaluate().isEmpty) {
+          await tap(find.byTooltip('Volver a conversaciones'));
+        }
+        final navigation = find.byWidgetPredicate(
+          (w) => w is NavigationRail || w is NavigationBar,
+        );
+        await tap(find.descendant(of: navigation, matching: find.text(label)));
+      }
+
       final cancelledGeneration = alice.startWatching();
       alice.stopWatching(generation: cancelledGeneration);
       await alice
@@ -98,12 +142,8 @@ Future<void> main() async {
         routes: [await alice.ownRoute()],
       );
       expect(aPreview.single.safetyNumber, bPreview.single.safetyNumber);
-      var chat = ConversationController(alice, bootstrap);
-      await tester.pumpWidget(
-        MaterialApp(home: ConversationsPage(controller: chat)),
-      );
-      await settle();
-      await tap(find.byTooltip('Contactos'));
+      var chat = await showProfile();
+      await destination('Contactos');
       await tap(find.byTooltip('Añadir contacto'));
       await tester.enterText(
         find.byKey(const Key('contact-name')),
@@ -111,25 +151,24 @@ Future<void> main() async {
       );
       await tester.enterText(find.byKey(const Key('contact-route')), bobRoute);
       await tap(find.text('Preparar contacto'));
-      expect(find.text(aPreview.single.safetyNumber), findsOneWidget);
+      expect(
+        tester
+            .widget<SafetyNumberGrid>(find.byKey(const Key('contact-safety')))
+            .number,
+        aPreview.single.safetyNumber,
+      );
       await tap(find.byKey(const Key('save-contact')));
       expect((await alice.contacts()).single.verified, isFalse);
       await tap(find.byKey(const Key('contact-compared')));
-      await tap(find.byKey(const Key('verify-contact')));
-      await tap(find.byType(BackButton));
+      expect((await alice.contacts()).single.verified, isTrue);
       await tap(find.byType(BackButton));
       // Reopen before choosing the saved contact: no route is pasted again.
-      await tester.pumpWidget(const SizedBox());
-      await alice.close();
+      await hideProfile();
       alice = await open(0);
       final saved = (await alice.contacts()).single;
       expect(saved.label, 'Contacto de prueba');
       expect(saved.verified, isTrue);
-      chat = ConversationController(alice, bootstrap);
-      await tester.pumpWidget(
-        MaterialApp(home: ConversationsPage(controller: chat)),
-      );
-      await settle();
+      chat = await showProfile();
       await tap(find.byTooltip('Nueva conversación'));
       await tap(find.byKey(const Key('choose-contacts')));
       await tap(find.byKey(Key('select-contact-${saved.identityId}')));
@@ -138,7 +177,8 @@ Future<void> main() async {
         chat.conversations.single.peers.single.label,
         'Contacto de prueba',
       );
-      await tap(find.byTooltip('Contactos'));
+      final group = chat.selected!;
+      await destination('Contactos');
       await tap(find.byKey(Key('contact-${saved.identityId}')));
       await tester.enterText(
         find.byKey(const Key('contact-name')),
@@ -146,12 +186,16 @@ Future<void> main() async {
       );
       await tap(find.byKey(const Key('save-contact')));
       await tap(find.byType(BackButton));
-      await tap(find.byType(BackButton));
+      await destination('Chats');
+      if (chat.selected == null) {
+        await tap(find.byKey(Key('conversation-$group')));
+      }
+      await chat.refresh();
+      await settle();
       expect(
         chat.conversations.single.peers.single.label,
         'Contacto renombrado',
       );
-      final group = chat.selected!;
       await bob.sync_(bootstrap: bootstrap);
       expect((await bob.conversations()).single.groupId, group);
       await tester.enterText(
@@ -166,11 +210,24 @@ Future<void> main() async {
         ),
         'native online message',
       );
+      // Actual Rust unread state must survive sync while settings hide the chat.
+      await destination('Ajustes');
       await bob.queueMessage(groupId: group, text: 'native reply');
       await bob.sync_(bootstrap: bootstrap);
       await chat.sync();
       await settle();
+      expect(find.text('native reply'), findsNothing);
+      expect((await alice.conversations()).single.unread, 1);
+      await destination('Chats');
+      if (chat.selected == null) {
+        await tap(find.byKey(Key('conversation-$group')));
+      }
       expect(find.text('native reply'), findsOneWidget);
+      for (var i = 0; i < 50; i++) {
+        if ((await alice.conversations()).single.unread == 0) break;
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect((await alice.conversations()).single.unread, 0);
       chat.setActive(false);
       await relayState('offline');
       await tester.enterText(
@@ -196,14 +253,9 @@ Future<void> main() async {
       for (var i = 0; i < 52; i++) {
         await alice.queueMessage(groupId: group, text: 'paged message $i');
       }
-      await tester.pumpWidget(const SizedBox());
-      await alice.close();
+      await hideProfile();
       alice = await open(0);
-      chat = ConversationController(alice, bootstrap);
-      await tester.pumpWidget(
-        MaterialApp(home: ConversationsPage(controller: chat)),
-      );
-      await settle();
+      chat = await showProfile();
       chat.setActive(false);
       await tap(find.byKey(Key('conversation-$group')));
       expect(
@@ -241,7 +293,7 @@ Future<void> main() async {
         (e) => utf8.decode(e.body) == 'native offline message',
       );
       expect(offline.delivery.every((d) => d.startsWith('accepted')), isTrue);
-      await tester.pumpWidget(const SizedBox());
+      await hideProfile();
     },
     timeout: const Timeout(Duration(minutes: 5)),
   );

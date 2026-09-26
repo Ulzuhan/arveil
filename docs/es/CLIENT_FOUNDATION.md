@@ -972,3 +972,26 @@ acentos, solo texto de esa conversación, continuación tras el límite y lectur
 acotada a 5000 eventos por llamada) y `test/conversation_search_test.dart`
 (resultados, sin coincidencias, buscar más atrás, ⌘F y Esc en macOS y Linux,
 y volver en el móvil).
+
+## Visibilidad de lectura y actualización de dispositivos (26 de septiembre de 2026)
+
+Leer el historial local o sincronizar ya no avanza por sí solo el marcador de
+lectura. La conversación comunica el cursor del historial mostrado después del
+fotograma, solo mientras Chats está visible, su pantalla es la actual, la
+búsqueda está cerrada y la aplicación está activa. Los mensajes recibidos detrás
+de Ajustes, Contactos, la búsqueda u otra pantalla siguen sin leer hasta volver
+al historial. La sincronización continúa al navegar y una consulta que termina
+tarde no puede marcar una conversación oculta como leída.
+
+Las operaciones de dispositivos recargan el estado compartido del perfil al
+terminar, también si falla la red después de guardar una revocación local.
+Ajustes y el recordatorio de la lista de chats muestran entonces que hay que
+actualizar el kit de identidad guardado. El estado también se recarga si se sale
+de la pantalla de dispositivos antes de que termine la operación.
+
+Las regresiones de widgets están en `test/conversation_visibility_test.dart` y
+`test/settings_test.dart`. El escenario nativo de conversaciones abre ahora la
+aplicación completa y usa su navegación y cuadrícula de números de seguridad
+actuales; comprueba el contador real de Rust mientras Ajustes oculta un mensaje
+entrante y después de volver a mostrar la conversación. Estas pruebas no
+acreditan la aceptación en dispositivos físicos ni la actualización de paquetes.

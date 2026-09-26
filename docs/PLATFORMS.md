@@ -529,3 +529,41 @@ the ones TalkBack reads, but the app could not be walked with VoiceOver on
 macOS in this session. The tool driving the Mac could not read the caption
 panel or take window focus without freezing the app the test was run from.
 It stays pending, together with TalkBack on a physical Android device.
+
+## Read-state corrections acceptance (September 26, 2026)
+
+Source `e8a5c01` on `codex/client-read-state-beta` corrects unread messages
+being cleared behind another screen and the stale kit summary after device
+revocation. Local verification on macOS 26.6.2, Apple silicon, Xcode 27.0:
+
+- `flutter analyze`: no issues; 172 Flutter tests pass, including the screen
+  goldens. New regressions cover hidden destinations, search, a covering route,
+  delayed history, app inactivity and return to the conversation; kit state
+  updates after successful/failed revocation and after leaving its screen.
+- The native conversation helper passes using two temporary encrypted profiles,
+  platform-held keys and its own loopback relay. It exercises the current full
+  application, saved/verified contacts, rename, profile reopen, an actual Rust
+  unread count of one while Settings hides a reply and zero once the history is
+  displayed, duplex text, offline queueing, pagination and reconnect without
+  duplicates. The previous helper still looked for controls removed by the
+  redesign; this run uses the current navigation and verification button.
+- Strict bilingual documentation, the eight packaging/publication script tests
+  and the Gitleaks 8.30.1 branch-history scan pass.
+
+The local `0.1.0+17` macOS ZIP and Android APK were built from that exact clean
+commit and pass the packaging audit and SHA-256 manifest checks. Android retains
+the build 14 signing certificate (both actual APK signatures were verified).
+The macOS release app launches and shows the welcome screen with accessible
+labels; its existing user profile was not opened during this package check.
+No package has been published.
+
+| Package | SHA-256 |
+|---|---|
+| `arveil-0.1.0-17-macos-arm64.zip` | `e234f8a9215cbe9f8c3f8401d81fa1596dc200444ccd78a5f08866aa4e678f3c` |
+| `arveil-0.1.0-17-android-arm64.apk` | `05f4ce541522345a8e61debda2d782f86e539823a0d11429c7921cfae548f0ab` |
+
+This is local source/integration acceptance. It does not close fresh-download
+installation, physical Android installation/update and Doze/reconnect,
+VoiceOver, TalkBack on a physical device, or the three external-user
+evaluations required by M3b.5. The package upgrade from `0.1.0+10` is recorded
+in the previous section.

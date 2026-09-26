@@ -905,3 +905,24 @@ text of that conversation only, continuing past the limit and reading at most
 5,000 events per call) and `test/conversation_search_test.dart` (results, no
 match, searching further back, ⌘F and Escape on macOS and Linux, and back on a
 phone).
+
+## Read visibility and device-state refresh (September 26, 2026)
+
+Local history reads and synchronization no longer advance the read marker on
+their own. The conversation reports the cursor of its displayed history after
+the frame, only while Chats is visible, its route is current, search is closed
+and the app is active. Messages received behind Settings, Contacts, search or
+another screen remain unread until the history is shown again. Sync continues
+while navigating, and a delayed query cannot mark a hidden conversation read.
+
+Device operations refresh the shared profile snapshot after completion,
+including a network error after a durable local revocation. Settings and the
+chat-list reminder then show that the saved identity kit needs updating. The
+refresh also happens if the user leaves the device screen before completion.
+
+Widget regressions are in `test/conversation_visibility_test.dart` and
+`test/settings_test.dart`. The native conversation scenario now opens the full
+application and uses its current navigation and safety-number grid; it checks
+the Rust unread count while Settings hides an incoming message and after the
+conversation is displayed again. These checks do not establish physical-device
+or package-upgrade acceptance.

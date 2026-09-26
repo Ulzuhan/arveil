@@ -225,6 +225,11 @@ class SettingsPage extends StatelessWidget {
                                         builder: (_) => DevicesPage(
                                           profile: session.profile!,
                                           bootstrap: setup.bootstrap!,
+                                          onChanged: () async {
+                                            if (session.isOpen) {
+                                              await session.refresh();
+                                            }
+                                          },
                                         ),
                                       ),
                                     ),

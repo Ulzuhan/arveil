@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:arveil/src/contacts_page.dart';
 import 'package:arveil/src/design/design.dart';
 import 'package:arveil/src/rust/api/profile.dart';
@@ -5,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'contacts_test.dart' show AddressProfile, person;
+import 'devices_test.dart' show DevicesProfile;
 import 'navigation_test.dart' show HomeProfile, desktop, openHome, phone;
 import 'widget_test.dart' show destination, openSetting, openSettings, relay;
 
@@ -32,7 +35,79 @@ class SettingsProfile extends HomeProfile {
 
 Finder row(String key) => find.byKey(Key(key));
 
+class RevocationProfile extends SettingsProfile {
+  final deviceState = DevicesProfile();
+
+  @override
+  Future<DeviceInventoryView> devices() => deviceState.devices();
+
+  @override
+  Future<void> revokeDevice({
+    required String bootstrap,
+    required String deviceId,
+  }) async {
+    try {
+      await deviceState.revokeDevice(bootstrap: bootstrap, deviceId: deviceId);
+    } finally {
+      state = const SetupView(
+        stage: SetupStage.ready,
+        administrator: true,
+        recoveryWarning: false,
+        kitStale: true,
+        kitSavedAt: 1790000000,
+        bootstrap: relay,
+      );
+    }
+  }
+}
+
 void main() {
+  testWidgets('a revocation completing after leaving still refreshes the kit', (
+    tester,
+  ) async {
+    final profile = RevocationProfile()
+      ..deviceState.waiting = Completer<void>();
+    await openHome(tester, desktop, profile: profile);
+    await openSetting(tester, 'open-devices');
+    await tester.ensureVisible(row('revoke-other-device'));
+    await tester.tap(row('revoke-other-device'));
+    await tester.pumpAndSettle();
+    await tester.tap(row('confirm-device-revocation'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    profile.deviceState.waiting!.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Desactualizado: tus dispositivos cambiaron'), findsOne);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final offline in [false, true]) {
+    testWidgets('revocation refreshes the kit warning (offline: $offline)', (
+      tester,
+    ) async {
+      final profile = RevocationProfile()..deviceState.fail = offline;
+      await openHome(tester, desktop, profile: profile);
+      await openSetting(tester, 'open-devices');
+      final revoke = row('revoke-other-device');
+      await tester.ensureVisible(revoke);
+      await tester.tap(revoke);
+      await tester.pumpAndSettle();
+      await tester.tap(row('confirm-device-revocation'));
+      await tester.pumpAndSettle();
+      expect(profile.deviceState.revocations, 1);
+      expect((await profile.setup()).kitStale, isTrue);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Desactualizado: tus dispositivos cambiaron'), findsOne);
+      expect(tester.widget<SettingsRow>(row('open-kit')).attention, isTrue);
+      await tester.tap(destination('Chats'));
+      await tester.pumpAndSettle();
+      expect(find.text('Actualiza tu kit de identidad'), findsOne);
+    });
+  }
+
   testWidgets('settings group what the profile can do in sections', (
     tester,
   ) async {
