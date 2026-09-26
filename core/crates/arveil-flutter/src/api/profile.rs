@@ -176,6 +176,9 @@ pub struct PeerView {
     pub identity_id: String,
     pub device_id: String,
     pub label: String,
+    /// Whether this profile gave the identity a local name; otherwise
+    /// `label` is its short identifier.
+    pub named: bool,
     pub own: bool,
     pub verified: bool,
     pub revoked: bool,
@@ -1274,6 +1277,7 @@ fn view(summary: ConversationSummary) -> ConversationView {
                 identity_id: hex(&p.identity_id),
                 device_id: hex(&p.device_id),
                 label: p.label,
+                named: p.named,
                 own: p.own,
                 verified: p.verified,
                 revoked: p.revoked,

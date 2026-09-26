@@ -3316,6 +3316,7 @@ impl SseDecode for crate::api::profile::PeerView {
         let mut var_identityId = <String>::sse_decode(deserializer);
         let mut var_deviceId = <String>::sse_decode(deserializer);
         let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_named = <bool>::sse_decode(deserializer);
         let mut var_own = <bool>::sse_decode(deserializer);
         let mut var_verified = <bool>::sse_decode(deserializer);
         let mut var_revoked = <bool>::sse_decode(deserializer);
@@ -3323,6 +3324,7 @@ impl SseDecode for crate::api::profile::PeerView {
             identity_id: var_identityId,
             device_id: var_deviceId,
             label: var_label,
+            named: var_named,
             own: var_own,
             verified: var_verified,
             revoked: var_revoked,
@@ -4423,6 +4425,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::PeerView {
             self.identity_id.into_into_dart().into_dart(),
             self.device_id.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
+            self.named.into_into_dart().into_dart(),
             self.own.into_into_dart().into_dart(),
             self.verified.into_into_dart().into_dart(),
             self.revoked.into_into_dart().into_dart(),
@@ -5341,6 +5344,7 @@ impl SseEncode for crate::api::profile::PeerView {
         <String>::sse_encode(self.identity_id, serializer);
         <String>::sse_encode(self.device_id, serializer);
         <String>::sse_encode(self.label, serializer);
+        <bool>::sse_encode(self.named, serializer);
         <bool>::sse_encode(self.own, serializer);
         <bool>::sse_encode(self.verified, serializer);
         <bool>::sse_encode(self.revoked, serializer);

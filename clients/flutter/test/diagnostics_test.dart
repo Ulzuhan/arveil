@@ -47,6 +47,7 @@ class SecretProfile extends HomeProfile {
           identityId: 'IDENTITY-SECRET-0001',
           deviceId: 'DEVICE-SECRET-0002',
           label: 'Lucía Secreta',
+          named: true,
           own: false,
           verified: true,
           revoked: false,

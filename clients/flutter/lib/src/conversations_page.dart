@@ -12,6 +12,7 @@ import 'attachment_files.dart';
 import 'chat_list.dart';
 import 'contacts_page.dart';
 import 'conversation_details.dart';
+import 'name_dialog.dart';
 import 'conversation_search.dart';
 import 'conversation_text.dart';
 import 'design/design.dart';
@@ -263,6 +264,17 @@ class ConversationsPageState extends State<ConversationsPage>
     return rows.isEmpty ? null : rows.first;
   }
 
+  /// Gives another person a local name, then shows it everywhere.
+  Future<void> _name(String identity, String? current) async {
+    final saved = await askLocalName(
+      context,
+      profile: chat.profile,
+      identityId: identity,
+      current: current,
+    );
+    if (saved) await chat.refresh();
+  }
+
   /// Whether the details panel can sit beside an open conversation.
   bool _detailsFit(BuildContext context, bool wide) =>
       wide && MediaQuery.sizeOf(context).width >= WindowSize.detailsFrom;
@@ -278,8 +290,11 @@ class ConversationsPageState extends State<ConversationsPage>
     }
     Widget details() => ListenableBuilder(
       listenable: chat,
-      builder: (context, _) =>
-          ConversationDetails(row: _selectedRow ?? row, events: chat.events),
+      builder: (context, _) => ConversationDetails(
+        row: _selectedRow ?? row,
+        events: chat.events,
+        onName: _name,
+      ),
     );
     if (WindowSize.of(context) == WindowSize.compact) {
       await showModalBottomSheet<void>(
@@ -438,7 +453,9 @@ class ConversationsPageState extends State<ConversationsPage>
           children: [
             ?progress,
             ..._banners,
-            Expanded(child: selected ? _history(offline: true) : _list()),
+            Expanded(
+              child: selected ? _history(offline: true, wide: false) : _list(),
+            ),
           ],
         ),
       ),
@@ -491,7 +508,7 @@ class ConversationsPageState extends State<ConversationsPage>
                             actions: [_searchButton, _detailsButton(true)],
                           ),
                           ..._banners,
-                          Expanded(child: _history(offline: false)),
+                          Expanded(child: _history(offline: false, wide: true)),
                         ],
                       )
                     : EmptyState(
@@ -528,6 +545,7 @@ class ConversationsPageState extends State<ConversationsPage>
                             child: ConversationDetails(
                               row: row,
                               events: chat.events,
+                              onName: _name,
                             ),
                           ),
                         ),
@@ -596,7 +614,7 @@ class ConversationsPageState extends State<ConversationsPage>
   /// The open conversation: its history in runs and days, older pages on
   /// request, and the composer. [offline] adds the connection banner when
   /// the list, which already shows it, is not on screen.
-  Widget _history({required bool offline}) {
+  Widget _history({required bool offline, required bool wide}) {
     if (_searching) {
       return ConversationSearch(
         key: ValueKey('search-${chat.selected}'),
@@ -607,10 +625,40 @@ class ConversationsPageState extends State<ConversationsPage>
     final items = historyItems(chat.events).reversed.toList();
     final group = chat.selected!;
     final named = _group;
+    final row = _selectedRow;
+    final unnamed = row == null ? const <PeerView>[] : unnamedPeople(row);
     return Column(
       children: [
         if (chat.sending)
           LinearProgressIndicator(semanticsLabel: context.l10n.savingMessage),
+        if (row != null && unnamed.isNotEmpty)
+          _banner(
+            StatusBanner(
+              key: const Key('conversation-unnamed'),
+              tone: BannerTone.info,
+              icon: Icons.badge_outlined,
+              title: otherPeople(row).length == 1
+                  ? context.l10n.nameBannerOne
+                  : context.l10n.nameBannerMany(unnamed.length),
+              actions: [
+                TextButton(
+                  key: const Key('name-unnamed'),
+                  onPressed: unnamed.length == 1
+                      ? () => _name(unnamed.single.identityId, null)
+                      : () {
+                          if (!(_detailsOpen && _detailsFit(context, wide))) {
+                            unawaited(_showDetails(wide));
+                          }
+                        },
+                  child: Text(
+                    unnamed.length == 1
+                        ? context.l10n.nameThisPerson
+                        : context.l10n.nameThem,
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (offline && chat.networkError != null)
           _banner(
             StatusBanner(
@@ -741,10 +789,56 @@ class _NewConversationPageState extends State<NewConversationPage> {
   bool _checking = false;
   String? _error;
   int _revision = 0;
+
+  /// A local name per identity being added, filled with the one it has.
+  final Map<String, TextEditingController> _names = {};
+  Map<String, String> _known = {};
+
   @override
   void dispose() {
     _routes.dispose();
+    for (final name in _names.values) {
+      name.dispose();
+    }
     super.dispose();
+  }
+
+  /// People already saved keep their name, shown to be changed or kept.
+  /// Not reading them only leaves the fields empty; it never stops a
+  /// conversation from being created.
+  Future<Map<String, String>> _knownNames() async {
+    try {
+      return {
+        for (final contact in await widget.chat.profile.contacts())
+          contact.identityId: ?contact.name,
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  TextEditingController _nameFor(String identity) => _names.putIfAbsent(
+    identity,
+    () => TextEditingController(text: _known[identity] ?? ''),
+  );
+
+  /// Saves the names typed for the people of a new conversation, which
+  /// became contacts when it was created. Whether all were saved.
+  Future<bool> _saveNames() async {
+    var saved = true;
+    for (final identity in {for (final p in _previews) p.identityId}) {
+      final name = _names[identity]?.text.trim() ?? '';
+      if (name.isEmpty || name == _known[identity]) continue;
+      try {
+        await widget.chat.profile.renameContact(
+          identityId: identity,
+          name: name,
+        );
+      } catch (_) {
+        saved = false;
+      }
+    }
+    return saved;
   }
 
   Future<void> _chooseContacts() async {
@@ -782,10 +876,16 @@ class _NewConversationPageState extends State<NewConversationPage> {
     });
     try {
       final previews = await widget.chat.profile.previewRoutes(routes: routes);
+      final known = await _knownNames();
       if (mounted && revision == _revision) {
         setState(() {
           _checkedRoutes = routes;
           _previews = previews;
+          _known = known;
+          for (final name in _names.values) {
+            name.dispose();
+          }
+          _names.clear();
         });
       }
     } catch (_) {
@@ -803,11 +903,19 @@ class _NewConversationPageState extends State<NewConversationPage> {
       _previews.map((p) => p.safetyNumber).toList(),
     );
     if (!mounted) return;
-    if (group != null) {
-      Navigator.pop(context, group);
-    } else {
+    if (group == null) {
       setState(() => _error = widget.chat.error);
+      return;
     }
+    final named = await _saveNames();
+    await widget.chat.refresh();
+    if (!mounted) return;
+    if (!named) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(context.l10n.newConversationNamed)),
+      );
+    }
+    Navigator.pop(context, group);
   }
 
   @override
@@ -862,7 +970,7 @@ class _NewConversationPageState extends State<NewConversationPage> {
                       onPressed: busy ? null : _preview,
                       child: Text(context.l10n.newConversationPrepare),
                     ),
-                    for (final preview in _previews)
+                    for (final (index, preview) in _previews.indexed)
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -881,6 +989,27 @@ class _NewConversationPageState extends State<NewConversationPage> {
                                 key: Key('safety-${preview.deviceId}'),
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
+                              // One name per person, on their first device.
+                              if (_previews.indexWhere(
+                                    (p) => p.identityId == preview.identityId,
+                                  ) ==
+                                  index) ...[
+                                const SizedBox(height: 12),
+                                TextField(
+                                  key: Key('new-name-${preview.identityId}'),
+                                  controller: _nameFor(preview.identityId),
+                                  enabled: !busy,
+                                  maxLength: 128,
+                                  autocorrect: false,
+                                  enableSuggestions: false,
+                                  enableIMEPersonalizedLearning: false,
+                                  decoration: InputDecoration(
+                                    labelText: context.l10n.contactNameLabel,
+                                    helperText: context.l10n.contactNameHelper,
+                                    helperMaxLines: 3,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

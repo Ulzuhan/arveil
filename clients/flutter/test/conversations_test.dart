@@ -451,6 +451,12 @@ void main() {
       );
       await tester.tap(find.text('Preparar comparación'));
       await tester.pumpAndSettle();
+      // The name field for the new person comes before the button.
+      await tester.dragUntilVisible(
+        find.byKey(const Key('create-conversation')),
+        find.byType(ListView).last,
+        const Offset(0, -200),
+      );
       expect(
         tester
             .widget<FilledButton>(find.byKey(const Key('create-conversation')))
@@ -468,7 +474,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('compared-routes')));
       await tester.pump();
-      await tester.ensureVisible(find.byKey(const Key('create-conversation')));
+      await tester.dragUntilVisible(
+        find.byKey(const Key('create-conversation')),
+        find.byType(ListView).last,
+        const Offset(0, -200),
+      );
       await tester.tap(find.byKey(const Key('create-conversation')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('peer-routes')), findsNothing);
@@ -568,6 +578,7 @@ void main() {
       identityId: id,
       deviceId: 'device-$id',
       label: label,
+      named: true,
       own: false,
       verified: true,
       revoked: false,

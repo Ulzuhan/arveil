@@ -39,10 +39,32 @@ String rowPreview(ConversationView row, LastEventView last) {
   return isGroup(row) && label != null ? '$label: $text' : text;
 }
 
+/// What to call another person: the name this profile gave them, or that
+/// they have none yet, with their short identifier. Names are local: they
+/// never travel and never authenticate anyone.
+String peerName(PeerView peer) =>
+    peer.named ? peer.label : currentStrings.peerUnnamed(peer.label);
+
+/// What a row's avatar takes its initials from: nothing for one person
+/// without a name, who gets the person icon rather than the initials of
+/// "Unnamed".
+String rowAvatarLabel(ConversationView row) {
+  final people = otherPeople(row).values;
+  return people.length == 1 && !people.single.named
+      ? ''
+      : conversationTitle(row);
+}
+
+/// The other people in [row] this profile has not named, once each.
+List<PeerView> unnamedPeople(ConversationView row) => [
+  for (final p in otherPeople(row).values)
+    if (!p.named) p,
+];
+
 String conversationTitle(ConversationView row) {
   final people = <String, String>{
     for (final p in row.peers)
-      if (!p.own) p.identityId: p.label,
+      if (!p.own) p.identityId: peerName(p),
   };
   return people.isEmpty
       ? currentStrings.conversationFallback(shortId(row.groupId))

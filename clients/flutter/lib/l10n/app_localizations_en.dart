@@ -1097,6 +1097,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contactSaveName => 'Save name';
 
   @override
+  String peerUnnamed(String id) {
+    return 'Unnamed · $id';
+  }
+
+  @override
+  String get nameThisPerson => 'Name this person';
+
+  @override
+  String get renamePerson => 'Rename';
+
+  @override
+  String get nameDialogTitle => 'This person\'s name';
+
+  @override
+  String get nameDialogLabel => 'Name';
+
+  @override
+  String get nameDialogHelper =>
+      'Only you see it, in this profile. It is not sent to anyone and does not verify the identity; compare the safety number for that.';
+
+  @override
+  String get nameSaved => 'Name saved in this profile.';
+
+  @override
+  String get nameSaveFailed =>
+      'Could not save the name. Check it (at most 128 characters, on one line) and try again.';
+
+  @override
+  String get nameBannerOne =>
+      'You have not named this person yet. Only you will see the name.';
+
+  @override
+  String nameBannerMany(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people in this conversation have no name.',
+      one: 'One person in this conversation has no name.',
+    );
+    return '$_temp0 Only you will see the names.';
+  }
+
+  @override
+  String get nameThem => 'Name them';
+
+  @override
+  String get newConversationNamed =>
+      'The conversation was created, but a name could not be saved. Add it from the conversation details.';
+
+  @override
   String numericDate(String day, String month, String year) {
     return '$month/$day/$year';
   }

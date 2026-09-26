@@ -1107,6 +1107,56 @@ class AppLocalizationsEs extends AppLocalizations {
   String get contactSaveName => 'Guardar nombre';
 
   @override
+  String peerUnnamed(String id) {
+    return 'Sin nombre · $id';
+  }
+
+  @override
+  String get nameThisPerson => 'Ponle nombre';
+
+  @override
+  String get renamePerson => 'Cambiar nombre';
+
+  @override
+  String get nameDialogTitle => 'Nombre de esta persona';
+
+  @override
+  String get nameDialogLabel => 'Nombre';
+
+  @override
+  String get nameDialogHelper =>
+      'Solo lo verás tú, en este perfil. No se envía a nadie ni verifica la identidad; para eso compara el número de seguridad.';
+
+  @override
+  String get nameSaved => 'Nombre guardado en este perfil.';
+
+  @override
+  String get nameSaveFailed =>
+      'No se pudo guardar el nombre. Revísalo (máximo 128 caracteres, en una línea) y vuelve a intentarlo.';
+
+  @override
+  String get nameBannerOne =>
+      'Aún no le has puesto nombre a esta persona. Solo tú lo verás.';
+
+  @override
+  String nameBannerMany(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count personas de esta conversación no tienen nombre.',
+      one: 'Una persona de esta conversación no tiene nombre.',
+    );
+    return '$_temp0 Solo tú verás los nombres.';
+  }
+
+  @override
+  String get nameThem => 'Poner nombres';
+
+  @override
+  String get newConversationNamed =>
+      'La conversación se creó, pero no se pudo guardar algún nombre. Pónselo desde los detalles de la conversación.';
+
+  @override
   String numericDate(String day, String month, String year) {
     return '$day/$month/$year';
   }

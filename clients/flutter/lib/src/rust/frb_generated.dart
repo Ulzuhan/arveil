@@ -2726,15 +2726,16 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   PeerView dco_decode_peer_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return PeerView(
       identityId: dco_decode_String(arr[0]),
       deviceId: dco_decode_String(arr[1]),
       label: dco_decode_String(arr[2]),
-      own: dco_decode_bool(arr[3]),
-      verified: dco_decode_bool(arr[4]),
-      revoked: dco_decode_bool(arr[5]),
+      named: dco_decode_bool(arr[3]),
+      own: dco_decode_bool(arr[4]),
+      verified: dco_decode_bool(arr[5]),
+      revoked: dco_decode_bool(arr[6]),
     );
   }
 
@@ -3766,6 +3767,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     var var_identityId = sse_decode_String(deserializer);
     var var_deviceId = sse_decode_String(deserializer);
     var var_label = sse_decode_String(deserializer);
+    var var_named = sse_decode_bool(deserializer);
     var var_own = sse_decode_bool(deserializer);
     var var_verified = sse_decode_bool(deserializer);
     var var_revoked = sse_decode_bool(deserializer);
@@ -3773,6 +3775,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       identityId: var_identityId,
       deviceId: var_deviceId,
       label: var_label,
+      named: var_named,
       own: var_own,
       verified: var_verified,
       revoked: var_revoked,
@@ -4767,6 +4770,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_String(self.identityId, serializer);
     sse_encode_String(self.deviceId, serializer);
     sse_encode_String(self.label, serializer);
+    sse_encode_bool(self.named, serializer);
     sse_encode_bool(self.own, serializer);
     sse_encode_bool(self.verified, serializer);
     sse_encode_bool(self.revoked, serializer);
