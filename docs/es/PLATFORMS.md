@@ -526,3 +526,44 @@ opción elegida. Hallazgos:
    («Hoy») y no a la cabecera. Es menor.
 
 Pendiente: TalkBack en un Android físico y VoiceOver en macOS.
+
+## Aceptación de las correcciones de lectura (26 de septiembre de 2026)
+
+El código `e8a5c01` de `codex/client-read-state-beta` corrige los mensajes que
+se marcaban como leídos detrás de otra pantalla y el resumen desactualizado del
+kit tras revocar un dispositivo. Verificación local en macOS 26.6.2, Apple
+silicon, Xcode 27.0:
+
+- `flutter analyze`: sin incidencias; pasan 172 pruebas Flutter, incluidos los
+  goldens de pantallas. Las regresiones nuevas cubren destinos ocultos, búsqueda,
+  otra pantalla superpuesta, historial tardío, aplicación inactiva y vuelta a la
+  conversación; el kit se actualiza tras revocar con éxito o fallo de red y
+  después de salir de la pantalla de dispositivos.
+- Pasa el escenario nativo de conversaciones con dos perfiles cifrados
+  temporales, claves del almacén de la plataforma y su propio relay local.
+  Prueba la aplicación completa actual, contactos guardados/verificados,
+  renombrado, reapertura, el contador real de Rust a uno mientras Ajustes oculta
+  una respuesta y a cero al mostrar el historial, texto en ambos sentidos,
+  cola sin conexión, paginación y reconexión sin duplicados. El escenario
+  anterior aún buscaba controles retirados en el rediseño; esta ejecución usa
+  la navegación y el botón de verificación actuales.
+- Pasan la documentación bilingüe estricta, las ocho pruebas de los scripts
+  de empaquetado/publicación y Gitleaks 8.30.1 sobre el historial de la rama.
+
+El ZIP de macOS y el APK de Android locales `0.1.0+17` se construyeron desde
+ese commit exacto y limpio; pasan la auditoría de empaquetado y la comprobación
+de sus manifiestos SHA-256. Android conserva el certificado de la compilación
+14 (se verificaron las firmas de ambos APK). La aplicación macOS de distribución
+arranca y muestra la bienvenida con etiquetas accesibles; en esta comprobación
+del paquete no se abrió el perfil de usuario existente. No se publicó ningún
+paquete.
+
+| Paquete | SHA-256 |
+|---|---|
+| `arveil-0.1.0-17-macos-arm64.zip` | `e234f8a9215cbe9f8c3f8401d81fa1596dc200444ccd78a5f08866aa4e678f3c` |
+| `arveil-0.1.0-17-android-arm64.apk` | `05f4ce541522345a8e61debda2d782f86e539823a0d11429c7921cfae548f0ab` |
+
+Es aceptación local del código y de integración. No cierra la actualización
+pendiente desde `0.1.0+10` en macOS, instalación desde una descarga limpia,
+instalación/actualización y Doze/reconexión en Android físico, VoiceOver/TalkBack
+manuales ni las evaluaciones de tres personas externas exigidas por M3b.5.

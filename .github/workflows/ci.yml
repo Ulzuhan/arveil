@@ -99,6 +99,8 @@ jobs:
       - name: Widget tests
         working-directory: clients/flutter
         run: flutter test test
+      - name: Native conversations and unread-state acceptance
+        run: python3 scripts/test_client_conversations.py --device macos
       - name: Package privacy regression checks
         run: python3 -m unittest discover -s scripts -p 'test_package_clients.py'
       # Build the same ad-hoc package a maintainer produces. This also checks
