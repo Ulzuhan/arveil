@@ -24,7 +24,9 @@ tagged with the full commit and with signed build provenance
 (`gh attestation verify oci://ghcr.io/ulzuhan/arveil-relay:<version> --owner
 Ulzuhan`). Each image's binary reports that commit with `-version`. Pull
 requests that touch the relay build both architectures without publishing.
-Until a release is tagged, build the image yourself as above.
+On a tag, nothing is built or pushed until a maintainer approves the run in
+the repository's `release` environment. Until a release is tagged, build the
+image yourself as above.
 
 **systemd.** Copy [`relay/packaging/arveil-relay.service`](https://github.com/Ulzuhan/arveil/blob/main/relay/packaging/arveil-relay.service), which runs as its own user with a hardened service section and keeps its data in `/var/lib/arveil`.
 
