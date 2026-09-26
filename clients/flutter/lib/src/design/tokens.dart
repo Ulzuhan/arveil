@@ -131,7 +131,7 @@ class ArveilColors extends ThemeExtension<ArveilColors> {
     divider: Color(0xFF25302E),
     accent: Color(0xFF8FD0C0),
     onAccent: Color(0xFF0E1413),
-    accentSoft: Color(0xFF1D4740),
+    accentSoft: Color(0xFF1A423B),
     ownMeta: Color(0xFFA9CFC5),
     chip: Color(0xFF1B2524),
     attention: Color(0xFF3A2A12),

@@ -781,3 +781,36 @@ Evidence: `test/onboarding_test.dart` covers the welcome with the mark, the
 three ways in and back, the two steps keeping the server, the kit offer with
 "Later" and with "Save kit", and reopening without an offer. The resumable
 enrollment test walks the steps, and the restore test goes through the offer.
+
+## Appearance (September 25, 2026)
+
+Settings → App → Appearance gathers the first version's personalization, with
+a preview that changes at once.
+
+- **Theme:** system, light or dark.
+- **Accent:** pine (the brand's), lake, plum, clay, moss and slate, each with a
+  light and a dark variant. The contrast test walks every pair of the interface
+  with each accent in both themes; there is no free colour picker because it
+  could not guarantee that. The test now includes muted text and the accent on
+  a selected row, which is why pine's dark tint moved from `#1D4740` to
+  `#1A423B`.
+- **Conversation background:** plain, arcs, dots, waves or diamonds, drawn by
+  the app in the decorative line colour. Bubbles, dates and notices stay
+  opaque on top. The motif sits behind a `RepaintBoundary` and is not
+  repainted when messages scroll.
+- **Text size:** 90 % to 130 %, multiplied by the system's.
+- **Language:** the system's, Spanish or English.
+
+The preferences are global and read before the profile opens, because the
+welcome already uses the theme. They are saved as `appearance.json` in the
+app's support directory, outside `profile/`, by writing a temporary file that
+then replaces the old one. They hold only those five values: no identifier,
+name, route or image. A missing or unknown field takes its default without
+affecting the others, and an unreadable file leaves every default. If saving
+fails, the change stays in effect until the app closes.
+
+Evidence: `test/appearance_test.dart` (contrast of each accent in both themes,
+field-by-field reading, atomic replacement and a broken file, immediate theme,
+accent, size and language changes, and a background that scrolling does not
+repaint) and the golden `test/goldens/wallpapers.png` with two backgrounds in
+light and dark.

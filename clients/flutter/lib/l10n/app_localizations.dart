@@ -188,12 +188,6 @@ abstract class AppLocalizations {
   /// **'Retoma tu alta'**
   String get enrollTitleRetry;
 
-  /// No description provided for @enrollTitle.
-  ///
-  /// In es, this message translates to:
-  /// **'Únete a tu espacio'**
-  String get enrollTitle;
-
   /// No description provided for @enrollBodyRetry.
   ///
   /// In es, this message translates to:
@@ -2335,6 +2329,162 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Si lo dejas para más tarde'**
   String get kitOfferRiskTitle;
+
+  /// No description provided for @appearanceTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Apariencia'**
+  String get appearanceTitle;
+
+  /// No description provided for @appearanceSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'Tema, color, fondo, tamaño del texto e idioma'**
+  String get appearanceSummary;
+
+  /// No description provided for @themeTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Tema'**
+  String get themeTitle;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In es, this message translates to:
+  /// **'Sistema'**
+  String get themeSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In es, this message translates to:
+  /// **'Claro'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In es, this message translates to:
+  /// **'Oscuro'**
+  String get themeDark;
+
+  /// No description provided for @accentTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Color de acento'**
+  String get accentTitle;
+
+  /// No description provided for @accentPine.
+  ///
+  /// In es, this message translates to:
+  /// **'Pino'**
+  String get accentPine;
+
+  /// No description provided for @accentLake.
+  ///
+  /// In es, this message translates to:
+  /// **'Lago'**
+  String get accentLake;
+
+  /// No description provided for @accentPlum.
+  ///
+  /// In es, this message translates to:
+  /// **'Ciruela'**
+  String get accentPlum;
+
+  /// No description provided for @accentClay.
+  ///
+  /// In es, this message translates to:
+  /// **'Arcilla'**
+  String get accentClay;
+
+  /// No description provided for @accentMoss.
+  ///
+  /// In es, this message translates to:
+  /// **'Musgo'**
+  String get accentMoss;
+
+  /// No description provided for @accentSlate.
+  ///
+  /// In es, this message translates to:
+  /// **'Pizarra'**
+  String get accentSlate;
+
+  /// No description provided for @wallpaperTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Fondo de la conversación'**
+  String get wallpaperTitle;
+
+  /// No description provided for @wallpaperPlain.
+  ///
+  /// In es, this message translates to:
+  /// **'Liso'**
+  String get wallpaperPlain;
+
+  /// No description provided for @wallpaperArcs.
+  ///
+  /// In es, this message translates to:
+  /// **'Arcos'**
+  String get wallpaperArcs;
+
+  /// No description provided for @wallpaperDots.
+  ///
+  /// In es, this message translates to:
+  /// **'Puntos'**
+  String get wallpaperDots;
+
+  /// No description provided for @wallpaperWaves.
+  ///
+  /// In es, this message translates to:
+  /// **'Ondas'**
+  String get wallpaperWaves;
+
+  /// No description provided for @wallpaperDiamonds.
+  ///
+  /// In es, this message translates to:
+  /// **'Rombos'**
+  String get wallpaperDiamonds;
+
+  /// No description provided for @textSizeTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Tamaño del texto'**
+  String get textSizeTitle;
+
+  /// No description provided for @textSizeValue.
+  ///
+  /// In es, this message translates to:
+  /// **'{percent} %'**
+  String textSizeValue(int percent);
+
+  /// No description provided for @textSizeHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Se aplica sobre el tamaño de texto del sistema.'**
+  String get textSizeHelp;
+
+  /// No description provided for @languageTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Idioma'**
+  String get languageTitle;
+
+  /// No description provided for @languageSystem.
+  ///
+  /// In es, this message translates to:
+  /// **'Idioma del sistema'**
+  String get languageSystem;
+
+  /// No description provided for @sampleReceived.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Quedamos el sábado?'**
+  String get sampleReceived;
+
+  /// No description provided for @sampleOwn.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Perfecto! Llevo el postre.'**
+  String get sampleOwn;
 }
 
 class _AppLocalizationsDelegate

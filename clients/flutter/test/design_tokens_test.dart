@@ -30,6 +30,8 @@ List<(String, Color, Color, double)> pairs(ArveilColors c, ColorScheme s) => [
   ('soft on chip', c.inkSoft, c.chip, 4.5),
   ('on accent', c.onAccent, c.accent, 4.5),
   ('ink on own bubble', c.ink, c.accentSoft, 4.5),
+  ('muted on a selected row', c.inkMuted, c.accentSoft, 4.5),
+  ('accent on a selected row', c.accent, c.accentSoft, 4.5),
   ('meta on own bubble', c.ownMeta, c.accentSoft, 4.5),
   ('attention', c.onAttention, c.attention, 4.5),
   ('on danger', c.onDanger, c.danger, 4.5),

@@ -2,13 +2,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'accents.dart';
 import 'tokens.dart';
 import 'typography.dart';
 
-/// The light and dark themes, built from the tokens only.
+/// The light and dark themes, built from the tokens only, with the chosen
+/// accent.
 abstract final class ArveilTheme {
-  static ThemeData light() => _build(ArveilColors.light, Brightness.light);
-  static ThemeData dark() => _build(ArveilColors.dark, Brightness.dark);
+  static ThemeData light({Accent accent = Accent.pine}) =>
+      _build(ArveilColors.light.withAccent(accent.light), Brightness.light);
+  static ThemeData dark({Accent accent = Accent.pine}) =>
+      _build(ArveilColors.dark.withAccent(accent.dark), Brightness.dark);
 
   static ThemeData _build(ArveilColors c, Brightness brightness) {
     final scheme = ColorScheme(

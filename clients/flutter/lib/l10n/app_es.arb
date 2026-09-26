@@ -21,7 +21,6 @@
   "welcomeKeyNote": "El perfil se cifra con una clave guardada en el almacén seguro del dispositivo. Si pierdes esa clave, no podrás recuperar el historial local.",
   "profileOpen": "Abrir perfil",
   "enrollTitleRetry": "Retoma tu alta",
-  "enrollTitle": "Únete a tu espacio",
   "enrollBodyRetry": "Tu avance está guardado. Usa la misma invitación para continuar con tu identidad.",
   "enrollBody": "Pide al administrador los datos del servidor y una invitación. Tu identidad se crea en este dispositivo al continuar.",
   "setupRedeeming": "Pendiente de confirmar la invitación.",
@@ -752,5 +751,38 @@
   "enrollInviteTitle": "Tu invitación",
   "enrollInviteBody": "Pega la invitación de 64 caracteres que te dio el administrador.",
   "kitOfferTitle": "Guarda ahora tu kit de identidad",
-  "kitOfferRiskTitle": "Si lo dejas para más tarde"
+  "kitOfferRiskTitle": "Si lo dejas para más tarde",
+  "appearanceTitle": "Apariencia",
+  "appearanceSummary": "Tema, color, fondo, tamaño del texto e idioma",
+  "themeTitle": "Tema",
+  "themeSystem": "Sistema",
+  "themeLight": "Claro",
+  "themeDark": "Oscuro",
+  "accentTitle": "Color de acento",
+  "accentPine": "Pino",
+  "accentLake": "Lago",
+  "accentPlum": "Ciruela",
+  "accentClay": "Arcilla",
+  "accentMoss": "Musgo",
+  "accentSlate": "Pizarra",
+  "wallpaperTitle": "Fondo de la conversación",
+  "wallpaperPlain": "Liso",
+  "wallpaperArcs": "Arcos",
+  "wallpaperDots": "Puntos",
+  "wallpaperWaves": "Ondas",
+  "wallpaperDiamonds": "Rombos",
+  "textSizeTitle": "Tamaño del texto",
+  "textSizeValue": "{percent} %",
+  "@textSizeValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "textSizeHelp": "Se aplica sobre el tamaño de texto del sistema.",
+  "languageTitle": "Idioma",
+  "languageSystem": "Idioma del sistema",
+  "sampleReceived": "¿Quedamos el sábado?",
+  "sampleOwn": "¡Perfecto! Llevo el postre."
 }

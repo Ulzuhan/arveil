@@ -58,9 +58,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enrollTitleRetry => 'Resume your setup';
 
   @override
-  String get enrollTitle => 'Join your space';
-
-  @override
   String get enrollBodyRetry =>
       'Your progress is saved. Use the same invitation to continue with your identity.';
 
@@ -1401,4 +1398,85 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kitOfferRiskTitle => 'If you leave it for later';
+
+  @override
+  String get appearanceTitle => 'Appearance';
+
+  @override
+  String get appearanceSummary =>
+      'Theme, colour, background, text size and language';
+
+  @override
+  String get themeTitle => 'Theme';
+
+  @override
+  String get themeSystem => 'System';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String get accentTitle => 'Accent colour';
+
+  @override
+  String get accentPine => 'Pine';
+
+  @override
+  String get accentLake => 'Lake';
+
+  @override
+  String get accentPlum => 'Plum';
+
+  @override
+  String get accentClay => 'Clay';
+
+  @override
+  String get accentMoss => 'Moss';
+
+  @override
+  String get accentSlate => 'Slate';
+
+  @override
+  String get wallpaperTitle => 'Conversation background';
+
+  @override
+  String get wallpaperPlain => 'Plain';
+
+  @override
+  String get wallpaperArcs => 'Arcs';
+
+  @override
+  String get wallpaperDots => 'Dots';
+
+  @override
+  String get wallpaperWaves => 'Waves';
+
+  @override
+  String get wallpaperDiamonds => 'Diamonds';
+
+  @override
+  String get textSizeTitle => 'Text size';
+
+  @override
+  String textSizeValue(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get textSizeHelp => 'Applied on top of the system text size.';
+
+  @override
+  String get languageTitle => 'Language';
+
+  @override
+  String get languageSystem => 'System language';
+
+  @override
+  String get sampleReceived => 'Shall we meet on Saturday?';
+
+  @override
+  String get sampleOwn => 'Perfect! I will bring dessert.';
 }
