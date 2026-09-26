@@ -134,20 +134,18 @@ understanding it.
 ```mermaid
 flowchart LR
   subgraph Device["On each device"]
-    direction TB
-    UI["Flutter app or CLI"] --> App["arveil-app<br/>operations and executor"]
-    App --> Core["arveil-core<br/>identity · MLS · storage · recovery"]
+    UI["Flutter app<br/>or CLI"] --> Core["Rust core<br/>identity · MLS<br/>storage · recovery"]
   end
   subgraph Realm["Relay: no access to content"]
-    direction TB
-    Relay["arveil-relay<br/>one Go binary"] --> DB[("SQLite<br/>members · mailboxes · queues")]
-    Relay --> Blobs[("Encrypted blobs<br/>on disk")]
+    Relay["arveil-relay"] --> DB[("SQLite")]
+    Relay --> Blobs[("Encrypted<br/>blobs")]
   end
-  Core <-->|"Noise IK over WebSocket<br/>LAN · tailnet · tunnel"| Relay
+  Core <-->|"Noise IK<br/>LAN · tailnet · tunnel"| Relay
 ```
 
-The Rust core owns identity, MLS ([mls-rs](https://github.com/awslabs/mls-rs)),
-durable state and recovery. The CLI and the Flutter apps share it through
+The Rust core (`arveil-core` and the `arveil-app` operations layer) owns
+identity, MLS ([mls-rs](https://github.com/awslabs/mls-rs)), durable state
+and recovery. The CLI and the Flutter apps share it through
 [flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge), and
 the Dart side holds only presentation state. The relay authenticates
 devices, stores envelopes until they are delivered, and knows nothing about
