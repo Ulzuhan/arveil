@@ -106,10 +106,15 @@ python3 scripts/package_clients.py build android \
 ```
 
 El número de compilación es un ejemplo: elige siempre uno mayor que el de todas
-las compilaciones ya distribuidas con esa clave de firma de Android. Haz antes
-commit del código; los candidatos con cambios sin confirmar pueden probarse en
-local, pero el comando de firma no puede anunciarlos. El manifiesto es una
-opción de distribución, no una dependencia del autoalojamiento.
+las compilaciones ya distribuidas con esa clave de firma de Android. El
+asistente de empaquetado comprueba que el `versionCode` del APK coincide con
+este número de compilación, que `BUILD.json` registra y el anuncio transmite, y
+que el APK pide el permiso de Android para instalar paquetes solo cuando se
+compila con `--update-config`. Rechaza `--update-config` para macOS, que
+todavía no tiene actualizador firmado. Haz antes commit del código; los
+candidatos con cambios sin confirmar pueden probarse en local, pero el comando
+de firma no puede anunciarlos. El manifiesto es una opción de distribución, no
+una dependencia del autoalojamiento.
 
 ## Anunciar una versión
 
@@ -252,7 +257,8 @@ reutilización de secuencias y los retrocesos, las comprobaciones desactivadas,
 la programación diaria, la manipulación del paquete y las redirecciones.
 `python3 -m unittest discover -s scripts -p 'test_client_updates.py'` prueba la
 frontera de la firma sin conexión, incluidos el registro de secuencias y las
-claves cifradas. En Android, `app:testDebugUnitTest`
+claves cifradas; `test_package_clients.py` comprueba el `versionCode` del APK y
+el permiso del instalador. En Android, `app:testDebugUnitTest`
 comprueba los bytes exactos de la sesión, el ID de aplicación, la versión y la
 política de certificados.
 

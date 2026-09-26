@@ -96,9 +96,14 @@ python3 scripts/package_clients.py build android \
 ```
 
 The build number is illustrative: always choose one higher than every build
-already distributed under that Android signing key. Commit the source first;
-dirty candidates can be tested locally but cannot be announced by the signing
-command. The feed is a distribution choice, not a dependency of self-hosting.
+already distributed under that Android signing key. The packaging helper
+checks that the APK's `versionCode` equals this build number, which
+`BUILD.json` records and the announcement carries, and that the APK requests
+Android's permission to install packages only when built with
+`--update-config`. It refuses `--update-config` for macOS, which has no signed
+updater yet. Commit the source first; dirty candidates can be tested locally
+but cannot be announced by the signing command. The feed is a distribution
+choice, not a dependency of self-hosting.
 
 ## Announce a release
 
@@ -223,8 +228,9 @@ signers and does not implement APK signing-key lineage migration.
 signatures (including an independent OpenSSL fixture), expiry, sequence reuse
 and rollback, disabled checks, daily scheduling, package tampering and redirects.
 `python3 -m unittest discover -s scripts -p 'test_client_updates.py'` exercises
-the offline signing boundary, including the sequence ledger and encrypted keys.
-Android `app:testDebugUnitTest` checks the exact
+the offline signing boundary, including the sequence ledger and encrypted keys;
+`test_package_clients.py` checks the APK's version code and installer
+permission. Android `app:testDebugUnitTest` checks the exact
 session bytes, application ID, version and certificate policy.
 
 For the actual system installer, use the private
