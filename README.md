@@ -13,6 +13,7 @@ End-to-end encrypted with MLS (RFC 9420) · one Go relay binary on SQLite · app
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Status: experimental](https://img.shields.io/badge/status-experimental-orange.svg)](#project-status)
 
+[Website](https://arveil.kaicorplabs.com) ·
 [Documentation](https://ulzuhan.github.io/arveil/) ·
 [Install](docs/INSTALLATION.md) ·
 [Threat model](docs/THREAT_MODEL.md) ·
@@ -230,7 +231,9 @@ No app release is published yet. Build from source (below), or ask a
 maintainer for an experimental macOS ZIP or Android APK prepared with the
 [client packaging guide](docs/CLIENT_RELEASES.md). Neither needs developer
 tools to install. The [installation guide](docs/INSTALLATION.md) covers
-each route, what has been verified and what is still pending.
+each route, what has been verified and what is still pending. For someone who
+was simply invited, the website has a shorter
+[step-by-step guide](https://arveil.kaicorplabs.com/install/).
 
 ### Try the command-line demo
 
@@ -274,7 +277,9 @@ checks and Android tooling.
 
 The full documentation is published at
 **[ulzuhan.github.io/arveil](https://ulzuhan.github.io/arveil/)** and is
-available in English and [Spanish](docs/es/README.md).
+available in English and [Spanish](docs/es/README.md). The project website,
+**[arveil.kaicorplabs.com](https://arveil.kaicorplabs.com)**, introduces
+Arveil to people who are not technical and will carry the download links.
 
 | Topic | Documents |
 |---|---|

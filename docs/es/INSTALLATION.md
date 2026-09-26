@@ -2,6 +2,11 @@
 
 [English](../INSTALLATION.md).
 
+¿Solo te han invitado a un realm? La web tiene una guía más corta pensada
+para ti: [Instalar Arveil](https://arveil.kaicorplabs.com/es/instalar/).
+Esta página es la referencia completa, también para poner en marcha un relay
+y compilar desde el código.
+
 **Disponibilidad actual (25 de septiembre de 2026):** todavía no hay releases
 publicadas en GitHub. El [comando de empaquetado](CLIENT_RELEASES.md) prepara
 candidatos experimentales: ZIP para macOS y APK para Android. El código actual permite

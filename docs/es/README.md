@@ -21,6 +21,7 @@ han probado.
 
 | Quiero… | Lee |
 |---|---|
+| Instalar la app tras recibir una invitación | La [guía paso a paso](https://arveil.kaicorplabs.com/es/instalar/) de la web |
 | Probar Arveil | [Instalar y probar](INSTALLATION.md) |
 | Poner un relay para mi familia | [Poner en marcha un realm](OPERATIONS.md) · [Podman sin root](../PODMAN.md) (en inglés) |
 | Compilar o empaquetar las apps | [Paquetes del cliente](CLIENT_RELEASES.md) · [README del cliente Flutter](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md) (en inglés) |

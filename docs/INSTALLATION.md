@@ -2,6 +2,11 @@
 
 [Español](es/INSTALLATION.md).
 
+Were you simply invited to someone's realm? The website has a shorter guide
+written for you: [Install Arveil](https://arveil.kaicorplabs.com/install/).
+This page is the complete reference, including running a relay and building
+from source.
+
 **Current availability (September 25, 2026):** there are no published GitHub
 releases yet. A [packaging command](CLIENT_RELEASES.md) prepares experimental
 macOS ZIP and Android APK candidates. The current source supports invitation enrollment,

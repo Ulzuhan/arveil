@@ -13,6 +13,7 @@ Cifrado de extremo a extremo con MLS (RFC 9420) · un único binario Go como rel
 [![Licencia: Apache-2.0](https://img.shields.io/badge/licencia-Apache--2.0-blue.svg)](LICENSE)
 [![Estado: experimental](https://img.shields.io/badge/estado-experimental-orange.svg)](#estado-del-proyecto)
 
+[Web](https://arveil.kaicorplabs.com/es/) ·
 [Documentación](docs/es/README.md) ·
 [Instalar](docs/es/INSTALLATION.md) ·
 [Modelo de amenazas](docs/es/THREAT_MODEL.md) ·
@@ -237,7 +238,9 @@ Android experimentales, preparados con la
 [guía de paquetes del cliente](docs/es/CLIENT_RELEASES.md). Ninguno necesita
 herramientas de desarrollo para instalarse. La
 [guía de instalación](docs/es/INSTALLATION.md) explica cada camino, qué se ha
-verificado y qué falta.
+verificado y qué falta. Para quien simplemente ha recibido una invitación, la
+web tiene una [guía paso a paso](https://arveil.kaicorplabs.com/es/instalar/)
+más corta.
 
 ### Probar la demo de línea de comandos
 
@@ -282,7 +285,9 @@ bindings, las pruebas de aceptación y las herramientas de Android.
 
 La documentación completa está publicada en
 **[ulzuhan.github.io/arveil](https://ulzuhan.github.io/arveil/)**, en inglés
-y [en español](docs/es/README.md).
+y [en español](docs/es/README.md). La web del proyecto,
+**[arveil.kaicorplabs.com](https://arveil.kaicorplabs.com/es/)**, presenta
+Arveil a quien no es técnico y tendrá los enlaces de descarga.
 
 | Tema | Documentos |
 |---|---|

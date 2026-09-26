@@ -19,6 +19,7 @@ declares its own status; "MUST" states a design requirement, and the
 
 | I want to… | Read |
 |---|---|
+| Install the app after an invitation | The website's [step-by-step guide](https://arveil.kaicorplabs.com/install/) |
 | Try Arveil | [Install and try](INSTALLATION.md) |
 | Run a relay for my family | [Running a realm](OPERATIONS.md) · [Rootless Podman](PODMAN.md) |
 | Build or package the apps | [Client packages](CLIENT_RELEASES.md) · [Flutter client README](https://github.com/Ulzuhan/arveil/blob/main/clients/flutter/README.md) |
