@@ -1,63 +1,107 @@
-# Arveil client
+# Arveil for macOS and Android
 
-The Flutter client for [Arveil](../../README.md). It calls the Rust
-application layer through `core/crates/arveil-flutter`, a thin adapter
-generated with flutter_rust_bridge; identity, MLS, delivery and persistence
-stay in Rust, and this project holds navigation, presentation and screen
-state only ([ADR-009](../../docs/adr/ADR-009-flutter-first.md)).
+The Flutter app for [Arveil](../../README.md). It calls the Rust application
+layer through `core/crates/arveil-flutter`, a thin adapter generated with
+[flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge).
+Identity, MLS, delivery and persistence stay in Rust; this project holds
+navigation, presentation and screen state only
+([ADR-009](../../docs/adr/ADR-009-flutter-first.md)).
 
-## What exists today
+## What the app does
 
-The Spanish-language setup screen opens an encrypted profile, creates an
-identity and enrolls with relay bootstrap data and a one-use invitation.
-Network failure preserves the Rust enrollment state. Reopening reads that
-state; a pending enrollment asks for the same invitation again, while a
-completed one goes directly to the profile summary. Duplicate submissions
-are disabled. Tokens stay in memory and are cleared on success or close.
+- **Getting in.** Opens an encrypted profile, enrolls with the relay's
+  connection data and a one-use invitation, and resumes an interrupted
+  enrollment. It can also join by pairing with another device or restore
+  from an identity kit.
+- **Conversations.** A chat list with search, unread counts and a sync
+  indicator. Conversations have paged history, per-device delivery states,
+  offline sending, explicit encrypted attachments and search within the
+  conversation.
+- **Contacts and trust.** Saved contacts with local names, safety numbers to
+  compare, and a notice in the conversation when a contact's devices change.
+- **Devices and recovery.** Linking and revoking devices, identity-kit export
+  and restore, KeyPackage availability for new groups, and encrypted history
+  archives.
+- **Look and accessibility.** English and Spanish, light and dark themes, six
+  accents, conversation backgrounds and text size. Screen reader labels, text
+  at 200 % without overflow and reduced motion.
+- **Help.** A diagnostic report with the version, system, profile state and
+  recent error codes, never names, messages, keys or paths.
 
-Pairing with manual code comparison, cancellation and resumed completion,
-and encrypted identity-kit export/restore are implemented. The profile shows
-dated KeyPackage availability and can replenish or resume a failed publication.
-The conversation screen lists local groups, compares contact-route safety
-numbers, creates groups, pages history, queues text offline and synchronizes.
-Source `0.1.0+6` adds saved contacts and local aliases, explicit verification,
-recipient selection and participant names. Aliases and routes stay in the
-encrypted local profile; they are not synchronized to other devices.
-The [phase 3b plan](../../docs/PHASE3B.md) keeps physical-device acceptance open. The classic macOS login
-Keychain works with ad-hoc signing; physical Android and fresh downloaded
-macOS acceptance remain open.
+The profile database is encrypted with SQLCipher. Its key is generated in
+Rust and kept by the Keychain on macOS or the Keystore on Android, without
+synchronization and with no plaintext fallback. Only the appearance settings
+live outside the profile, in `appearance.json`. The
+[implementation record](../../docs/CLIENT_FOUNDATION.md) describes each change
+with its evidence, and the [platform record](../../docs/PLATFORMS.md) says
+what was accepted on which device.
 
-Source `0.1.0+7` adds explicit attachments: native file selectors, encrypted
-private storage, per-message upload/download progress, resume/cancel and
-explicit export. See the [installation guide](../../docs/INSTALLATION.md).
+On desktop, the primary modifier is ⌘ on macOS and Ctrl elsewhere:
+
+| Shortcut | Action |
+|---|---|
+| ⌘N | New conversation |
+| ⌘K | Search chats |
+| ⌘F | Search in the open conversation |
+| ⌘, | Settings |
+| Alt+↑ / Alt+↓ | Previous or next conversation |
+| Enter | Send (Shift+Enter for a new line; phones insert a new line) |
+| Esc | Close the search or the conversation |
 
 ## Installing versus developing
 
-See the [installation entry point](../../docs/INSTALLATION.md)
+See the [installation guide](../../docs/INSTALLATION.md)
 ([español](../../docs/es/INSTALLATION.md)) for availability and the end-user
-installation requirements. There are no downloadable app releases yet.
-The commands below are for developers; the intended macOS app package and
-Android APK must install without Flutter/Rust on the user's machine.
-The initial macOS development path must work without paid Apple membership;
-the login Keychain is selected explicitly, with no plaintext fallback.
-For ZIP/APK creation, see [client packaging](../../docs/CLIENT_RELEASES.md).
+installation requirements. No app release has been published yet. The
+commands below are for developers; the macOS package and the Android APK
+install without Flutter or Rust. The macOS development path works without a
+paid Apple Developer membership, using the login Keychain. To build the ZIP
+and APK, see [client packages](../../docs/CLIENT_RELEASES.md).
 
 ## Running it
 
-Source `0.1.0+11` uses Arveil's own macOS and Android launcher icons, including
-adaptive and monochrome Android variants. The committed platform resources are
-ready to build; see [brand assets](../../assets/brand/README.md) for sources,
-previews and the maintainer-only export command.
+With the pinned toolchain (Flutter 3.44.1 and Rust 1.98.1, see
+[the platform record](../../docs/PLATFORMS.md)):
 
 ```bash
 flutter pub get
-flutter run -d macos
+flutter run -d macos            # or -d <android-device>
 ```
 
-The pinned toolchain and the platform matrix live in
-[docs/PLATFORMS.md](../../docs/PLATFORMS.md). The native library is built by
-`rust_builder`, which points at the adapter crate; there is nothing to build
-by hand.
+The native library is built by `rust_builder`, which points at the adapter
+crate; there is nothing to build by hand. Launcher icons are committed; see
+[brand assets](../../assets/brand/README.md) for their sources and the
+maintainer-only export command.
+
+## Project layout
+
+```text
+lib/
+├── main.dart          App, theme, language and text scale
+├── l10n/              ARB files (Spanish is the template) and generated code
+└── src/
+    ├── design/        Tokens, accents, typography, theme, layout, components
+    ├── rust/          Generated bindings (do not edit)
+    └── *.dart         Screens, controllers and platform adapters
+test/                  Widget, unit and golden tests (test/goldens/)
+integration_test/      Native tests against the real bridge and key store
+```
+
+## Development checks
+
+```bash
+flutter analyze
+flutter test
+flutter gen-l10n        # CI fails if the generated code differs or a string is untranslated
+```
+
+Tests run in Spanish (`test/flutter_test_config.dart`); `test/l10n_test.dart`
+checks English and that both ARB files have the same keys.
+`test/hygiene_test.dart` keeps colours and user-facing text inside the design
+system and the ARB files. After a visual change, update the goldens with
+`flutter test --update-goldens`. `../../scripts/update_screenshots.sh`
+regenerates the screen goldens and copies the documentation screenshots, which
+are rendered from invented test data.
 
 ## Acceptance
 
@@ -265,8 +309,8 @@ packager's temporary SDK alias after that directory has been removed.
 
 ## Device management acceptance
 
-Source `0.1.0+8` adds **Gestionar dispositivos** to the profile: current/known
-own devices, partial-inventory warnings and administrator-only revocation with
+Source `0.1.0+8` added device management, now under **Settings › Manage
+devices**: current/known own devices, partial-inventory warnings and administrator-only revocation with
 explicit target confirmation. Offline revocations survive reopening and resume
 with sync. Publication, remaining group leaves and undelivered notices have
 separate states; no remote erasure or automatic MLS rejoin is promised.

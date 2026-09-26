@@ -473,8 +473,22 @@ key (versionCode 10 → 14). Result:
 - On a device set to English the app starts in English; `0.1.0+10` was
   Spanish only.
 
-**Upgrade from `0.1.0+10` on macOS.** Pending: it needs the app driven on
-the Mac.
+**Upgrade from `0.1.0+10` on macOS** (macOS 26.6, arm64). With the real
+profile moved aside and the same relay, the `0.1.0+10` app created a new
+profile, enrolled, saved and verified the test contact, created the
+conversation and exchanged two messages. It was then quit and the `0.1.0+14`
+app opened. The keychain asked for permission for the new ad-hoc signature,
+as it does for every unnotarized build, and it was granted by hand. Result:
+
+- The profile opens with its identity, the verified contact and the full
+  history.
+- What arrived before the update is read. A message that arrives after it
+  shows as unread and becomes read when the conversation is opened.
+- A message sent from `0.1.0+14` reaches the contact through the same group.
+- The app follows the system's language and theme: English and dark on this
+  Mac.
+
+Afterwards the real profile went back in place unchanged.
 
 **TalkBack.** TalkBack 15.0 was used on the same emulator, not on a
 physical Android device. Gestures were sent as real touches through the
@@ -505,7 +519,16 @@ name and role. Bubbles read as "Bob, 08:28: …", tabs as "Chats, Tab 1 of
 6. Opening a conversation puts focus on the first list item ("Today") rather
    than the header. This is minor.
 
-Pending: TalkBack on a physical Android device and VoiceOver on macOS.
+Later candidates: `0.1.0+15` (Android, with #99 only) and `0.1.0+16`
+(macOS, from `main` with #100) were built locally to check the fixes.
+`0.1.0+16` opened the upgraded profile with the conversation still read after
+a restart.
+
+**VoiceOver: compatibility untested.** The accessibility tree and labels are
+the ones TalkBack reads, but the app could not be walked with VoiceOver on
+macOS in this session. The tool driving the Mac could not read the caption
+panel or take window focus without freezing the app the test was run from.
+It stays pending, together with TalkBack on a physical Android device.
 
 ## Read-state corrections acceptance (September 26, 2026)
 
@@ -539,7 +562,8 @@ No package has been published.
 | `arveil-0.1.0-17-macos-arm64.zip` | `e234f8a9215cbe9f8c3f8401d81fa1596dc200444ccd78a5f08866aa4e678f3c` |
 | `arveil-0.1.0-17-android-arm64.apk` | `05f4ce541522345a8e61debda2d782f86e539823a0d11429c7921cfae548f0ab` |
 
-This is local source/integration acceptance. It does not close the outstanding
-package upgrade from `0.1.0+10` on macOS, fresh-download installation, physical
-Android installation/update and Doze/reconnect, manual VoiceOver/TalkBack, or
-the three external-user evaluations required by M3b.5.
+This is local source/integration acceptance. It does not close fresh-download
+installation, physical Android installation/update and Doze/reconnect,
+VoiceOver, TalkBack on a physical device, or the three external-user
+evaluations required by M3b.5. The package upgrade from `0.1.0+10` is recorded
+in the previous section.

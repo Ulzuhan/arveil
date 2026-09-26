@@ -70,7 +70,7 @@ One small PR per package with its own tests. Relative size: S (up to a day), M (
 | C4 Welcome and enrollment (implemented) | M | B1, B2 | Three entry points, step-by-step invitation flow, pairing and restore, kit with "Later" and visible risk |
 | C5 Contacts, verification and settings (implemented) | M | B1, B2, A3 | Contacts and new chat, safety-number grid, sectioned settings, devices, encrypted history and keys migrated |
 | D1 Appearance (implemented) | M | B1, C1 | First-version personalization with immediate changes and safe defaults |
-| E1 Accessibility (automated part implemented; manual TalkBack/VoiceOver pending) | M | C2–C5, D1 | Semantics labels, focus order, 200 % text without overflow, reduced motion; manual TalkBack (physical Android) and VoiceOver (macOS) review |
+| E1 Accessibility (automated part implemented; TalkBack reviewed on an emulator; physical TalkBack and VoiceOver untested) | M | C2–C5, D1 | Semantics labels, focus order, 200 % text without overflow, reduced motion; manual TalkBack (physical Android) and VoiceOver (macOS) review |
 | E2 Secret-free diagnostics (implemented) | S | C5 | Exported report with version, OS, locale, profile state and typed error codes only; a test searches it for test-profile secrets |
 | E3 Documentation and screenshots | S | E1, E2 | Update installation, client foundation and platform docs in both languages |
 | F1 QR invitation (optional) | L | B1 | Versioned join payload documented as one-use sensitive data; relay `invite` may print a QR; camera only after tapping "Scan"; paste always available; never logged |

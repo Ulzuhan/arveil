@@ -492,8 +492,21 @@ misma clave (versionCode 10 → 14). Resultado:
 - En un dispositivo en inglés la app arranca en inglés; `0.1.0+10` solo
   estaba en español.
 
-**Actualización desde `0.1.0+10` en macOS.** Pendiente: requiere manejar la
-app en el Mac.
+**Actualización desde `0.1.0+10` en macOS** (macOS 26.6, arm64). Con el perfil
+real apartado y el mismo relay, la app `0.1.0+10` creó un perfil nuevo, se dio
+de alta, guardó y verificó el contacto de prueba, creó la conversación e
+intercambió dos mensajes. Después se cerró y se abrió la app `0.1.0+14`. El
+llavero pidió permiso para la nueva firma ad hoc, como en cada build sin
+notarizar, y se concedió a mano. Resultado:
+
+- El perfil se abre con su identidad, el contacto verificado y el historial
+  completo.
+- Lo anterior a la actualización queda leído. Un mensaje que llega después
+  aparece como no leído y se marca leído al abrir la conversación.
+- Un mensaje enviado desde `0.1.0+14` llega al contacto por el mismo grupo.
+- La app sigue el idioma y el tema del sistema: inglés y oscuro en este Mac.
+
+Al terminar, el perfil real volvió a su sitio sin cambios.
 
 **TalkBack.** Se usó TalkBack 15.0 en el mismo emulador, no en un Android
 físico. Los gestos se enviaron como toques reales por la consola del
@@ -525,7 +538,17 @@ opción elegida. Hallazgos:
 6. Al abrir una conversación, el foco va al primer elemento de la lista
    («Hoy») y no a la cabecera. Es menor.
 
-Pendiente: TalkBack en un Android físico y VoiceOver en macOS.
+Candidatos posteriores: `0.1.0+15` (Android, solo con #99) y `0.1.0+16`
+(macOS, desde `main` con #100) se construyeron en local para comprobar los
+arreglos. La `0.1.0+16` abrió el perfil actualizado con la conversación aún
+leída tras reiniciar.
+
+**VoiceOver: compatibilidad sin probar.** El árbol de accesibilidad y las
+etiquetas son los mismos que lee TalkBack, pero en esta sesión no se pudo
+recorrer la app con VoiceOver en macOS. La herramienta que manejaba el Mac
+no podía leer el panel de subtítulos ni poner el foco en la ventana sin
+bloquear la app desde la que se dirigía la prueba. Queda pendiente, junto
+con TalkBack en un Android físico.
 
 ## Aceptación de las correcciones de lectura (26 de septiembre de 2026)
 
@@ -563,7 +586,8 @@ paquete.
 | `arveil-0.1.0-17-macos-arm64.zip` | `e234f8a9215cbe9f8c3f8401d81fa1596dc200444ccd78a5f08866aa4e678f3c` |
 | `arveil-0.1.0-17-android-arm64.apk` | `05f4ce541522345a8e61debda2d782f86e539823a0d11429c7921cfae548f0ab` |
 
-Es aceptación local del código y de integración. No cierra la actualización
-pendiente desde `0.1.0+10` en macOS, instalación desde una descarga limpia,
-instalación/actualización y Doze/reconexión en Android físico, VoiceOver/TalkBack
-manuales ni las evaluaciones de tres personas externas exigidas por M3b.5.
+Es aceptación local del código y de integración. No cierra la instalación
+desde una descarga limpia, la instalación/actualización y Doze/reconexión en
+Android físico, VoiceOver, TalkBack en un dispositivo físico ni las
+evaluaciones de tres personas externas exigidas por M3b.5. La actualización
+del paquete desde `0.1.0+10` consta en la sección anterior.
