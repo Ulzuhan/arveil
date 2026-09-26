@@ -11,7 +11,7 @@ Flutter → puente Rust ─┴→ arveil-app → arveil-core
                                       └→ transporte Noise/WebSocket → relay Go
 ```
 
-`arveil-app` coordina operaciones y devuelve resultados estructurados. `arveil-core` conserva identidad, MLS, persistencia y primitivas de entrega. El relay sigue siendo un proceso Go independiente; no contiene las claves E2EE de los clientes. El cliente Flutter abre perfiles cifrados, da de alta por invitación, vincula dispositivos y exporta/restaura kits cifrados de identidad mediante el puente. La interfaz permite crear conversaciones tras comparar rutas, leer historial paginado, enviar texto sin conexión y sincronizar.
+`arveil-app` coordina operaciones y devuelve resultados estructurados. `arveil-core` conserva identidad, MLS, persistencia y primitivas de entrega. El relay sigue siendo un proceso Go independiente; no contiene las claves E2EE de los clientes. El cliente Flutter abre perfiles cifrados, da de alta por invitación, vincula dispositivos y exporta/restaura kits cifrados de identidad mediante el puente. La interfaz permite crear conversaciones (verificar a quienes participan es opcional y puede hacerse después), leer historial paginado, enviar texto sin conexión y sincronizar.
 
 ## Cambios realizados y evidencia
 
@@ -159,6 +159,8 @@ contacto, creación verificada de grupos, historial paginado y composición de t
 Editar las rutas invalida la comparación. Rust valida tamaños, dispositivos
 repetidos y los números exactos antes de verificar los contactos. Se utiliza el
 protocolo de identidad/MLS existente; no equivale a una auditoría independiente.
+Desde el 27 de septiembre de 2026 la comparación es opcional; véase «Conversar
+antes de verificar» más abajo.
 
 `QueueMessage` confirma estado MLS, evento y outbox cifrado antes de devolver el
 recibo, sin acceder a la red. Flutter borra solo el borrador aceptado y sincroniza
@@ -204,9 +206,10 @@ el mismo dispositivo actualiza su ruta sin duplicarlo; un nombre vacío al
 importar conserva el alias existente, mientras que renombrar permite borrarlo.
 
 La creación recibe identificadores guardados de identidad/dispositivo. Rust
-relee sus rutas y exige contactos verificados, correspondencia de identidad,
-raíz y dispositivo, dispositivos distintos y ninguna revocación local conocida
-antes de crear por red. Se mantiene el recibo con aviso tras commit para evitar
+relee sus rutas y exige correspondencia de identidad, raíz y dispositivo,
+dispositivos distintos y ninguna revocación local conocida antes de crear por
+red. Hasta el 27 de septiembre de 2026 también exigía contactos verificados;
+véase «Conversar antes de verificar» más abajo. Se mantiene el recibo con aviso tras commit para evitar
 que un fallo de publicación invite a crear de nuevo el grupo guardado. Admite
 hasta 16 dispositivos; revocaciones aún desconocidas y rutas caducadas siguen
 dependiendo de la sincronización y validación del relay.
@@ -1034,3 +1037,62 @@ cambia el protocolo y se propone aparte en el
 
 Las pruebas están en `test/names_test.dart`, y las capturas de la conversación
 de escritorio muestran la acción de cambiar el nombre en los detalles.
+
+## Conversar antes de verificar (27 de septiembre de 2026)
+
+Primero conectar, verificar cuando se quiera. La verificación condicionaba
+cada conversación nueva, y eso bloqueaba (quien compartía su ruta no veía el
+número de seguridad hasta tener también la de la otra persona) o enseñaba a
+marcar «Hemos comparado» sin comparar. Ahora comparar es opcional al crear la
+conversación y sigue disponible desde ella. No cambian el protocolo, el relay
+ni el formato de los mensajes.
+
+- **Rutas pegadas.** Al preparar se siguen viendo el número de seguridad de
+  cada ruta y un campo para el nombre local. Cada persona tiene una casilla
+  opcional, **Lo hemos comparado por otro canal y coincide**, y la conversación
+  se crea sin ella. Solo quienes se marcan quedan fijados como verificados; el
+  resto se guarda como contacto sin verificar, con el nombre escrito. Una ruta
+  de una identidad ya verificada con otra raíz se sigue rechazando, se haya
+  comparado o no, y no se guarda nada. Dejar sin marcar a alguien ya verificado
+  no le quita la verificación.
+- **Contactos guardados.** El selector ofrece también los contactos sin
+  verificar. Siguen haciendo falta una ruta guardada y un dispositivo que no
+  conste como revocado, y esa ruta tiene que seguir correspondiendo a la
+  identidad, la raíz y el dispositivo del contacto.
+- **Visible, sin bloquear.** Mientras alguien de la conversación abierta esté
+  sin verificar, la línea bajo su nombre dice **Sin verificar · Verificar**, o
+  **1 sin verificar · Verificar** en un grupo. Tocar la cabecera abre los
+  detalles. Nada es modal, el campo para escribir sigue disponible y el aviso
+  **Ponle nombre** no cambia.
+- **Verificar desde los detalles.** Cada persona sin verificar muestra el
+  número de seguridad en la cuadrícula de siempre, con **Coinciden** y **No
+  coinciden**. **Coinciden** hace la misma comprobación que Contactos; **No
+  coinciden** avisa y no verifica nada. Quien recibe la invitación no tiene
+  ruta guardada de los demás miembros, solo el roster: el número se calcula
+  sobre la raíz que nombró el roster, y verificar fija esa raíz. Todo miembro
+  conocido en una conversación ya tiene un contacto sin verificar creado a
+  partir del roster; si faltara, verificar lo guarda antes con la raíz del
+  roster.
+- **API de Rust.** `create_verified_conversation` pasa a ser
+  `create_route_conversation`, con un número comparado opcional por ruta
+  (`ConversationRoute`); `createConversation` en el puente recibe un
+  `String?` por ruta. `PeerView.safetyNumber` lleva el número que hay que
+  comparar con cada persona. `create_contact_conversation` ya no exige
+  contactos verificados. La CLI no cambia: `chat start` nunca exigió
+  verificación.
+
+Evidencia: las pruebas de `arveil-app` cubren un contacto guardado sin
+verificar que llega al paso de red, rutas pegadas que se guardan sin verificar
+salvo que se comparen, una ruta comparada que queda fijada como verificada, una
+ruta de una identidad verificada con otra raíz rechazada sin guardar nada, y la
+verificación de un miembro conocido solo por el roster, con contacto y sin él.
+`test/verification_test.dart` cubre la línea de la cabecera, la verificación
+desde los detalles en un teléfono y junto a una conversación ancha, **No
+coinciden**, un guardado fallido y los grupos; `test/conversations_test.dart`,
+`test/names_test.dart` y `test/contacts_test.dart` cubren crear sin comparar y
+los contactos sin verificar en el selector. Las comprobaciones de accesibilidad
+abren ahora una conversación con alguien sin verificar. El asistente de
+aceptación de conversaciones elige un contacto guardado sin verificar, lo
+verifica después y verifica al creador desde el perfil que recibe. Las capturas
+de la conversación en teléfono y escritorio muestran la nueva línea y la
+comparación en los detalles.

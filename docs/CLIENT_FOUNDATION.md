@@ -4,7 +4,7 @@ Status: implementation record updated September 23, 2026; earlier acceptance res
 
 ## Architecture and evidence
 
-CLI → `arveil-app` → `arveil-core`; Flutter calls the same application layer through its Rust bridge. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. The Flutter client opens encrypted profiles, enrolls by invitation, pairs devices and exports/restores encrypted identity kits through the Rust bridge. Durable progress survives reopening; verified group creation, paginated history, offline text and sync are implemented.
+CLI → `arveil-app` → `arveil-core`; Flutter calls the same application layer through its Rust bridge. `arveil-app` coordinates operations and returns structured results; core retains identity, MLS, persistence and delivery primitives. Noise/WebSocket connects to the independent Go relay, which does not hold client E2EE keys. The Flutter client opens encrypted profiles, enrolls by invitation, pairs devices and exports/restores encrypted identity kits through the Rust bridge. Durable progress survives reopening; group creation (verifying the people in it is optional and can come later), paginated history, offline text and sync are implemented.
 
 | Change | Implementation and verification |
 |---|---|
@@ -138,7 +138,8 @@ this device's route, comparison of each peer's safety number, verified group
 creation, history pages and text composition. Editing routes invalidates the
 comparison. Rust validates route sizes, duplicate devices and the exact compared
 numbers before pinning contacts. This uses the existing identity/MLS protocol;
-it is not an independent security assessment.
+it is not an independent security assessment. Since September 27, 2026 the
+comparison is optional; see "Talking before verifying" below.
 
 `QueueMessage` commits the MLS state, event and encrypted outbox before returning
 its receipt, without network access. Flutter clears only the accepted draft;
@@ -182,8 +183,9 @@ same device updates its route without duplicating it; an empty import name
 preserves the existing alias, while explicit rename can clear it.
 
 Creation accepts saved identity/device identifiers. Rust reloads their routes
-and requires verified contacts, matching identity/root/device bindings, distinct
-devices and no locally known revocation before network creation. The existing
+and requires matching identity/root/device bindings, distinct devices and no
+locally known revocation before network creation. Until September 27, 2026 it
+also required verified contacts; see "Talking before verifying" below. The existing
 post-commit receipt/warning behavior still prevents a retry from inviting the
 user to recreate a saved group. Up to 16 saved devices can be selected; unknown
 revocations and stale routes still depend on sync and relay validation.
@@ -961,3 +963,56 @@ protocol change and is proposed separately in
 
 Regressions are in `test/names_test.dart`, and the desktop conversation
 screenshots show the rename action in the details.
+
+## Talking before verifying (September 27, 2026)
+
+Connect first, verify when you want. Verification used to gate every new
+conversation, which either blocked people (whoever shared their route could not
+see the safety number until they also had the other person's) or taught them
+to tick "We compared" without comparing. Comparing is now optional when a
+conversation is created and stays available from the conversation. The
+protocol, the relay and the wire format do not change.
+
+- **Pasted routes.** Preparing still shows each route's safety number and a
+  local name field. Each person has an optional **We compared this number
+  through another channel and it matches**, and the conversation is created
+  without it. Only the people marked are pinned as verified; the rest are saved
+  as unverified contacts, with the name typed. A route for an identity already
+  verified under another root is still refused, compared or not, and nothing is
+  saved. Leaving a verified person unmarked does not unverify them.
+- **Saved contacts.** The picker also offers unverified contacts. A contact
+  still needs a saved route and a device not known to be revoked, and that route
+  must still match the contact's identity, root and device.
+- **Visible, not blocking.** While someone else in the open conversation is
+  unverified, the line under its name reads **Unverified · Verify**, or
+  **1 unverified · Verify** in a group. Tapping the header opens the details.
+  Nothing is modal, the composer stays available and the **Name this person**
+  notice is unchanged.
+- **Verifying from the details.** Each unverified person shows the safety
+  number in the usual grid with **They match** and **They differ**. **They
+  match** runs the same check as Contacts; **They differ** warns and verifies
+  nothing. Whoever received the invitation has no saved route for the other
+  members, only the roster: the number is computed over the root the roster
+  named, and verifying pins that root. Every member met in a conversation
+  already has an unverified contact from the roster; if one is missing,
+  verifying first saves it from the roster's root.
+- **Rust API.** `create_verified_conversation` is now
+  `create_route_conversation`, with an optional compared number per route
+  (`ConversationRoute`); the bridge's `createConversation` takes one
+  `String?` per route. `PeerView.safetyNumber` carries the number to compare
+  with each person. `create_contact_conversation` no longer requires verified
+  contacts. The CLI does not change: `chat start` never required verification.
+
+Evidence: the `arveil-app` tests cover an unverified saved contact reaching the
+network step, pasted routes saved unverified unless compared, a compared route
+pinned as verified, a route for an identity verified under another root refused
+without saving anything, and verifying a member known only from a roster, with
+and without a contact. `test/verification_test.dart` covers the header line,
+verifying from the details on a phone and beside a wide conversation, **They
+differ**, a failed save and groups; `test/conversations_test.dart`,
+`test/names_test.dart` and `test/contacts_test.dart` cover creating without
+comparing and unverified contacts in the picker. The accessibility checks now
+open a conversation with someone unverified. The conversation acceptance helper
+chooses an unverified saved contact, verifies it afterwards and verifies the
+creator from the receiving profile. The phone and desktop conversation
+screenshots show the new line and the comparison in the details.

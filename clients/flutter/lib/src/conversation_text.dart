@@ -61,6 +61,12 @@ List<PeerView> unnamedPeople(ConversationView row) => [
     if (!p.named) p,
 ];
 
+/// The other people in [row] this profile has not verified, once each.
+List<PeerView> unverifiedPeople(ConversationView row) => [
+  for (final p in otherPeople(row).values)
+    if (!p.verified) p,
+];
+
 String conversationTitle(ConversationView row) {
   final people = <String, String>{
     for (final p in row.peers)

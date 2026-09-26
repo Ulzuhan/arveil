@@ -294,6 +294,7 @@ class ConversationsPageState extends State<ConversationsPage>
         row: _selectedRow ?? row,
         events: chat.events,
         onName: _name,
+        onVerify: chat.verify,
       ),
     );
     if (WindowSize.of(context) == WindowSize.compact) {
@@ -326,6 +327,14 @@ class ConversationsPageState extends State<ConversationsPage>
         ],
       ),
     );
+  }
+
+  /// Shows the details, leaving them open if they already are beside the
+  /// conversation.
+  void _openDetails(bool wide) {
+    if (!(_detailsOpen && _detailsFit(context, wide))) {
+      unawaited(_showDetails(wide));
+    }
   }
 
   List<Widget> get _chatActions => [
@@ -444,6 +453,7 @@ class ConversationsPageState extends State<ConversationsPage>
               title: ConversationHeader(
                 title: _selectedTitle,
                 row: _selectedRow,
+                onTap: () => _openDetails(false),
               ),
               actions: [_searchButton, _detailsButton(false)],
             )
@@ -504,6 +514,7 @@ class ConversationsPageState extends State<ConversationsPage>
                             title: ConversationHeader(
                               title: _selectedTitle,
                               row: row,
+                              onTap: () => _openDetails(true),
                             ),
                             actions: [_searchButton, _detailsButton(true)],
                           ),
@@ -546,6 +557,7 @@ class ConversationsPageState extends State<ConversationsPage>
                               row: row,
                               events: chat.events,
                               onName: _name,
+                              onVerify: chat.verify,
                             ),
                           ),
                         ),
@@ -645,11 +657,7 @@ class ConversationsPageState extends State<ConversationsPage>
                   key: const Key('name-unnamed'),
                   onPressed: unnamed.length == 1
                       ? () => _name(unnamed.single.identityId, null)
-                      : () {
-                          if (!(_detailsOpen && _detailsFit(context, wide))) {
-                            unawaited(_showDetails(wide));
-                          }
-                        },
+                      : () => _openDetails(wide),
                   child: Text(
                     unnamed.length == 1
                         ? context.l10n.nameThisPerson
@@ -785,7 +793,10 @@ class _NewConversationPageState extends State<NewConversationPage> {
   final _routes = TextEditingController();
   List<String> _checkedRoutes = [];
   List<RoutePreviewView> _previews = [];
-  bool _compared = false;
+
+  /// People whose safety number was compared and matched; only they are
+  /// saved as verified.
+  final Set<String> _matched = {};
   bool _checking = false;
   String? _error;
   int _revision = 0;
@@ -871,7 +882,7 @@ class _NewConversationPageState extends State<NewConversationPage> {
     setState(() {
       _checking = true;
       _error = null;
-      _compared = false;
+      _matched.clear();
       _previews = [];
     });
     try {
@@ -898,10 +909,10 @@ class _NewConversationPageState extends State<NewConversationPage> {
   }
 
   Future<void> _create() async {
-    final group = await widget.chat.create(
-      _checkedRoutes,
-      _previews.map((p) => p.safetyNumber).toList(),
-    );
+    final group = await widget.chat.create(_checkedRoutes, [
+      for (final p in _previews)
+        _matched.contains(p.identityId) ? p.safetyNumber : null,
+    ]);
     if (!mounted) return;
     if (group == null) {
       setState(() => _error = widget.chat.error);
@@ -961,7 +972,7 @@ class _NewConversationPageState extends State<NewConversationPage> {
                         _revision++;
                         _previews = [];
                         _checkedRoutes = [];
-                        _compared = false;
+                        _matched.clear();
                         _error = null;
                       }),
                     ),
@@ -1009,24 +1020,43 @@ class _NewConversationPageState extends State<NewConversationPage> {
                                     helperMaxLines: 3,
                                   ),
                                 ),
+                                CheckboxListTile(
+                                  key: Key('compared-${preview.identityId}'),
+                                  contentPadding: EdgeInsets.zero,
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  value: _matched.contains(preview.identityId),
+                                  onChanged: busy
+                                      ? null
+                                      : (v) => setState(() {
+                                          if (v == true) {
+                                            _matched.add(preview.identityId);
+                                          } else {
+                                            _matched.remove(preview.identityId);
+                                          }
+                                        }),
+                                  title: Text(
+                                    context.l10n.newConversationMatches,
+                                  ),
+                                ),
                               ],
                             ],
                           ),
                         ),
                       ),
                     if (_previews.isNotEmpty) ...[
-                      CheckboxListTile(
-                        key: const Key('compared-routes'),
-                        contentPadding: EdgeInsets.zero,
-                        value: _compared,
-                        onChanged: busy
-                            ? null
-                            : (v) => setState(() => _compared = v!),
-                        title: Text(context.l10n.newConversationCompared),
+                      const SizedBox(height: 12),
+                      Text(
+                        context.l10n.newConversationLater,
+                        key: const Key('compare-later'),
+                        style: ArveilType.secondary.copyWith(
+                          color: ArveilColors.of(context).inkMuted,
+                        ),
                       ),
+                      const SizedBox(height: 12),
                       FilledButton(
                         key: const Key('create-conversation'),
-                        onPressed: busy || !_compared ? null : _create,
+                        onPressed: busy ? null : _create,
                         child: Text(context.l10n.newConversationCreate),
                       ),
                     ],

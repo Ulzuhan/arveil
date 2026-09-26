@@ -152,6 +152,18 @@ pub(super) fn verify(
 ) -> Result<ContactSummary, CliError> {
     let (client, _, _) = enrolled(config)?;
     client.unit_of_work(|| {
+        // Someone met only in a conversation is known by the root its roster
+        // named: comparing the number pins that root.
+        if client
+            .contact(identity)
+            .map_err(storage_error("contact"))?
+            .is_none()
+            && let Some(root) = roster_root(&client, identity)?
+        {
+            client
+                .contact_seen(identity, &root)
+                .map_err(storage_error("contact"))?;
+        }
         if !client
             .contact_verify(identity, number, crate::onboarding::now() as i64)
             .map_err(storage_error("contact"))?
@@ -164,6 +176,23 @@ pub(super) fn verify(
     })
 }
 
+/// The root a conversation roster gave another identity, if any.
+fn roster_root(client: &Client, identity: &[u8]) -> Result<Option<Vec<u8>>, CliError> {
+    let own = client.identity_id().map_err(storage_error("identity"))?;
+    if own.as_deref() == Some(identity) {
+        return Ok(None);
+    }
+    Ok(client
+        .conversations()
+        .map_err(storage_error("conversations"))?
+        .into_iter()
+        .flat_map(|c| c.peers)
+        .find(|p| p.identity == identity && !p.root_public.is_empty())
+        .map(|p| p.root_public))
+}
+
+/// Saved routes for a new conversation. Verification is not required: an
+/// unverified contact can be talked to and compared with later.
 pub(super) fn recipient_routes(
     config: &ProfileConfig,
     recipients: &[SavedRecipient],
@@ -179,8 +208,7 @@ pub(super) fn recipient_routes(
         let contact = client
             .contact(&recipient.identity_id)
             .map_err(storage_error("contact"))?
-            .filter(|c| c.verified)
-            .ok_or_else(|| CliError::Domain("verify the saved contact first".into()))?;
+            .ok_or_else(|| CliError::Domain("save the contact first".into()))?;
         if client
             .device_revoked(&recipient.device_id)
             .map_err(storage_error("device"))?

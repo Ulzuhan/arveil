@@ -818,7 +818,7 @@ fn wire__crate__api__profile__Profile_create_conversation_impl(
             >>::sse_decode(&mut deserializer);
             let api_bootstrap = <String>::sse_decode(&mut deserializer);
             let api_routes = <Vec<String>>::sse_decode(&mut deserializer);
-            let api_safety_numbers = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_safety_numbers = <Vec<Option<String>>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::profile::CommandError>((move || {
@@ -3099,6 +3099,18 @@ impl SseDecode for Vec<crate::api::profile::ManagedDeviceView> {
     }
 }
 
+impl SseDecode for Vec<Option<String>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<Option<String>>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::profile::PeerView> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3327,6 +3339,7 @@ impl SseDecode for crate::api::profile::PeerView {
         let mut var_named = <bool>::sse_decode(deserializer);
         let mut var_own = <bool>::sse_decode(deserializer);
         let mut var_verified = <bool>::sse_decode(deserializer);
+        let mut var_safetyNumber = <Option<String>>::sse_decode(deserializer);
         let mut var_revoked = <bool>::sse_decode(deserializer);
         return crate::api::profile::PeerView {
             identity_id: var_identityId,
@@ -3335,6 +3348,7 @@ impl SseDecode for crate::api::profile::PeerView {
             named: var_named,
             own: var_own,
             verified: var_verified,
+            safety_number: var_safetyNumber,
             revoked: var_revoked,
         };
     }
@@ -4442,6 +4456,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::profile::PeerView {
             self.named.into_into_dart().into_dart(),
             self.own.into_into_dart().into_dart(),
             self.verified.into_into_dart().into_dart(),
+            self.safety_number.into_into_dart().into_dart(),
             self.revoked.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -5184,6 +5199,16 @@ impl SseEncode for Vec<crate::api::profile::ManagedDeviceView> {
     }
 }
 
+impl SseEncode for Vec<Option<String>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <Option<String>>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::profile::PeerView> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5366,6 +5391,7 @@ impl SseEncode for crate::api::profile::PeerView {
         <bool>::sse_encode(self.named, serializer);
         <bool>::sse_encode(self.own, serializer);
         <bool>::sse_encode(self.verified, serializer);
+        <Option<String>>::sse_encode(self.safety_number, serializer);
         <bool>::sse_encode(self.revoked, serializer);
     }
 }

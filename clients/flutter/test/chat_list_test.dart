@@ -13,6 +13,7 @@ PeerView peer(
   String label, {
   bool verified = true,
   bool named = true,
+  String? safetyNumber,
 }) => PeerView(
   identityId: id,
   deviceId: 'device-$id',
@@ -20,6 +21,7 @@ PeerView peer(
   named: named,
   own: false,
   verified: verified,
+  safetyNumber: safetyNumber,
   revoked: false,
 );
 

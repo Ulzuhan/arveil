@@ -151,7 +151,7 @@ abstract class ArveilRustApi extends BaseApi {
     required Profile that,
     required String bootstrap,
     required List<String> routes,
-    required List<String> safetyNumbers,
+    required List<String?> safetyNumbers,
   });
 
   Future<void> crateApiProfileProfileCreateIdentity({required Profile that});
@@ -861,7 +861,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     required Profile that,
     required String bootstrap,
     required List<String> routes,
-    required List<String> safetyNumbers,
+    required List<String?> safetyNumbers,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -873,7 +873,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           );
           sse_encode_String(bootstrap, serializer);
           sse_encode_list_String(routes, serializer);
-          sse_encode_list_String(safetyNumbers, serializer);
+          sse_encode_list_opt_String(safetyNumbers, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -2592,6 +2592,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  List<String?> dco_decode_list_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_opt_String).toList();
+  }
+
+  @protected
   List<PeerView> dco_decode_list_peer_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_peer_view).toList();
@@ -2731,8 +2737,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   PeerView dco_decode_peer_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return PeerView(
       identityId: dco_decode_String(arr[0]),
       deviceId: dco_decode_String(arr[1]),
@@ -2740,7 +2746,8 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       named: dco_decode_bool(arr[3]),
       own: dco_decode_bool(arr[4]),
       verified: dco_decode_bool(arr[5]),
-      revoked: dco_decode_bool(arr[6]),
+      safetyNumber: dco_decode_opt_String(arr[6]),
+      revoked: dco_decode_bool(arr[7]),
     );
   }
 
@@ -3549,6 +3556,18 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  List<String?> sse_decode_list_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String?>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_opt_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<PeerView> sse_decode_list_peer_view(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -3779,6 +3798,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     var var_named = sse_decode_bool(deserializer);
     var var_own = sse_decode_bool(deserializer);
     var var_verified = sse_decode_bool(deserializer);
+    var var_safetyNumber = sse_decode_opt_String(deserializer);
     var var_revoked = sse_decode_bool(deserializer);
     return PeerView(
       identityId: var_identityId,
@@ -3787,6 +3807,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       named: var_named,
       own: var_own,
       verified: var_verified,
+      safetyNumber: var_safetyNumber,
       revoked: var_revoked,
     );
   }
@@ -4566,6 +4587,18 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_list_opt_String(
+    List<String?> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_opt_String(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_peer_view(
     List<PeerView> self,
     SseSerializer serializer,
@@ -4786,6 +4819,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     sse_encode_bool(self.named, serializer);
     sse_encode_bool(self.own, serializer);
     sse_encode_bool(self.verified, serializer);
+    sse_encode_opt_String(self.safetyNumber, serializer);
     sse_encode_bool(self.revoked, serializer);
   }
 
@@ -5136,10 +5170,13 @@ class ProfileImpl extends RustOpaque implements Profile {
     recipients: recipients,
   );
 
+  /// `safety_numbers` has one entry per route: the number compared with
+  /// that person and seen to match, or null when it was not compared. A
+  /// person nobody compared with is saved unverified, to verify later.
   Future<ChatMutationView> createConversation({
     required String bootstrap,
     required List<String> routes,
-    required List<String> safetyNumbers,
+    required List<String?> safetyNumbers,
   }) => ArveilRust.instance.api.crateApiProfileProfileCreateConversation(
     that: this,
     bootstrap: bootstrap,

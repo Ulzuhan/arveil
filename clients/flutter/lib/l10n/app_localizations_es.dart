@@ -1042,7 +1042,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get contactsNamesLocal =>
-      'Los nombres son locales. Comprueba la identidad comparando el número de seguridad por otro canal.';
+      'Los nombres son locales y no verifican a nadie. Puedes conversar ya y comparar el número de seguridad por otro canal más tarde.';
 
   @override
   String get contactsDeviceLimit =>
@@ -1316,7 +1316,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ownRouteShare =>
-      'Compártela solo con las personas que quieras que puedan escribir a este dispositivo. Comparad después el número de seguridad por otro canal.';
+      'Compártela solo con las personas que quieras que puedan escribir a este dispositivo. Podéis empezar a hablar enseguida y comparar el número de seguridad por otro canal más tarde, desde los detalles de la conversación.';
 
   @override
   String get ownRouteCopy => 'Copiar ruta';
@@ -1422,7 +1422,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get newConversationRoutesHelp =>
-      'O utiliza una ruta nueva. Pide a tus contactos su ruta de este servidor. Pega una ruta por línea y compara el número de seguridad con cada persona por otro canal antes de crear el grupo.';
+      'O utiliza una ruta nueva. Pide a tus contactos su ruta de este servidor y pega una ruta por línea. Comparar el número de seguridad con cada persona es opcional ahora: puedes hacerlo después desde los detalles de la conversación.';
 
   @override
   String get newConversationRoutesLabel => 'Rutas de contacto';
@@ -1431,8 +1431,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get newConversationPrepare => 'Preparar comparación';
 
   @override
-  String get newConversationCompared =>
-      'Hemos comparado todos los números por otro canal y coinciden.';
+  String get newConversationMatches =>
+      'Lo hemos comparado por otro canal y coincide';
+
+  @override
+  String get newConversationLater =>
+      'Quien no marques aparecerá como sin verificar. Podrás comparar el número después desde los detalles de la conversación.';
 
   @override
   String get newConversationCreate => 'Crear conversación';
@@ -1592,6 +1596,22 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get comparedWillVerify =>
       'Coinciden: el contacto se guardará como verificado.';
+
+  @override
+  String get verifyAction => 'Verificar';
+
+  @override
+  String peopleUnverified(int count) {
+    return '$count sin verificar';
+  }
+
+  @override
+  String get detailsMismatchBody =>
+      'No verifiques a esta persona. Puede que otra identidad se haga pasar por ella: pregúntale por otro canal antes de compartir nada delicado.';
+
+  @override
+  String get detailsVerifyFailed =>
+      'No se pudo guardar la verificación. Vuelve a intentarlo.';
 
   @override
   String get startTitle => '¿Cómo quieres empezar?';

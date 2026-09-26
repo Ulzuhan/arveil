@@ -181,6 +181,9 @@ pub struct PeerView {
     pub named: bool,
     pub own: bool,
     pub verified: bool,
+    /// The number to compare with this person before verifying them;
+    /// absent for this profile's own devices.
+    pub safety_number: Option<String>,
     pub revoked: bool,
 }
 
@@ -837,25 +840,28 @@ impl Profile {
             .collect())
     }
 
+    /// `safety_numbers` has one entry per route: the number compared with
+    /// that person and seen to match, or null when it was not compared. A
+    /// person nobody compared with is saved unverified, to verify later.
     pub fn create_conversation(
         &self,
         bootstrap: String,
         routes: Vec<String>,
-        safety_numbers: Vec<String>,
+        safety_numbers: Vec<Option<String>>,
     ) -> Result<ChatMutationView, CommandError> {
         if routes.len() != safety_numbers.len() {
             return Err(CommandError::Domain {
                 operation: "create-conversation".into(),
-                reason: "compare every route first".into(),
+                reason: "one comparison entry per route".into(),
             });
         }
         chat_mutation(
-            self.inner.create_verified_conversation(
+            self.inner.create_route_conversation(
                 &bootstrap,
                 routes
                     .into_iter()
                     .zip(safety_numbers)
-                    .map(|(route, safety_number)| arveil_app::ConfirmedRoute {
+                    .map(|(route, safety_number)| arveil_app::ConversationRoute {
                         route,
                         safety_number,
                     })
@@ -1286,6 +1292,7 @@ fn view(summary: ConversationSummary) -> ConversationView {
                 named: p.named,
                 own: p.own,
                 verified: p.verified,
+                safety_number: p.safety_number,
                 revoked: p.revoked,
             })
             .collect(),
@@ -1445,7 +1452,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::CreateContactConversation => "create-contact-conversation",
         Operation::QueryOwnRoute => "query-own-route",
         Operation::PreviewRoutes => "preview-routes",
-        Operation::CreateVerifiedConversation => "create-verified-conversation",
+        Operation::CreateRouteConversation => "create-route-conversation",
         Operation::QueueMessage => "queue-message",
         Operation::CreateConversation => "create-conversation",
         Operation::AddDevice => "add-device",
@@ -1582,7 +1589,7 @@ mod tests {
     #[test]
     fn a_post_commit_failure_returns_the_saved_group_instead_of_inviting_a_duplicate() {
         let result = chat_mutation(Err(ApplicationError::Domain {
-            operation: Operation::CreateVerifiedConversation,
+            operation: Operation::CreateRouteConversation,
             source: arveil_app::carrier::CliError::Domain("after commit".into()),
             partial: OperationResult {
                 changes: vec![StateChange::ConversationCreated {

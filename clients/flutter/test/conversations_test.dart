@@ -39,6 +39,9 @@ class ChatProfile extends FakeProfile {
   Completer<List<ConversationView>>? initialRows;
   bool offline = false, failSave = false, partialCreate = false;
   int sends = 0, syncs = 0, creates = 0;
+
+  /// The numbers the last creation was given, one per route.
+  List<String?>? createdNumbers;
   @override
   Future<List<ConversationView>> conversations() async =>
       initialRows == null ? [row] : await initialRows!.future;
@@ -133,9 +136,10 @@ class ChatProfile extends FakeProfile {
   Future<ChatMutationView> createConversation({
     required String bootstrap,
     required List<String> routes,
-    required List<String> safetyNumbers,
+    required List<String?> safetyNumbers,
   }) async {
     creates++;
+    createdNumbers = safetyNumbers;
     return ChatMutationView(
       groupId: 'group-a',
       warning: partialCreate
@@ -437,7 +441,7 @@ void main() {
     },
   );
   testWidgets(
-    'route edits invalidate comparison; post-commit error leaves creation form',
+    'a conversation is created without comparing; route edits clear what was compared',
     (tester) async {
       final profile = ChatProfile()..partialCreate = true;
       await open(tester, profile);
@@ -451,7 +455,18 @@ void main() {
       );
       await tester.tap(find.text('Preparar comparación'));
       await tester.pumpAndSettle();
-      // The name field for the new person comes before the button.
+      // The number, the name field and the optional comparison come before
+      // the button, which does not wait for them.
+      await tester.ensureVisible(find.byKey(const Key('compared-identity')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.byKey(const Key('compared-identity')),
+            )
+            .value,
+        isFalse,
+      );
       await tester.dragUntilVisible(
         find.byKey(const Key('create-conversation')),
         find.byType(ListView).last,
@@ -461,9 +476,12 @@ void main() {
         tester
             .widget<FilledButton>(find.byKey(const Key('create-conversation')))
             .onPressed,
-        isNull,
+        isNotNull,
       );
-      await tester.tap(find.byKey(const Key('compared-routes')));
+      expect(find.byKey(const Key('compare-later')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('compared-identity')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('compared-identity')));
       await tester.enterText(
         find.byKey(const Key('peer-routes')),
         'changed-route',
@@ -472,8 +490,14 @@ void main() {
       expect(find.byKey(const Key('create-conversation')), findsNothing);
       await tester.tap(find.text('Preparar comparación'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('compared-routes')));
-      await tester.pump();
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.byKey(const Key('compared-identity')),
+            )
+            .value,
+        isFalse,
+      );
       await tester.dragUntilVisible(
         find.byKey(const Key('create-conversation')),
         find.byType(ListView).last,
@@ -484,11 +508,42 @@ void main() {
       expect(find.byKey(const Key('peer-routes')), findsNothing);
       expect(find.textContaining('Conversación guardada.'), findsOneWidget);
       expect(profile.creates, 1);
+      expect(profile.createdNumbers, [null], reason: 'nobody compared');
       expect(find.textContaining('PRIVATE_DIAGNOSTIC'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
   );
+
+  testWidgets('only the people marked as compared are sent to be verified', (
+    tester,
+  ) async {
+    final profile = ChatProfile();
+    await open(tester, profile);
+    await tester.tap(find.byTooltip('Volver a conversaciones'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Nueva conversación'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('peer-routes')), 'route');
+    await tester.tap(find.text('Preparar comparación'));
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.byKey(const Key('compared-identity')),
+      find.byType(ListView).last,
+      const Offset(0, -200),
+    );
+    await tester.tap(find.byKey(const Key('compared-identity')));
+    await tester.pump();
+    await tester.dragUntilVisible(
+      find.byKey(const Key('create-conversation')),
+      find.byType(ListView).last,
+      const Offset(0, -200),
+    );
+    await tester.tap(find.byKey(const Key('create-conversation')));
+    await tester.pumpAndSettle();
+    expect(profile.createdNumbers, ['12345 67890']);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets(
     'group messages name their author, and own messages from another device sit on the own side',
