@@ -124,6 +124,13 @@ y el script de publicación mantienen separadas ambas releases.
    ser el commit exacto de ambos metadatos, no una rama que pueda avanzar.
    Adjunta solo los dos paquetes, los dos metadatos y `SHA256SUMS-clients.txt`.
    Registra en las notas el alcance y las pruebas de aceptación descritas debajo.
+   Adjunta también el anuncio de actualizaciones firmado
+   ([actualizaciones firmadas](CLIENT_UPDATES.md)).
+5. Cuando la release esté publicada, actualiza el
+   [tap de Homebrew](https://github.com/kaicorplabs/homebrew-tap): en
+   `Casks/arveil.rb`, pon en `version` la versión pública y la compilación
+   (`0.1.0-beta.2,20`) y en `sha256` la del ZIP; después ejecuta `brew style` y
+   `brew fetch --cask arveil` contra el fichero publicado.
 
 El workflow de CLI/relay publica `SHA256SUMS-cli-relay.txt` con una lista
 explícita de binarios y rechaza sobrescribir archivos de la release. Repetir

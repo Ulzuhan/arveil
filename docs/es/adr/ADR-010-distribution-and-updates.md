@@ -1,7 +1,7 @@
 # ADR-010 — Distribución y actualizaciones fuera de las tiendas
 
 - **Estado:** aceptada para Android, con la evidencia en emuladores del [registro de plataformas](../PLATFORMS.md#aceptacion-final-del-actualizador-android-firmado-2026-09-26): criterios 1 a 7 con API 24, 28, 29 y 35. Falta una comprobación en un teléfono físico. Propuesta para macOS.
-- **Implementación:** búsqueda, descarga, `PackageInstaller` y firma local de manifiestos para Android; véase [Actualizaciones firmadas](../CLIENT_UPDATES.md). macOS/Sparkle y la rotación automática de claves quedan pendientes. Este código no configura un feed público ni un relay personal.
+- **Implementación:** búsqueda, descarga, `PackageInstaller` y firma local de manifiestos para Android; véase [Actualizaciones firmadas](../CLIENT_UPDATES.md). En macOS la app anuncia las versiones nuevas desde el mismo manifiesto y abre su descarga; Sparkle y la rotación automática de claves quedan pendientes. Este código no configura un feed público ni un relay personal.
 - **Fecha:** 2026-09-26.
 - **Alcance:** cómo consiguen las apps de Android y macOS, y sus actualizaciones, personas que no son desarrolladoras mientras Arveil no esté en Google Play ni en la App Store; cómo sabe la app que hay una versión nueva; qué revela esa comprobación. Forma parte de M3b.8 del [plan Flutter](../PHASE3B.md) («actualizaciones firmadas»).
 
@@ -39,7 +39,7 @@ Tres condiciones acotan cualquier respuesta:
 |---|---|---|
 | Android | Clientes anteriores | Descarga desde la web y la guía de instalación, por encima de la app existente una vez para incorporar el actualizador. Opcionalmente, [Obtainium](https://github.com/ImranR98/Obtainium) con las prereleases activadas y un filtro para el APK; el sistema sigue exigiendo el mismo certificado |
 | Android | Implementado; aceptado en emuladores | Comprobación en la app (decisiones 5 y 6); el APK verificado se entrega al instalador del sistema con una sesión de `PackageInstaller`, que exige el permiso `REQUEST_INSTALL_PACKAGES` y la confirmación de la persona |
-| macOS | M3b.8 | [Sparkle](https://sparkle-project.org/) con un appcast generado desde el mismo manifiesto y firmado con la misma clave de actualizaciones (el EdDSA de Sparkle es Ed25519). Hasta entonces: descargar y sustituir la app, como dice la guía |
+| macOS | Aviso implementado; instalar, en M3b.8 | La app consulta el mismo manifiesto firmado y, si hay una compilación más reciente, abre su descarga; la persona sustituye la app o ejecuta `brew upgrade --cask arveil` con el [tap de Homebrew](https://github.com/kaicorplabs/homebrew-tap). Instalar desde la app queda para [Sparkle](https://sparkle-project.org/), con un appcast generado desde el mismo manifiesto y firmado con la misma clave de actualizaciones (el EdDSA de Sparkle es Ed25519), cuando la app tenga Developer ID y notarización |
 | Windows, Linux | M3b.6 | Se decide con esas compilaciones; el formato del manifiesto ya tiene sitio para ellas |
 | iOS | M3b.7 | No hay distribución práctica fuera de la de Apple (App Store o TestFlight); queda fuera de esta decisión |
 
