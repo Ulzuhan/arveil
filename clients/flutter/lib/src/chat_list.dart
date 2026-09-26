@@ -105,6 +105,7 @@ class ChatList extends StatelessWidget {
                           key: Key('conversation-${row.groupId}'),
                           identity: rowIdentity(row),
                           title: conversationTitle(row),
+                          avatarLabel: rowAvatarLabel(row),
                           preview: last != null
                               ? rowPreview(row, last)
                               : l10n.conversationCounts(

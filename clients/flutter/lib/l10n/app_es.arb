@@ -510,6 +510,23 @@
   "contactUpdateRoute": "Para añadir o actualizar una ruta, vuelve a Añadir contacto. Comprueba que la identidad coincide y conserva el nombre que quieras usar.",
   "contactSave": "Guardar contacto",
   "contactSaveName": "Guardar nombre",
+  "peerUnnamed": "Sin nombre · {id}",
+  "@peerUnnamed": {
+    "description": "Another person this profile has not named yet; id is their short identifier.",
+    "placeholders": {"id": {"type": "String"}}
+  },
+  "nameThisPerson": "Ponle nombre",
+  "renamePerson": "Cambiar nombre",
+  "nameDialogTitle": "Nombre de esta persona",
+  "nameDialogLabel": "Nombre",
+  "nameDialogHelper": "Solo lo verás tú, en este perfil. No se envía a nadie ni verifica la identidad; para eso compara el número de seguridad.",
+  "nameSaved": "Nombre guardado en este perfil.",
+  "nameSaveFailed": "No se pudo guardar el nombre. Revísalo (máximo 128 caracteres, en una línea) y vuelve a intentarlo.",
+  "nameBannerOne": "Aún no le has puesto nombre a esta persona. Solo tú lo verás.",
+  "nameBannerMany": "{count, plural, =1{Una persona de esta conversación no tiene nombre.} other{{count} personas de esta conversación no tienen nombre.}} Solo tú verás los nombres.",
+  "@nameBannerMany": {"placeholders": {"count": {"type": "int"}}},
+  "nameThem": "Poner nombres",
+  "newConversationNamed": "La conversación se creó, pero no se pudo guardar algún nombre. Pónselo desde los detalles de la conversación.",
   "numericDate": "{day}/{month}/{year}",
   "@numericDate": {
     "description": "A date in digits, in the order the language writes it.",

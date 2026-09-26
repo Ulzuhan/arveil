@@ -86,9 +86,17 @@ class _ContactsPageState extends State<ContactsPage> {
     return ListTile(
       key: Key('contact-${c.identityId}'),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: ArveilAvatar(identity: c.identityId, label: c.label, size: 40),
+      leading: ArveilAvatar(
+        identity: c.identityId,
+        label: c.name ?? '',
+        size: 40,
+      ),
       title: NameLine(
-        name: Text(c.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        name: Text(
+          c.name ?? context.l10n.peerUnnamed(c.label),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         verified: c.verified,
         unverified: !c.verified,
       ),

@@ -32,7 +32,7 @@ class ConversationHeader extends StatelessWidget {
       children: [
         ArveilAvatar(
           identity: row == null ? title : rowIdentity(row),
-          label: title,
+          label: row == null ? title : rowAvatarLabel(row),
           size: 40,
         ),
         const SizedBox(width: 12),
@@ -69,9 +69,14 @@ class ConversationDetails extends StatelessWidget {
     super.key,
     required this.row,
     required this.events,
+    this.onName,
   });
   final ConversationView row;
   final List<HistoryEventView> events;
+
+  /// Names another person locally; given the identity and the name it has,
+  /// if any. Without it the people are listed read-only.
+  final void Function(String identity, String? current)? onName;
 
   @override
   Widget build(BuildContext context) {
@@ -84,17 +89,41 @@ class ConversationDetails extends StatelessWidget {
     final ownDevices = row.peers.where((p) => p.own && !p.revoked).length;
     final files = [for (final event in events) ?event.attachment];
     Widget person(String identity, List<PeerView> devices) {
-      final label = devices.first.label;
-      final verified = devices.first.verified;
+      final peer = devices.first;
+      final verified = peer.verified;
       final active = devices.where((d) => !d.revoked).length;
+      final onName = this.onName;
       return ListTile(
+        key: Key('participant-$identity'),
         contentPadding: EdgeInsets.zero,
-        leading: ArveilAvatar(identity: identity, label: label, size: 40),
-        title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        leading: ArveilAvatar(
+          identity: identity,
+          label: peer.named ? peer.label : '',
+          size: 40,
+        ),
+        title: Text(
+          peerName(peer),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         subtitle: Text(
           '${verified ? l10n.verified : l10n.unverified} · '
           '${l10n.devicesCount(active)}',
         ),
+        trailing: onName == null
+            ? null
+            : peer.named
+            ? IconButton(
+                key: Key('rename-$identity'),
+                tooltip: l10n.renamePerson,
+                onPressed: () => onName(identity, peer.label),
+                icon: const Icon(Icons.edit_outlined),
+              )
+            : TextButton(
+                key: Key('name-$identity'),
+                onPressed: () => onName(identity, null),
+                child: Text(l10n.nameThisPerson),
+              ),
       );
     }
 

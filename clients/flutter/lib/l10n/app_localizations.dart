@@ -1874,6 +1874,78 @@ abstract class AppLocalizations {
   /// **'Guardar nombre'**
   String get contactSaveName;
 
+  /// Another person this profile has not named yet; id is their short identifier.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin nombre · {id}'**
+  String peerUnnamed(String id);
+
+  /// No description provided for @nameThisPerson.
+  ///
+  /// In es, this message translates to:
+  /// **'Ponle nombre'**
+  String get nameThisPerson;
+
+  /// No description provided for @renamePerson.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar nombre'**
+  String get renamePerson;
+
+  /// No description provided for @nameDialogTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre de esta persona'**
+  String get nameDialogTitle;
+
+  /// No description provided for @nameDialogLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre'**
+  String get nameDialogLabel;
+
+  /// No description provided for @nameDialogHelper.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo lo verás tú, en este perfil. No se envía a nadie ni verifica la identidad; para eso compara el número de seguridad.'**
+  String get nameDialogHelper;
+
+  /// No description provided for @nameSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre guardado en este perfil.'**
+  String get nameSaved;
+
+  /// No description provided for @nameSaveFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo guardar el nombre. Revísalo (máximo 128 caracteres, en una línea) y vuelve a intentarlo.'**
+  String get nameSaveFailed;
+
+  /// No description provided for @nameBannerOne.
+  ///
+  /// In es, this message translates to:
+  /// **'Aún no le has puesto nombre a esta persona. Solo tú lo verás.'**
+  String get nameBannerOne;
+
+  /// No description provided for @nameBannerMany.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{Una persona de esta conversación no tiene nombre.} other{{count} personas de esta conversación no tienen nombre.}} Solo tú verás los nombres.'**
+  String nameBannerMany(int count);
+
+  /// No description provided for @nameThem.
+  ///
+  /// In es, this message translates to:
+  /// **'Poner nombres'**
+  String get nameThem;
+
+  /// No description provided for @newConversationNamed.
+  ///
+  /// In es, this message translates to:
+  /// **'La conversación se creó, pero no se pudo guardar algún nombre. Pónselo desde los detalles de la conversación.'**
+  String get newConversationNamed;
+
   /// A date in digits, in the order the language writes it.
   ///
   /// In es, this message translates to:

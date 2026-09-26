@@ -926,3 +926,29 @@ application and uses its current navigation and safety-number grid; it checks
 the Rust unread count while Settings hides an incoming message and after the
 conversation is displayed again. These checks do not establish physical-device
 or package-upgrade acceptance.
+
+## Naming people who have no local name (September 26, 2026)
+
+Names stay local: each profile names its contacts, the name never leaves the
+device and never authenticates anyone. What changed is how visible that is.
+Before, a person without a name appeared as eight hexadecimal characters, which
+the first beta testers read as a missing feature.
+
+- Rust reports, for each person in a conversation, whether this profile named
+  them (`PeerView.named`), rather than leaving the app to guess from the label.
+- A person without a name reads **Unnamed · a1b2c3d4** in the chat list, the
+  conversation title and Contacts, with the person icon instead of initials.
+- An open conversation with someone unnamed shows a notice with **Name this
+  person**, which opens a dialog that says the name is only seen in this
+  profile. With several people unnamed, **Name them** opens the details.
+- The conversation details name the unnamed and rename the named.
+- A new conversation from pasted routes asks for a local name per person,
+  filled with the name a saved contact already has. A failure to read contacts
+  leaves the fields empty and never blocks the conversation.
+
+A shared name, chosen by each person and sent to their conversations, is a
+protocol change and is proposed separately in
+[ADR-011](adr/ADR-011-shared-display-names.md).
+
+Regressions are in `test/names_test.dart`, and the desktop conversation
+screenshots show the rename action in the details.

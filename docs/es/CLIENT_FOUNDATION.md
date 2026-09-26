@@ -995,3 +995,33 @@ aplicación completa y usa su navegación y cuadrícula de números de seguridad
 actuales; comprueba el contador real de Rust mientras Ajustes oculta un mensaje
 entrante y después de volver a mostrar la conversación. Estas pruebas no
 acreditan la aceptación en dispositivos físicos ni la actualización de paquetes.
+
+## Poner nombre a quien no lo tiene (26 de septiembre de 2026)
+
+Los nombres siguen siendo locales: cada perfil nombra a sus contactos, el
+nombre no sale del dispositivo y no autentica a nadie. Lo que cambia es cuánto
+se ve. Antes, una persona sin nombre aparecía como ocho caracteres
+hexadecimales, y quienes probaron la beta lo leyeron como una función que
+faltaba.
+
+- Rust indica, para cada persona de una conversación, si este perfil le puso
+  nombre (`PeerView.named`), en vez de dejar que la app lo adivine por la
+  etiqueta.
+- Una persona sin nombre se lee **Sin nombre · a1b2c3d4** en la lista de chats,
+  en el título de la conversación y en Contactos, con el icono de persona en vez
+  de iniciales.
+- Una conversación abierta con alguien sin nombre muestra un aviso con
+  **Ponle nombre**, que abre un diálogo donde se dice que el nombre solo se ve
+  en este perfil. Si faltan varios, **Poner nombres** abre los detalles.
+- Los detalles de la conversación ponen nombre a quien no lo tiene y cambian el
+  de quien ya lo tiene.
+- Una conversación nueva creada con rutas pegadas pide un nombre local por
+  persona, relleno con el que ya tenga un contacto guardado. Si no se pueden
+  leer los contactos, los campos quedan vacíos y la conversación se crea igual.
+
+Un nombre compartido, que cada persona elige y que viaja a sus conversaciones,
+cambia el protocolo y se propone aparte en el
+[ADR-011](adr/ADR-011-shared-display-names.md).
+
+Las pruebas están en `test/names_test.dart`, y las capturas de la conversación
+de escritorio muestran la acción de cambiar el nombre en los detalles.

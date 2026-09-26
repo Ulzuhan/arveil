@@ -922,6 +922,10 @@ class PeerView {
   final String identityId;
   final String deviceId;
   final String label;
+
+  /// Whether this profile gave the identity a local name; otherwise
+  /// `label` is its short identifier.
+  final bool named;
   final bool own;
   final bool verified;
   final bool revoked;
@@ -930,6 +934,7 @@ class PeerView {
     required this.identityId,
     required this.deviceId,
     required this.label,
+    required this.named,
     required this.own,
     required this.verified,
     required this.revoked,
@@ -940,6 +945,7 @@ class PeerView {
       identityId.hashCode ^
       deviceId.hashCode ^
       label.hashCode ^
+      named.hashCode ^
       own.hashCode ^
       verified.hashCode ^
       revoked.hashCode;
@@ -952,6 +958,7 @@ class PeerView {
           identityId == other.identityId &&
           deviceId == other.deviceId &&
           label == other.label &&
+          named == other.named &&
           own == other.own &&
           verified == other.verified &&
           revoked == other.revoked;

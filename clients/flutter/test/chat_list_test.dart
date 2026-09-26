@@ -8,10 +8,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'navigation_test.dart' show HomeProfile, chord, desktop, openHome, phone;
 
-PeerView peer(String id, String label, {bool verified = true}) => PeerView(
+PeerView peer(
+  String id,
+  String label, {
+  bool verified = true,
+  bool named = true,
+}) => PeerView(
   identityId: id,
   deviceId: 'device-$id',
   label: label,
+  named: named,
   own: false,
   verified: verified,
   revoked: false,

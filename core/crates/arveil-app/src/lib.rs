@@ -1121,6 +1121,9 @@ pub struct PeerSummary {
     pub identity_id: Vec<u8>,
     pub device_id: Vec<u8>,
     pub label: String,
+    /// Whether this profile gave the identity a local name; otherwise
+    /// `label` is its short identifier.
+    pub named: bool,
     pub own: bool,
     pub verified: bool,
     pub routable: bool,
@@ -3134,6 +3137,7 @@ fn peer_summary(session: &LocalRead, peer: &Peer) -> Result<PeerSummary, CliErro
             || hex::encode(&peer.identity[..4.min(peer.identity.len())]),
             |c| c.label(),
         ),
+        named: contact.as_ref().is_some_and(|c| c.name.is_some()),
         own: Some(&peer.identity) == session.identity_id.as_ref(),
         verified: contact.is_some_and(|c| c.verified),
         routable: peer.routable(),
