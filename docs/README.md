@@ -64,6 +64,8 @@ declares its own status; "MUST" states a design requirement, and the
 | [ADR-009](adr/ADR-009-flutter-first.md) | Flutter first for the apps (accepted) |
 | [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribution and signed, opt-in updates outside the app stores (accepted for Android; proposed for macOS) |
 | [ADR-011](adr/ADR-011-shared-display-names.md) | Names people choose for themselves, shared end to end with their conversations (proposed) |
+| [ADR-012](adr/ADR-012-qr-codes-and-links.md) | QR codes and links to join, link devices and add contacts; verification as a separate, optional step (proposed) |
+| [ADR-013](adr/ADR-013-realm-administration-from-the-app.md) | Realm roles and administration from the app, with the host as the last resort (proposed) |
 
 ### Apps
 

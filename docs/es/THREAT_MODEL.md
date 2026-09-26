@@ -93,7 +93,7 @@ La revisión online añade tres casos obligatorios al plan de pruebas: selecció
 ## 6. Riesgos abiertos que bloquean afirmaciones fuertes
 
 - Revisar la extensión/política que limita commits al coordinador y cómo se valida antes de fusionar estado en la biblioteca elegida.
-- Especificar vinculación de dispositivos, transcript, caducidad, QR y resistencia a replay; un QR decorativo no autentica el canal.
+- Especificar vinculación de dispositivos, transcript, caducidad, QR y resistencia a replay; un QR decorativo no autentica el canal. La [ADR-012](adr/ADR-012-qr-codes-and-links.md) propone un QR que lleva la clave del respondedor y la regla de que la autorización sigue a la confirmación.
 - Acotar retención de secretos de epochs y comportamiento al exceder las ventanas de mensajes tardíos.
 - Validar suite y formato de archivos/archivos de recuperación sin diseñar construcciones criptográficas ad hoc.
 - Comprobar acceso al almacén seguro y cifrado de todos los ficheros locales, WAL, temporales, thumbnails y notificaciones.

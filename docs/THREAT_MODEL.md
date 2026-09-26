@@ -93,7 +93,7 @@ The online review adds three mandatory cases to the test plan: durable commit se
 ## 6. Open risks that block strong claims
 
 - Review the extension/policy that restricts commits to the coordinator and how it is validated before merging state in the chosen library.
-- Specify device linking, transcript, expiry, QR and replay resistance; a decorative QR does not authenticate the channel.
+- Specify device linking, transcript, expiry, QR and replay resistance; a decorative QR does not authenticate the channel. [ADR-012](adr/ADR-012-qr-codes-and-links.md) proposes a QR that carries the responder key and a rule that authorization follows confirmation.
 - Bound the retention of epoch secrets and the behavior when late-message windows are exceeded.
 - Validate the suite and format of archives/recovery files without designing ad hoc cryptographic constructions.
 - Verify access to the secure store and encryption of all local files, WAL, temporary files, thumbnails and notifications.

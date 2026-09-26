@@ -84,6 +84,8 @@ nav:
       - ADR-009 Flutter first: adr/ADR-009-flutter-first.md
       - ADR-010 Distribution and updates: adr/ADR-010-distribution-and-updates.md
       - ADR-011 Names people choose: adr/ADR-011-shared-display-names.md
+      - ADR-012 QR codes and links: adr/ADR-012-qr-codes-and-links.md
+      - ADR-013 Realm administration: adr/ADR-013-realm-administration-from-the-app.md
   - Evidence:
       - Demo transcript: evidence/demo-transcript.txt
       - Q3 capture excerpt: evidence/q3-capture-excerpt.txt
@@ -120,6 +122,8 @@ nav:
       - ADR-008: es/adr/ADR-008-carrier-independent-transport.md
       - ADR-010 Distribución y actualizaciones: es/adr/ADR-010-distribution-and-updates.md
       - ADR-011 Nombres que cada persona elige: es/adr/ADR-011-shared-display-names.md
+      - ADR-012 Códigos QR y enlaces: es/adr/ADR-012-qr-codes-and-links.md
+      - ADR-013 Administrar el realm: es/adr/ADR-013-realm-administration-from-the-app.md
 
 validation:
   anchors: warn
