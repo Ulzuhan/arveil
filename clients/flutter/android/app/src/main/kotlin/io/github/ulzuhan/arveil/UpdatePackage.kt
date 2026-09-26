@@ -36,6 +36,17 @@ internal object UpdatePackage {
      */
     fun abandonLeftover(sdk: Int, sealed: () -> Boolean): Boolean = sdk < 26 || !sealed()
 
+    /**
+     * SHA-256 of each signing certificate. [current] comes from signingInfo
+     * (API 28+), [legacy] from the older signatures field; the legacy set is
+     * used only when signingInfo is missing, as for archives on Android 9-10.
+     * No certificates at all gives an empty set, which [compatible] refuses.
+     */
+    fun signerDigests(current: List<ByteArray>?, legacy: List<ByteArray>?): Set<String> =
+        (current ?: legacy ?: emptyList()).map { certificate ->
+            MessageDigest.getInstance("SHA-256").digest(certificate).joinToString("") { "%02x".format(it) }
+        }.toSet()
+
     fun compatible(installedId: String, installedBuild: Long, installedSigners: Set<String>,
                    candidateId: String, candidateBuild: Long, candidateSigners: Set<String>, expectedBuild: Long): Boolean =
         candidateId == installedId && candidateBuild == expectedBuild &&

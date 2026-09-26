@@ -15,7 +15,6 @@ import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
-import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.Executors
 
@@ -45,7 +44,14 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
 
     @Suppress("DEPRECATION")
     private fun info(path: String? = null): PackageInfo? {
-        val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        // For an archive, Android 9-10 fill signingInfo only when GET_SIGNATURES
+        // is also asked for; without it the candidate had no signers and every
+        // update was refused there. The legacy set is the fallback below.
+        val flags = when {
+            Build.VERSION.SDK_INT < 28 -> PackageManager.GET_SIGNATURES
+            path == null -> PackageManager.GET_SIGNING_CERTIFICATES
+            else -> PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES
+        }
         return if (path == null) packages.getPackageInfo(activity.packageName, flags)
                else packages.getPackageArchiveInfo(path, flags)
     }
@@ -56,10 +62,8 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
 
     @Suppress("DEPRECATION")
     private fun signers(info: PackageInfo): Set<String> {
-        val signatures = if (Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures
-        return signatures?.map { signer ->
-            MessageDigest.getInstance("SHA-256").digest(signer.toByteArray()).joinToString("") { "%02x".format(it) }
-        }?.toSet() ?: emptySet()
+        val current = if (Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else null
+        return UpdatePackage.signerDigests(current?.map { it.toByteArray() }, info.signatures?.map { it.toByteArray() })
     }
 
     private fun allowed() = Build.VERSION.SDK_INT < 26 || packages.canRequestPackageInstalls()

@@ -38,6 +38,18 @@ class UpdatePackageTest {
         assertFalse(UpdatePackage.abandonLeftover(35) { true })
     }
 
+    @Test fun fallsBackToLegacySignaturesWhenSigningInfoIsMissing() {
+        val installed = "installed certificate".toByteArray()
+        val candidate = "candidate certificate".toByteArray()
+        val expected = UpdatePackage.signerDigests(listOf(installed), null)
+        // Android 9-10 archive: no signingInfo, only the legacy signatures.
+        assertEquals(expected, UpdatePackage.signerDigests(null, listOf(installed)))
+        // Where both exist, signingInfo decides.
+        assertEquals(expected, UpdatePackage.signerDigests(listOf(installed), listOf(candidate)))
+        assertTrue(UpdatePackage.signerDigests(null, null).isEmpty())
+        assertEquals(64, expected.single().length)
+    }
+
     @Test fun requiresSameApplicationCertificateAndStrictlyHigherExpectedBuild() {
         fun compatible(id: String = "test.app", build: Long = 18, signers: Set<String> = setOf("current"), expected: Long = 18) =
             UpdatePackage.compatible("test.app", 17, setOf("current"), id, build, signers, expected)
