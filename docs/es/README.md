@@ -64,7 +64,7 @@ han probado.
 | [ADR-007](adr/ADR-007-optional-realm-redundancy.md) | Redundancia opcional después de V1; relays independientes como dirección preferente |
 | [ADR-008](adr/ADR-008-carrier-independent-transport.md) | Canal Noise, lista firmada de direcciones y acceso por LAN, tailnet, túnel o Internet |
 | [ADR-009](adr/ADR-009-flutter-first.md) | Flutter primero para las apps (aceptada) |
-| [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribución y actualizaciones firmadas y opcionales fuera de las tiendas (propuesta) |
+| [ADR-010](adr/ADR-010-distribution-and-updates.md) | Distribución y actualizaciones firmadas y opcionales fuera de las tiendas (aceptada para Android; propuesta para macOS) |
 
 ### Apps
 
