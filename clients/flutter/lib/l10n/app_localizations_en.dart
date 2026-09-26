@@ -334,6 +334,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'The server is limiting pairing attempts from this network. Wait a few minutes (up to 10) before generating a new code; retrying sooner does not help.';
 
   @override
+  String get errorPairingNoAnswer =>
+      'The new device did not answer this code, or the code is no longer valid. Check that the new device still shows it; if not, generate another there and paste it here.';
+
+  @override
+  String get errorPairingExpired =>
+      'The code expired without an answer from the administration device. Generate another and paste it there before it expires.';
+
+  @override
   String get errorQuota =>
       'The server reached one of its limits and did not accept the operation. Wait a few minutes before trying again; if it keeps happening, tell whoever runs it.';
 
@@ -835,7 +843,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pairingWaitInterrupted =>
-      'The wait was interrupted. Cancel this session and generate another code; a comparison already received is kept when you reopen.';
+      'The wait stopped, but the code is still valid until it expires. Keep waiting, or cancel and generate another one.';
+
+  @override
+  String get pairingResumeWait => 'Keep waiting';
 
   @override
   String get pairingCancel => 'Cancel linking';

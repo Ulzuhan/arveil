@@ -323,6 +323,10 @@ String describeFailure(Object failure) {
     ProfileError_Io() || FileSystemException() => s.errorProfileIo,
     PlatformException() => s.errorSecureStoragePrepare,
     CommandError_Transport() => s.errorTransport,
+    // Pairing refusals mostly mean the other device was not listening or
+    // the code ran out; the generic advice is about enrollment.
+    CommandError_Domain(operation: 'approve-pairing') => s.errorPairingNoAnswer,
+    CommandError_Domain(operation: 'await-pairing') => s.errorPairingExpired,
     CommandError_Domain() => s.errorDomain,
     CommandError_Protocol() => s.errorProtocol,
     // Only pairing has a limit an address can hit on its own, and it clears

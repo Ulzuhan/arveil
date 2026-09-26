@@ -1258,16 +1258,35 @@ async fn publish_authorization(
     Ok(())
 }
 
+/// How long the administration device waits for the new device to answer.
+/// A new device that is listening answers within one poll.
 fn pair_timeout(config: &ProfileConfig) -> Duration {
     Duration::from_secs(config.pairing_timeout().unwrap_or(90))
 }
 
+/// The new device listens for as long as its code is valid. The code
+/// travels to the administration device by hand, which takes longer than any
+/// fixed wait; giving up sooner discards a code the relay still honours. A
+/// configured timeout still shortens the wait.
 fn pairing_deadline(config: &ProfileConfig, expires_at: u64) -> Result<Instant, CliError> {
     let remaining = expires_at.saturating_sub(now());
     if remaining == 0 {
         return Err(CliError::Domain("pairing session expired".into()));
     }
-    Ok(Instant::now() + pair_timeout(config).min(Duration::from_secs(remaining)))
+    let remaining = Duration::from_secs(remaining);
+    let wait = config.pairing_timeout().map_or(remaining, |seconds| {
+        Duration::from_secs(seconds).min(remaining)
+    });
+    Ok(Instant::now() + wait)
+}
+
+const FIRST_POLL: Duration = Duration::from_millis(200);
+const SLOWEST_POLL: Duration = Duration::from_secs(2);
+
+/// Quick while the other side is likely at its screen, then slower: a wait
+/// may last as long as the code, and every poll is a request to the relay.
+fn next_poll(delay: Duration) -> Duration {
+    (delay * 3 / 2).min(SLOWEST_POLL)
 }
 
 async fn wait_for_slot(
@@ -1278,6 +1297,7 @@ async fn wait_for_slot(
     deadline: Instant,
     local_session: Option<(&Client, &[u8])>,
 ) -> Result<Vec<u8>, CliError> {
+    let mut delay = FIRST_POLL;
     loop {
         match connection
             .request(Payload::PairGet {
@@ -1304,7 +1324,8 @@ async fn wait_for_slot(
                 "gave up waiting for {what}; the pairing expired or the other device never answered"
             )));
         }
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        tokio::time::sleep(delay.min(deadline.saturating_duration_since(Instant::now()))).await;
+        delay = next_poll(delay);
     }
 }
 
@@ -1394,4 +1415,41 @@ fn expire_session(client: &Client, session_id: &[u8]) -> Result<(), CliError> {
 
 fn normalize_verification_code(value: &str) -> String {
     value.chars().filter(char::is_ascii_digit).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_device_listens_for_as_long_as_its_code_is_valid() {
+        let config = ProfileConfig::unencrypted("unused");
+        let expires_at = now() + 600;
+        let wait = pairing_deadline(&config, expires_at)
+            .unwrap()
+            .saturating_duration_since(Instant::now());
+        assert!(wait > pair_timeout(&config), "gave up after {wait:?}");
+        assert!(wait <= Duration::from_secs(600));
+
+        let short = config.with_pairing_timeout(5);
+        let wait = pairing_deadline(&short, expires_at)
+            .unwrap()
+            .saturating_duration_since(Instant::now());
+        assert!(wait <= Duration::from_secs(5));
+        assert!(pairing_deadline(&short, now()).is_err());
+    }
+
+    #[test]
+    fn polling_slows_down_but_stays_within_seconds() {
+        let mut delay = FIRST_POLL;
+        let mut polls = 0;
+        let mut waited = Duration::ZERO;
+        while waited < Duration::from_secs(600) {
+            waited += delay;
+            delay = next_poll(delay);
+            polls += 1;
+        }
+        assert_eq!(delay, SLOWEST_POLL);
+        assert!(polls < 400, "{polls} polls in ten minutes");
+    }
 }

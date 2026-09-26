@@ -100,6 +100,8 @@
   "errorDomain": "Revisa los datos y la vigencia de la operación. Conserva el perfil; no empieces un alta diferente para reintentar.",
   "errorProtocol": "El servidor no aceptó la operación. Comprueba los datos con su administrador; una recuperación puede necesitar un kit más reciente.",
   "errorPairingQuota": "El servidor está limitando los intentos de vinculación desde esta red. Espera unos minutos (hasta 10) antes de generar un código nuevo; reintentar antes no sirve.",
+  "errorPairingNoAnswer": "El dispositivo nuevo no respondió a este código o el código ya no es válido. Comprueba que el dispositivo nuevo sigue mostrándolo; si no, genera otro allí y pégalo aquí.",
+  "errorPairingExpired": "El código caducó sin respuesta del dispositivo administrador. Genera otro y pégalo allí antes de que caduque.",
   "errorQuota": "El servidor alcanzó uno de sus límites y no aceptó la operación. Espera unos minutos antes de volver a intentarlo; si se repite, avisa a quien lo administra.",
   "errorBusy": "Hay otra operación en curso. Espera y vuelve a intentarlo.",
   "errorStorage": "No se pudo guardar el avance. Comprueba el almacenamiento y vuelve a intentarlo.",
@@ -351,7 +353,8 @@
     }
   },
   "pairingWaiting": "Esperando al dispositivo administrador…",
-  "pairingWaitInterrupted": "La espera se interrumpió. Cancela esta sesión y genera otro código; la comparación ya recibida se conserva al reabrir.",
+  "pairingWaitInterrupted": "La espera se detuvo, pero el código sigue siendo válido hasta que caduque. Sigue esperando o cancela y genera otro.",
+  "pairingResumeWait": "Seguir esperando",
   "pairingCancel": "Cancelar vinculación",
   "pairingCancelNote": "Cancelar detiene este alta local. Si el administrador ya emitió una autorización, no la revoca.",
   "pairingOtherTitle": "Vincular otro dispositivo",

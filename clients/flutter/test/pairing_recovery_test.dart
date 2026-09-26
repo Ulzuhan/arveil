@@ -28,6 +28,7 @@ class RecoveryProfile extends FakeProfile {
   int confirmations = 0;
   int cancellations = 0;
   int begins = 0;
+  int waits = 0;
   Object? beginFailure;
   Completer<void>? wait;
   void ready({bool admin = true}) {
@@ -124,6 +125,7 @@ class RecoveryProfile extends FakeProfile {
     required String bootstrap,
     required PairingView session,
   }) async {
+    waits++;
     await wait?.future;
   }
 
@@ -380,6 +382,34 @@ void main() {
     expect(session.error, isNull);
     expect(session.busy, isFalse);
     expect(find.text('Generar código de vinculación'), findsOneWidget);
+  });
+  testWidgets('an interrupted wait resumes while the code is still valid', (
+    tester,
+  ) async {
+    final profile = RecoveryProfile()
+      ..pendingPair()
+      ..wait = Completer<void>();
+    final session = await open(tester, profile);
+    expect(
+      find.textContaining('el código sigue siendo válido'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('genera otro código'), findsNothing);
+    await tester.tap(find.text('Seguir esperando'));
+    await tester.pump();
+    expect(profile.waits, 1);
+    expect(session.waitingForPairing, isTrue);
+    expect(
+      find.text('Esperando al dispositivo administrador…'),
+      findsOneWidget,
+    );
+    expect(find.text('Seguir esperando'), findsNothing);
+    // The administration device answers during the resumed wait.
+    profile.pendingPair(comparison: sas);
+    profile.wait!.complete();
+    await tester.pumpAndSettle();
+    expect(session.error, isNull);
+    expect(find.text('Confirmar comparación'), findsOneWidget);
   });
   testWidgets('a relay limit on a new code says to wait, not to check data', (
     tester,
