@@ -67,6 +67,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: relay/go.sum
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.44.1
