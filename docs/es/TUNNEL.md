@@ -45,7 +45,7 @@ endpoint WSS correcto. Que Cloudflare muestre «conectado» no sustituye estas
 comprobaciones. Las pruebas destructivas de staging no deben ejecutarse sobre
 un realm que ya tenga usuarios reales.
 
-## Browser Integrity Check: excepción y vuelta atrás
+## Browser Integrity Check: excepción y vuelta atrás {#browser-integrity-check-excepcion-y-vuelta-atras}
 
 [Browser Integrity Check (BIC)](https://developers.cloudflare.com/waf/tools/browser-integrity-check/)
 filtra peticiones por sus cabeceras HTTP, incluido el User-Agent. Puede bloquear
