@@ -20,7 +20,7 @@ the package revision and release notes. Use disposable test profiles at this sta
 
 | I want to… | Available path | What remains before a downloadable release |
 |---|---|---|
-| Run a relay | Build with Docker Compose, or use the rootless Podman staging helper | Versioned Linux x86-64/ARM64 container images and a tested installation/update guide |
+| Run a relay | Build with Docker Compose, or use the rootless Podman staging helper | The first tagged release of the versioned Linux x86-64/ARM64 images (the workflow exists; see [operations](OPERATIONS.md#install)) and a tested installation/update guide |
 | Try the macOS app | Experimental ZIP from a maintainer, or build from source | Public release and acceptance of a fresh downloaded installation |
 | Try the Android app | Experimental APK from a maintainer, or build from source | Public release and physical-phone installation/update acceptance |
 | Use an iPhone | Separate, later platform milestone | Native acceptance and a supported signing/distribution route |

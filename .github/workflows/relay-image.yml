@@ -1,0 +1,89 @@
+# Versioned relay images for Linux x86-64 and ARM64 (M3b.5).
+#
+# A pull request that touches the relay builds both architectures and checks
+# that each binary reports the commit it came from, without publishing
+# anything. Only a v* release tag pushes the images to GitHub Container
+# Registry, tagged with the version and the full commit, with signed build
+# provenance. Nothing runs on a schedule or by hand.
+name: Relay image
+
+on:
+  pull_request:
+    paths:
+      - "relay/**"
+      - ".github/workflows/relay-image.yml"
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: Relay image (linux/amd64, linux/arm64)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      PUBLISH: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Registry names must be lower case; the account name is not.
+      - name: Image name
+        id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/arveil-relay" >> "$GITHUB_OUTPUT"
+
+      - name: Each architecture reports its commit
+        run: |
+          set -euo pipefail
+          for platform in linux/amd64 linux/arm64; do
+            docker buildx build --platform "$platform" --load \
+              --build-arg "REVISION=${GITHUB_SHA}" \
+              -f relay/Dockerfile -t arveil-relay:check .
+            docker run --rm --platform "$platform" arveil-relay:check -version \
+              | tee /dev/stderr | grep -q "${GITHUB_SHA}"
+          done
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ steps.name.outputs.image }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,format=long
+
+      - name: Log in to GitHub Container Registry
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build both architectures (and publish on a release tag)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: relay/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: REVISION=${{ github.sha }}
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Attest build provenance
+        if: env.PUBLISH == 'true'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.name.outputs.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
