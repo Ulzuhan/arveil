@@ -36,8 +36,10 @@ se mantiene. Esto no es un transporte anónimo. Consulta la
 Solo se reenvía `/v1/channel`. La administración y las métricas del relay
 siguen en el puerto loopback 9090 de su contenedor, sin publicar; las métricas
 del conector también se enlazan al loopback del host. No hay redirección de
-puertos en el router. Los tres puertos de escucha del host se enlazan a
-127.0.0.1, y el cortafuegos del host debe seguir denegando las conexiones
+puertos en el router. Los cuatro puertos de escucha del host del ejemplo se
+enlazan a 127.0.0.1: la escucha de la tailnet en 8447, la escucha del conector
+en 8448, el backend del relay en 8449 y el puerto de métricas del conector en
+20241. El cortafuegos del host debe seguir denegando las conexiones
 entrantes a los puertos de la aplicación. Solo los procesos locales de
 confianza pueden acceder al proxy y al backend.
 

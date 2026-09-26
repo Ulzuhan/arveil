@@ -32,9 +32,11 @@ place. This is not anonymous transport. See the [protocol explanation](articles/
 
 Only `/v1/channel` is forwarded. Relay administration/metrics remain on its
 container loopback port 9090, unpublished; connector metrics also bind host
-loopback. There is no router port forwarding. All three host listeners bind
-127.0.0.1, and the host firewall should continue denying inbound application
-ports. Only trusted local processes may access the proxy/backend.
+loopback. There is no router port forwarding. All four host listeners in the
+example bind 127.0.0.1: the tailnet listener 8447, the connector listener 8448,
+the relay backend 8449 and the connector metrics port 20241. The host firewall
+should continue denying inbound application ports. Only trusted local
+processes may access the proxy/backend.
 
 **Do not enable `-trust-forwarded-for` directly behind cloudflared.** With that
 flag the relay reads the last `X-Forwarded-For` entry, the one the proxy in front
