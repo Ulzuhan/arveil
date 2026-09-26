@@ -27,10 +27,11 @@ opening a profile or connecting to a realm.
 
 The app verifies the announcement before showing its release notes. Download
 size and SHA-256 must match. **Install update** may first require Android's
-per-app permission to install packages; return to Arveil and press Install
-again. A `PackageInstaller` session verifies the package ID, increasing build
-number and the current signing certificate. On Android 12+, the session
-explicitly requires user action. Android performs the final APK verification
+per-app permission to install packages; return to Arveil and press
+**Install update** again. Before creating a `PackageInstaller` session, the app
+checks the package ID, a higher build number and the current signing
+certificate, and hashes the bytes again as it copies them into the session. On
+Android 12+, the session explicitly requires user action. Android performs the final APK verification
 and asks the user to confirm. No uninstall, downgrade or data-clear fallback is
 offered. An expired announcement must be refreshed before installation.
 
@@ -100,7 +101,7 @@ Publish the verified APK first, attach the signed announcement under its
 unique sequence filename, and atomically serve those same bytes at the feed's
 fixed URL. Do not redirect the feed or put a browser login/challenge in front
 of it. The client requests `Accept-Encoding: identity` and rejects compressed
-responses. Use `Content-Type: application/json`, no content compression, and
+responses, so its limits and hashes apply to the exact bytes. Use `Content-Type: application/json`, no content compression, and
 `Cache-Control: no-cache` or a short cache lifetime; purge an old cached feed
 when publishing. Downloads may follow at most five HTTPS redirects because
 GitHub assets use a storage host. Never use `releases/latest` or replace an
@@ -148,21 +149,29 @@ The payload contains:
 }
 ```
 
-The feed is limited to 64 KiB and the APK to 512 MiB. Timeouts and streamed
+The feed is limited to 64 KiB and the APK to 512 MiB. Release notes are plain
+text of at most 8,000 Unicode code points; the signer and the app count them
+the same way, and `clients/flutter/test/fixtures/update-manifest-vectors.json`
+keeps their rules in step. Timeouts and streamed
 size checks bound downloads. Invalid/partial downloads are removed. Android
 hashes the bytes again while copying them into the installation session.
 
-`updates.json` in application support stores the opt-in choice, last attempt,
-and highest accepted sequence plus payload digest, bound to the update key
-and channel. It contains no profile information. Atomic replacement must
+`updates.json` in application support stores the opt-in choice, the last
+attempt and, for each update key and channel, the highest accepted sequence
+plus payload digest. A build with another key or channel starts its own
+history at zero; the others keep their protection. It contains no profile
+information. Atomic replacement must
 succeed before an announcement is offered. Repeating the exact announcement
 is allowed; a lower sequence or a changed payload at the same sequence is not.
-A failed read/write fails closed instead of resetting that protection. App
-storage deletion or a privileged local attacker can reset this state.
+A failed read/write fails closed instead of resetting that protection. Do not
+clear the app's data to recover: that deletes the encrypted profile as well.
+App storage deletion or a privileged local attacker can reset this state.
 
-Key rotation and switching a previously configured installation between
-channels require a separately reviewed migration; do not just replace the
-compiled key, reset update state or tell users to reinstall from scratch.
+Switching an installation between channels needs nothing more: the new
+channel keeps its own history. Rotating the update key means publishing a
+build with the new public key, which people install by hand once, as
+[ADR-010](adr/ADR-010-distribution-and-updates.md) describes; never reset
+update state or tell users to reinstall from scratch.
 The current Android certificate check intentionally requires the same current
 signers and does not implement APK signing-key lineage migration.
 

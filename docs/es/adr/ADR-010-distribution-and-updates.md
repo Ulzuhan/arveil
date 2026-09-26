@@ -71,7 +71,7 @@ Aparece un segundo secreto de larga vida: la clave de actualizaciones, con su co
 
 Publicar una versión gana un paso: generar `clients.json`, firmarlo, publicarlo en la web y adjuntarlo a la release. La sección de descargas de la web se genera desde el mismo manifiesto, así que la página y la app no pueden discrepar sobre cuál es la versión vigente.
 
-El actualizador Android usa `REQUEST_INSTALL_PACKAGES`, un permiso que algunas tiendas y políticas de dispositivo restringen. La prueba del instalador está en el [registro de plataformas](../../PLATFORMS.md#android-signed-updater-acceptance-2026-09-26). Esto no completa los demás requisitos de M3b.8.
+El actualizador Android usa `REQUEST_INSTALL_PACKAGES`, un permiso que algunas tiendas y políticas de dispositivo restringen. La prueba del instalador está en el [registro de plataformas](../PLATFORMS.md#aceptacion-del-actualizador-android-firmado-2026-09-26). Esto no completa los demás requisitos de M3b.8.
 
 Que sea opcional significa que la mayoría de las instalaciones no buscará actualizaciones por su cuenta. La guía de instalación y las notas de cada versión siguen siendo el canal principal hasta que la comprobación demuestre su valor.
 

@@ -3,6 +3,8 @@
 This is an optional deployment recipe. Arveil remains compatible with LAN,
 Tailscale and direct public endpoints. No operator hostname, account, tunnel
 ID, SSH destination, token or realm bootstrap belongs in the public repository.
+Keep those files in `.local/` or outside the repository, and never put them in
+examples, issues, pull requests, logs or client packages.
 
 Use separate hostnames for a project landing page and a personal realm, for
 example `project.example.org` and `relay.example.org`. A single-level subdomain
@@ -144,7 +146,8 @@ check them on the actual server before switching.
 Do not call the deployment ready merely because the tunnel reports connected:
 the external Noise handshake, address attribution and profile-preserving
 client update are separate checks. Cloudflare/proxy restarts can interrupt
-WebSockets; the clients must reconnect.
+WebSockets; the clients must reconnect. Never run destructive staging tests
+against a realm that already has real users.
 
 For a cutover rollback, stop the new connector and proxy **before** restoring
 the old Quadlet, so port 8447 is free again. Restore its original flags and

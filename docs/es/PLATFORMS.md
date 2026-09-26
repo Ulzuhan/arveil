@@ -591,3 +591,45 @@ desde una descarga limpia, la instalación/actualización y Doze/reconexión en
 Android físico, VoiceOver, TalkBack en un dispositivo físico ni las
 evaluaciones de tres personas externas exigidas por M3b.5. La actualización
 del paquete desde `0.1.0+10` consta en la sección anterior.
+
+## Aceptación del actualizador Android firmado (26 de septiembre de 2026) {#aceptacion-del-actualizador-android-firmado-2026-09-26}
+
+Se ejecutó el punto de entrada privado `update_installer_acceptance.dart` en un
+emulador Android 15 / API 35 ARM64 nuevo y desechable. Eran APK de prueba de
+depuración, compilaciones 901 y 902, no artefactos de distribución. La primera
+creó un perfil SQLCipher real con su clave en Android Keystore. La segunda se
+instaló mediante la sesión de `PackageInstaller` de la app y la confirmación
+visible **Update** de Android, sin `adb install -r`, sin desinstalar y sin
+borrar el almacenamiento de la app. Tras volver a abrirla,
+`ARVEIL_TEST_UPDATER_OK:profile:after` confirmó la misma identidad guardada y
+que se conservaba la clave de la plataforma.
+
+Antes de aceptar la actualización, la misma instalación también superó estas
+pruebas:
+
+- Sin permiso de instalación: se rechazó antes de crear una instalación.
+- Cancelación en el diálogo de Android: devolvió `cancelled` y conservó la
+  compilación 901 y su perfil.
+- Un candidato firmado con otro certificado desechable: devolvió `package`,
+  eliminó el candidato y conservó la compilación 901.
+- Un candidato con el mismo certificado y un SHA-256 esperado erróneo a
+  propósito: se rechazó y se eliminó antes de la instalación.
+
+Las pruebas automatizadas cubren manifiestos firmados, un vector de firma
+OpenSSL independiente, caducidad, protección persistente de la secuencia,
+comprobación opcional y diaria, integridad de la descarga, redirecciones HTTPS
+y validación nativa de la identidad y el certificado del paquete. Consulta
+[el protocolo de actualización y el procedimiento de publicación](CLIENT_UPDATES.md).
+Este resultado en emulador no acredita el comportamiento en un teléfono físico,
+con políticas de dispositivo ni con instalación en segundo plano. No hay
+instalación silenciosa ni en segundo plano; la integración con macOS y la
+rotación automática de la clave de actualización siguen pendientes.
+
+Código fuente: la ejecución anterior usó el actualizador de `283467b`; después,
+`049fd0d` cambió el transporte de las actualizaciones, y a continuación llegaron
+las correcciones del mismo pull request. La revisión final aún debe aceptarse
+en emuladores con API 24, 28, 29 y 35, y todavía no constan los criterios 3 a 5
+del [ADR-010](adr/ADR-010-distribution-and-updates.md) (ningún tráfico con las
+comprobaciones desactivadas, ningún identificador en una comprobación, el mismo
+comportamiento con el realm caído u hostil), así que el ADR-010 sigue en estado
+de propuesta.

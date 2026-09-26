@@ -1,68 +1,201 @@
 # Un realm privado mediante Cloudflare Tunnel
 
-El túnel es una opción de despliegue; Arveil también funciona por LAN,
-Tailscale o una dirección pública directa. Utiliza un nombre distinto para
-la landing del proyecto y para tu realm, por ejemplo `project.example.org` y
-`relay.example.org`. Los invitados usan la dirección pública WSS y una
-invitación de Arveil, sin instalar Tailscale ni tener cuenta de Cloudflare.
+Esta es una receta de despliegue opcional. Arveil sigue siendo compatible con
+LAN, Tailscale y endpoints públicos directos. Los nombres de host de quien
+opera, la cuenta, el ID del túnel, el destino SSH, los tokens y el bootstrap
+del realm no pertenecen al repositorio público. Guarda esos archivos en
+`.local/` o fuera del repositorio, y nunca los pongas en ejemplos, issues, pull
+requests, logs ni paquetes del cliente.
 
-**Los nombres reales, cuenta, identificador del túnel, destino SSH, credenciales,
-bootstrap e invitaciones son datos privados de operación.** Guarda los archivos
-en `.local/` o fuera del repositorio. Nunca los publiques en ejemplos, issues,
-PR, logs o paquetes del cliente.
+Usa nombres de host distintos para la landing del proyecto y para un realm
+personal, por ejemplo `project.example.org` y `relay.example.org`. Un subdominio
+de un solo nivel entra además en la cobertura comodín ordinaria de Universal
+SSL de Cloudflare. Tus amistades usan el endpoint público `wss://` con su
+invitación normal de Arveil; no necesitan Tailscale ni una cuenta de
+Cloudflare. Mantén el registro solo por invitación.
 
-La [receta técnica](../TUNNEL.md) incluye preparación, comprobaciones, cambio
-de servicio y vuelta atrás. `scripts/prepare_tunnel.py` recibe un JSON privado
-y genera configuraciones para cloudflared, nginx y el relay en Podman. Exige
-salidas fuera de Git o ignoradas, con permisos privados. No despliega, crea DNS
-ni lee credenciales. Revisa las rutas de ejecutables y valida todo en el host.
+*English: [A private realm through Cloudflare Tunnel](../TUNNEL.md).*
 
-El recorrido público es Cloudflare → túnel saliente → cloudflared → nginx
-local → relay. Solo se publica `/v1/channel`; administración y métricas quedan
-fuera. Todos los puertos del host se enlazan a loopback. No se abre ningún
-puerto entrante del router y se mantiene Tailscale para administrar el host.
-Cloudflare termina TLS y conoce IP, cabeceras y patrones de tráfico; Noise
-sigue terminando en cliente y relay. Esto no es transporte anónimo.
+## Tráfico y límites de confianza
 
-El proxy tiene dos entradas separadas. La del conector toma la IP de
-`CF-Connecting-IP` y **sustituye** `X-Forwarded-For`, en vez de añadir una IP a
-una cadena potencialmente falsa. La de Tailscale no confía en ninguna de esas
-cabeceras. No actives `-trust-forwarded-for` directamente detrás de cloudflared:
-con esa opción el relay lee la última entrada de `X-Forwarded-For`, la que añadió
+```text
+Android ── WSS + Noise ── Cloudflare ── outbound tunnel ── cloudflared
+                                                          │ loopback:8448
+                                                          ▼
+                                                      nginx ── loopback:8449 ── relay
+                                                          ▲
+Tailscale Serve TCP ──────────────────────────────── loopback:8447
+```
+
+Cloudflare termina la conexión TLS exterior y ve la IP, el nombre de host, las
+cabeceras HTTP y los patrones de tráfico. La sesión Noise autenticada de Arveil
+sigue terminando en el cliente y en el relay; el cifrado de mensajes y adjuntos
+se mantiene. Esto no es un transporte anónimo. Consulta la
+[explicación del protocolo](../articles/noise-inside-a-cloudflare-tunnel.md).
+
+Solo se reenvía `/v1/channel`. La administración y las métricas del relay
+siguen en el puerto loopback 9090 de su contenedor, sin publicar; las métricas
+del conector también se enlazan al loopback del host. No hay redirección de
+puertos en el router. Los tres puertos de escucha del host se enlazan a
+127.0.0.1, y el cortafuegos del host debe seguir denegando las conexiones
+entrantes a los puertos de la aplicación. Solo los procesos locales de
+confianza pueden acceder al proxy y al backend.
+
+**No actives `-trust-forwarded-for` directamente detrás de cloudflared.** Con
+esa opción, el relay lee la última entrada de `X-Forwarded-For`, la que añadió
 el proxy de delante, así que todo camino hasta el relay debe pasar por un proxy
 que la ponga; la entrada de la tailnet no lo haría y sus clientes podrían
-declarar su propia dirección. Para sus límites, el relay agrupa las direcciones
-IPv6 por /64.
+declarar su propia dirección. Esta receta usa el módulo real-IP de nginx en una
+escucha dedicada al conector, toma `CF-Connecting-IP` solo ahí y sustituye el
+valor completo de `X-Forwarded-For`. Se rechazan las cabeceras ausentes o no
+válidas. La escucha separada de Tailscale descarta las direcciones que declaren
+las peticiones entrantes y usa la del par real; los clientes de Serve TCP
+conservan el límite por dirección compartido que ya tenían. Para sus límites,
+el relay agrupa las direcciones IPv6 por /64.
 
-Conserva el volumen y las claves del realm existente, haz una copia antes del
-cambio y prepara la vuelta atrás. La receta mueve el backend a otro puerto
-loopback y deja el puerto anterior al proxy para mantener Tailscale Serve.
-No reinicies toda la configuración de Serve ni alteres otros servicios.
-Las conexiones existentes pueden necesitar reconectar durante el cambio.
+Deja Pseudo IPv4 de Cloudflare en **Off** o **Add Header**, no en **Overwrite
+Headers**, y mantén desactivado **Remove visitor IP headers**. No asocies a este
+nombre de host Workers que reescriban la dirección del cliente. La cuenta, el
+conector y el proxy local son de confianza para atribuir la IP; no obtienen las
+claves de la sesión Noise.
 
-Antes de invitar a gente, verifica desde fuera de la tailnet: alta con
-invitación desechable, intercambio de mensajes, adjuntos, reconexión, límites
-por IP y rechazo de cabeceras falsificadas. Comprueba que administración y
-métricas no sean accesibles y que el bootstrap y la lista firmada anuncien el
-endpoint WSS correcto. Que Cloudflare muestre «conectado» no sustituye estas
-comprobaciones. Las pruebas destructivas de staging no deben ejecutarse sobre
-un realm que ya tenga usuarios reales.
+## Preparar en privado
+
+Requisitos: el DNS del dominio en Cloudflare, un túnel con nombre **gestionado
+localmente**, cloudflared, nginx con `http_realip_module` y el
+[despliegue con Podman](../PODMAN.md) sin root que ya tienes. Instala versiones
+mantenidas desde sus fuentes oficiales. Restringe la administración de la
+cuenta con MFA y conserva Tailscale para SSH.
+
+Autentícate y crea el túnel con nombre desde la máquina del mantenedor siguiendo
+la [guía de Cloudflare para túneles gestionados localmente](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/).
+Pon en el servidor solo el JSON de credenciales de ese túnel, con modo 0600, en
+un directorio 0700. No copies al servidor el `cert.pem` de la cuenta, que tiene
+un alcance mayor. El generador que se describe abajo no lee ni copia ninguna de
+las dos credenciales. Antes de cambiar las escuchas, haz una copia de seguridad
+del realm y conserva su volumen con nombre y sus claves.
+
+Crea `.local/tunnel/operator.json` con modo 0600 (todos los valores de abajo son
+ejemplos):
+
+```json
+{
+  "hostname": "relay.example.org",
+  "tunnel_id": "00000000-0000-4000-8000-000000000001",
+  "credentials_file": "/srv/arveil/private/tunnel.json",
+  "revision": "0123456789012345678901234567890123456789",
+  "name": "arveil-staging",
+  "tailnet_address": "REPLACE_WITH_YOUR_TAILSCALE_IPV4",
+  "tailnet_port": 8447,
+  "connector_port": 8448,
+  "backend_port": 8449,
+  "metrics_port": 20241
+}
+```
+
+Sustituye el marcador de la dirección por tu IPv4 privada de Tailscale. Usa el
+nombre de contenedor y de volumen **existente** y la revisión de un commit cuya
+imagen ya esté compilada. Omite `tailnet_address` solo en un despliegue nuevo
+exclusivamente público. Los puertos deben ser distintos y estar libres, salvo
+el puerto de la tailnet que se migra. Genera la configuración:
+
+```sh
+python3 scripts/prepare_tunnel.py \
+  --config .local/tunnel/operator.json --output .local/tunnel/rendered
+```
+
+El generador rechaza ubicaciones dentro de Git que no estén ignoradas y
+directorios de salida que ya existan. Crea, con permisos privados,
+`cloudflared.yml`, `nginx.conf`, la Quadlet del relay y dos unidades systemd de
+usuario. No usa SSH, no cambia el DNS, no arranca nada y no crea credenciales.
+Mantén en privado sus archivos, logs e inventarios. Revisa las rutas de los
+ejecutables de los servicios (`/usr/sbin/nginx`, `/usr/local/bin/cloudflared`)
+para la distribución de destino. Las unidades de referencia necesitan un gestor
+de usuario de systemd que admita sus directivas de aislamiento; compruébalas en
+el servidor real antes del cambio.
+
+## Validar y cambiar
+
+1. Guarda en privado la Quadlet existente y una copia de seguridad del realm.
+   Comprueba que existe la imagen fijada del relay y que su `-version` coincide.
+   Conserva la imagen y los datos antiguos.
+2. Copia las configuraciones a `~/.local/share/arveil/tunnel/` (directorio 0700,
+   archivos 0600) y las unidades de servicio a `~/.config/systemd/user/`.
+   Comprueba la configuración:
+
+   ```sh
+   nginx -V
+   nginx -t -e stderr -p "$HOME/.local/share/arveil/tunnel/" -c nginx.conf
+   cloudflared --config "$HOME/.local/share/arveil/tunnel/cloudflared.yml" tunnel ingress validate
+   systemd-analyze --user verify "$HOME/.config/systemd/user/arveil-proxy.service" \
+     "$HOME/.config/systemd/user/arveil-tunnel.service"
+   ```
+
+3. Sustituye solo la Quadlet del realm elegido y conserva su volumen de datos
+   con nombre. Recarga systemd de usuario y reinicia ese realm; su backend pasa
+   al loopback 8449 y libera el antiguo puerto 8447. Arranca el proxy y el
+   conector. Cuenta con un breve periodo de reconexión. No restablezcas la
+   configuración de Tailscale Serve ni cambies otras rutas.
+4. Valida en local antes de crear la ruta DNS pública. Comprueba el comando
+   interno de salud del relay y `ss -lnt`: todos los puertos del host anteriores
+   deben estar en loopback. Confirma que nginx rechaza `/metrics`, `/healthz` y
+   cualquier ruta salvo la del canal; una petición al canal sin upgrade a
+   WebSocket, o con la dirección de Cloudflare ausente o no válida, debe fallar.
+   Verifica que Tailscale sigue funcionando y que no puede suplantar otra
+   dirección con ninguna de las dos cabeceras de reenvío.
+5. Crea hacia este túnel con nombre una ruta DNS **solo para el nombre de host
+   del relay elegido**. No cambies el nombre de host de la landing. Activa
+   WebSockets, desactiva la caché (bypass) en este nombre de host y evita en el
+   canal los inicios de sesión de Access pensados solo para navegador, los
+   desafíos JavaScript y los CAPTCHA. La autenticación Noise y por invitación
+   de Arveil sigue siendo obligatoria. Si Browser Integrity Check bloquea a los
+   clientes nativos, aplica la
+   [excepción acotada y su procedimiento de vuelta atrás](#browser-integrity-check-excepcion-y-vuelta-atras)
+   que se describen abajo. No debilites las protecciones de servicios no
+   relacionados.
+6. Desde fuera de la tailnet, completa un alta real de Arveil con una invitación
+   desechable de un solo uso e intercambia mensajes. Prueba la reconexión tras
+   reiniciar el conector, adjuntos dentro de los límites del relay y los límites
+   con un `X-Forwarded-For` entrante falsificado a propósito. Comprueba que la
+   lista firmada de endpoints y el bootstrap nuevo usan el endpoint WSS público.
+   Los miembros existentes deben recibirlo mientras su endpoint anterior siga
+   siendo accesible.
+7. Habilita el arranque automático solo de las unidades de usuario del proxy y
+   del conector, confirma que lingering está activado y comprueba un reinicio
+   de la máquina o de los servicios. Limita la retención de los journals, nunca
+   actives registros de peticiones que contengan identificadores y no vuelques
+   invitaciones en tickets.
+
+No des el despliegue por listo solo porque el túnel aparezca conectado: el
+handshake Noise externo, la atribución de direcciones y la actualización del
+cliente que conserva el perfil son comprobaciones separadas. Los reinicios de
+Cloudflare o del proxy pueden interrumpir los WebSockets; los clientes deben
+reconectar. Nunca ejecutes pruebas destructivas de staging sobre un realm que ya
+tenga usuarios reales.
+
+Para deshacer el cambio, detén el conector y el proxy nuevos **antes** de
+restaurar la Quadlet antigua, para que el puerto 8447 vuelva a quedar libre.
+Restaura sus opciones originales y reinicia; deja intacto el mismo volumen si
+solo cambió la red. Elimina solo la ruta DNS nueva si ya no la quieres. Si
+también cambias el código del relay o el formato de la base de datos, usa el
+[procedimiento de copia y vuelta atrás](../PODMAN.md#updates-backups-and-rollback)
+en lugar de suponer que un binario anterior puede leer la base de datos actual.
 
 ## Actualizar el relay detrás del túnel
 
 Cuando un realm funciona detrás del túnel, `scripts/podman.py deploy` ya no
 sustituye su unidad: la unidad estándar publicaría el relay en el puerto que
 usa nginx, quitaría `-trust-forwarded-for` y olvidaría el endpoint público, y
-la siguiente actualización dejaría el relay caído. Se detiene antes de
-compilar nada y lo explica. Actualízalo así:
+la siguiente actualización dejaría el relay caído. Se detiene antes de compilar
+nada y lo explica. En su lugar, actualízalo así:
 
 1. Compila y comprueba la imagen nueva sin tocar el servicio en marcha. Si el
-   realm está en marcha, también guarda una copia previa, como un despliegue
-   normal:
+   realm está en marcha, también guarda una copia previa a la actualización,
+   como hace un despliegue normal:
 
    ```sh
-   python3 scripts/podman.py deploy --host <alias-ssh> \
-     --address <ipv4-de-tailscale> --revision <commit> --image-only
+   python3 scripts/podman.py deploy --host <ssh-alias> \
+     --address <tailscale-ipv4> --revision <commit> --image-only
    ```
 
 2. Pon ese commit en `revision` de `.local/tunnel/operator.json` y genera la
@@ -79,8 +212,9 @@ compilar nada y lo explica. Actualízalo así:
    Conserva la instalada como `.container.previous`, instala la nueva con modo
    0600, ejecuta `systemctl --user daemon-reload` y reinicia solo el servicio
    del realm. El proxy y el conector siguen en marcha.
-4. Comprueba el healthcheck interno del relay y que `-version` informe del
-   commit nuevo, y repite las comprobaciones externas de la sección anterior.
+4. Comprueba el comando interno de salud del relay y que `-version` informe del
+   commit nuevo, y después repite las comprobaciones externas del paso 6 de
+   [Validar y cambiar](#validar-y-cambiar).
 
 Para volver atrás, restaura `.container.previous` y reinicia el servicio del
 realm. Si el relay nuevo migró su base de datos, sigue además el
@@ -89,31 +223,35 @@ realm. Si el relay nuevo migró su base de datos, sigue además el
 ## Browser Integrity Check: excepción y vuelta atrás {#browser-integrity-check-excepcion-y-vuelta-atras}
 
 [Browser Integrity Check (BIC)](https://developers.cloudflare.com/waf/tools/browser-integrity-check/)
-filtra peticiones por sus cabeceras HTTP, incluido el User-Agent. Puede bloquear
-clientes nativos legítimos y la consulta de actualizaciones, que no envía ese
-identificador. Un HTTP 403 con error Cloudflare 1010 es una pista concreta;
-no atribuyas cualquier 403 a BIC ni desactives otras protecciones por probar.
+de Cloudflare usa las cabeceras HTTP, incluido el User-Agent, para rechazar
+parte del tráfico automatizado. Los clientes nativos y las peticiones del
+actualizador sin User-Agent pueden ser falsos positivos legítimos. Un HTTP 403
+con el error 1010 de Cloudflare es una pista para el diagnóstico; no atribuyas
+cualquier 403 a BIC ni desactives protecciones no relacionadas para arreglarlo.
 
-**Mantén BIC activado salvo que bloquee a un cliente real.** Un script de
-diagnóstico no sustituye a los clientes distribuidos: por ejemplo, `urllib`
-de Python ya envía su propio User-Agent. Su rechazo no demuestra que falle un
-cliente sin esa cabecera o con otro valor. Comprueba el ajuste efectivo y prueba
-la conexión nativa WebSocket/Noise y el transporte HTTP real del actualizador
-Android. Un 404 de un feed inexistente puede confirmar que la petición supera
-el filtro, pero no valida la publicación del manifiesto, su firma ni la instalación.
+**Mantén BIC activado salvo que un cliente real falle por su culpa.** Un script
+de diagnóstico no sustituye a los clientes distribuidos: por ejemplo, `urllib`
+de Python envía por defecto su propio User-Agent. Que lo rechacen no demuestra
+que se vaya a rechazar un cliente sin esa cabecera o con otro valor. Comprueba
+el ajuste efectivo de la regla y después prueba la conexión nativa
+WebSocket/Noise y el transporte HTTP real del actualizador Android. Un 404 de
+un manifiesto inexistente puede demostrar que la petición atravesó el edge de
+Cloudflare, pero no valida la publicación del manifiesto, la verificación de la
+firma ni la instalación.
 
-Si el fallo depende del User-Agent, compara peticiones idénticas cambiando solo
-esa cabecera por un identificador propio y común de la aplicación. Evita datos
-del dispositivo o del perfil y hacer pasar el cliente por un navegador. El
-User-Agent es metadato público que cualquiera puede copiar, no autenticación;
-añadirlo no garantiza superar BIC. No cambies clientes que ya funcionan solo
-para que pase un script de diagnóstico.
+Si el fallo depende del User-Agent, compara peticiones idénticas en todo lo
+demás usando un identificador de aplicación honesto y compartido. Evita
+identificadores del dispositivo, datos del perfil y hacerte pasar por un
+navegador. Un User-Agent es un metadato público que se puede falsificar, no una
+autenticación, y su mera presencia no garantiza que se acepte la petición. No
+cambies clientes que funcionan solo para que pase un script de diagnóstico.
 
-Si BIC sigue impidiendo el uso de los clientes soportados después de estas
-comprobaciones, documenta la evidencia antes de crear una **Configuration Rule** en la zona correspondiente,
-desde **Rules → Overview**, con **Browser Integrity Check = Off**. El filtro debe
-limitarse al método GET y a las rutas exactas del canal y del feed, si este último
-también pasa por Cloudflare. Ejemplo genérico:
+Si después de estas comprobaciones BIC sigue impidiendo que funcionen los
+clientes nativos soportados, documenta la evidencia antes de crear una
+**Configuration Rule** en la zona elegida, desde **Rules → Overview**, que
+establezca solo **Browser Integrity Check = Off**. Haz que coincida exactamente
+con el canal del relay y, si se aloja a través de Cloudflare, con el manifiesto
+de distribución exacto. Valores solo de ejemplo:
 
 ```text
 (http.request.method eq "GET" and (
@@ -123,45 +261,59 @@ también pasa por Cloudflare. Ejemplo genérico:
 ))
 ```
 
-Omite la segunda condición si alojas el feed en otro sitio. Evita excepciones
-para toda la zona o todo el subdominio. Revisa el orden: si varias reglas cambian
-la misma opción, prevalece la última que coincida. Esta regla solo ajusta BIC;
-no omite todo el WAF.
+Omite la condición del manifiesto si lo alojas en otro sitio. No uses una
+excepción para toda la zona ni para todo el nombre de host. Las demás rutas y
+métodos conservan sus ajustes actuales. Revisa el orden de las reglas: cuando
+varias Configuration Rules fijan la misma opción, gana la última que coincide.
+Esto solo sustituye el ajuste de BIC; no es una omisión general del WAF.
 
-Se pierde ese filtro para las peticiones seleccionadas: algunos bots podrán
-llegar al servicio y aumentar los intentos de conexión o la carga. Se mantienen
-TLS, Noise, invitaciones, límites del relay, verificación de las actualizaciones
-y las demás protecciones de Cloudflare configuradas. BIC no autentica usuarios.
+El coste es que algunas peticiones automatizadas que BIC rechazaba antes pueden
+llegar a estos endpoints, lo que aumenta la exposición a intentos de conexión y
+a la carga. TLS, Noise, la exigencia de invitación, los límites del relay y la
+verificación de firmas de las actualizaciones no cambian. Esta regla no
+desactiva otras reglas de seguridad de Cloudflare que tengas configuradas ni la
+protección DDoS. BIC en sí es una heurística basada en cabeceras, no una
+autenticación.
 
-Guarda **en un registro privado**, fuera de Git o en un directorio ignorado:
-fecha, motivo, autorización, filtro exacto, nombre/ID/enlace de la regla, valor
-de BIC, posición y resultados antes/después. Los dominios y datos reales de ese
-registro no pertenecen a esta guía ni a un PR público.
+Lleva un **registro privado de cambios**, fuera de Git o en un directorio
+ignorado, con la fecha, el motivo, la aprobación de quien opera, la expresión
+exacta, el nombre, el ID y el enlace del panel de la regla, el valor de BIC, el
+orden de la regla y las observaciones de antes y después. Nunca copies ese
+registro ni sus nombres de host reales en esta guía pública ni en un PR.
 
-Después de aplicarla, comprueba el filtro guardado y la regla activa. Verifica
-una conexión Noise pública y la consulta de actualizaciones con los clientes
-reales, sin fingir ser un navegador. Un GET al canal sin negociación WebSocket
-debe seguir siendo rechazado por el proxy. El feed publicado debe devolver el
-JSON firmado exacto; un 404 de un feed todavía inexistente solo confirma que BIC
-ya no lo bloquea. Comprueba también peticiones excluidas por el filtro.
+Después de desplegarla, verifica en Cloudflare la expresión guardada y el
+ajuste activo. Prueba una conexión Noise pública real y una comprobación de
+actualizaciones sin hacerte pasar por un navegador. El proxy debe seguir
+rechazando un GET normal al canal sin upgrade a WebSocket. Un manifiesto
+publicado debe devolver exactamente el JSON firmado; un 404 de un manifiesto
+que todavía no existe solo verifica que BIC ya no lo bloquea. Comprueba tanto
+las rutas excluidas como las peticiones permitidas, y anota los resultados.
 
-### Cómo volver a activarlo
+### Volver a activar la comprobación
 
-1. Abre el enlace de la regla guardado en el registro privado, o localízala en
-   **Rules → Overview → Configuration Rules** de la zona correcta.
-2. Conserva el filtro y cambia **Browser Integrity Check a On**. Guarda/despliega
-   y deja la regla activa. Comprueba que ninguna regla posterior lo sobrescriba;
-   utiliza el simulador/Trace de Cloudflare si hace falta.
-3. Prueba la conexión pública y las actualizaciones: podrían reaparecer errores
-   403/1010 en peticiones legítimas. Tailscale y los perfiles guardados no cambian.
-   Anota fecha, resultado y, si hay error, el identificador de petición Cloudflare
-   en el registro privado.
-4. Para recuperar la compatibilidad, vuelve a **Off** en esa misma regla, guarda
-   y repite las comprobaciones. No requiere recompilar el APK, cambiar claves ni
-   restaurar datos del relay.
+1. Abre la regla con el enlace del panel que anotaste en el registro privado, o
+   búscala en **Rules → Overview → Configuration Rules** de la zona correcta.
+2. Conserva la misma expresión. Cambia **Browser Integrity Check a On** y
+   despliega o guarda el cambio. Deja la regla activa y comprueba que ninguna
+   regla posterior que coincida lo sobrescribe; usa el simulador de reglas o
+   Trace de Cloudflare cuando haga falta.
+3. Prueba la conexión pública de la app y la comprobación de actualizaciones.
+   BIC puede volver a devolver 403/1010 a peticiones nativas legítimas. El
+   acceso por Tailscale y los perfiles guardados no se ven afectados. Anota la
+   hora, el resultado y cualquier ID de petición de Cloudflare en el registro
+   privado de cambios.
+4. Para recuperar la compatibilidad con los clientes nativos, vuelve a poner
+   BIC en **Off** en esa misma regla acotada, despliégala y repite esas
+   comprobaciones. Este cambio de ajuste no requiere recompilar el APK, rotar
+   claves ni restaurar datos del relay.
 
-Desactivar o borrar la regla solo recupera la configuración heredada: **no
-garantiza que BIC quede activado**. Antes de hacerlo, revisa el ajuste de la zona
-y otras reglas que coincidan. Activar BIC tampoco garantiza cerrar el acceso
-público; para retirarlo, sigue el plan privado para detener el conector dedicado
-o eliminar únicamente su registro DNS.
+Desactivar o borrar la excepción solo restaura los ajustes heredados; **no**
+garantiza que BIC quede en On. Revisa el ajuste de la zona y las demás reglas
+que coincidan antes de elegir esa alternativa. Volver a activar BIC tampoco es
+una forma fiable de retirar el servicio público: para eso, detén el conector
+dedicado o elimina su ruta DNS específica siguiendo el plan privado de vuelta
+atrás del despliegue.
+
+Referencias: [cabeceras HTTP de Cloudflare](https://developers.cloudflare.com/fundamentals/reference/http-headers/),
+[módulo real-IP de nginx](https://nginx.org/en/docs/http/ngx_http_realip_module.html),
+[proxy de WebSocket en nginx](https://nginx.org/en/docs/http/websocket.html).
