@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
-import 'design/layout.dart';
+import 'design/design.dart';
+import 'own_route.dart';
 import 'rust/api/profile.dart';
 
 String contactId(String id) => id.length <= 12 ? id : id.substring(0, 12);
@@ -80,6 +81,48 @@ class _ContactsPageState extends State<ContactsPage> {
             ),
   ];
 
+  Widget _row(ContactView c) {
+    final devices = c.devices.where((d) => !d.revoked).length;
+    return ListTile(
+      key: Key('contact-${c.identityId}'),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: ArveilAvatar(identity: c.identityId, label: c.label, size: 40),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(c.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 6),
+          if (c.verified)
+            const VerifiedMark(size: 15)
+          else
+            const UnverifiedChip(),
+        ],
+      ),
+      subtitle: Text(
+        c.devices.isEmpty
+            ? context.l10n.contactNeedsRoute
+            : context.l10n.contactDevicesAvailable(devices),
+      ),
+      trailing: widget.selectRecipients
+          ? Checkbox(
+              key: Key('select-contact-${c.identityId}'),
+              value: _selected.contains(c.identityId),
+              onChanged: _available(c) && !_loading
+                  ? (value) => setState(() {
+                      if (value == true) {
+                        _selected.add(c.identityId);
+                      } else {
+                        _selected.remove(c.identityId);
+                      }
+                    })
+                  : null,
+            )
+          : const Icon(Icons.chevron_right),
+      onTap: _loading || widget.selectRecipients ? null : () => _edit(c),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final recipients = _recipients;
@@ -105,9 +148,11 @@ class _ContactsPageState extends State<ContactsPage> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Text(_error!),
+                child: StatusBanner(
+                  title: _error!,
+                  icon: Icons.error_outline,
+                  tone: BannerTone.error,
+                  actions: [
                     TextButton(
                       onPressed: _load,
                       child: Text(context.l10n.retry),
@@ -116,65 +161,66 @@ class _ContactsPageState extends State<ContactsPage> {
                 ),
               ),
             Expanded(
-              child: ListView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: WindowSize.of(context).margin,
-                  vertical: 16,
-                ),
-                children: [
-                  Text(context.l10n.contactsNamesLocal),
-                  if (widget.selectRecipients)
-                    Padding(
-                      padding: EdgeInsets.only(top: 12),
-                      child: Text(context.l10n.contactsDeviceLimit),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: ListView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: WindowSize.of(context).margin,
+                      vertical: 16,
                     ),
-                  if (!_loading && _error == null && _contacts.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Column(
-                        children: [
-                          Text(context.l10n.contactsEmpty),
-                          const SizedBox(height: 16),
-                          FilledButton(
-                            onPressed: () => _edit(),
-                            child: Text(context.l10n.contactAdd),
-                          ),
-                        ],
-                      ),
-                    ),
-                  for (final c in _contacts)
-                    Card(
-                      child: ListTile(
-                        key: Key('contact-${c.identityId}'),
-                        leading: widget.selectRecipients
-                            ? Checkbox(
-                                key: Key('select-contact-${c.identityId}'),
-                                value: _selected.contains(c.identityId),
-                                onChanged: _available(c) && !_loading
-                                    ? (value) => setState(() {
-                                        if (value == true) {
-                                          _selected.add(c.identityId);
-                                        } else {
-                                          _selected.remove(c.identityId);
-                                        }
-                                      })
-                                    : null,
-                              )
-                            : Icon(
-                                c.verified
-                                    ? Icons.verified_user_outlined
-                                    : Icons.person_outline,
-                              ),
-                        title: Text(c.label),
-                        subtitle: Text(
-                          '${contactId(c.identityId)} · ${c.verified ? context.l10n.verified : context.l10n.unverified}\n${c.devices.isEmpty ? context.l10n.contactNeedsRoute : context.l10n.contactDevicesAvailable(c.devices.where((d) => !d.revoked).length)}',
+                    children: [
+                      if (!widget.selectRecipients) ...[
+                        SettingsGroup(
+                          children: [
+                            SettingsRow(
+                              key: const Key('share-route'),
+                              icon: Icons.share_outlined,
+                              title: context.l10n.ownRouteTitle,
+                              subtitle: context.l10n.shareMyRouteHelp,
+                              onTap: () =>
+                                  showOwnRoute(context, widget.profile),
+                            ),
+                          ],
                         ),
-                        isThreeLine: true,
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: _loading ? null : () => _edit(c),
+                        const SizedBox(height: 12),
+                      ],
+                      Text(
+                        context.l10n.contactsNamesLocal,
+                        style: ArveilType.secondary.copyWith(
+                          color: ArveilColors.of(context).inkMuted,
+                        ),
                       ),
-                    ),
-                ],
+                      if (widget.selectRecipients)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            context.l10n.contactsDeviceLimit,
+                            style: ArveilType.secondary.copyWith(
+                              color: ArveilColors.of(context).inkMuted,
+                            ),
+                          ),
+                        ),
+                      if (!_loading && _error == null && _contacts.isEmpty)
+                        EmptyState(
+                          icon: Icons.people_outline,
+                          title: context.l10n.contactsEmpty,
+                          action: FilledButton.icon(
+                            onPressed: () => _edit(),
+                            icon: const Icon(Icons.person_add_outlined),
+                            label: Text(context.l10n.contactAdd),
+                          ),
+                        ),
+                      if (_contacts.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        SettingsGroup(
+                          children: [for (final c in _contacts) _row(c)],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
             if (widget.selectRecipients)
@@ -220,6 +266,9 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
   RoutePreviewView? _preview;
   String? _checkedRoute;
   bool _compared = false;
+
+  /// The user said the numbers differ: nothing may be verified.
+  bool _mismatch = false;
   bool _busy = false;
   String? _error;
   String? _notice;
@@ -247,6 +296,7 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
       _error = null;
       _preview = null;
       _compared = false;
+      _mismatch = false;
     });
     try {
       final preview = (await widget.profile.previewRoutes(
@@ -291,6 +341,7 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
         _checkedRoute = null;
         _preview = null;
         _compared = false;
+        _mismatch = false;
         _notice = context.l10n.contactSaved;
       });
     } catch (_) {
@@ -328,6 +379,56 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Who is being added or looked at, and whether they were verified.
+  Widget _identity(
+    BuildContext context,
+    String identity,
+    ContactView? contact,
+  ) {
+    final c = ArveilColors.of(context);
+    final name = _name.text.trim().isNotEmpty
+        ? _name.text.trim()
+        : contact?.label ?? contactId(identity);
+    return Row(
+      children: [
+        ArveilAvatar(identity: identity, label: name, size: 52),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: ArveilType.rowName.copyWith(color: c.ink),
+              ),
+              const SizedBox(height: 4),
+              if (contact?.verified == true)
+                Row(
+                  children: [
+                    const VerifiedMark(size: 15),
+                    const SizedBox(width: 4),
+                    Text(
+                      context.l10n.verified,
+                      style: ArveilType.secondary.copyWith(color: c.accent),
+                    ),
+                  ],
+                )
+              else
+                const UnverifiedChip(),
+              const SizedBox(height: 4),
+              SelectableText(
+                context.l10n.contactIdentity(contactId(identity)),
+                style: ArveilType.identifier.copyWith(color: c.inkMuted),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -389,6 +490,7 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
                           _preview = null;
                           _checkedRoute = null;
                           _compared = false;
+                          _mismatch = false;
                           _error = null;
                         }),
                       ),
@@ -399,41 +501,66 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
                       ),
                     ],
                     if (identity != null) ...[
-                      const SizedBox(height: 20),
-                      SelectableText(context.l10n.contactIdentity(identity)),
-                      const SizedBox(height: 12),
-                      Text(
-                        contact?.verified == true
-                            ? context.l10n.verified
-                            : context.l10n.unverified,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(context.l10n.contactCompareHelp),
-                      const SizedBox(height: 12),
-                      SelectableText(
-                        number!,
+                      const SizedBox(height: 24),
+                      _identity(context, identity, contact),
+                      SectionTitle(context.l10n.safetyNumberTitle),
+                      SafetyNumberGrid(
                         key: const Key('contact-safety'),
-                        style: Theme.of(context).textTheme.titleLarge,
+                        number: number!,
+                        caption: context.l10n.contactCompareHelp,
                       ),
-                      if (contact?.verified != true)
-                        CheckboxListTile(
-                          key: const Key('contact-compared'),
-                          contentPadding: EdgeInsets.zero,
-                          value: _compared,
-                          onChanged: _busy
-                              ? null
-                              : (v) => setState(() => _compared = v ?? false),
-                          title: Text(context.l10n.contactCompared),
+                      if (contact?.verified != true) ...[
+                        const SizedBox(height: 12),
+                        if (_mismatch)
+                          StatusBanner(
+                            key: const Key('contact-mismatch-warning'),
+                            title: context.l10n.mismatchTitle,
+                            body: context.l10n.mismatchBody,
+                            icon: Icons.gpp_bad_outlined,
+                            tone: BannerTone.error,
+                          )
+                        else if (_compared)
+                          Text(context.l10n.comparedWillVerify),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                key: const Key('contact-mismatch'),
+                                onPressed: _busy
+                                    ? null
+                                    : () => setState(() {
+                                        _mismatch = true;
+                                        _compared = false;
+                                      }),
+                                child: Text(context.l10n.numbersDiffer),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                key: const Key('contact-compared'),
+                                onPressed: _busy || _compared
+                                    ? null
+                                    : () {
+                                        if (contact != null) {
+                                          _verify();
+                                        } else {
+                                          setState(() {
+                                            _compared = true;
+                                            _mismatch = false;
+                                          });
+                                        }
+                                      },
+                                child: Text(context.l10n.numbersMatch),
+                              ),
+                            ),
+                          ],
                         ),
-                      if (contact != null && !contact.verified)
-                        OutlinedButton(
-                          key: const Key('verify-contact'),
-                          onPressed: _busy || !_compared ? null : _verify,
-                          child: Text(context.l10n.contactVerify),
-                        ),
+                      ],
                     ],
                     if (contact != null) ...[
-                      const SizedBox(height: 16),
+                      SectionTitle(context.l10n.devicesTitle),
                       Text(context.l10n.contactRoutes(contact.devices.length)),
                       for (final device in contact.devices)
                         Text(
@@ -465,12 +592,17 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
                         padding: EdgeInsets.only(top: 16),
                         child: LinearProgressIndicator(),
                       ),
-                    if (_error != null || _notice != null)
+                    if (_error ?? _notice case final message?)
                       Padding(
                         padding: const EdgeInsets.only(top: 16),
-                        child: Semantics(
-                          liveRegion: true,
-                          child: Text(_error ?? _notice!),
+                        child: StatusBanner(
+                          title: message,
+                          icon: _error != null
+                              ? Icons.error_outline
+                              : Icons.check_circle_outline,
+                          tone: _error != null
+                              ? BannerTone.error
+                              : BannerTone.info,
                         ),
                       ),
                   ],

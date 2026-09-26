@@ -446,8 +446,6 @@
     }
   },
   "contactCompareHelp": "Compara este número con la otra persona por otro canal. El nombre local no sustituye esta comprobación.",
-  "contactCompared": "Hemos comparado el número por otro canal y coincide.",
-  "contactVerify": "Verificar contacto",
   "contactRoutes": "{count, plural, =1{1 ruta guardada} other{{count} rutas guardadas}}",
   "@contactRoutes": {
     "placeholders": {
@@ -596,7 +594,6 @@
   "ownRouteCopy": "Copiar ruta",
   "ownRouteFailed": "No se pudo obtener la ruta de este dispositivo.",
   "backToConversations": "Volver a conversaciones",
-  "myRoute": "Mi ruta",
   "newConversation": "Nueva conversación",
   "sync": "Sincronizar",
   "syncing": "Sincronizando",
@@ -708,5 +705,28 @@
         "type": "int"
       }
     }
-  }
+  },
+  "settingsSecurity": "Seguridad y recuperación",
+  "settingsConnection": "Conexión",
+  "settingsApp": "Aplicación",
+  "kitStateNever": "Sin guardar",
+  "kitStateStale": "Desactualizado: tus dispositivos cambiaron",
+  "kitStateSaved": "Guardado el {date}",
+  "@kitStateSaved": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "identityAdministrator": "Este dispositivo administra tus dispositivos",
+  "identityLinked": "Dispositivo vinculado",
+  "shareMyRouteHelp": "Para que otras personas puedan añadirte",
+  "licenses": "Licencias",
+  "safetyNumberTitle": "Número de seguridad",
+  "numbersMatch": "Coinciden",
+  "numbersDiffer": "No coinciden",
+  "mismatchTitle": "Los números no coinciden",
+  "mismatchBody": "No verifiques este contacto. La ruta puede no ser de esa persona o haber cambiado: pídele que te la envíe otra vez por otro canal.",
+  "comparedWillVerify": "Coinciden: el contacto se guardará como verificado."
 }

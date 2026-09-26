@@ -159,6 +159,11 @@ void main() {
       await t.pump();
       await press(t, find.byKey(const Key('import-archive')));
       expect(p.imports, 1);
+      await t.scrollUntilVisible(
+        find.text('Archived text'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Archived text'), findsOneWidget);
       // The author is the archive's claim, and says so.
       expect(

@@ -948,13 +948,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Compara este número con la otra persona por otro canal. El nombre local no sustituye esta comprobación.';
 
   @override
-  String get contactCompared =>
-      'Hemos comparado el número por otro canal y coincide.';
-
-  @override
-  String get contactVerify => 'Verificar contacto';
-
-  @override
   String contactRoutes(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1105,9 +1098,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get backToConversations => 'Volver a conversaciones';
-
-  @override
-  String get myRoute => 'Mi ruta';
 
   @override
   String get newConversation => 'Nueva conversación';
@@ -1320,4 +1310,57 @@ class AppLocalizationsEs extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get settingsSecurity => 'Seguridad y recuperación';
+
+  @override
+  String get settingsConnection => 'Conexión';
+
+  @override
+  String get settingsApp => 'Aplicación';
+
+  @override
+  String get kitStateNever => 'Sin guardar';
+
+  @override
+  String get kitStateStale => 'Desactualizado: tus dispositivos cambiaron';
+
+  @override
+  String kitStateSaved(String date) {
+    return 'Guardado el $date';
+  }
+
+  @override
+  String get identityAdministrator =>
+      'Este dispositivo administra tus dispositivos';
+
+  @override
+  String get identityLinked => 'Dispositivo vinculado';
+
+  @override
+  String get shareMyRouteHelp => 'Para que otras personas puedan añadirte';
+
+  @override
+  String get licenses => 'Licencias';
+
+  @override
+  String get safetyNumberTitle => 'Número de seguridad';
+
+  @override
+  String get numbersMatch => 'Coinciden';
+
+  @override
+  String get numbersDiffer => 'No coinciden';
+
+  @override
+  String get mismatchTitle => 'Los números no coinciden';
+
+  @override
+  String get mismatchBody =>
+      'No verifiques este contacto. La ruta puede no ser de esa persona o haber cambiado: pídele que te la envíe otra vez por otro canal.';
+
+  @override
+  String get comparedWillVerify =>
+      'Coinciden: el contacto se guardará como verificado.';
 }

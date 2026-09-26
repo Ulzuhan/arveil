@@ -1634,18 +1634,6 @@ abstract class AppLocalizations {
   /// **'Compara este número con la otra persona por otro canal. El nombre local no sustituye esta comprobación.'**
   String get contactCompareHelp;
 
-  /// No description provided for @contactCompared.
-  ///
-  /// In es, this message translates to:
-  /// **'Hemos comparado el número por otro canal y coincide.'**
-  String get contactCompared;
-
-  /// No description provided for @contactVerify.
-  ///
-  /// In es, this message translates to:
-  /// **'Verificar contacto'**
-  String get contactVerify;
-
   /// No description provided for @contactRoutes.
   ///
   /// In es, this message translates to:
@@ -1849,12 +1837,6 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Volver a conversaciones'**
   String get backToConversations;
-
-  /// No description provided for @myRoute.
-  ///
-  /// In es, this message translates to:
-  /// **'Mi ruta'**
-  String get myRoute;
 
   /// No description provided for @newConversation.
   ///
@@ -2173,6 +2155,102 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'{count, plural, =1{1 dispositivo} other{{count} dispositivos}}'**
   String devicesCount(int count);
+
+  /// No description provided for @settingsSecurity.
+  ///
+  /// In es, this message translates to:
+  /// **'Seguridad y recuperación'**
+  String get settingsSecurity;
+
+  /// No description provided for @settingsConnection.
+  ///
+  /// In es, this message translates to:
+  /// **'Conexión'**
+  String get settingsConnection;
+
+  /// No description provided for @settingsApp.
+  ///
+  /// In es, this message translates to:
+  /// **'Aplicación'**
+  String get settingsApp;
+
+  /// No description provided for @kitStateNever.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin guardar'**
+  String get kitStateNever;
+
+  /// No description provided for @kitStateStale.
+  ///
+  /// In es, this message translates to:
+  /// **'Desactualizado: tus dispositivos cambiaron'**
+  String get kitStateStale;
+
+  /// No description provided for @kitStateSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardado el {date}'**
+  String kitStateSaved(String date);
+
+  /// No description provided for @identityAdministrator.
+  ///
+  /// In es, this message translates to:
+  /// **'Este dispositivo administra tus dispositivos'**
+  String get identityAdministrator;
+
+  /// No description provided for @identityLinked.
+  ///
+  /// In es, this message translates to:
+  /// **'Dispositivo vinculado'**
+  String get identityLinked;
+
+  /// No description provided for @shareMyRouteHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Para que otras personas puedan añadirte'**
+  String get shareMyRouteHelp;
+
+  /// No description provided for @licenses.
+  ///
+  /// In es, this message translates to:
+  /// **'Licencias'**
+  String get licenses;
+
+  /// No description provided for @safetyNumberTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Número de seguridad'**
+  String get safetyNumberTitle;
+
+  /// No description provided for @numbersMatch.
+  ///
+  /// In es, this message translates to:
+  /// **'Coinciden'**
+  String get numbersMatch;
+
+  /// No description provided for @numbersDiffer.
+  ///
+  /// In es, this message translates to:
+  /// **'No coinciden'**
+  String get numbersDiffer;
+
+  /// No description provided for @mismatchTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Los números no coinciden'**
+  String get mismatchTitle;
+
+  /// No description provided for @mismatchBody.
+  ///
+  /// In es, this message translates to:
+  /// **'No verifiques este contacto. La ruta puede no ser de esa persona o haber cambiado: pídele que te la envíe otra vez por otro canal.'**
+  String get mismatchBody;
+
+  /// No description provided for @comparedWillVerify.
+  ///
+  /// In es, this message translates to:
+  /// **'Coinciden: el contacto se guardará como verificado.'**
+  String get comparedWillVerify;
 }
 
 class _AppLocalizationsDelegate

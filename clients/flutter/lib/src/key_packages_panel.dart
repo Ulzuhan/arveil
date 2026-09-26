@@ -5,8 +5,15 @@ import 'profile_session.dart';
 import 'rust/api/profile.dart';
 
 class KeyPackagesPanel extends StatelessWidget {
-  const KeyPackagesPanel({super.key, required this.session});
+  const KeyPackagesPanel({
+    super.key,
+    required this.session,
+    this.heading = true,
+  });
   final ProfileSession session;
+
+  /// Shows the panel's own title; off on a screen whose bar names it.
+  final bool heading;
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +32,13 @@ class KeyPackagesPanel extends StatelessWidget {
       key: const Key('key-package-panel'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          context.l10n.keyPackagesTitle,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 12),
+        if (heading) ...[
+          Text(
+            context.l10n.keyPackagesTitle,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+        ],
         Text(context.l10n.keyPackagesExplanation),
         const SizedBox(height: 12),
         Text(

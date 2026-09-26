@@ -301,55 +301,7 @@ class ConversationsPageState extends State<ConversationsPage>
     );
   }
 
-  Future<void> _shareRoute() async {
-    try {
-      final route = await chat.profile.ownRoute();
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.l10n.ownRouteTitle),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(context.l10n.ownRouteShare),
-                const SizedBox(height: 16),
-                SelectableText(route, key: const Key('own-route')),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(context.l10n.close),
-            ),
-            FilledButton(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: route));
-                if (context.mounted) Navigator.pop(context);
-              },
-              child: Text(context.l10n.ownRouteCopy),
-            ),
-          ],
-        ),
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.ownRouteFailed)));
-      }
-    }
-  }
-
   List<Widget> get _chatActions => [
-    IconButton(
-      tooltip: context.l10n.myRoute,
-      onPressed: _shareRoute,
-      icon: const Icon(Icons.share_outlined),
-    ),
     IconButton(
       tooltip: context.l10n.newConversation,
       onPressed: chat.creating ? null : _create,

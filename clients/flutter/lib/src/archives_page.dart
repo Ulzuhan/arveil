@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show PlatformInt64;
 import '../l10n/l10n.dart';
+import 'design/design.dart';
 import 'archive_files.dart';
 import 'attachment_files.dart';
 import 'export_secret.dart';
@@ -142,135 +143,175 @@ class _ArchivesPageState extends State<ArchivesPage>
   });
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.l10n.archiveTitle)),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(context.l10n.archiveExplanation),
-        const SizedBox(height: 12),
-        Text(context.l10n.archiveKeepApart),
-        CheckboxListTile(
-          value: _confirmed,
-          onChanged: _busy
-              ? null
-              : (v) => setState(() => _confirmed = v ?? false),
-          title: Text(context.l10n.archiveConsent),
-          controlAffinity: ListTileControlAffinity.leading,
-        ),
-        FilledButton.icon(
-          key: const Key('export-archive'),
-          onPressed: !_busy && _confirmed ? _export : null,
-          icon: const Icon(Icons.save_alt),
-          label: Text(context.l10n.archiveSave),
-        ),
-        if (_secret.pending)
-          OutlinedButton(
-            onPressed: () => setState(
-              () => _secret.reveal(WidgetsBinding.instance.lifecycleState),
-            ),
-            child: Text(context.l10n.archiveRevealKey),
-          ),
-        if (_secret.visible case final secret?) ...[
-          const SizedBox(height: 16),
-          Text(context.l10n.archiveKeyNote),
-          SelectableText(secret, key: const Key('archive-export-secret')),
-          TextButton(
-            onPressed: () => setState(_secret.clear),
-            child: Text(context.l10n.archiveKeySaved),
-          ),
-        ],
-        const Divider(height: 40),
-        Text(
-          context.l10n.archiveImportTitle,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        Text(context.l10n.archiveImportNote),
-        const SizedBox(height: 12),
-        OutlinedButton(
-          onPressed: _busy ? null : _pick,
-          child: Text(
-            _encrypted == null
-                ? context.l10n.archiveChooseFile
-                : context.l10n.archiveFileChosen,
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          key: const Key('archive-import-secret'),
-          controller: _secretInput,
-          enabled: !_busy,
-          obscureText: true,
-          autocorrect: false,
-          enableSuggestions: false,
-          enableIMEPersonalizedLearning: false,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(labelText: context.l10n.archiveKeyLabel),
-        ),
-        const SizedBox(height: 12),
-        FilledButton(
-          key: const Key('import-archive'),
-          onPressed:
-              !_busy &&
-                  _encrypted != null &&
-                  _secretInput.text.trim().isNotEmpty
-              ? _import
-              : null,
-          child: Text(context.l10n.archiveImport),
-        ),
-        if (_busy) const LinearProgressIndicator(),
-        if (_error case final error?)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(error, key: const Key('archive-error')),
-          ),
-        if (_message case final message?)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(message, key: const Key('archive-result')),
-          ),
-        const Divider(height: 40),
-        Text(
-          context.l10n.archiveImportedTitle,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        if (_page?.entries.isEmpty ?? false) Text(context.l10n.archiveEmpty),
-        for (final e in _page?.entries ?? <ArchiveEntryView>[])
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _entryHeader(context.l10n, e),
-                    key: Key('archive-entry-${e.eventId}'),
-                  ),
-                  SelectableText(e.text),
-                  if (e.fileName != null)
-                    e.fileSize == null
-                        ? Text(context.l10n.archiveNoFileCopy)
-                        : TextButton.icon(
-                            onPressed: _busy ? null : () => _saveFile(e),
-                            icon: const Icon(Icons.download),
-                            label: Text(context.l10n.archiveSaveFileCopy),
-                          ),
-                ],
+  Widget build(BuildContext context) {
+    final c = ArveilColors.of(context);
+    final muted = ArveilType.secondary.copyWith(color: c.inkMuted);
+    return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.archiveTitle)),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: ListView(
+              padding: EdgeInsets.symmetric(
+                horizontal: WindowSize.of(context).margin + 8,
+                vertical: 16,
               ),
+              children: [
+                Text(context.l10n.archiveExplanation),
+                const SizedBox(height: 12),
+                Text(context.l10n.archiveKeepApart, style: muted),
+                CheckboxListTile(
+                  value: _confirmed,
+                  onChanged: _busy
+                      ? null
+                      : (v) => setState(() => _confirmed = v ?? false),
+                  title: Text(context.l10n.archiveConsent),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                FilledButton.icon(
+                  key: const Key('export-archive'),
+                  onPressed: !_busy && _confirmed ? _export : null,
+                  icon: const Icon(Icons.save_alt),
+                  label: Text(context.l10n.archiveSave),
+                ),
+                if (_secret.pending)
+                  OutlinedButton(
+                    onPressed: () => setState(
+                      () => _secret.reveal(
+                        WidgetsBinding.instance.lifecycleState,
+                      ),
+                    ),
+                    child: Text(context.l10n.archiveRevealKey),
+                  ),
+                if (_secret.visible case final secret?) ...[
+                  const SizedBox(height: 16),
+                  Text(context.l10n.archiveKeyNote),
+                  SelectableText(
+                    secret,
+                    key: const Key('archive-export-secret'),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(_secret.clear),
+                    child: Text(context.l10n.archiveKeySaved),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                SectionTitle(context.l10n.archiveImportTitle),
+                Text(context.l10n.archiveImportNote, style: muted),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: _busy ? null : _pick,
+                  child: Text(
+                    _encrypted == null
+                        ? context.l10n.archiveChooseFile
+                        : context.l10n.archiveFileChosen,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('archive-import-secret'),
+                  controller: _secretInput,
+                  enabled: !_busy,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.archiveKeyLabel,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  key: const Key('import-archive'),
+                  onPressed:
+                      !_busy &&
+                          _encrypted != null &&
+                          _secretInput.text.trim().isNotEmpty
+                      ? _import
+                      : null,
+                  child: Text(context.l10n.archiveImport),
+                ),
+                if (_busy) const LinearProgressIndicator(),
+                if (_error case final error?)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: StatusBanner(
+                      key: const Key('archive-error'),
+                      title: error,
+                      icon: Icons.error_outline,
+                      tone: BannerTone.error,
+                    ),
+                  ),
+                if (_message case final message?)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: StatusBanner(
+                      key: const Key('archive-result'),
+                      title: message,
+                      icon: Icons.check_circle_outline,
+                      tone: BannerTone.info,
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                SectionTitle(context.l10n.archiveImportedTitle),
+                if (_page?.entries.isEmpty ?? false)
+                  Text(context.l10n.archiveEmpty, style: muted),
+                for (final e in _page?.entries ?? <ArchiveEntryView>[])
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      border: Border.all(color: c.line),
+                      borderRadius: BorderRadius.circular(
+                        ArveilShape.buttonSmall,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _entryHeader(context.l10n, e),
+                            key: Key('archive-entry-${e.eventId}'),
+                            style: muted,
+                          ),
+                          SelectableText(e.text),
+                          if (e.fileName != null)
+                            e.fileSize == null
+                                ? Text(context.l10n.archiveNoFileCopy)
+                                : TextButton.icon(
+                                    onPressed: _busy
+                                        ? null
+                                        : () => _saveFile(e),
+                                    icon: const Icon(Icons.download),
+                                    label: Text(
+                                      context.l10n.archiveSaveFileCopy,
+                                    ),
+                                  ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (_page?.next case final next?)
+                  TextButton(
+                    onPressed: _busy ? null : () => _run(() => _load(next)),
+                    child: Text(context.l10n.archiveOlder),
+                  ),
+                TextButton(
+                  onPressed: _busy ? null : () => _run(() => _load()),
+                  child: Text(context.l10n.archiveBackToStart),
+                ),
+              ],
             ),
           ),
-        if (_page?.next case final next?)
-          TextButton(
-            onPressed: _busy ? null : () => _run(() => _load(next)),
-            child: Text(context.l10n.archiveOlder),
-          ),
-        TextButton(
-          onPressed: _busy ? null : () => _run(() => _load()),
-          child: Text(context.l10n.archiveBackToStart),
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// "Group · direction", plus the author the archive names, if any.

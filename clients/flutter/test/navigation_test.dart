@@ -118,7 +118,7 @@ void main() {
 
     await tester.tap(destination('Ajustes'));
     await tester.pumpAndSettle();
-    expect(find.text('Cerrar perfil'), findsOneWidget);
+    expect(find.text('Seguridad y recuperación'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

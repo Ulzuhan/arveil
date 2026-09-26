@@ -11,10 +11,14 @@ class RecoveryPanel extends StatefulWidget {
     required this.session,
     required this.files,
     this.export = false,
+    this.heading = true,
   });
   final ProfileSession session;
   final KitFiles files;
   final bool export;
+
+  /// Shows the panel's own title; off on a screen whose bar names it.
+  final bool heading;
 
   @override
   State<RecoveryPanel> createState() => _RecoveryPanelState();
@@ -111,11 +115,13 @@ class _RecoveryPanelState extends State<RecoveryPanel>
   Widget _export(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        context.l10n.kitTitle,
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      const SizedBox(height: 12),
+      if (widget.heading) ...[
+        Text(
+          context.l10n.kitTitle,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+      ],
       Text(context.l10n.kitExplanation),
       const SizedBox(height: 12),
       if (_exportedSecret.pending)

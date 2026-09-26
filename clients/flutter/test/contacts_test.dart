@@ -172,14 +172,12 @@ void main() {
       await tap(tester, find.byKey(const Key('save-contact')));
       expect(profile.savedNumber, isNull);
       expect(find.text('Sin verificar'), findsOneWidget);
-      expect(
-        tester
-            .widget<OutlinedButton>(find.byKey(const Key('verify-contact')))
-            .onPressed,
-        isNull,
-      );
+      // «No coinciden» warns and verifies nothing.
+      await tap(tester, find.byKey(const Key('contact-mismatch')));
+      expect(find.byKey(const Key('contact-mismatch-warning')), findsOneWidget);
+      expect(profile.savedNumber, isNull);
+      // «Coinciden» on a saved contact verifies it.
       await tap(tester, find.byKey(const Key('contact-compared')));
-      await tap(tester, find.byKey(const Key('verify-contact')));
       expect(profile.savedNumber, '12345 67890');
       expect(find.text('Verificado'), findsOneWidget);
       await tester.enterText(
