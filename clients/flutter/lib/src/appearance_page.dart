@@ -101,30 +101,44 @@ class AppearancePage extends StatelessWidget {
                     children: [
                       const Icon(Icons.text_decrease, size: 20),
                       Expanded(
-                        child: Slider(
-                          key: const Key('text-size'),
-                          min: 0,
-                          max: Appearance.textScales.length - 1.0,
-                          divisions: Appearance.textScales.length - 1,
-                          value: Appearance.textScales
-                              .indexOf(look.textScale)
-                              .toDouble(),
-                          label: l10n.textSizeValue(
-                            (look.textScale * 100).round(),
-                          ),
-                          semanticFormatterCallback: (value) =>
-                              l10n.textSizeValue(
-                                (Appearance.textScales[value.round()] * 100)
-                                    .round(),
+                        // A slider names itself with its value label, which
+                        // made a screen reader say the size twice and never
+                        // what it was the size of.
+                        child: MergeSemantics(
+                          child: Semantics(
+                            label: l10n.textSizeTitle,
+                            child: Slider(
+                              key: const Key('text-size'),
+                              min: 0,
+                              max: Appearance.textScales.length - 1.0,
+                              divisions: Appearance.textScales.length - 1,
+                              value: Appearance.textScales
+                                  .indexOf(look.textScale)
+                                  .toDouble(),
+                              semanticFormatterCallback: (value) =>
+                                  l10n.textSizeValue(
+                                    (Appearance.textScales[value.round()] * 100)
+                                        .round(),
+                                  ),
+                              onChanged: (value) => set(
+                                look.copyWith(
+                                  textScale:
+                                      Appearance.textScales[value.round()],
+                                ),
                               ),
-                          onChanged: (value) => set(
-                            look.copyWith(
-                              textScale: Appearance.textScales[value.round()],
                             ),
                           ),
                         ),
                       ),
                       const Icon(Icons.text_increase, size: 20),
+                      const SizedBox(width: 12),
+                      // The slider already says it.
+                      ExcludeSemantics(
+                        child: Text(
+                          l10n.textSizeValue((look.textScale * 100).round()),
+                          key: const Key('text-size-value'),
+                        ),
+                      ),
                     ],
                   ),
                   Text(

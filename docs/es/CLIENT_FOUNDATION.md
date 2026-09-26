@@ -894,9 +894,15 @@ oscuro.
 - **Objetivos táctiles.** Las pantallas principales de un móvil cumplen las
   pautas de Flutter de 48 dp y de elementos pulsables con etiqueta; para ello
   las muestras de acento y el campo del compositor pasan a medir 48 dp.
+- **Ajustes.** Cada fila es una parada propia con su título, su estado y su
+  acción, y el título de cada grupo es un encabezado aparte. Antes, un grupo
+  con una sola fila pulsable, como «Conexión», se leía como un único
+  encabezado pulsable. El control del tamaño del texto dice qué ajusta y su
+  valor una sola vez («Tamaño del texto, 100 %»); el valor también se ve junto
+  al control.
 
-Evidencia: `test/accessibility_test.dart`. La revisión manual con TalkBack y
-VoiceOver sigue pendiente en la [matriz de plataformas](PLATFORMS.md).
+Evidencia: `test/accessibility_test.dart`. La revisión con TalkBack está en la
+[matriz de plataformas](PLATFORMS.md); la de VoiceOver sigue pendiente.
 
 ## Diagnóstico sin secretos (25 de septiembre de 2026)
 

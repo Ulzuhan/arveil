@@ -466,3 +466,63 @@ lectura, y rechaza sin tocarlo un perfil de un esquema futuro. Sigue
 pendiente repetirlo a nivel de paquete (instalar `0.1.0+10`, llenarlo desde
 la app e instalar el candidato) en macOS y en el emulador Android, según
 [paquetes del cliente](CLIENT_RELEASES.md).
+
+## Actualización de paquete y revisión con TalkBack (26 de septiembre de 2026)
+
+Candidatos `0.1.0+14` para macOS y Android construidos y auditados en local,
+sin publicarlos, desde `main` en `0fa6f6f`, con la pila del rediseño ya
+fusionada.
+
+**Actualización desde `0.1.0+10` en Android.** Se usó un AVD nuevo (Android 15,
+`google_apis` arm64, emulador) y un relay local desechable. La app `0.1.0+10`
+se instaló desde su APK, se dio de alta con una invitación, guardó y verificó
+un contacto de prueba (un perfil del CLI), creó la conversación e intercambió
+dos mensajes. Después, `adb install -r` instaló `0.1.0+14`, firmada con la
+misma clave (versionCode 10 → 14). Resultado:
+
+- El perfil se abre con su identidad, el contacto sigue verificado y la
+  conversación conserva el historial.
+- Lo recibido antes de actualizar queda leído. Un mensaje que llega después
+  aparece como no leído, se marca leído al abrirlo y sigue así tras reiniciar.
+- Un mensaje enviado tras la actualización llega al contacto por el mismo
+  grupo MLS.
+- Lo recibido con `0.1.0+10` no tiene autor, porque esa versión no lo
+  guardaba. Se muestra sin nombre y se lee como «Un contacto», como pide el
+  diseño.
+- En un dispositivo en inglés la app arranca en inglés; `0.1.0+10` solo
+  estaba en español.
+
+**Actualización desde `0.1.0+10` en macOS.** Pendiente: requiere manejar la
+app en el Mac.
+
+**TalkBack.** Se usó TalkBack 15.0 en el mismo emulador, no en un Android
+físico. Los gestos se enviaron como toques reales por la consola del
+emulador y lo hablado se leyó del registro detallado de TalkBack. Se
+recorrieron la bienvenida, la apertura del perfil, la lista de chats, una
+conversación (lectura, escritura y envío), los contactos, los ajustes y la
+apariencia. El orden es lógico y cada elemento se anuncia con su nombre y
+su función. Las burbujas se leen como «Bob, 08:28: …», las pestañas como
+«Chats, pestaña 1 de 3», y en apariencia se anuncian los encabezados y la
+opción elegida. Hallazgos:
+
+1. Un grupo de ajustes con una sola fila pulsable, como «Conexión», se leía
+   como un único encabezado pulsable. Corregido en #100.
+2. El control del tamaño del texto decía «100 %, 100 %» sin nombrar qué
+   ajusta. Corregido en #100.
+3. Tras salir con «atrás» desde la primera pantalla y volver a abrir la app
+   en el mismo proceso, el perfil decía estar abierto en otra sesión. Ya
+   ocurría con `0.1.0+10`. Corregido en #99, comprobado con un candidato
+   local `0.1.0+15`: falló 2 de 2 veces con `0.1.0+14` y ninguna de 3 con el
+   arreglo.
+4. Los campos con `enableSuggestions: false`, incluido el compositor, hacen
+   que Flutter pida en Android una contraseña visible. Gboard muestra
+   entonces su teclado de contraseñas, TalkBack lo anuncia y el dictado por
+   voz puede desaparecer. Que el teclado no aprenda ya lo garantiza
+   `enableIMEPersonalizedLearning: false`. Queda por decidir si el
+   compositor recupera las sugerencias.
+5. Un mensaje que llega con la conversación abierta no se anuncia. El diseño
+   no lo pide; queda anotado.
+6. Al abrir una conversación, el foco va al primer elemento de la lista
+   («Hoy») y no a la cabecera. Es menor.
+
+Pendiente: TalkBack en un Android físico y VoiceOver en macOS.

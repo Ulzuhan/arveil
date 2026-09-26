@@ -447,3 +447,62 @@ identity, conversations, history and read marks, and refuses a profile from a
 future schema unchanged. Repeating it at package level (install `0.1.0+10`,
 fill it from the app, install the candidate) on macOS and the Android
 emulator is still pending, following [client packages](CLIENT_RELEASES.md).
+
+## Package upgrade and TalkBack review (September 26, 2026)
+
+`0.1.0+14` candidates for macOS and Android built and audited locally,
+without publishing them, from `main` at `0fa6f6f`, with the redesign stack
+already merged.
+
+**Upgrade from `0.1.0+10` on Android.** A new AVD (Android 15, `google_apis`
+arm64, emulator) and a disposable local relay were used. The `0.1.0+10` app
+was installed from its APK, enrolled with an invitation, saved and verified a
+test contact (a CLI profile), created the conversation and exchanged two
+messages. Then `adb install -r` installed `0.1.0+14`, signed with the same
+key (versionCode 10 → 14). Result:
+
+- The profile opens with its identity, the contact is still verified and the
+  conversation keeps its history.
+- What arrived before the update is read. A message that arrives after it
+  shows as unread, becomes read when opened and stays so after a restart.
+- A message sent after the update reaches the contact through the same MLS
+  group.
+- What was received with `0.1.0+10` has no author, because that version did
+  not store it. It shows without a name and reads as "A contact", as the
+  design asks.
+- On a device set to English the app starts in English; `0.1.0+10` was
+  Spanish only.
+
+**Upgrade from `0.1.0+10` on macOS.** Pending: it needs the app driven on
+the Mac.
+
+**TalkBack.** TalkBack 15.0 was used on the same emulator, not on a
+physical Android device. Gestures were sent as real touches through the
+emulator console, and what was spoken was read from TalkBack's verbose log.
+The walk covered the welcome screen, opening the profile, the chat list, a
+conversation (reading, typing and sending), contacts, settings and
+appearance. The order is logical and every element is announced with its
+name and role. Bubbles read as "Bob, 08:28: …", tabs as "Chats, Tab 1 of
+3", and appearance announces its headings and the chosen option. Findings:
+
+1. A settings group with a single tappable row, such as "Connection", read
+   as one tappable heading. Fixed in #100.
+2. The text size control said "100%, 100%" without naming what it sizes.
+   Fixed in #100.
+3. After leaving with Back from the first screen and opening the app again
+   in the same process, the profile said it was open in another session.
+   This already happened with `0.1.0+10`. Fixed in #99, checked with a local
+   `0.1.0+15` candidate: it failed 2 times out of 2 with `0.1.0+14` and
+   none out of 3 with the fix.
+4. Fields with `enableSuggestions: false`, the composer among them, make
+   Flutter ask Android for a visible password. Gboard then shows its password
+   keyboard, TalkBack announces it and voice typing may disappear.
+   `enableIMEPersonalizedLearning: false` already keeps the keyboard from
+   learning. Whether the composer gets suggestions back is still to be
+   decided.
+5. A message that arrives while the conversation is open is not announced.
+   The design does not ask for it; it is noted.
+6. Opening a conversation puts focus on the first list item ("Today") rather
+   than the header. This is minor.
+
+Pending: TalkBack on a physical Android device and VoiceOver on macOS.
