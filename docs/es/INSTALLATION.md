@@ -117,7 +117,16 @@ perfiles creados con el anterior backend Data Protection. Consulta las
    introduce los datos del servidor (relay) y luego la invitación. Si el relay es
    privado, el teléfono debe estar conectado a su red.
 
-**Actualizar:** abre el APK nuevo e instálalo sobre la app existente. Debe usar
+**Actualizar desde la app:** las builds con un canal configurado ofrecen
+**Ajustes → Actualizaciones** y un icono con el perfil cerrado. Pulsa **Buscar
+actualizaciones**, descarga el paquete verificado y elige **Instalar
+actualización**. Si Android pide permitir a Arveil instalar paquetes, activa
+ese permiso y vuelve para pulsar Instalar. Confirma el diálogo de Android.
+La comprobación al abrir la app es opcional y está desactivada inicialmente;
+no instala por su cuenta. Véase [actualizaciones y privacidad](CLIENT_UPDATES.md).
+
+**Actualización manual:** en builds anteriores o sin canal configurado, abre
+el APK nuevo e instálalo sobre la app existente. Debe usar
 el mismo certificado y un número de compilación superior. **No desinstales ni
 borres el almacenamiento para actualizar:** perderías el perfil y su clave.
 Un APK con otra firma, incluida la de depuración, no puede actualizar esta

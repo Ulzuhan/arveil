@@ -567,3 +567,32 @@ installation, physical Android installation/update and Doze/reconnect,
 VoiceOver, TalkBack on a physical device, or the three external-user
 evaluations required by M3b.5. The package upgrade from `0.1.0+10` is recorded
 in the previous section.
+
+## Android signed-updater acceptance — 2026-09-26 {#android-signed-updater-acceptance-2026-09-26}
+
+The private `update_installer_acceptance.dart` entry point was exercised on a
+new disposable Android 15 / API 35 ARM64 emulator. These were debug test APKs,
+builds 901 and 902, not distribution artifacts. The first created an actual
+SQLCipher profile with its key in Android Keystore. The second was installed
+through the app's `PackageInstaller` session and Android's visible **Update**
+confirmation, without `adb install -r`, uninstalling or clearing app storage.
+After relaunch, `ARVEIL_TEST_UPDATER_OK:profile:after` confirmed the same stored
+identity and retained platform key.
+
+Before accepting the update, the same installation also passed:
+
+- Missing installation permission: refused before creating an installation.
+- User cancellation at the Android prompt: returned `cancelled`, retaining
+  build 901 and its profile.
+- A candidate signed with a different disposable certificate: returned
+  `package`, removed the candidate and retained build 901.
+- A same-certificate candidate with a deliberately wrong expected SHA-256:
+  refused and removed before installation.
+
+The automated checks cover signed manifests, an independent OpenSSL signature
+fixture, expiry, persistent sequence protection, opt-in/daily checking,
+download integrity, HTTPS redirects, and native package identity/certificate
+validation. See [the update protocol and release procedure](CLIENT_UPDATES.md).
+This emulator result does not establish physical-phone, device-policy or
+background-install behavior. No silent/background installation is implemented;
+macOS integration and automatic update-key rotation remain pending.

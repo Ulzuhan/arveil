@@ -55,12 +55,14 @@ nav:
   - Overview: README.md
   - Install and try: INSTALLATION.md
   - Build client packages: CLIENT_RELEASES.md
+  - Signed Android updates: CLIENT_UPDATES.md
   - Architecture: ARCHITECTURE.md
   - Threat model: THREAT_MODEL.md
   - Protocol: PROTOCOL.md
   - Domain model: DOMAIN_MODEL.md
   - Running a realm: OPERATIONS.md
   - Podman staging: PODMAN.md
+  - Cloudflare Tunnel: TUNNEL.md
   - Phase 0 plan: PHASE0.md
   - Phase 1 plan: PHASE1.md
   - Phase 2 plan: PHASE2.md
@@ -94,6 +96,8 @@ nav:
       - Índice: es/README.md
       - Instalar y probar: es/INSTALLATION.md
       - Crear paquetes del cliente: es/CLIENT_RELEASES.md
+      - Actualizaciones Android firmadas: es/CLIENT_UPDATES.md
+      - Acceso mediante túnel: es/TUNNEL.md
       - Arquitectura: es/ARCHITECTURE.md
       - Base de aplicación implementada: es/CLIENT_FOUNDATION.md
       - Plan Flutter (fase 3b): es/PHASE3B.md

@@ -122,6 +122,186 @@ abstract class AppLocalizations {
   /// **'Ajustes'**
   String get navSettings;
 
+  /// No description provided for @updatesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualizaciones'**
+  String get updatesTitle;
+
+  /// No description provided for @updatesExplanation.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualiza Arveil conservando tu perfil y tus conversaciones. Android te pedirá confirmar la instalación; no desinstales la app.'**
+  String get updatesExplanation;
+
+  /// No description provided for @updatesPrivacy.
+  ///
+  /// In es, this message translates to:
+  /// **'La consulta contacta con el servicio de actualizaciones de esta distribución, independientemente de tu servidor. Ese servicio ve tu IP y la hora, pero no recibe tu identidad ni tu versión instalada. La descarga contacta con el alojamiento del APK.'**
+  String get updatesPrivacy;
+
+  /// No description provided for @updatesUnconfigured.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta compilación no tiene un canal de actualizaciones configurado. Obtén la siguiente versión del distribuidor que te proporcionó la app e instálala encima de esta.'**
+  String get updatesUnconfigured;
+
+  /// No description provided for @updatesAutomatic.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar al abrir la app'**
+  String get updatesAutomatic;
+
+  /// No description provided for @updatesAutomaticDetail.
+  ///
+  /// In es, this message translates to:
+  /// **'Como máximo una vez al día. Desactivado inicialmente; nunca instala por su cuenta.'**
+  String get updatesAutomaticDetail;
+
+  /// No description provided for @updatesCheck.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar actualizaciones'**
+  String get updatesCheck;
+
+  /// No description provided for @updatesChecking.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscando actualizaciones…'**
+  String get updatesChecking;
+
+  /// No description provided for @updatesCurrent.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay una versión más reciente en este canal.'**
+  String get updatesCurrent;
+
+  /// No description provided for @updatesAvailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Hay una actualización de Arveil'**
+  String get updatesAvailable;
+
+  /// No description provided for @updatesView.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver'**
+  String get updatesView;
+
+  /// No description provided for @updatesIncompatible.
+  ///
+  /// In es, this message translates to:
+  /// **'Hay una versión más reciente, pero no es compatible con este dispositivo.'**
+  String get updatesIncompatible;
+
+  /// No description provided for @updatesVersion.
+  ///
+  /// In es, this message translates to:
+  /// **'Arveil {version}'**
+  String updatesVersion(String version);
+
+  /// No description provided for @updatesSize.
+  ///
+  /// In es, this message translates to:
+  /// **'Descarga: {size} MB'**
+  String updatesSize(String size);
+
+  /// No description provided for @updatesDownload.
+  ///
+  /// In es, this message translates to:
+  /// **'Descargar actualización'**
+  String get updatesDownload;
+
+  /// No description provided for @updatesDownloading.
+  ///
+  /// In es, this message translates to:
+  /// **'Descargando y verificando…'**
+  String get updatesDownloading;
+
+  /// No description provided for @updatesCancelDownload.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelar descarga'**
+  String get updatesCancelDownload;
+
+  /// No description provided for @updatesReady.
+  ///
+  /// In es, this message translates to:
+  /// **'Descarga verificada. Puedes continuar con el instalador de Android.'**
+  String get updatesReady;
+
+  /// No description provided for @updatesPermission.
+  ///
+  /// In es, this message translates to:
+  /// **'Android necesita que permitas a Arveil instalar actualizaciones. Activa el permiso, vuelve aquí y pulsa Instalar.'**
+  String get updatesPermission;
+
+  /// No description provided for @updatesAllowInstall.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir permiso de Android'**
+  String get updatesAllowInstall;
+
+  /// No description provided for @updatesInstall.
+  ///
+  /// In es, this message translates to:
+  /// **'Instalar actualización'**
+  String get updatesInstall;
+
+  /// No description provided for @updatesInstalling.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirma la actualización en Android. La app se cerrará al actualizarse.'**
+  String get updatesInstalling;
+
+  /// No description provided for @updatesCancelled.
+  ///
+  /// In es, this message translates to:
+  /// **'Instalación cancelada. Puedes volver a intentarlo.'**
+  String get updatesCancelled;
+
+  /// No description provided for @updatesErrorSignature.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo verificar el anuncio de actualización. No se ha aceptado ningún paquete.'**
+  String get updatesErrorSignature;
+
+  /// No description provided for @updatesErrorExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'El anuncio de actualización ha caducado. Comprueba la fecha del dispositivo y vuelve a buscar actualizaciones.'**
+  String get updatesErrorExpired;
+
+  /// No description provided for @updatesErrorRollback.
+  ///
+  /// In es, this message translates to:
+  /// **'El servicio devolvió un anuncio anterior o contradictorio. Se ha rechazado.'**
+  String get updatesErrorRollback;
+
+  /// No description provided for @updatesErrorState.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo leer o guardar el estado de seguridad del actualizador. Conserva los datos de la app y contacta con quien te la proporcionó.'**
+  String get updatesErrorState;
+
+  /// No description provided for @updatesErrorPackage.
+  ///
+  /// In es, this message translates to:
+  /// **'El paquete no coincide con la actualización esperada o con la firma de esta app. No se instalará.'**
+  String get updatesErrorPackage;
+
+  /// No description provided for @updatesErrorInstall.
+  ///
+  /// In es, this message translates to:
+  /// **'Android no pudo completar la actualización. Conserva la app instalada y vuelve a intentarlo.'**
+  String get updatesErrorInstall;
+
+  /// No description provided for @updatesErrorNetwork.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo completar la consulta o la descarga. Comprueba la conexión y el espacio disponible y vuelve a intentarlo.'**
+  String get updatesErrorNetwork;
+
   /// No description provided for @profileClose.
   ///
   /// In es, this message translates to:

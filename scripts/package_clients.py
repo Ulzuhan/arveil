@@ -16,6 +16,8 @@ import sys
 import tempfile
 import zipfile
 
+from client_updates import read_config
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "clients/flutter"
@@ -129,6 +131,7 @@ def build_environment(source):
 
 
 def package(args):
+    update_config = read_config(args.update_config) if args.update_config else None
     if args.platform == "macos" and (sys.platform != "darwin" or platform.machine() != "arm64"):
         raise ValueError("The macOS package requires an Apple silicon Mac.")
     dirty = bool(run(["git", "status", "--porcelain", "--untracked-files=normal"]).strip())
@@ -195,6 +198,10 @@ def package(args):
                    f"--build-number={number}", f"--split-debug-info={symbols}",
                    f"--dart-define=ARVEIL_VERSION={name}+{number}",
                    f"--dart-define=ARVEIL_REVISION={revision}"]
+        if update_config:
+            defines = scratch / "update-config.json"
+            private_json(defines, update_config)
+            command.append(f"--dart-define-from-file={defines}")
         if args.platform == "android":
             command += ["--target-platform=android-arm64"]
         log = private / f"{args.platform}-{number}.log"
@@ -210,6 +217,10 @@ def package(args):
         metadata = {"version": name, "build": number, "revision": revision,
                     "dirty_source": dirty, "platform": args.platform,
                     "architecture": "arm64", "experimental": True}
+        if update_config:
+            # These are public distribution settings embedded in the APK;
+            # the input file path, private key and realm settings never travel.
+            metadata["update_config"] = update_config
         stem = f"arveil-{name}-{number}"
         if args.platform == "macos":
             app = client / "build/macos/Build/Products/Release/arveil.app"
@@ -242,9 +253,10 @@ def package(args):
             if "native-code: 'arm64-v8a'" not in badging:
                 raise ValueError("Unexpected Android architecture.")
             minimum = re.search(r"(?:minSdkVersion|sdkVersion):'(\d+)'", badging)
-            if not minimum:
+            identifier = re.search(r"package: name='([^']+)'", badging)
+            if not minimum or not identifier:
                 raise ValueError("Cannot determine the APK minimum SDK; package withheld.")
-            metadata.update(minimum_sdk=int(minimum[1]),
+            metadata.update(minimum_sdk=int(minimum[1]), application_id=identifier[1],
                             certificate_sha256=fingerprint[1], signing="private release key")
         # Retain an unverified copy privately so audit failures can be diagnosed
         # without rebuilding. Only verified copies reach dist/clients.
@@ -273,6 +285,7 @@ def main():
     build.add_argument("platform", choices=["macos", "android"])
     build.add_argument("--flutter", default="flutter")
     build.add_argument("--signing-config", type=Path)
+    build.add_argument("--update-config", type=Path, help="Private JSON with public feed URL, update public key and channel")
     build.add_argument("--build-number", type=int)
     build.add_argument("--allow-dirty", action="store_true")
     build.set_defaults(action=package)

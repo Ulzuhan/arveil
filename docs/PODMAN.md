@@ -5,6 +5,11 @@ generated from `relay/packaging/arveil-staging.container.in` (Quadlet).
 Each image is built from a committed Git revision and reports it with
 `/arveil-relay -version`. This server is for disposable CLI and client testing.
 
+For optional public access without inbound router ports, see the separate
+[Cloudflare Tunnel recipe](TUNNEL.md). Personal deployment inputs and rendered
+configuration stay outside version control; the staging helper below does not
+automatically enable a tunnel.
+
 ## Deploy
 
 Local requirements: Python 3, Git and authenticated SSH. Acceptance also needs

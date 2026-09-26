@@ -14,6 +14,7 @@ import 'pairing_panel.dart';
 import 'profile_session.dart';
 import 'recovery_panel.dart';
 import 'rust/api/profile.dart';
+import 'updates/page.dart';
 
 /// What the profile is doing now and the last failure, in words.
 class SessionActivity extends StatelessWidget {
@@ -306,6 +307,15 @@ class SettingsPage extends StatelessWidget {
                         SettingsGroup(
                           title: l10n.settingsApp,
                           children: [
+                            if (UpdateScope.maybeOf(context)
+                                case final updates?)
+                              SettingsRow(
+                                key: const Key('open-updates'),
+                                icon: Icons.system_update_outlined,
+                                title: l10n.updatesTitle,
+                                attention: updates.available,
+                                onTap: () => openUpdates(context, updates),
+                              ),
                             if (AppearanceScope.maybeOf(context)
                                 case final appearance?)
                               SettingsRow(

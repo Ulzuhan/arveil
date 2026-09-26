@@ -1,6 +1,7 @@
 # ADR-010 — Distribution and updates outside the app stores
 
-- **Status:** proposed.
+- **Status:** accepted for Android; remaining platform integration proposed.
+- **Implementation:** the Android check/download/PackageInstaller path and offline manifest signer are implemented; see [Signed Android updates](../CLIENT_UPDATES.md) for the exact wire format, tests and limitations. macOS/Sparkle and automatic key rotation remain pending. No public feed or personal relay is configured by committing this code.
 - **Date:** 2026-09-26.
 - **Scope:** how people who are not developers get the Android and macOS apps and their updates while Arveil is not in Google Play or the App Store; how the app learns that an update exists; what that check reveals. Part of M3b.8 in the [Flutter plan](../PHASE3B.md) ("signed updates").
 
@@ -36,8 +37,8 @@ Three constraints shape any answer:
 
 | Platform | Phase | Mechanism |
 |---|---|---|
-| Android | Now, no code | Website download plus the install guide. Optionally [Obtainium](https://github.com/ImranR98/Obtainium) pointed at the GitHub repository with prereleases enabled and an asset filter for the APK; the OS still enforces the signing certificate |
-| Android | M3b.8 | In-app check (decisions 5–6); the verified APK is handed to the system installer through a `PackageInstaller` session, which needs the `REQUEST_INSTALL_PACKAGES` permission and the user's confirmation |
+| Android | Older clients | Website download plus the install guide, installed over the existing app once to gain the updater. Optionally [Obtainium](https://github.com/ImranR98/Obtainium) pointed at the GitHub repository with prereleases enabled and an asset filter for the APK; the OS still enforces the signing certificate |
+| Android | Implemented | In-app check (decisions 5–6); the verified APK is handed to the system installer through a `PackageInstaller` session, which needs the `REQUEST_INSTALL_PACKAGES` permission and the user's confirmation |
 | macOS | M3b.8 | [Sparkle](https://sparkle-project.org/) with an appcast generated from the same manifest and signed with the same update key (Sparkle's EdDSA is Ed25519). Until then: download and replace the app, as the install guide says |
 | Windows, Linux | M3b.6 | Decided with those builds; the manifest format already has room for them |
 | iOS | M3b.7 | There is no practical distribution outside Apple's (App Store or TestFlight); out of this decision |
@@ -70,7 +71,7 @@ A second long-lived secret appears: the update key, with its backup and its rota
 
 Publishing a release gains a step: generate `clients.json`, sign it, publish it to the website and attach it to the release. The website's download section is generated from the same manifest, so the page and the app can never disagree about the current version.
 
-The Android app needs `REQUEST_INSTALL_PACKAGES` from M3b.8, a permission that some stores and device policies treat with suspicion; documented in the platform record when it is added.
+The Android updater uses `REQUEST_INSTALL_PACKAGES`, a permission that some stores and device policies restrict; the system-installation test is recorded in the [platform record](../PLATFORMS.md#android-signed-updater-acceptance-2026-09-26). This implementation does not close the other M3b.8 requirements.
 
 Opt-in means most installations will not check for updates on their own. The install guide and the release notes remain the main channel until the check proves itself.
 

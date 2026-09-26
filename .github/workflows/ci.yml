@@ -21,6 +21,15 @@ jobs:
       - run: mkdocs build --strict
       - name: Release publication regression checks
         run: python3 -m unittest discover -s scripts -p 'test_release_publication.py'
+      - name: Signed update and private tunnel configuration checks
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_client_updates.py'
+          python3 -m unittest discover -s scripts -p 'test_prepare_tunnel.py'
+      - name: Real proxy address-attribution checks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx-core
+          ARVEIL_NGINX=/usr/sbin/nginx python3 -m unittest discover -s scripts -p 'test_tunnel_proxy.py'
 
   relay:
     name: Go relay
@@ -146,7 +155,7 @@ jobs:
           python3 scripts/package_clients.py init-android-key
           python3 scripts/package_clients.py build android --signing-config .local/signing/android-signing.json
       # Packaging builds in an isolated source tree; prepare this checkout too.
-      - name: Android attachment input tests
+      - name: Android attachment and update package tests
         working-directory: clients/flutter
         run: |
           flutter build apk --debug --config-only
