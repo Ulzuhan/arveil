@@ -230,6 +230,14 @@ def android_details(badging, build, updates):
         raise ValueError("An APK with an update feed must request REQUEST_INSTALL_PACKAGES; package withheld.")
     if not updates and "android.permission.REQUEST_INSTALL_PACKAGES" in badging:
         raise ValueError("An APK without an update feed must not request REQUEST_INSTALL_PACKAGES; package withheld.")
+    # The camera reads QR codes (ADR-012); the camera plugin also declares
+    # what video recording needs, which the app never does. Those must stay
+    # removed, and the camera must not keep the app off devices without one.
+    for extra in ("RECORD_AUDIO", "WRITE_EXTERNAL_STORAGE"):
+        if f"android.permission.{extra}" in badging:
+            raise ValueError(f"The APK must not request {extra}; package withheld.")
+    if re.search(r"^uses-feature: name='android\.hardware\.camera", badging, re.M):
+        raise ValueError("The APK must not require a camera; package withheld.")
     identifier = re.search(r"^package: name='([^']+)'", badging, re.M)
     if not identifier:
         raise ValueError("Cannot determine the APK package name; package withheld.")

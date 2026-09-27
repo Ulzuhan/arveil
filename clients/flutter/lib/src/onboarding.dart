@@ -138,7 +138,7 @@ class _ProfilePageState extends State<ProfilePage> {
               _inviteFound = true;
             }
             return;
-          case CardView_Other():
+          case CardView_Link() || CardView_Other():
             _otherCard = true;
             return;
         }

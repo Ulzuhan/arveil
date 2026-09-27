@@ -892,19 +892,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairingServerDetailsCopied => 'Server details copied.';
 
   @override
-  String get pairingAdminCompare =>
-      'Compare this code with the new device\'s and enter it there to finish.';
-
-  @override
-  String get pairingAuthorizationIssued =>
-      'The authorization has been issued. Closing this comparison does not revoke it. If you do not recognize the request, revoke that device from the CLI.';
-
-  @override
-  String get pairingCloseComparison => 'Close comparison';
-
-  @override
   String get pairingPasteOwnCode =>
-      'Only paste the code of a device of yours that you have in front of you. This step issues its authorization.';
+      'Paste only the code of a device of yours that is in front of you. You will compare the number before authorizing it.';
 
   @override
   String get pairingCodeLabel => 'Link code';
@@ -913,7 +902,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairingCodeInvalid => 'Paste the complete link code.';
 
   @override
-  String get pairingAuthorize => 'Authorize and compare';
+  String get pairingAuthorize => 'Compare the number';
 
   @override
   String get pairingKeepOpen =>
@@ -1871,4 +1860,135 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enrollRelayHint => 'https://arveil.kaicorplabs.com/join#…';
+
+  @override
+  String get pairingLinkExplanation =>
+      'On the device that holds your identity, open Settings › Link another device. It shows a code: scan it or paste its link here. Linking keeps your identity; it does not copy earlier history.';
+
+  @override
+  String get pairingScan => 'Scan the code';
+
+  @override
+  String get pairingLinkLabel => 'Link from the other device';
+
+  @override
+  String get pairingUseLink => 'Use this link';
+
+  @override
+  String get pairingLinkInvalid => 'Paste the link your other device shows.';
+
+  @override
+  String get pairingOlderDevice => 'My other device has an older version';
+
+  @override
+  String get pairingNewerFlow => 'Back to scanning or pasting a link';
+
+  @override
+  String get pairingJoining => 'Waiting for your other device…';
+
+  @override
+  String get pairingJoinCompare => 'Both devices show this number:';
+
+  @override
+  String get pairingJoinConfirmThere =>
+      'If it matches your other device, confirm there. This device finishes on its own.';
+
+  @override
+  String get pairingLinkInterrupted =>
+      'Linking was interrupted. Cancel it and scan the code again.';
+
+  @override
+  String get pairingOfferExplanation =>
+      'Show a code on this screen. On the new device, choose “Link with my other device” and scan it, or open it as a link. Nothing is authorized until you confirm here.';
+
+  @override
+  String get pairingShowCode => 'Show code';
+
+  @override
+  String get pairingOfferHelp =>
+      'Scan this code with the new device. If it has no camera, send it the link over a private channel.';
+
+  @override
+  String get pairingQrLabel => 'QR code to link a device';
+
+  @override
+  String get pairingCopyLink => 'Copy link';
+
+  @override
+  String get pairingLinkCopied =>
+      'Link copied. Whoever opens it can ask to be linked, but only you authorize it here.';
+
+  @override
+  String get pairingOfferWaiting => 'Waiting for the new device…';
+
+  @override
+  String get pairingOfferInterrupted =>
+      'The wait stopped, but the code stays valid until it expires.';
+
+  @override
+  String get pairingOfferClose => 'Close the code';
+
+  @override
+  String pairingAdminAsk(String name) {
+    return 'Link “$name”?';
+  }
+
+  @override
+  String get pairingAdminAskUnnamed => 'Link this device?';
+
+  @override
+  String get pairingAdminCompareNumber =>
+      'Check that the new device shows the same number:';
+
+  @override
+  String get pairingApprove => 'Link';
+
+  @override
+  String get pairingDecline => 'Decline';
+
+  @override
+  String get pairingApproveNote =>
+      'Linking signs an authorization for that device with your identity. If you do not recognise it or the number differs, decline it.';
+
+  @override
+  String get pairingLinkedDone =>
+      'Device linked. It finishes on its own in a few seconds.';
+
+  @override
+  String get pairingDeclinedDone => 'Declined. Nothing was signed.';
+
+  @override
+  String get pairingDone => 'Done';
+
+  @override
+  String get pairingOlderDeviceAdmin =>
+      'The new device shows a code (older version)';
+
+  @override
+  String get scanTitle => 'Scan code';
+
+  @override
+  String get scanHint => 'Point the camera at the code.';
+
+  @override
+  String get scanDenied =>
+      'Arveil may not use the camera. Paste the link instead, or allow it in the system settings.';
+
+  @override
+  String get scanUnavailable =>
+      'No camera is available. Paste the link instead.';
+
+  @override
+  String get scanPasteInstead => 'Paste the link';
+
+  @override
+  String get scanNotLink => 'That code is not for linking a device.';
+
+  @override
+  String get errorLinkJoin =>
+      'Linking did not finish: the code expired, it was declined on the other device, or another device answered first. Show a new code.';
+
+  @override
+  String get errorLinkExpired =>
+      'The code expired or is no longer available. Show a new one.';
 }

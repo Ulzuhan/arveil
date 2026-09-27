@@ -13,7 +13,9 @@ import 'widget_test.dart'
 
 const secret = 'TEST-ONLY-RECOVERY-SECRET';
 const sas = '123456';
+const linkText = 'https://arveil.kaicorplabs.com/link#fixture';
 PairingView pairing({String? comparison, bool expired = false}) => PairingView(
+  link: false,
   sessionId: Uint8List.fromList([1, 2, 3]),
   code: 'arveil-pair:v1:fixture',
   expiresAt: BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000 + 300),
@@ -128,6 +130,69 @@ class RecoveryProfile extends FakeProfile {
     waits++;
     await wait?.future;
   }
+
+  // ADR-012 §3, both sides.
+  int offers = 0;
+  final answers = <bool>[];
+  Completer<LinkRequestView>? asked;
+  final joins = <(String, bool)>[];
+  Completer<bool>? joined;
+  final progress = StreamController<ProgressView>.broadcast();
+
+  @override
+  Future<LinkOfferView> offerLink() async {
+    offers++;
+    return LinkOfferView(
+      pairId: Uint8List.fromList([7, 7]),
+      link: linkText,
+      expiresAt: BigInt.from(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600,
+      ),
+    );
+  }
+
+  @override
+  Future<LinkRequestView> awaitLinkRequest({required List<int> pairId}) =>
+      (asked ??= Completer<LinkRequestView>()).future;
+
+  @override
+  Future<void> answerLink({
+    required List<int> pairId,
+    required bool approve,
+  }) async {
+    answers.add(approve);
+  }
+
+  @override
+  Future<QrView?> qrCode({required String text}) async =>
+      QrView(width: 2, modules: Uint8List.fromList([1, 0, 0, 1]));
+
+  @override
+  Future<CardView> readCard({required String text}) async {
+    if (text == linkText) {
+      return CardView.link(server: 'wss://x', expiresAt: BigInt.zero);
+    }
+    throw CardProblem.notALink;
+  }
+
+  @override
+  Future<bool> joinLink({
+    required String text,
+    String? description,
+    required bool scanned,
+  }) async {
+    joins.add((text, scanned));
+    return (joined ??= Completer<bool>()).future;
+  }
+
+  @override
+  BigInt startWatching() => BigInt.one;
+
+  @override
+  Stream<ProgressView> watch({required BigInt generation}) => progress.stream;
+
+  @override
+  void stopWatching({required BigInt generation}) {}
 
   @override
   Future<bool> cancelPairing({required List<int> sessionId}) async {
@@ -371,7 +436,7 @@ void main() {
     await tester.tap(find.text('Cancelar vinculación'));
     await tester.pumpAndSettle();
     expect(profile.cancellations, 1);
-    expect(find.text('Generar código de vinculación'), findsOneWidget);
+    expect(find.byKey(const Key('pair-link')), findsOneWidget);
   });
   testWidgets('a valid code is listened for as soon as the profile opens', (
     tester,
@@ -392,7 +457,7 @@ void main() {
     expect(profile.cancellations, 1);
     expect(session.error, isNull);
     expect(session.busy, isFalse);
-    expect(find.text('Generar código de vinculación'), findsOneWidget);
+    expect(find.byKey(const Key('pair-link')), findsOneWidget);
   });
   testWidgets('a wait stopped while away resumes when the app comes back', (
     tester,
@@ -492,6 +557,8 @@ void main() {
       find.textContaining('Vincular con mi otro dispositivo'),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const Key('pair-older-admin')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('pair-copy-bootstrap')));
     await tester.pump();
     expect(copied.last, relay);
@@ -513,6 +580,8 @@ void main() {
         reason: 'relay refused (429): PRIVATE_DIAGNOSTIC',
       );
     final session = await open(tester, profile);
+    await tester.tap(find.byKey(const Key('pair-older')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Generar código de vinculación'));
     await tester.pumpAndSettle();
     expect(profile.begins, 1);
@@ -528,4 +597,128 @@ void main() {
     expect(session.busy, isFalse);
     expect(find.text('Generar código de vinculación'), findsOneWidget);
   });
+
+  testWidgets('the device with the root shows a code and signs only on a yes', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final profile = RecoveryProfile()..ready();
+    await open(tester, profile);
+    await openSetting(tester, 'open-pairing');
+    await tester.tap(find.byKey(const Key('link-offer')));
+    await tester.pump();
+    await tester.pump();
+    expect(profile.offers, 1);
+    expect(find.byKey(const Key('link-qr')), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Código QR para vincular un dispositivo'),
+      findsOneWidget,
+    );
+    expect(find.text('Esperando al dispositivo nuevo…'), findsOneWidget);
+    expect(profile.answers, isEmpty);
+    profile.asked!.complete(
+      LinkRequestView(
+        pairId: Uint8List.fromList([7, 7]),
+        verificationCode: '1234-5678',
+        description: 'Pixel 8 · Android 15',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('¿Vincular «Pixel 8 · Android 15»?'), findsOneWidget);
+    expect(find.text('1234-5678'), findsOneWidget);
+    expect(profile.answers, isEmpty, reason: 'nothing signed before a yes');
+    await tester.tap(find.byKey(const Key('link-approve')));
+    await tester.pumpAndSettle();
+    expect(profile.answers, [true]);
+    expect(find.textContaining('Dispositivo vinculado'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('a device the person does not recognise is declined', (
+    tester,
+  ) async {
+    final profile = RecoveryProfile()..ready();
+    await open(tester, profile);
+    await openSetting(tester, 'open-pairing');
+    await tester.tap(find.byKey(const Key('link-offer')));
+    await tester.pump();
+    await tester.pump();
+    profile.asked!.complete(
+      LinkRequestView(
+        pairId: Uint8List.fromList([7, 7]),
+        verificationCode: '1234-5678',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('¿Vincular este dispositivo?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('link-decline')));
+    await tester.pumpAndSettle();
+    expect(profile.answers, [false]);
+    expect(find.text('Rechazado. No se firmó nada.'), findsOneWidget);
+  });
+
+  testWidgets(
+    'a new device answers a pasted link and shows the number while it waits',
+    (tester) async {
+      final profile = RecoveryProfile()
+        ..state = const SetupView(
+          stage: SetupStage.new_,
+          administrator: false,
+          recoveryWarning: false,
+          kitStale: false,
+        );
+      const device = MethodChannel('io.github.ulzuhan.arveil/updates');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        device,
+        (call) async => {'model': 'Pixel 8', 'release': '15'},
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          device,
+          null,
+        ),
+      );
+      final session = await open(tester, profile);
+      await tester.tap(find.byKey(const Key('entry-pairing')));
+      await tester.pumpAndSettle();
+      // This test host has no camera: nothing offers to scan.
+      expect(find.byKey(const Key('pair-scan')), findsNothing);
+      await tester.enterText(find.byKey(const Key('pair-link')), 'hola');
+      await tester.tap(find.byKey(const Key('pair-use-link')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Pega el enlace que muestra tu otro dispositivo.'),
+        findsOneWidget,
+      );
+      expect(profile.joins, isEmpty);
+      await tester.enterText(find.byKey(const Key('pair-link')), linkText);
+      await tester.tap(find.byKey(const Key('pair-use-link')));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(profile.joins, [(linkText, false)]);
+      expect(find.text('Esperando a tu otro dispositivo…'), findsOneWidget);
+      profile.progress.add(
+        ProgressView(
+          sequence: BigInt.one,
+          operation: 'join-link',
+          kind: const ProgressKindView.pairingVerification(
+            sessionId: '0707',
+            verificationCode: '1234-5678',
+            confirmationRequired: true,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('pair-join-code')), findsOneWidget);
+      expect(find.text('1234-5678'), findsOneWidget);
+      profile.ready(admin: false);
+      profile.joined!.complete(true);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(session.joiningLink, isFalse);
+      expect(home, findsOneWidget);
+    },
+  );
 }

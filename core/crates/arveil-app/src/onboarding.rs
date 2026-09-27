@@ -22,6 +22,12 @@ use super::{
 use crate::ProfileConfig;
 use crate::carrier::Bootstrap;
 
+mod linking;
+pub use linking::{
+    JoinOutcome, LinkOffer, LinkRequest, answer_link, await_link_request, is_link_session,
+    join_link, offer_link,
+};
+
 pub fn status(config: &ProfileConfig) -> Result<super::OnboardingStatus, CliError> {
     let client = open_client(config)?;
     let enrollment = client.enrollment().map_err(client_error("enrollment"))?;
@@ -58,6 +64,7 @@ pub fn status(config: &ProfileConfig) -> Result<super::OnboardingStatus, CliErro
     let pairing = session
         .filter(|_| completion != Some(PairingCompletionPhase::Complete))
         .map(|s| super::PairingStatus {
+            link: is_link_session(&s.code),
             expired: completion.is_none() && now() >= s.expires_at,
             committing: completion.is_some(),
             verification_code: s.sas,
@@ -605,6 +612,11 @@ pub async fn await_pairing(
             expires_at: Some(session.expires_at),
         });
     }
+    if is_link_session(&session.code) {
+        return Err(CliError::Domain(
+            "this device answered a link; scan or open the code again".into(),
+        ));
+    }
     let code = PairingCode::parse(&session.code).map_err(domain_error("code"))?;
     code.check_realm(&bootstrap.realm_id)
         .map_err(domain_error("code"))?;
@@ -694,106 +706,23 @@ pub async fn await_pairing(
     Ok(verification)
 }
 
+/// Answer an `arveil-pair:v1` code a device older than ADR-012 shows. The
+/// number is returned for the person to compare; nothing is signed until
+/// they confirm it with [`answer_link`].
 pub async fn approve_pairing(
     config: &ProfileConfig,
     bootstrap: &str,
     code: &str,
 ) -> Result<PairingVerification, CliError> {
     let bootstrap = Bootstrap::parse(bootstrap)?;
-    let code = PairingCode::parse(code).map_err(domain_error("code"))?;
-    code.check_realm(&bootstrap.realm_id)
+    PairingCode::parse(code)
+        .map_err(domain_error("code"))?
+        .check_realm(&bootstrap.realm_id)
         .map_err(domain_error("code"))?;
-    let (client, admin, _) = enrolled(config)?;
-    let mut connection = Connection::open(
-        &bootstrap.url,
-        &bootstrap.realm_id,
-        &bootstrap.noise_public,
-        &admin.keys.transport_noise,
-        config.tls_ca(),
-    )
-    .await?;
-    let mut initiator = Initiator::new(
-        &admin.keys.transport_noise,
-        &code.static_public,
-        &prologue(&bootstrap.realm_id),
-    )
-    .map_err(protocol_error("pairing handshake"))?;
-    let message_1 = initiator
-        .write_message_1()
-        .map_err(protocol_error("pairing handshake"))?;
-    match put_slot(&mut connection, &code, SLOT_HANDSHAKE_1, message_1).await {
-        Ok(()) => {}
-        Err(error) if error.relay_code() == Some(409) => {
-            return Err(CliError::Domain(format!(
-                "{error}. Someone else already answered this code: abandon it and start a new pairing on the other device"
-            )));
-        }
-        Err(error) => return Err(error),
-    }
-    let message_2 = wait_for_slot(
-        &mut connection,
-        &code,
-        SLOT_HANDSHAKE_2,
-        "the new device",
-        Instant::now() + pair_timeout(config),
-        None,
-    )
-    .await?;
-    let (payload, mut transport) = initiator
-        .read_message_2_payload(&message_2)
-        .map_err(protocol_error("pairing handshake"))?;
-    let keys: PairedDeviceKeys =
-        ciborium::from_reader(payload.as_slice()).map_err(protocol_error("device keys"))?;
-    if keys.transport_noise_public_key != code.static_public {
-        return Err(CliError::Domain(
-            "the new device asked to sign a transport key other than the one it paired with".into(),
-        ));
-    }
-    let verification_code = pairing::short_authentication_string(transport.handshake_hash());
-    record_change(StateChange::PairingVerificationReady {
-        session_id: code.pair_id.clone(),
-        verification_code: verification_code.clone(),
-        expires_at: None,
-        confirmation_required: false,
-    });
-    let public = DevicePublicKeys::from(&keys);
-    let (credential, manifest) = client
-        .device_authorize(&public, now())
-        .map_err(client_error("authorize"))?;
-    let sequence = client
-        .manifest_state()
-        .map_err(client_error("manifest"))?
-        .map(|manifest| manifest.sequence)
-        .unwrap_or(0);
-    record_change(StateChange::DeviceAuthorizationSigned {
-        device_id: public.device_id,
-        manifest_sequence: sequence,
-    });
-    publish_authorization(&mut connection, &credential, &manifest, sequence).await?;
-    let root_public = client
-        .root_public()
-        .map_err(client_error("identity"))?
-        .ok_or_else(|| CliError::Domain("no identity".into()))?
-        .as_bytes()
-        .to_vec();
-    let grant = arveil_core::signed::canonical(&PairingGrant {
-        credential,
-        manifest,
-        root_public,
-    })
-    .map_err(protocol_error("grant"))?;
-    let sealed = transport
-        .seal(&grant)
-        .map_err(protocol_error("pairing channel"))?;
-    put_slot(&mut connection, &code, SLOT_GRANT, sealed).await?;
-    record_change(StateChange::PairingGrantSent {
-        session_id: code.pair_id.clone(),
-        verification_code: verification_code.clone(),
-    });
-    connection.close().await;
+    let request = linking::request_from_code(config, code).await?;
     Ok(PairingVerification {
-        session_id: code.pair_id,
-        verification_code,
+        session_id: request.pair_id,
+        verification_code: request.verification_code,
         expires_at: None,
     })
 }
@@ -824,10 +753,11 @@ pub async fn confirm_pairing(
         ensure_not_expired(&client, &session)?;
     }
     let bootstrap = Bootstrap::parse(bootstrap)?;
-    PairingCode::parse(&session.code)
-        .map_err(domain_error("code"))?
-        .check_realm(&bootstrap.realm_id)
-        .map_err(domain_error("code"))?;
+    if linking::session_realm(&session.code)? != bootstrap.realm_id {
+        return Err(CliError::Domain(
+            "the pairing session names another realm".into(),
+        ));
+    }
     let phase = client
         .pairing_completion_begin(session_id)
         .map_err(client_error("pairing"))?

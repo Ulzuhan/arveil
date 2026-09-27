@@ -1,5 +1,22 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- The camera reads QR codes to link a device or add a contact
+         (ADR-012). It is asked for only after "Scan" is tapped, and a device
+         without one pastes instead, so it is not a requirement. The camera
+         plugin also declares audio and storage for video recording, which
+         this app never does: they are removed. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera.any"
+        android:required="false" tools:replace="android:required"/>
+    <!-- The CAMERA permission would otherwise imply these as required. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus"
+        android:required="false"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:node="remove"/>
     <!-- REQUEST_INSTALL_PACKAGES comes from src/updateFeed, only into builds
          with an update feed. -->
     <!-- The profile is an encrypted database and its key is held by the

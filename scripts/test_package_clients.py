@@ -51,6 +51,14 @@ class PublicationTests(unittest.TestCase):
             package.android_details(BADGING, 18, updates=True)
         with self.assertRaisesRegex(ValueError, "without an update feed must not request"):
             package.android_details(BADGING + INSTALLER, 18, updates=False)
+        # The camera is optional and the recording permissions stay removed.
+        camera = "uses-permission: name='android.permission.CAMERA'\nuses-feature-not-required: name='android.hardware.camera.any'\n"
+        self.assertEqual(package.android_details(BADGING + camera, 18, updates=False), facts)
+        for extra in ("RECORD_AUDIO", "WRITE_EXTERNAL_STORAGE"):
+            with self.assertRaisesRegex(ValueError, f"must not request {extra}"):
+                package.android_details(BADGING + f"uses-permission: name='android.permission.{extra}'\n", 18, updates=False)
+        with self.assertRaisesRegex(ValueError, "must not require a camera"):
+            package.android_details(BADGING + "uses-feature: name='android.hardware.camera.any'\n", 18, updates=False)
         # The updater announces BUILD.json's build; Android compares versionCode.
         with self.assertRaisesRegex(ValueError, "versionCode differs"):
             package.android_details(BADGING, 19, updates=False)

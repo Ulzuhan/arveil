@@ -45,6 +45,10 @@ dependencies:
   path_provider: ^2.1.6
   file_picker: 13.1.0
   crypto: ^3.0.7
+  # QR scanning on Android (ADR-012 §6): the official plugin over CameraX,
+  # only for the preview and the frames; the code is read in the Rust core.
+  # No ML Kit, nothing sent anywhere. The camera opens only after "Scan".
+  camera: ^0.12.1
 
 dev_dependencies:
   # Only the tests sign and check with it; the app verifies update signatures

@@ -74,10 +74,13 @@ Future<void> main() async {
       await linked.beginPairing(bootstrap: bootstrap);
       final pair = (await linked.setup()).pairing!;
       final waiting = linked.awaitPairing(bootstrap: bootstrap, session: pair);
-      final comparison = await admin.approvePairing(
+      final request = await admin.approvePairing(
         bootstrap: bootstrap,
         code: pair.code,
       );
+      // Nothing is signed until the number is confirmed here (ADR-012 §3).
+      await admin.answerLink(pairId: request.pairId, approve: true);
+      final comparison = request.verificationCode;
       await waiting;
       expect((await linked.setup()).pairing!.verificationCode, comparison);
       await expectLater(
@@ -99,6 +102,25 @@ Future<void> main() async {
       expect((await linked.setup()).stage, SetupStage.ready);
       expect((await linked.setup()).administrator, isFalse);
       await expectLater(linked.exportKit(), throwsA(isA<CommandError>()));
+
+      // ADR-012 §3: the device that holds the root shows a link; a new
+      // device that scanned it links once the person confirms on the root
+      // device, and nothing is signed before that.
+      final phone = await create();
+      final offer = await admin.offerLink();
+      final asking = admin.awaitLinkRequest(pairId: offer.pairId);
+      final joining = phone.joinLink(
+        text: offer.link,
+        description: 'Test phone',
+        scanned: true,
+      );
+      final asked = await asking;
+      expect(asked.description, 'Test phone');
+      expect((await phone.setup()).identityId, isNull);
+      await admin.answerLink(pairId: asked.pairId, approve: true);
+      expect(await joining, isTrue);
+      expect((await phone.setup()).identityId, identity);
+      expect((await phone.setup()).stage, SetupStage.ready);
 
       final kit = await admin.exportKit();
       expect(
@@ -132,7 +154,7 @@ Future<void> main() async {
         encrypted: kit.encrypted,
         secret: kit.secret,
       );
-      recovered = await reopen(2);
+      recovered = await reopen(3);
       await recovered.resumeRecovery();
       expect((await recovered.setup()).identityId, identity);
       expect((await recovered.setup()).stage, SetupStage.ready);

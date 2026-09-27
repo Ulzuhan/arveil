@@ -105,7 +105,8 @@ internal class UpdateInstaller(private val activity: Activity, messenger: Binary
             try {
                 when (call.method) {
                     "device" -> result.success(mapOf("build" to version(info()!!), "sdk" to Build.VERSION.SDK_INT,
-                        "applicationId" to activity.packageName, "arm64" to Build.SUPPORTED_ABIS.contains("arm64-v8a")))
+                        "applicationId" to activity.packageName, "arm64" to Build.SUPPORTED_ABIS.contains("arm64-v8a"),
+                        "model" to Build.MODEL, "manufacturer" to Build.MANUFACTURER, "release" to Build.VERSION.RELEASE))
                     "allowed" -> result.success(allowed())
                     "permission" -> {
                         activity.startActivity(if (Build.VERSION.SDK_INT >= 26)

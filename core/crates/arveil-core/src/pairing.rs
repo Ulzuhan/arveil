@@ -150,6 +150,28 @@ pub struct PairingGrant {
     pub root_public: Vec<u8>,
 }
 
+/// What the new device says in message 1 of a link (ADR-012 §3): the keys
+/// it wants signed and how it describes itself. The description is shown on
+/// the device that authorizes, never trusted.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LinkHello {
+    pub keys: PairedDeviceKeys,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// The longest description a new device may give.
+pub const MAX_DESCRIPTION_BYTES: usize = 64;
+
+/// What the device that holds the root answers in the last slot of a link,
+/// sealed in the pairing channel: the grant once the person confirmed on its
+/// screen, or a refusal, so the new device stops waiting at once.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum LinkAnswer {
+    Granted(PairingGrant),
+    Declined,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,6 +195,69 @@ mod tests {
             PairingCode::parse("arveil-route:v1:aa"),
             Err(PairingError::NotACode)
         ));
+    }
+
+    /// ADR-012 §3 reverses the roles: the device that holds the root answers
+    /// with a one-time key shown in its QR, and the new device speaks first,
+    /// stating its keys. Both still show the same number, and someone who
+    /// answers with a photograph of the QR shows another one.
+    #[test]
+    fn a_reversed_link_carries_the_keys_first_and_agrees_on_the_number() {
+        let new_device = StaticKeypair::generate().unwrap();
+        let one_time = StaticKeypair::generate().unwrap();
+        let p = prologue(&[7; 32]);
+        let hello = LinkHello {
+            keys: PairedDeviceKeys {
+                device_id: vec![1; 16],
+                mls_signature_public_key: vec![2; 32],
+                transport_noise_public_key: new_device.public.clone(),
+                envelope_hpke_public_key: vec![3; 32],
+            },
+            description: Some("Pixel 8 · Android 15".into()),
+        };
+        let payload = crate::signed::canonical(&hello).unwrap();
+
+        let mut i = Initiator::new(&new_device, &one_time.public, &p).unwrap();
+        let msg1 = i.write_message_1_payload(&payload).unwrap();
+        let mut r = Responder::new(&one_time, &p).unwrap();
+        let (remote, said) = r.read_message_1_payload(&msg1).unwrap();
+        assert_eq!(remote, new_device.public);
+        let heard: LinkHello = ciborium::from_reader(said.as_slice()).unwrap();
+        assert_eq!(heard, hello);
+        let (msg2, mut r_transport) = r.write_message_2().unwrap();
+        let mut i_transport = i.read_message_2(&msg2).unwrap();
+        let sas = short_authentication_string(r_transport.handshake_hash());
+        assert_eq!(
+            sas,
+            short_authentication_string(i_transport.handshake_hash())
+        );
+
+        let answer = LinkAnswer::Declined;
+        let sealed = r_transport
+            .seal(&crate::signed::canonical(&answer).unwrap())
+            .unwrap();
+        let opened: LinkAnswer =
+            ciborium::from_reader(i_transport.open(&sealed).unwrap().as_slice()).unwrap();
+        assert_eq!(opened, answer);
+
+        // Someone else answering the same QR is another transcript.
+        let thief = StaticKeypair::generate().unwrap();
+        let mut i2 = Initiator::new(&thief, &one_time.public, &p).unwrap();
+        let msg1b = i2.write_message_1_payload(&payload).unwrap();
+        let mut r2 = Responder::new(&one_time, &p).unwrap();
+        let (remote2, _) = r2.read_message_1_payload(&msg1b).unwrap();
+        assert_ne!(
+            remote2, new_device.public,
+            "the keys it claims are not its own"
+        );
+        let (msg2b, r2_transport) = r2.write_message_2().unwrap();
+        let other =
+            short_authentication_string(i2.read_message_2(&msg2b).unwrap().handshake_hash());
+        assert_ne!(other, sas);
+        assert_eq!(
+            other,
+            short_authentication_string(r2_transport.handshake_hash())
+        );
     }
 
     /// Both ends of one handshake show the same number; a third device that
