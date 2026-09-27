@@ -814,10 +814,16 @@ Evidencia:
 - **Ajustes por secciones.** Tu identidad (si este dispositivo administra o
   está vinculado, y tu ruta), Seguridad y recuperación (kit de identidad,
   dispositivos, vincular otro dispositivo e historial cifrado), Conexión
-  (claves para grupos nuevos) y Aplicación (licencias), y al final «Cerrar
-  perfil». Cada fila dice su estado: el kit sin guardar, desactualizado o la
-  fecha en que se guardó, con aspecto de aviso cuando requiere atención, y la
-  última consulta de claves.
+  (claves para grupos nuevos) y Aplicación (actualizaciones, apariencia,
+  diagnóstico y «Acerca de Arveil»), y al final «Cerrar perfil». Cada fila
+  dice su estado: el kit sin guardar, desactualizado o la fecha en que se
+  guardó, con aspecto de aviso cuando requiere atención, y la última consulta
+  de claves.
+- **Acerca de Arveil.** La versión, quién la hace (KaiCorp Labs) y enlaces a
+  la web, a la política de privacidad en el idioma de quien lee y al código
+  fuente, que se abren en el navegador (o se copian si no lo hay), además de
+  las licencias de código abierto que exigen las bibliotecas y tipografías.
+  También se abre desde la bienvenida, antes de que exista una identidad.
 - **Pantallas propias.** El kit, la vinculación y las claves se abren en su
   propia pantalla con barra, y la actividad y los errores del perfil se
   muestran allí. «Guardar kit» en el aviso de la lista abre directamente la

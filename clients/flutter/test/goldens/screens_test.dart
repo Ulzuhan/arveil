@@ -237,6 +237,12 @@ void main() {
       await snap('phone_start_$mode');
     });
 
+    testWidgets('phone about, $mode', (tester) async {
+      await show(tester, phone, brightness, FakeProfile());
+      await tap(tester, find.byKey(const Key('welcome-about')));
+      await snap('phone_about_$mode');
+    });
+
     testWidgets('phone chats, conversation, contacts and settings, $mode', (
       tester,
     ) async {

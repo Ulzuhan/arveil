@@ -791,7 +791,27 @@
   "identityAdministrator": "Este dispositivo administra tus dispositivos",
   "identityLinked": "Dispositivo vinculado",
   "shareMyRouteHelp": "Para que otras personas puedan añadirte",
-  "licenses": "Licencias",
+  "licenses": "Licencias de código abierto",
+  "licensesHelp": "Los avisos de las bibliotecas y tipografías que usa Arveil",
+  "aboutTitle": "Acerca de Arveil",
+  "aboutBody": "Mensajería cifrada de extremo a extremo: tus mensajes pasan por el servidor de quien te invitó, que no puede leerlos. Sin cuentas, sin publicidad y sin analítica.",
+  "aboutVersion": "Versión {version}",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutLocalBuild": "Compilación local",
+  "aboutMadeBy": "Hecho por KaiCorp Labs",
+  "aboutWebsite": "Web de Arveil",
+  "privacyPolicy": "Política de privacidad",
+  "privacyPolicyHelp": "Qué se guarda, dónde y cómo borrarlo",
+  "aboutSource": "Código fuente",
+  "aboutSourceHelp": "Código abierto con licencia Apache 2.0",
+  "aboutLegalese": "© 2026 KaiCorp Labs · Licencia Apache 2.0",
+  "linkCopied": "No se pudo abrir el navegador: se ha copiado el enlace",
   "safetyNumberTitle": "Número de seguridad",
   "numbersMatch": "Coinciden",
   "numbersDiffer": "No coinciden",

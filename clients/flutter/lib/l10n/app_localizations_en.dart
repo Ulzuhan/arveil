@@ -1562,7 +1562,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareMyRouteHelp => 'So other people can add you';
 
   @override
-  String get licenses => 'Licences';
+  String get licenses => 'Open-source licences';
+
+  @override
+  String get licensesHelp =>
+      'The notices of the libraries and typefaces Arveil uses';
+
+  @override
+  String get aboutTitle => 'About Arveil';
+
+  @override
+  String get aboutBody =>
+      'End-to-end encrypted messaging: your messages go through the server of whoever invited you, which cannot read them. No accounts, no advertising and no analytics.';
+
+  @override
+  String aboutVersion(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get aboutLocalBuild => 'Local build';
+
+  @override
+  String get aboutMadeBy => 'Made by KaiCorp Labs';
+
+  @override
+  String get aboutWebsite => 'Arveil website';
+
+  @override
+  String get privacyPolicy => 'Privacy policy';
+
+  @override
+  String get privacyPolicyHelp => 'What is kept, where, and how to delete it';
+
+  @override
+  String get aboutSource => 'Source code';
+
+  @override
+  String get aboutSourceHelp => 'Open source under the Apache License 2.0';
+
+  @override
+  String get aboutLegalese => '© 2026 KaiCorp Labs · Apache License 2.0';
+
+  @override
+  String get linkCopied => 'Could not open the browser: the link was copied';
 
   @override
   String get safetyNumberTitle => 'Safety number';

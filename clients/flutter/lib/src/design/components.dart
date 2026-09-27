@@ -606,6 +606,7 @@ class SettingsRow extends StatelessWidget {
     this.subtitle,
     this.value,
     this.attention = false,
+    this.external = false,
     this.onTap,
   });
   final IconData icon;
@@ -617,6 +618,9 @@ class SettingsRow extends StatelessWidget {
 
   /// Draws the row as something that needs the user, such as a kit to save.
   final bool attention;
+
+  /// Opens a page in the browser rather than a screen of the app.
+  final bool external;
   final VoidCallback? onTap;
 
   @override
@@ -625,7 +629,11 @@ class SettingsRow extends StatelessWidget {
     // One stop for a screen reader: title, state and action together, never
     // merged with the group's heading or a neighbouring row.
     return MergeSemantics(
-      child: Semantics(button: onTap != null, child: _row(c)),
+      child: Semantics(
+        button: onTap != null && !external,
+        link: onTap != null && external,
+        child: _row(c),
+      ),
     );
   }
 
@@ -687,7 +695,9 @@ class SettingsRow extends StatelessWidget {
                 ),
               if (onTap != null && value == null)
                 ExcludeSemantics(
-                  child: Icon(Icons.chevron_right, size: 20, color: c.inkMuted),
+                  child: external
+                      ? Icon(Icons.open_in_new, size: 18, color: c.inkMuted)
+                      : Icon(Icons.chevron_right, size: 20, color: c.inkMuted),
                 ),
             ],
           ),

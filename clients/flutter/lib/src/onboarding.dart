@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import 'about_page.dart';
 import 'design/design.dart';
 import 'home_shell.dart';
 import 'kit_files.dart';
@@ -178,6 +179,12 @@ class _ProfilePageState extends State<ProfilePage> {
     appBar: AppBar(
       backgroundColor: Colors.transparent,
       actions: [
+        IconButton(
+          key: const Key('welcome-about'),
+          onPressed: () => openAbout(context),
+          tooltip: context.l10n.aboutTitle,
+          icon: const Icon(Icons.info_outline),
+        ),
         if (UpdateScope.maybeOf(context) case final updates?)
           IconButton(
             key: const Key('welcome-updates'),

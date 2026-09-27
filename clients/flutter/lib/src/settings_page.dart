@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import 'about_page.dart';
 import 'appearance.dart';
 import 'appearance_page.dart';
 import 'archives_page.dart';
@@ -348,12 +349,11 @@ class SettingsPage extends StatelessWidget {
                               ),
                             ),
                             SettingsRow(
-                              icon: Icons.description_outlined,
-                              title: l10n.licenses,
-                              onTap: () => showLicensePage(
-                                context: context,
-                                applicationName: l10n.appTitle,
-                              ),
+                              key: const Key('open-about'),
+                              icon: Icons.info_outline,
+                              title: l10n.aboutTitle,
+                              subtitle: l10n.privacyPolicy,
+                              onTap: () => openAbout(context),
                             ),
                           ],
                         ),

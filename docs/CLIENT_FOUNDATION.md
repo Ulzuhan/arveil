@@ -754,9 +754,15 @@ Evidence:
 - **Settings in sections.** Your identity (whether this device manages or is
   linked, and your route), Security and recovery (identity kit, devices,
   linking another device and encrypted history), Connection (keys for new
-  groups) and App (licences), then "Close profile". Each row states where it
-  stands: the kit not saved, out of date or the date it was saved, drawn as a
-  notice when it needs attention, and the last key check.
+  groups) and App (updates, appearance, diagnostics and "About Arveil"), then
+  "Close profile". Each row states where it stands: the kit not saved, out of
+  date or the date it was saved, drawn as a notice when it needs attention,
+  and the last key check.
+- **About Arveil.** The version, who makes it (KaiCorp Labs), and links to
+  the website, the privacy policy in the reader's language and the source
+  code, which open in the browser (or are copied when there is none), plus
+  the open-source licences the libraries and typefaces require. The welcome
+  screen opens it too, before any identity exists.
 - **Screens of their own.** The kit, linking and keys open on their own
   screen with a bar, showing the profile's activity and errors there. "Save
   kit" in the list's reminder opens the kit screen directly. Devices and
