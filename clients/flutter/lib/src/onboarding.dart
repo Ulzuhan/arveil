@@ -4,6 +4,7 @@ import '../l10n/l10n.dart';
 import 'about_page.dart';
 import 'design/design.dart';
 import 'home_shell.dart';
+import 'incoming_links.dart';
 import 'kit_files.dart';
 import 'pairing_panel.dart';
 import 'profile_session.dart';
@@ -70,12 +71,58 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _offerKit = false;
   SetupStage? _lastStage;
 
+  /// A link to link this device, opened from outside (ADR-012 §5).
+  String? _pairingLink;
+
   @override
   void initState() {
     super.initState();
     // Registered before the builder below, so the offer is decided before
     // the rebuild that shows the main navigation.
     _session.addListener(_onSession);
+    incomingLinks.addListener(_onLink);
+  }
+
+  /// An invitation or a code to link this device, opened from outside,
+  /// fills the matching screen; the person still presses its button. A
+  /// contact card waits for the identity to be ready.
+  Future<void> _onLink() async {
+    final link = incomingLinks.pending;
+    final profile = _session.profile;
+    final setup = _session.setup;
+    if (link == null ||
+        profile == null ||
+        setup == null ||
+        setup.stage == SetupStage.ready) {
+      return;
+    }
+    final CardView card;
+    try {
+      card = await profile.readCard(text: link);
+    } catch (_) {
+      incomingLinks.take();
+      return;
+    }
+    if (!mounted || incomingLinks.pending != link) return;
+    switch (card) {
+      case CardView_Join():
+        incomingLinks.take();
+        _invite.clear();
+        _bootstrap.text = link;
+        setState(() {
+          _entry = Entry.invitation;
+          _serverDone = false;
+          _inviteFound = false;
+        });
+      case CardView_Link():
+        incomingLinks.take();
+        setState(() {
+          _entry = Entry.pairing;
+          _pairingLink = link;
+        });
+      case CardView_Contact() || CardView_Other():
+        break;
+    }
   }
 
   void _onSession() {
@@ -94,6 +141,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void dispose() {
     _session.removeListener(_onSession);
+    incomingLinks.removeListener(_onLink);
     _bootstrap.dispose();
     _invite.dispose();
     if (widget.session == null) _session.dispose();
@@ -108,6 +156,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _entry = null;
       _serverDone = false;
     });
+    await _onLink();
   }
 
   void _choose(Entry? entry) {
@@ -287,7 +336,11 @@ class _ProfilePageState extends State<ProfilePage> {
         _entry == Entry.pairing) {
       return [
         if (fresh && setup.pairing == null) _back(context),
-        PairingPanel(key: const Key('pair-new-device'), session: _session),
+        PairingPanel(
+          key: const Key('pair-new-device'),
+          session: _session,
+          initialLink: _pairingLink,
+        ),
       ];
     }
     if (_entry == Entry.restore) {

@@ -6,12 +6,15 @@ import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 import 'attachment_files.dart';
+import 'contact_cards.dart';
 import 'contacts_page.dart';
 import 'conversation_controller.dart';
 import 'conversations_page.dart';
 import 'design/design.dart';
+import 'incoming_links.dart';
 import 'kit_files.dart';
 import 'profile_session.dart';
+import 'rust/api/profile.dart';
 import 'settings_page.dart';
 
 enum HomeDestination { chats, contacts, settings }
@@ -91,6 +94,57 @@ class _HomeShellState extends State<HomeShell> {
   final _pagesKey = GlobalKey();
   var _destination = HomeDestination.chats;
   final _visited = {HomeDestination.chats};
+
+  @override
+  void initState() {
+    super.initState();
+    incomingLinks.addListener(_onLink);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onLink());
+  }
+
+  @override
+  void dispose() {
+    incomingLinks.removeListener(_onLink);
+    super.dispose();
+  }
+
+  /// A contact card opened from outside (ADR-012 §5): who it names, then the
+  /// person decides. Codes meant for a device without an identity say so.
+  Future<void> _onLink() async {
+    final link = incomingLinks.pending;
+    final profile = widget.session.profile;
+    final bootstrap = widget.session.setup?.bootstrap;
+    if (link == null || profile == null || bootstrap == null) return;
+    incomingLinks.take();
+    final CardView card;
+    try {
+      card = await profile.readCard(text: link);
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    switch (card) {
+      case CardView_Contact():
+        final group = await openContactCard(
+          context,
+          profile: profile,
+          bootstrap: bootstrap,
+          text: link,
+          scanned: false,
+        );
+        if (group != null) await _chat.refresh();
+      case CardView_Join():
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(context.l10n.linkJoinHasIdentity)),
+        );
+      case CardView_Link():
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(context.l10n.linkLinkHasIdentity)),
+        );
+      case CardView_Other():
+        break;
+    }
+  }
 
   void _go(HomeDestination destination) {
     if (destination == _destination) return;

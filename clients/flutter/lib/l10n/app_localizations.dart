@@ -3625,6 +3625,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Verificado en persona'**
   String get verifiedInPerson;
+
+  /// No description provided for @linkJoinHasIdentity.
+  ///
+  /// In es, this message translates to:
+  /// **'Este dispositivo ya tiene una identidad. La invitación es para una persona nueva.'**
+  String get linkJoinHasIdentity;
+
+  /// No description provided for @linkLinkHasIdentity.
+  ///
+  /// In es, this message translates to:
+  /// **'Este dispositivo ya tiene una identidad. Abre ese código en el dispositivo nuevo.'**
+  String get linkLinkHasIdentity;
 }
 
 class _AppLocalizationsDelegate

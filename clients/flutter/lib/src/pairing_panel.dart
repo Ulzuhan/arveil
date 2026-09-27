@@ -20,8 +20,12 @@ class PairingPanel extends StatefulWidget {
     required this.session,
     this.administration = false,
     this.heading = true,
+    this.initialLink,
   });
   final ProfileSession session;
+
+  /// A link opened from outside, placed in the field for the person to use.
+  final String? initialLink;
   final bool administration;
 
   /// Shows the panel's own title; off on a screen whose bar names it.
@@ -51,6 +55,7 @@ class _PairingPanelState extends State<PairingPanel> {
   void initState() {
     super.initState();
     _relay.text = session.setup?.bootstrap ?? '';
+    _link.text = widget.initialLink ?? '';
     _clock = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted &&
           (session.setup?.pairing != null || session.linkOffer != null)) {
@@ -95,6 +100,14 @@ class _PairingPanelState extends State<PairingPanel> {
     ScaffoldMessenger.maybeOf(
       context,
     )?.showSnackBar(SnackBar(content: Text(done)));
+  }
+
+  @override
+  void didUpdateWidget(PairingPanel old) {
+    super.didUpdateWidget(old);
+    if (widget.initialLink != null && widget.initialLink != old.initialLink) {
+      _link.text = widget.initialLink!;
+    }
   }
 
   @override

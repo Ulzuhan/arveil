@@ -2155,4 +2155,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get verifiedInPerson => 'Verified in person';
+
+  @override
+  String get linkJoinHasIdentity =>
+      'This device already has an identity. The invitation is for a new person.';
+
+  @override
+  String get linkLinkHasIdentity =>
+      'This device already has an identity. Open that code on the new device.';
 }
