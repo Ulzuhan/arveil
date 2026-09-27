@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `by_activity`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `shown`, `view`, `watch_with`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `by_activity`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `read_card`, `shown`, `view`, `watch_with`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -150,6 +150,9 @@ abstract class Profile implements RustOpaqueInterface {
 
   Future<List<RoutePreviewView>> previewRoutes({required List<String> routes});
 
+  /// Draw text as a QR code (error correction M).
+  Future<QrView?> qrCode({required String text});
+
   Future<String> queueAttachment({
     required String groupId,
     required String name,
@@ -160,6 +163,10 @@ abstract class Profile implements RustOpaqueInterface {
     required String groupId,
     required String text,
   });
+
+  /// Read the one Arveil link, QR text or payload in a pasted message.
+  /// Nothing is fetched: the link is only read.
+  Future<CardView> readCard({required String text});
 
   Future<ContactView> renameContact({
     required String identityId,
@@ -193,6 +200,14 @@ abstract class Profile implements RustOpaqueInterface {
     required String route,
     required String name,
     String? safetyNumber,
+  });
+
+  /// Every QR text in one greyscale camera frame (a Y plane).
+  Future<List<String>> scanFrame({
+    required int width,
+    required int height,
+    required int rowStride,
+    required List<int> luma,
   });
 
   /// Text messages of one conversation containing `text`, newest first,
@@ -409,6 +424,35 @@ class AttachmentView {
           state == other.state &&
           transferred == other.transferred &&
           total == other.total;
+}
+
+/// Why a text is not a card the app can use.
+enum CardProblem {
+  notALink,
+  tooLarge,
+  damaged,
+  newerVersion,
+
+  /// The link names one kind of page and carries another kind of code.
+  wrongKind,
+
+  /// The message holds two different codes.
+  ambiguous,
+}
+
+@freezed
+sealed class CardView with _$CardView {
+  const CardView._();
+
+  /// Server details and a single-use invitation, as the enrollment form
+  /// already takes them.
+  const factory CardView.join({
+    required String bootstrap,
+    required String invitation,
+  }) = CardView_Join;
+
+  /// A code meant for another screen: `kind` is `link` or `contact`.
+  const factory CardView.other({required String kind}) = CardView_Other;
 }
 
 /// A committed mutation may carry a later failure. Retry publication with sync,
@@ -1100,6 +1144,26 @@ class ProgressView {
           sequence == other.sequence &&
           operation == other.operation &&
           kind == other.kind;
+}
+
+/// A QR code's modules, row by row, one byte each: 1 dark, 0 light. The
+/// quiet zone is the drawer's to add.
+class QrView {
+  final int width;
+  final Uint8List modules;
+
+  const QrView({required this.width, required this.modules});
+
+  @override
+  int get hashCode => width.hashCode ^ modules.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is QrView &&
+          runtimeType == other.runtimeType &&
+          width == other.width &&
+          modules == other.modules;
 }
 
 /// How far a conversation has been read on this device.

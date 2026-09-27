@@ -62,6 +62,10 @@ class _ProfilePageState extends State<ProfilePage> {
   /// The invitation came in the same message as the server details.
   bool _inviteFound = false;
 
+  /// Why the pasted text is not an invitation link, when it looked like one.
+  CardProblem? _cardProblem;
+  bool _otherCard = false;
+
   /// An identity just became ready here without a current kit.
   bool _offerKit = false;
   SetupStage? _lastStage;
@@ -116,8 +120,35 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   /// Keeps only the server details in their field, and fills an empty
-  /// invitation from the same message.
-  void _split() {
+  /// invitation from the same message. An invitation link (ADR-012) gives
+  /// both at once; the older strings are still found by their shape.
+  Future<void> _split() async {
+    _cardProblem = null;
+    _otherCard = false;
+    final text = _bootstrap.text;
+    final profile = _session.profile;
+    if (profile != null && !text.contains('arveil-bootstrap:v0:')) {
+      try {
+        final card = await profile.readCard(text: text);
+        switch (card) {
+          case CardView_Join(:final bootstrap, :final invitation):
+            _bootstrap.text = bootstrap;
+            if (_invite.text.trim().isEmpty) {
+              _invite.text = invitation;
+              _inviteFound = true;
+            }
+            return;
+          case CardView_Other():
+            _otherCard = true;
+            return;
+        }
+      } on CardProblem catch (problem) {
+        // Plain text is not a link; anything else says what went wrong.
+        if (problem != CardProblem.notALink) _cardProblem = problem;
+      } catch (_) {
+        // A reader that failed leaves the older shapes to be looked for.
+      }
+    }
     final found = splitInvitation(_bootstrap.text);
     if (found.bootstrap case final bootstrap?) _bootstrap.text = bootstrap;
     if (found.invite case final invite? when _invite.text.trim().isEmpty) {
@@ -126,14 +157,19 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _nextStep() {
-    _split();
-    if (!(_serverForm.currentState?.validate() ?? false)) return;
+  Future<void> _nextStep() async {
+    await _split();
+    if (!mounted) return;
+    if (!(_serverForm.currentState?.validate() ?? false)) {
+      setState(() {});
+      return;
+    }
     setState(() => _serverDone = true);
   }
 
   Future<void> _enroll() async {
-    _split();
+    await _split();
+    if (!mounted) return;
     if (!(_form.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
     final success = await _session.enroll(
@@ -400,12 +436,20 @@ class _ProfilePageState extends State<ProfilePage> {
     maxLines: 4,
     decoration: InputDecoration(
       labelText: l10n.enrollRelayLabel,
-      hintText: 'arveil-bootstrap:v0:…',
+      hintText: l10n.enrollRelayHint,
     ),
-    validator: (value) =>
-        (value ?? '').trim().startsWith('arveil-bootstrap:v0:')
-        ? null
-        : l10n.enrollRelayInvalid,
+    validator: (value) {
+      if ((value ?? '').trim().startsWith('arveil-bootstrap:v0:')) return null;
+      if (_otherCard) return l10n.cardNotInvitation;
+      return switch (_cardProblem) {
+        CardProblem.newerVersion => l10n.cardNewerVersion,
+        CardProblem.ambiguous => l10n.cardAmbiguous,
+        CardProblem.wrongKind ||
+        CardProblem.damaged ||
+        CardProblem.tooLarge => l10n.cardDamaged,
+        CardProblem.notALink || null => l10n.enrollRelayInvalid,
+      };
+    },
   );
 
   TextFormField _inviteField(AppLocalizations l10n) => TextFormField(

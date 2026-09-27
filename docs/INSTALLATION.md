@@ -51,10 +51,20 @@ docker compose -f relay/compose.yaml logs --no-log-prefix arveil-relay
 docker compose -f relay/compose.yaml exec arveil-relay /arveil-relay invite -data-dir /data
 ```
 
-The `bootstrap:` line identifies the relay. Give it and the invitation to the
-intended client privately. The app's enrollment form asks for both. They can
-travel in one message: pasted whole into the server details, the app keeps the
-`arveil-bootstrap:` string and fills the invitation from the same text.
+`invite` prints the invitation token, then a `link:` line: one https link
+that carries the relay's details and the invitation together
+([ADR-012](adr/ADR-012-qr-codes-and-links.md)). On a terminal it also draws that
+link as a QR code. Give the link to the intended person privately; pasted into
+the app's enrollment form, or opened on a phone with the app installed, it
+fills both fields. The invitation travels after the `#`, which browsers never
+send to the web page, so it reaches no web server log.
+
+`-link-base` changes the page the link opens (default
+`https://arveil.kaicorplabs.com`), `-url` the endpoint it names (default: the
+first one the running relay advertises) and `-qr` whether the QR is drawn
+(`auto`, `always`, `never`). The older way still works: the `bootstrap:` line of
+the log and the `invite:` token, sent together in one message and pasted whole
+into the server details.
 
 **This default is local-only.** The published port and advertised address use
 loopback. On a phone, `127.0.0.1` means the phone itself. Before testing from

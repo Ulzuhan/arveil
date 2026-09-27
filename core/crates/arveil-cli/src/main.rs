@@ -15,6 +15,7 @@ const USAGE: &str = "usage:
   arveil version
   arveil identity new --data-dir <dir>
   arveil enroll --data-dir <dir> <bootstrap> <invite-token-hex>
+  arveil enroll --data-dir <dir> <join-link>
   arveil probe [--data-dir <dir>] <bootstrap>
   arveil status --data-dir <dir>
   arveil device request --data-dir <dir>
@@ -85,6 +86,10 @@ fn main() -> ExitCode {
             },
             ["enroll", bootstrap, invite] => match data_dir {
                 Some(d) => commands::enroll(&d, bootstrap, invite),
+                None => usage(),
+            },
+            ["enroll", link] => match data_dir {
+                Some(d) => commands::enroll_link(&d, link),
                 None => usage(),
             },
             ["probe", bootstrap] => commands::probe(data_dir.as_deref(), bootstrap),

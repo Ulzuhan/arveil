@@ -227,6 +227,40 @@ pub enum ProfileError {
     Io { path: String, reason: String },
 }
 
+/// What an Arveil link, QR code or pasted payload carries (ADR-012).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CardView {
+    /// Server details and a single-use invitation, as the enrollment form
+    /// already takes them.
+    Join {
+        bootstrap: String,
+        invitation: String,
+    },
+    /// A code meant for another screen: `kind` is `link` or `contact`.
+    Other { kind: String },
+}
+
+/// Why a text is not a card the app can use.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CardProblem {
+    NotALink,
+    TooLarge,
+    Damaged,
+    NewerVersion,
+    /// The link names one kind of page and carries another kind of code.
+    WrongKind,
+    /// The message holds two different codes.
+    Ambiguous,
+}
+
+/// A QR code's modules, row by row, one byte each: 1 dark, 0 light. The
+/// quiet zone is the drawer's to add.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QrView {
+    pub width: u32,
+    pub modules: Vec<u8>,
+}
+
 /// Why a command failed, in the category the application layer assigned.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandError {
@@ -485,6 +519,31 @@ pub fn open_unencrypted_profile(dir: String) -> Result<Profile, ProfileError> {
 }
 
 impl Profile {
+    /// Read the one Arveil link, QR text or payload in a pasted message.
+    /// Nothing is fetched: the link is only read.
+    pub fn read_card(&self, text: String) -> Result<CardView, CardProblem> {
+        read_card(&text)
+    }
+
+    /// Draw text as a QR code (error correction M).
+    pub fn qr_code(&self, text: String) -> Option<QrView> {
+        arveil_app::qr::encode(&text).map(|m| QrView {
+            width: m.width,
+            modules: m.dark.into_iter().map(u8::from).collect(),
+        })
+    }
+
+    /// Every QR text in one greyscale camera frame (a Y plane).
+    pub fn scan_frame(
+        &self,
+        width: u32,
+        height: u32,
+        row_stride: u32,
+        luma: Vec<u8>,
+    ) -> Vec<String> {
+        arveil_app::qr::decode(width, height, row_stride, &luma)
+    }
+
     /// Stop admitting work, wait for what is running and release the
     /// profile. Idempotent, and every later call fails instead of quietly
     /// opening it again.
@@ -1471,6 +1530,25 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::SearchHistory => "search-history",
         Operation::MarkRead => "mark-read",
         Operation::QueryArchived => "query-archived",
+    }
+}
+
+fn read_card(text: &str) -> Result<CardView, CardProblem> {
+    use arveil_app::links::{Card, LinkError};
+    match Card::find(text) {
+        Ok(Card::Join { realm, invitation }) => Ok(CardView::Join {
+            bootstrap: realm.bootstrap(),
+            invitation: hex(&invitation),
+        }),
+        Ok(other) => Ok(CardView::Other {
+            kind: other.kind().to_string(),
+        }),
+        Err(LinkError::NotALink) => Err(CardProblem::NotALink),
+        Err(LinkError::TooLarge) => Err(CardProblem::TooLarge),
+        Err(LinkError::Damaged(_)) => Err(CardProblem::Damaged),
+        Err(LinkError::NewerVersion) => Err(CardProblem::NewerVersion),
+        Err(LinkError::KindMismatch { .. }) => Err(CardProblem::WrongKind),
+        Err(LinkError::Ambiguous) => Err(CardProblem::Ambiguous),
     }
 }
 

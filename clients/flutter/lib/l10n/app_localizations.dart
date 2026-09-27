@@ -431,7 +431,7 @@ abstract class AppLocalizations {
   /// No description provided for @enrollBody.
   ///
   /// In es, this message translates to:
-  /// **'Pide al administrador los datos del servidor y una invitación. Si te llegaron en un mismo mensaje, pégalo entero: la app encuentra cada cosa. Tu identidad se crea en este dispositivo al continuar.'**
+  /// **'Pide al administrador tu enlace de invitación, o los datos del servidor y una invitación. Pega el enlace o el mensaje entero: la app encuentra cada cosa. Tu identidad se crea en este dispositivo al continuar.'**
   String get enrollBody;
 
   /// No description provided for @setupRedeeming.
@@ -467,13 +467,13 @@ abstract class AppLocalizations {
   /// No description provided for @enrollRelayLabel.
   ///
   /// In es, this message translates to:
-  /// **'Datos del servidor'**
+  /// **'Enlace de invitación o datos del servidor'**
   String get enrollRelayLabel;
 
   /// No description provided for @enrollRelayInvalid.
   ///
   /// In es, this message translates to:
-  /// **'Pega los datos completos del servidor.'**
+  /// **'Pega el enlace de invitación o los datos completos del servidor.'**
   String get enrollRelayInvalid;
 
   /// No description provided for @enrollInviteLabel.
@@ -3097,6 +3097,36 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cerrar la búsqueda'**
   String get closeSearch;
+
+  /// No description provided for @cardNotInvitation.
+  ///
+  /// In es, this message translates to:
+  /// **'Este código no es una invitación: es para vincular un dispositivo o para añadir un contacto.'**
+  String get cardNotInvitation;
+
+  /// No description provided for @cardNewerVersion.
+  ///
+  /// In es, this message translates to:
+  /// **'Este enlace es de una versión más nueva de Arveil. Actualiza la app y vuelve a abrirlo.'**
+  String get cardNewerVersion;
+
+  /// No description provided for @cardAmbiguous.
+  ///
+  /// In es, this message translates to:
+  /// **'El mensaje tiene dos códigos distintos. Pega solo uno.'**
+  String get cardAmbiguous;
+
+  /// No description provided for @cardDamaged.
+  ///
+  /// In es, this message translates to:
+  /// **'El enlace está incompleto o dañado. Pide que te lo vuelvan a enviar.'**
+  String get cardDamaged;
+
+  /// No description provided for @enrollRelayHint.
+  ///
+  /// In es, this message translates to:
+  /// **'https://arveil.kaicorplabs.com/join#…'**
+  String get enrollRelayHint;
 }
 
 class _AppLocalizationsDelegate

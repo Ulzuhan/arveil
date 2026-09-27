@@ -153,7 +153,7 @@ void main() {
       await tester.tap(find.byKey(const Key('enroll-next')));
       await tester.pumpAndSettle();
       expect(
-        find.text('Pega los datos completos del servidor.'),
+        find.text('Pega el enlace de invitación o los datos completos del servidor.'),
         findsOneWidget,
       );
       await tester.enterText(find.byKey(const Key('bootstrap')), relay);

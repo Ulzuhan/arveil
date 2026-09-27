@@ -38,6 +38,8 @@ Either way, the first thing after starting is one invite per person:
 arveil-relay invite -data-dir /var/lib/arveil
 ```
 
+It prints the token (`invite:`) and a join link (`link:`) that carries the realm and the invitation together, drawn as a QR code on a terminal ([ADR-012](adr/ADR-012-qr-codes-and-links.md)). The link opens `https://arveil.kaicorplabs.com` unless `-link-base` names another page; the invitation sits in the URL fragment, which no web server receives. The relay records the endpoint it advertises first in `advertised-endpoint` inside the data directory, and `invite` names it unless `-url` says otherwise.
+
 ## How people reach it
 
 The channel is carrier independent ([ADR-008](adr/ADR-008-carrier-independent-transport.md)): the Noise handshake authenticates the realm and encrypts everything inside, so whatever carries it cannot read it. That is why a tunnel that terminates TLS is acceptable here and would not be elsewhere.

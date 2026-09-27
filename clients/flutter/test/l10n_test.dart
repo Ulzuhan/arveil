@@ -69,7 +69,7 @@ void main() {
     expect(find.text('Step 1 of 2'), findsOneWidget);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('Paste the complete server details.'), findsOneWidget);
+    expect(find.text('Paste the invitation link or the complete server details.'), findsOneWidget);
 
     // Code outside the widget tree follows the same language.
     expect(currentStrings.localeName, 'en');

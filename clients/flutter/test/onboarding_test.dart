@@ -28,6 +28,28 @@ class AdminProfile extends FakeProfile {
   }
 }
 
+const joinLink = 'https://arveil.kaicorplabs.com/join#payload';
+const contactLink = 'https://arveil.kaicorplabs.com/contact#payload';
+
+/// Reads links the way the core does, for the few shapes the tests use.
+class LinkProfile extends FakeProfile {
+  @override
+  Future<CardView> readCard({required String text}) async {
+    if (text.contains(joinLink) && text.contains(contactLink)) {
+      throw CardProblem.ambiguous;
+    }
+    if (text.contains(joinLink)) {
+      return CardView.join(bootstrap: relay, invitation: invitation);
+    }
+    if (text.contains(contactLink)) {
+      return const CardView.other(kind: 'contact');
+    }
+    if (text.endsWith('#newer')) throw CardProblem.newerVersion;
+    if (text.endsWith('#cut')) throw CardProblem.damaged;
+    throw CardProblem.notALink;
+  }
+}
+
 Future<void> openProfile(WidgetTester tester, FakeProfile profile) async {
   tester.view.physicalSize = phone;
   tester.view.devicePixelRatio = 1;
@@ -133,6 +155,42 @@ void main() {
     await tapText(tester, 'Crear identidad y unirme');
     expect(profile.enrollments, 1);
   });
+
+  testWidgets(
+    'an invitation link fills both steps, and other codes are named',
+    (tester) async {
+      final profile = LinkProfile();
+      await openProfile(tester, profile);
+      await tapText(tester, 'Unirme con una invitación');
+      await tester.enterText(
+        find.byKey(const Key('bootstrap')),
+        'Te invito a Arveil: $joinLink',
+      );
+      await tapText(tester, 'Siguiente');
+      expect(find.text('Paso 2 de 2'), findsOneWidget);
+      expect(find.textContaining('ya está rellenada'), findsOneWidget);
+      await tapText(tester, 'Crear identidad y unirme');
+      expect(profile.enrollments, 1);
+    },
+  );
+
+  for (final (text, message) in [
+    (contactLink, 'no es una invitación'),
+    ('$joinLink $contactLink', 'dos códigos distintos'),
+    ('https://arveil.kaicorplabs.com/join#newer', 'versión más nueva'),
+    ('https://arveil.kaicorplabs.com/join#cut', 'incompleto o dañado'),
+  ]) {
+    testWidgets('a pasted code that is not an invitation says why: $message', (
+      tester,
+    ) async {
+      await openProfile(tester, LinkProfile());
+      await tapText(tester, 'Unirme con una invitación');
+      await tester.enterText(find.byKey(const Key('bootstrap')), text);
+      await tapText(tester, 'Siguiente');
+      expect(find.text('Paso 1 de 2'), findsOneWidget);
+      expect(find.textContaining(message), findsOneWidget);
+    });
+  }
 
   testWidgets(
     'a new administration device is offered its kit, and later lands in chats',

@@ -10,11 +10,14 @@ repository.workspace = true
 [dependencies]
 arveil-core = { path = "../arveil-core" }
 ciborium = "0.2"
+data-encoding = "2.11"
 ed25519-dalek = "3"
 futures-util = "0.3.34"
 getrandom = "0.4.3"
 hex = "0.4.3"
 mls-rs = "0.56"
+qrcode = { version = "0.14", default-features = false }
+rqrr = { version = "0.11", default-features = false }
 rusqlite = { version = "0.40.2", features = ["bundled-sqlcipher-vendored-openssl"] }
 rustls = "0.23.43"
 rustls-pemfile = "2.2.0"

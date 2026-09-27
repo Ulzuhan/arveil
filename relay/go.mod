@@ -8,6 +8,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.3
 	golang.org/x/crypto v0.56.0
 	modernc.org/sqlite v1.58.0
+	rsc.io/qr v0.2.0
 )
 
 require (

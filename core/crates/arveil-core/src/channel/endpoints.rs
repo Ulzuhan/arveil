@@ -57,6 +57,19 @@ pub struct RealmEndpointList {
 
 pub use crate::signed::{SignedObject, signing_input};
 
+const REALM_ID_CONTEXT: &[u8] = b"arveil/realm-id/v1";
+
+/// A realm's id derives from its signing key (PROTOCOL §3), as the relay
+/// computes it. A client that learns the key computes the id instead of
+/// trusting a copied one (ADR-012 §1).
+pub fn realm_id(realm_signing_key: &VerifyingKey) -> Vec<u8> {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(REALM_ID_CONTEXT);
+    h.update(realm_signing_key.as_bytes());
+    h.finalize().to_vec()
+}
+
 /// Verify a signed list against the realm signing key and the expected
 /// realm id; `known_sequence` is the highest sequence accepted so far.
 pub fn verify(
@@ -153,5 +166,19 @@ mod tests {
         let last = tampered.len() - 1;
         tampered[last] ^= 1;
         assert!(verify(&tampered, &vk, &realm, None).is_err());
+    }
+
+    /// Same derivation as the Go relay (`internal/realm`).
+    #[test]
+    fn the_realm_id_matches_the_relay() {
+        let key = ed25519_dalek::SigningKey::from_bytes(&[9; 32]).verifying_key();
+        assert_eq!(
+            hex::encode(key.as_bytes()),
+            "fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618"
+        );
+        assert_eq!(
+            hex::encode(realm_id(&key)),
+            "c3d1bd7c0aa5300cecc6bc13e253e49fe06d9bcb8c2e676edb42b7baf77bb346"
+        );
     }
 }
