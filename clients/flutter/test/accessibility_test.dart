@@ -116,7 +116,7 @@ void main() {
     // A group whose only tappable row folded the heading into it read as
     // one pressable heading: «Conexión, Claves para grupos nuevos…».
     for (final (heading, row) in [
-      ('Tu identidad', 'share-route'),
+      ('Tu identidad', 'my-card'),
       ('Conexión', 'open-keys'),
     ]) {
       await reveal(tester, find.byKey(Key(row)));
@@ -130,7 +130,7 @@ void main() {
         isSemantics(isButton: true, hasTapAction: true, isHeader: false),
       );
       expect(node.label, isNot(contains(heading)));
-      if (row == 'share-route') {
+      if (row == 'my-card') {
         // The row above it says what this device is and does nothing.
         final identity = tester.getSemantics(
           find.text('Este dispositivo administra tus dispositivos'),

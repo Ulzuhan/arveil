@@ -43,8 +43,37 @@ class ChatProfile extends FakeProfile {
   /// The numbers the last creation was given, one per route.
   List<String?>? createdNumbers;
   @override
-  Future<List<ConversationView>> conversations() async =>
-      initialRows == null ? [row] : await initialRows!.future;
+  Future<List<ConversationView>> conversations() async => initialRows == null
+      ? [row, if (asking) request]
+      : await initialRows!.future;
+
+  /// Someone who is not a contact asks to talk (ADR-012 §4).
+  bool asking = false;
+  final answers = <(String, bool)>[];
+  ConversationView get request => ConversationView(
+    groupId: 'cafe',
+    creator: false,
+    peerDevices: 1,
+    peers: const [],
+    eventCount: 0,
+    unread: 0,
+    lastActivity: 1790000000,
+    request: const RequestView(
+      from: 'a1a1a1a1a1',
+      name: 'Ana',
+      card: 'link',
+      cardAt: 1790000000,
+    ),
+  );
+  @override
+  Future<void> answerRequest({
+    required String groupId,
+    required bool accept,
+  }) async {
+    answers.add((groupId, accept));
+    asking = false;
+  }
+
   final List<(String, int)> marks = [];
   @override
   Future<ReadMarkerView> markRead({
@@ -441,10 +470,13 @@ void main() {
     },
   );
   testWidgets(
-    'a conversation is created without comparing; route edits clear what was compared',
+    'a conversation is created without a box to tick; a changed route is prepared again',
     (tester) async {
       final profile = ChatProfile()..partialCreate = true;
       await open(tester, profile);
+      // Tall enough that the whole form is built at once.
+      tester.view.physicalSize = const Size(390, 3200);
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Volver a conversaciones'));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Nueva conversación'));
@@ -455,33 +487,12 @@ void main() {
       );
       await tester.tap(find.text('Preparar comparación'));
       await tester.pumpAndSettle();
-      // The number, the name field and the optional comparison come before
-      // the button, which does not wait for them.
-      await tester.ensureVisible(find.byKey(const Key('compared-identity')));
+      // Verifying is done later, from the conversation or in person
+      // (ADR-012 §4): nothing here asks to tick that it was compared.
+      expect(find.byType(CheckboxListTile), findsNothing);
+      await tester.ensureVisible(find.byKey(const Key('compare-later')));
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<CheckboxListTile>(
-              find.byKey(const Key('compared-identity')),
-            )
-            .value,
-        isFalse,
-      );
-      await tester.dragUntilVisible(
-        find.byKey(const Key('create-conversation')),
-        find.byType(ListView).last,
-        const Offset(0, -200),
-      );
-      expect(
-        tester
-            .widget<FilledButton>(find.byKey(const Key('create-conversation')))
-            .onPressed,
-        isNotNull,
-      );
       expect(find.byKey(const Key('compare-later')), findsOneWidget);
-      await tester.ensureVisible(find.byKey(const Key('compared-identity')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('compared-identity')));
       await tester.enterText(
         find.byKey(const Key('peer-routes')),
         'changed-route',
@@ -490,58 +501,39 @@ void main() {
       expect(find.byKey(const Key('create-conversation')), findsNothing);
       await tester.tap(find.text('Preparar comparación'));
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<CheckboxListTile>(
-              find.byKey(const Key('compared-identity')),
-            )
-            .value,
-        isFalse,
-      );
-      await tester.dragUntilVisible(
-        find.byKey(const Key('create-conversation')),
-        find.byType(ListView).last,
-        const Offset(0, -200),
-      );
+      await tester.ensureVisible(find.byKey(const Key('compare-later')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('create-conversation')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('peer-routes')), findsNothing);
       expect(find.textContaining('Conversación guardada.'), findsOneWidget);
       expect(profile.creates, 1);
-      expect(profile.createdNumbers, [null], reason: 'nobody compared');
+      expect(profile.createdNumbers, [null], reason: 'nobody is verified here');
       expect(find.textContaining('PRIVATE_DIAGNOSTIC'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
   );
 
-  testWidgets('only the people marked as compared are sent to be verified', (
+  testWidgets('a request waits apart and is answered from the chat list', (
     tester,
   ) async {
-    final profile = ChatProfile();
+    final profile = ChatProfile()..asking = true;
     await open(tester, profile);
     await tester.tap(find.byTooltip('Volver a conversaciones'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Nueva conversación'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('peer-routes')), 'route');
-    await tester.tap(find.text('Preparar comparación'));
-    await tester.pumpAndSettle();
-    await tester.dragUntilVisible(
-      find.byKey(const Key('compared-identity')),
-      find.byType(ListView).last,
-      const Offset(0, -200),
+    expect(find.text('Solicitudes'), findsOneWidget);
+    expect(find.text('Ana quiere hablar contigo'), findsOneWidget);
+    expect(find.textContaining('Usó tu enlace del'), findsOneWidget);
+    expect(
+      find.byKey(const Key('conversation-cafe')),
+      findsNothing,
+      reason: 'a request is not listed as a conversation',
     );
-    await tester.tap(find.byKey(const Key('compared-identity')));
-    await tester.pump();
-    await tester.dragUntilVisible(
-      find.byKey(const Key('create-conversation')),
-      find.byType(ListView).last,
-      const Offset(0, -200),
-    );
-    await tester.tap(find.byKey(const Key('create-conversation')));
+    await tester.tap(find.byKey(const Key('request-accept-cafe')));
     await tester.pumpAndSettle();
-    expect(profile.createdNumbers, ['12345 67890']);
+    expect(profile.answers, [('cafe', true)]);
+    expect(find.text('Solicitudes'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 

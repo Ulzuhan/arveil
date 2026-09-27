@@ -21,7 +21,7 @@ use rusqlite::Connection;
 use crate::storage::StorageError;
 
 /// The newest profile schema this build reads and writes.
-pub const PROFILE_SCHEMA_VERSION: u32 = 6;
+pub const PROFILE_SCHEMA_VERSION: u32 = 7;
 
 /// One step from `version - 1` to `version`.
 pub(crate) struct Migration {
@@ -53,6 +53,10 @@ const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 6,
         apply: archived_senders,
+    },
+    Migration {
+        version: 7,
+        apply: contact_cards,
     },
 ];
 
@@ -232,6 +236,48 @@ fn manifest_devices(conn: &Connection) -> Result<(), StorageError> {
 /// exporting device knew it. Records imported before stay without one.
 fn archived_senders(conn: &Connection) -> Result<(), StorageError> {
     conn.execute_batch("ALTER TABLE archived_events ADD COLUMN sender_identity BLOB;")?;
+    Ok(())
+}
+
+/// Version 7: contact cards and conversation requests (ADR-012 §4).
+///
+/// - `contacts.accepted` tells a contact this person chose (a saved route,
+///   an opened card, an accepted request) from someone only met in a
+///   group. Every contact recorded before is taken as chosen: conversations
+///   used to be joined without asking, and nobody is demoted by an update.
+/// - `contacts.verified_how` says how a verified contact was verified:
+///   `comparison` or `in-person`. Earlier verifications were comparisons.
+/// - `contact_cards` holds the secrets of the cards this device showed or
+///   shared, so a conversation started from one can say so.
+/// - `conversations.request` is 1 while a conversation started by someone
+///   who is not a contact waits for an answer, and 2 once declined; the
+///   other columns say who asked, with which card, and how they describe
+///   themselves.
+/// - `own_card` keeps the name this person puts on their cards.
+fn contact_cards(conn: &Connection) -> Result<(), StorageError> {
+    conn.execute_batch(
+        "ALTER TABLE contacts ADD COLUMN accepted INTEGER;
+         ALTER TABLE contacts ADD COLUMN verified_how TEXT;
+         UPDATE contacts SET accepted = 1;
+         UPDATE contacts SET verified_how = 'comparison' WHERE verified = 1;
+         ALTER TABLE conversations ADD COLUMN request INTEGER;
+         ALTER TABLE conversations ADD COLUMN request_from BLOB;
+         ALTER TABLE conversations ADD COLUMN request_card TEXT;
+         ALTER TABLE conversations ADD COLUMN request_card_at INTEGER;
+         ALTER TABLE conversations ADD COLUMN request_name TEXT;
+         CREATE TABLE contact_cards (
+             secret     BLOB PRIMARY KEY,
+             kind       TEXT NOT NULL,
+             created_at INTEGER NOT NULL,
+             expires_at INTEGER NOT NULL,
+             used_at    INTEGER,
+             revoked    INTEGER NOT NULL DEFAULT 0
+         );
+         CREATE TABLE own_card (
+             id   INTEGER PRIMARY KEY CHECK (id = 1),
+             name TEXT
+         );",
+    )?;
     Ok(())
 }
 

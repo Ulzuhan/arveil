@@ -97,6 +97,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   QrView dco_decode_box_autoadd_qr_view(dynamic raw);
 
   @protected
+  RequestView dco_decode_box_autoadd_request_view(dynamic raw);
+
+  @protected
   RevocationProgressView dco_decode_box_autoadd_revocation_progress_view(
     dynamic raw,
   );
@@ -106,6 +109,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  CardOfferView dco_decode_card_offer_view(dynamic raw);
+
+  @protected
+  CardPreviewView dco_decode_card_preview_view(dynamic raw);
 
   @protected
   CardProblem dco_decode_card_problem(dynamic raw);
@@ -166,6 +175,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<ArchiveEntryView> dco_decode_list_archive_entry_view(dynamic raw);
+
+  @protected
+  List<CardOfferView> dco_decode_list_card_offer_view(dynamic raw);
 
   @protected
   List<ContactDeviceView> dco_decode_list_contact_device_view(dynamic raw);
@@ -231,6 +243,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   QrView? dco_decode_opt_box_autoadd_qr_view(dynamic raw);
 
   @protected
+  RequestView? dco_decode_opt_box_autoadd_request_view(dynamic raw);
+
+  @protected
   RevocationProgressView? dco_decode_opt_box_autoadd_revocation_progress_view(
     dynamic raw,
   );
@@ -261,6 +276,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ReadMarkerView dco_decode_read_marker_view(dynamic raw);
+
+  @protected
+  RequestView dco_decode_request_view(dynamic raw);
 
   @protected
   RevocationProgressView dco_decode_revocation_progress_view(dynamic raw);
@@ -377,6 +395,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   QrView sse_decode_box_autoadd_qr_view(SseDeserializer deserializer);
 
   @protected
+  RequestView sse_decode_box_autoadd_request_view(SseDeserializer deserializer);
+
+  @protected
   RevocationProgressView sse_decode_box_autoadd_revocation_progress_view(
     SseDeserializer deserializer,
   );
@@ -386,6 +407,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  CardOfferView sse_decode_card_offer_view(SseDeserializer deserializer);
+
+  @protected
+  CardPreviewView sse_decode_card_preview_view(SseDeserializer deserializer);
 
   @protected
   CardProblem sse_decode_card_problem(SseDeserializer deserializer);
@@ -454,6 +481,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<ArchiveEntryView> sse_decode_list_archive_entry_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CardOfferView> sse_decode_list_card_offer_view(
     SseDeserializer deserializer,
   );
 
@@ -545,6 +577,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   QrView? sse_decode_opt_box_autoadd_qr_view(SseDeserializer deserializer);
 
   @protected
+  RequestView? sse_decode_opt_box_autoadd_request_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RevocationProgressView? sse_decode_opt_box_autoadd_revocation_progress_view(
     SseDeserializer deserializer,
   );
@@ -575,6 +612,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ReadMarkerView sse_decode_read_marker_view(SseDeserializer deserializer);
+
+  @protected
+  RequestView sse_decode_request_view(SseDeserializer deserializer);
 
   @protected
   RevocationProgressView sse_decode_revocation_progress_view(
@@ -725,6 +765,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_box_autoadd_qr_view(QrView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_request_view(
+    RequestView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_revocation_progress_view(
     RevocationProgressView self,
     SseSerializer serializer,
@@ -735,6 +781,15 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_card_offer_view(CardOfferView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_card_preview_view(
+    CardPreviewView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_card_problem(CardProblem self, SseSerializer serializer);
@@ -823,6 +878,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   @protected
   void sse_encode_list_archive_entry_view(
     List<ArchiveEntryView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_card_offer_view(
+    List<CardOfferView> self,
     SseSerializer serializer,
   );
 
@@ -938,6 +999,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_request_view(
+    RequestView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_revocation_progress_view(
     RevocationProgressView? self,
     SseSerializer serializer,
@@ -975,6 +1042,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
     ReadMarkerView self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_request_view(RequestView self, SseSerializer serializer);
 
   @protected
   void sse_encode_revocation_progress_view(

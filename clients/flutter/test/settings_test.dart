@@ -4,6 +4,7 @@ import 'package:arveil/src/contacts_page.dart';
 import 'package:arveil/src/design/design.dart';
 import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'contacts_test.dart' show AddressProfile, person;
@@ -31,6 +32,69 @@ class SettingsProfile extends HomeProfile {
   Future<List<ContactView>> contacts() async => people;
   @override
   Future<String> ownRoute() async => 'arveil-route:v0:fixture';
+
+  // ADR-012 §4: this device's card.
+  final cards = <bool>[];
+  final closed = <List<int>>[];
+  String? name;
+  @override
+  Future<String?> cardName() async => name;
+  @override
+  Future<void> setCardName({String? name}) async => this.name = name;
+  @override
+  Future<List<CardOfferView>> sharedCards() async => [
+    for (final (i, inPerson) in cards.indexed)
+      if (!inPerson)
+        CardOfferView(
+          secret: Uint8List.fromList([i]),
+          link: '',
+          inPerson: false,
+          createdAt: 1790000000,
+          expiresAt: 1792592000,
+        ),
+  ];
+  @override
+  Future<CardOfferView> offerCard({required bool inPerson}) async {
+    cards.add(inPerson);
+    return CardOfferView(
+      secret: Uint8List.fromList([cards.length - 1]),
+      link: 'https://arveil.kaicorplabs.com/contact#card${cards.length}',
+      inPerson: inPerson,
+      createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      expiresAt: DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600,
+    );
+  }
+
+  @override
+  Future<void> closeCard({required List<int> secret}) async =>
+      closed.add(secret);
+  @override
+  Future<QrView?> qrCode({required String text}) async =>
+      QrView(width: 2, modules: Uint8List.fromList([1, 0, 0, 1]));
+
+  final started = <(String, bool)>[];
+  @override
+  Future<CardView> readCard({required String text}) async =>
+      text.contains('/contact#')
+      ? const CardView.contact(name: 'Ana')
+      : throw CardProblem.notALink;
+  @override
+  Future<CardPreviewView> previewCard({required String text}) async =>
+      const CardPreviewView(
+        identityId: 'a1a1',
+        name: 'Ana',
+        safetyNumber: '12345 67890',
+        verified: false,
+      );
+  @override
+  Future<ChatMutationView> startFromCard({
+    required String bootstrap,
+    required String text,
+    required bool scanned,
+  }) async {
+    started.add((text, scanned));
+    return const ChatMutationView(groupId: 'cafe');
+  }
 }
 
 Finder row(String key) => find.byKey(Key(key));
@@ -201,10 +265,119 @@ void main() {
       ),
       findsOneWidget,
     );
+    await tester.tap(row('my-card'));
+    await tester.pumpAndSettle();
     await tester.tap(row('share-route'));
     await tester.pumpAndSettle();
     expect(find.text('arveil-route:v0:fixture'), findsOneWidget);
   });
+
+  testWidgets('a pasted contact card shows who it names before talking', (
+    tester,
+  ) async {
+    final profile = SettingsProfile();
+    await openHome(tester, phone, profile: profile);
+    await tester.tap(destination('Contactos'));
+    await tester.pumpAndSettle();
+    // No camera on this test host: only the link is offered.
+    expect(row('contact-scan'), findsNothing);
+    await tester.tap(row('contact-open-link'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('contact-link')), 'hola');
+    await tester.tap(row('contact-link-open'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Pega el enlace de contacto'), findsOneWidget);
+    const card = 'https://arveil.kaicorplabs.com/contact#ana';
+    await tester.enterText(find.byKey(const Key('contact-link')), card);
+    await tester.tap(row('contact-link-open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dice llamarse Ana'), findsOneWidget);
+    expect(find.text('12345 67890'), findsOneWidget);
+    expect(find.textContaining('quedará sin verificar'), findsOneWidget);
+    expect(profile.started, isEmpty, reason: 'nothing starts before the tap');
+    await tester.tap(row('card-start'));
+    await tester.pumpAndSettle();
+    expect(profile.started, [(card, false)]);
+    expect(find.text('Conversación creada.'), findsOneWidget);
+  });
+
+  testWidgets('the in-person code lives as long as its screen', (tester) async {
+    final profile = SettingsProfile();
+    await openHome(tester, phone, profile: profile);
+    await tester.tap(destination('Contactos'));
+    await tester.pumpAndSettle();
+    await tester.tap(row('my-card'));
+    await tester.pumpAndSettle();
+    await tester.tap(row('card-show-code'));
+    await tester.pump();
+    await tester.pump();
+    expect(profile.cards, [true]);
+    expect(find.byKey(const Key('card-qr')), findsOneWidget);
+    expect(profile.closed, isEmpty);
+    Navigator.of(tester.element(find.byKey(const Key('card-qr')))).pop();
+    await tester.pumpAndSettle();
+    expect(profile.closed, [
+      [0],
+    ], reason: 'closing the screen ends the code');
+  });
+
+  testWidgets(
+    'a shared link is copied when there is no share sheet, and can be revoked',
+    (tester) async {
+      final copied = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add((call.arguments as Map)['text'] as String);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      // A platform without a share sheet answers false.
+      const share = MethodChannel('io.github.ulzuhan.arveil/share');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        share,
+        (call) async => false,
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          share,
+          null,
+        ),
+      );
+      final profile = SettingsProfile();
+      await openHome(tester, phone, profile: profile);
+      await tester.tap(destination('Contactos'));
+      await tester.pumpAndSettle();
+      await tester.tap(row('my-card'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('card-shared-empty')), findsOneWidget);
+      await tester.tap(row('card-share-link'));
+      await tester.pumpAndSettle();
+      expect(profile.cards, [false]);
+      expect(copied, ['https://arveil.kaicorplabs.com/contact#card1']);
+      expect(find.textContaining('Enlace copiado'), findsOneWidget);
+      expect(find.text('Revocar'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('card-name')), 'Luz');
+      await tester.tap(row('card-name-save'));
+      await tester.pumpAndSettle();
+      expect(profile.name, 'Luz');
+      await tester.ensureVisible(find.text('Revocar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Revocar'));
+      await tester.pumpAndSettle();
+      expect(profile.closed, [
+        [0],
+      ]);
+    },
+  );
 
   testWidgets('an empty contact list offers to add someone', (tester) async {
     await openHome(tester, phone, profile: SettingsProfile());

@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `by_activity`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `read_card`, `shown`, `view`, `watch_with`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `by_activity`, `card_offer_view`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `how`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `read_card`, `shown`, `view`, `watch_with`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -38,6 +38,9 @@ Future<Profile> openUnencryptedProfile({required String dir}) =>
 abstract class Profile implements RustOpaqueInterface {
   /// The person's answer. Only a yes signs and sends the authorization.
   Future<void> answerLink({required List<int> pairId, required bool approve});
+
+  /// Accept or decline a conversation someone who is not a contact started.
+  Future<void> answerRequest({required String groupId, required bool accept});
 
   /// Answer the code an older device shows. Returns what to confirm;
   /// nothing is signed until `answer_link` says yes.
@@ -74,12 +77,17 @@ abstract class Profile implements RustOpaqueInterface {
   /// False means finalization already committed: resume it, never claim it was undone.
   Future<bool> cancelPairing({required List<int> sessionId});
 
+  Future<String?> cardName();
+
   Future<KeyPackageSupplyView> checkKeyPackages();
 
   /// Stop admitting work, wait for what is running and release the
   /// profile. Idempotent, and every later call fails instead of quietly
   /// opening it again.
   Future<void> close();
+
+  /// Stop a card from working: its screen closed, or the link is revoked.
+  Future<void> closeCard({required List<int> secret});
 
   /// The user saved the last exported kit and confirmed its key is kept
   /// apart. Read `setup` again for the new kit state.
@@ -164,11 +172,18 @@ abstract class Profile implements RustOpaqueInterface {
     required PlatformInt64 cursor,
   });
 
+  /// A card of this device: `in_person` for a code shown on this screen
+  /// (ten minutes, once), otherwise a link to share (30 days).
+  Future<CardOfferView> offerCard({required bool inPerson});
+
   /// On the device that holds the root: show a code that links another
   /// device (ADR-012 §3).
   Future<LinkOfferView> offerLink();
 
   Future<String> ownRoute();
+
+  /// Who a contact card names, before talking to them.
+  Future<CardPreviewView> previewCard({required String text});
 
   Future<List<RoutePreviewView>> previewRoutes({required List<String> routes});
 
@@ -242,9 +257,23 @@ abstract class Profile implements RustOpaqueInterface {
     required int limit,
   });
 
+  /// The name this person puts on their cards; empty removes it.
+  Future<void> setCardName({String? name});
+
   /// Read durable setup state after opening, completing or retrying an
   /// enrollment. Progress events are hints; this is the source of truth.
   Future<SetupView> setup();
+
+  /// Links this device shared that still work, newest first.
+  Future<List<CardOfferView>> sharedCards();
+
+  /// Start talking to the person a card names. `scanned` says it was read
+  /// in person from their screen, which verifies them.
+  Future<ChatMutationView> startFromCard({
+    required String bootstrap,
+    required String text,
+    required bool scanned,
+  });
 
   /// Reserve a watcher synchronously before its asynchronous worker starts.
   /// Stopping during dispatch therefore cannot accidentally revive a stream.
@@ -448,6 +477,80 @@ class AttachmentView {
           total == other.total;
 }
 
+/// A card of this device: a code to show, or a link to share.
+class CardOfferView {
+  final Uint8List secret;
+
+  /// Empty in a list of links already shared.
+  final String link;
+  final bool inPerson;
+  final PlatformInt64 createdAt;
+  final PlatformInt64 expiresAt;
+
+  const CardOfferView({
+    required this.secret,
+    required this.link,
+    required this.inPerson,
+    required this.createdAt,
+    required this.expiresAt,
+  });
+
+  @override
+  int get hashCode =>
+      secret.hashCode ^
+      link.hashCode ^
+      inPerson.hashCode ^
+      createdAt.hashCode ^
+      expiresAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CardOfferView &&
+          runtimeType == other.runtimeType &&
+          secret == other.secret &&
+          link == other.link &&
+          inPerson == other.inPerson &&
+          createdAt == other.createdAt &&
+          expiresAt == other.expiresAt;
+}
+
+/// Who a contact card names, before talking to them.
+class CardPreviewView {
+  final String identityId;
+  final String? name;
+  final String? knownAs;
+  final String safetyNumber;
+  final bool verified;
+
+  const CardPreviewView({
+    required this.identityId,
+    this.name,
+    this.knownAs,
+    required this.safetyNumber,
+    required this.verified,
+  });
+
+  @override
+  int get hashCode =>
+      identityId.hashCode ^
+      name.hashCode ^
+      knownAs.hashCode ^
+      safetyNumber.hashCode ^
+      verified.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CardPreviewView &&
+          runtimeType == other.runtimeType &&
+          identityId == other.identityId &&
+          name == other.name &&
+          knownAs == other.knownAs &&
+          safetyNumber == other.safetyNumber &&
+          verified == other.verified;
+}
+
 /// Why a text is not a card the app can use.
 enum CardProblem {
   notALink,
@@ -479,7 +582,10 @@ sealed class CardView with _$CardView {
     required BigInt expiresAt,
   }) = CardView_Link;
 
-  /// A code meant for another screen: `kind` is `contact`.
+  /// A person's contact card (ADR-012 §4): open it to talk to them.
+  const factory CardView.contact({String? name}) = CardView_Contact;
+
+  /// A kind this version does not use here.
   const factory CardView.other({required String kind}) = CardView_Other;
 }
 
@@ -578,6 +684,12 @@ class ContactView {
   final String? name;
   final String label;
   final bool verified;
+
+  /// `comparison` or `in-person` when verified.
+  final String? verifiedHow;
+
+  /// Chosen by this person, as opposed to only met in a group.
+  final bool accepted;
   final String safetyNumber;
   final List<ContactDeviceView> devices;
 
@@ -586,6 +698,8 @@ class ContactView {
     this.name,
     required this.label,
     required this.verified,
+    this.verifiedHow,
+    required this.accepted,
     required this.safetyNumber,
     required this.devices,
   });
@@ -596,6 +710,8 @@ class ContactView {
       name.hashCode ^
       label.hashCode ^
       verified.hashCode ^
+      verifiedHow.hashCode ^
+      accepted.hashCode ^
       safetyNumber.hashCode ^
       devices.hashCode;
 
@@ -608,6 +724,8 @@ class ContactView {
           name == other.name &&
           label == other.label &&
           verified == other.verified &&
+          verifiedHow == other.verifiedHow &&
+          accepted == other.accepted &&
           safetyNumber == other.safetyNumber &&
           devices == other.devices;
 }
@@ -629,6 +747,9 @@ class ConversationView {
   /// keeping the conversation.
   final PlatformInt64 lastActivity;
 
+  /// Present while someone who is not a contact waits for an answer.
+  final RequestView? request;
+
   const ConversationView({
     required this.groupId,
     required this.creator,
@@ -638,6 +759,7 @@ class ConversationView {
     this.lastEvent,
     required this.unread,
     required this.lastActivity,
+    this.request,
   });
 
   @override
@@ -649,7 +771,8 @@ class ConversationView {
       eventCount.hashCode ^
       lastEvent.hashCode ^
       unread.hashCode ^
-      lastActivity.hashCode;
+      lastActivity.hashCode ^
+      request.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -663,7 +786,8 @@ class ConversationView {
           eventCount == other.eventCount &&
           lastEvent == other.lastEvent &&
           unread == other.unread &&
-          lastActivity == other.lastActivity;
+          lastActivity == other.lastActivity &&
+          request == other.request;
 }
 
 class DeviceInventoryView {
@@ -1081,6 +1205,9 @@ class PeerView {
   final bool own;
   final bool verified;
 
+  /// `comparison` or `in-person` when verified.
+  final String? verifiedHow;
+
   /// The number to compare with this person before verifying them;
   /// absent for this profile's own devices.
   final String? safetyNumber;
@@ -1093,6 +1220,7 @@ class PeerView {
     required this.named,
     required this.own,
     required this.verified,
+    this.verifiedHow,
     this.safetyNumber,
     required this.revoked,
   });
@@ -1105,6 +1233,7 @@ class PeerView {
       named.hashCode ^
       own.hashCode ^
       verified.hashCode ^
+      verifiedHow.hashCode ^
       safetyNumber.hashCode ^
       revoked.hashCode;
 
@@ -1119,6 +1248,7 @@ class PeerView {
           named == other.named &&
           own == other.own &&
           verified == other.verified &&
+          verifiedHow == other.verifiedHow &&
           safetyNumber == other.safetyNumber &&
           revoked == other.revoked;
 }
@@ -1288,6 +1418,37 @@ class ReadMarkerView {
           runtimeType == other.runtimeType &&
           cursor == other.cursor &&
           unread == other.unread;
+}
+
+/// A conversation someone who is not a contact started (ADR-012 §4).
+class RequestView {
+  /// Who started it, once known.
+  final String? from;
+
+  /// How they describe themselves; shown, never trusted.
+  final String? name;
+
+  /// `none`, `link`, `in-person-pending` or `in-person`.
+  final String card;
+
+  /// When the shared link they used was made.
+  final PlatformInt64? cardAt;
+
+  const RequestView({this.from, this.name, required this.card, this.cardAt});
+
+  @override
+  int get hashCode =>
+      from.hashCode ^ name.hashCode ^ card.hashCode ^ cardAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RequestView &&
+          runtimeType == other.runtimeType &&
+          from == other.from &&
+          name == other.name &&
+          card == other.card &&
+          cardAt == other.cardAt;
 }
 
 class RevocationProgressView {

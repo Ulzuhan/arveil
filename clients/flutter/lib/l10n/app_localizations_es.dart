@@ -1421,12 +1421,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get newConversationPrepare => 'Preparar comparación';
 
   @override
-  String get newConversationMatches =>
-      'Lo hemos comparado por otro canal y coincide';
-
-  @override
   String get newConversationLater =>
-      'Quien no marques aparecerá como sin verificar. Podrás comparar el número después desde los detalles de la conversación.';
+      'Aparecerán como sin verificar. Podrás comparar el número después desde los detalles de la conversación, o escanear su código en persona.';
 
   @override
   String get newConversationCreate => 'Crear conversación';
@@ -2005,4 +2001,173 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errorLinkExpired =>
       'El código caducó o ya no está disponible. Muestra uno nuevo.';
+
+  @override
+  String get cardMineTitle => 'Mi tarjeta de contacto';
+
+  @override
+  String get cardMineRow =>
+      'Muestra tu código o comparte un enlace para que te escriban';
+
+  @override
+  String get cardMineHelp =>
+      'Quien abra tu tarjeta podrá escribirte. Si escanea tu código en persona, quedaréis verificados los dos.';
+
+  @override
+  String get cardShowCode => 'Mostrar mi código';
+
+  @override
+  String get cardShowCodeHelp =>
+      'Para alguien que tengas delante. Vale 10 minutos y una sola vez.';
+
+  @override
+  String get cardShareLink => 'Compartir mi contacto';
+
+  @override
+  String get cardShareLinkHelp =>
+      'Un enlace para enviar por otra app. Vale 30 días y puedes revocarlo.';
+
+  @override
+  String get cardNameLabel => 'Tu nombre en tus tarjetas';
+
+  @override
+  String get cardNameHelper =>
+      'Lo verá quien abra tu tarjeta. Es solo una descripción: cada persona decide cómo llamarte.';
+
+  @override
+  String get cardNameSave => 'Guardar nombre';
+
+  @override
+  String get cardNameSaved => 'Nombre guardado.';
+
+  @override
+  String get cardNameInvalid => 'Ese nombre no puede ir en una tarjeta.';
+
+  @override
+  String get cardLinkCopied =>
+      'Enlace copiado. Pégalo en un mensaje para esa persona.';
+
+  @override
+  String get cardFailed => 'No se pudo preparar tu tarjeta.';
+
+  @override
+  String get cardSharedTitle => 'Enlaces compartidos';
+
+  @override
+  String get cardSharedEmpty => 'No hay enlaces activos.';
+
+  @override
+  String cardSharedRow(String created, String expires) {
+    return 'Creado el $created; caduca el $expires';
+  }
+
+  @override
+  String get cardRevoke => 'Revocar';
+
+  @override
+  String get cardRevoked =>
+      'Enlace revocado. Quien lo use ahora llegará como solicitud sin enlace.';
+
+  @override
+  String get cardOlderRoute => 'Ruta para versiones anteriores';
+
+  @override
+  String get cardCodeTitle => 'Mi código';
+
+  @override
+  String get cardCodeHelp =>
+      'Pide a la otra persona que lo escanee con Arveil, en Contactos › Escanear un código. Quedaréis verificados los dos.';
+
+  @override
+  String get cardCodeQrLabel => 'Código QR de tu contacto';
+
+  @override
+  String get cardCodeExpired =>
+      'El código caducó. Vuelve atrás y muéstralo de nuevo.';
+
+  @override
+  String get cardOpenFailed => 'Ese enlace no es un contacto de tu servidor.';
+
+  @override
+  String get cardPreviewUnnamed => 'Sin nombre en la tarjeta';
+
+  @override
+  String cardPreviewSays(String name) {
+    return 'Dice llamarse $name';
+  }
+
+  @override
+  String get cardPreviewScanned =>
+      'Leíste su código en persona: quedará verificado.';
+
+  @override
+  String get cardPreviewLinked =>
+      'Llegó por un enlace: quedará sin verificar hasta que comparéis el número.';
+
+  @override
+  String get cardStart => 'Empezar a hablar';
+
+  @override
+  String get cardStarted => 'Conversación creada.';
+
+  @override
+  String get cardStartFailed => 'No se pudo empezar la conversación.';
+
+  @override
+  String get scanNotContact => 'Ese código no es de un contacto.';
+
+  @override
+  String get contactScan => 'Escanear un código';
+
+  @override
+  String get contactOpenLink => 'Abrir un enlace de contacto';
+
+  @override
+  String get contactOpenLinkLabel => 'Enlace de contacto';
+
+  @override
+  String get contactOpenLinkInvalid =>
+      'Pega el enlace de contacto que te enviaron. Para una ruta de una versión anterior, usa Añadir contacto.';
+
+  @override
+  String get contactOpen => 'Abrir';
+
+  @override
+  String get requestsTitle => 'Solicitudes';
+
+  @override
+  String requestFromNamed(String name) {
+    return '$name quiere hablar contigo';
+  }
+
+  @override
+  String requestFromUnnamed(String id) {
+    return 'Alguien quiere hablar contigo ($id)';
+  }
+
+  @override
+  String requestUsedLink(String date) {
+    return 'Usó tu enlace del $date';
+  }
+
+  @override
+  String get requestNoLink => 'No usó ninguno de tus enlaces';
+
+  @override
+  String get requestChecking => 'Escaneó tu código; comprobando…';
+
+  @override
+  String get requestInPerson => 'Escaneó tu código en persona';
+
+  @override
+  String get requestAccept => 'Aceptar';
+
+  @override
+  String get requestDecline => 'Rechazar';
+
+  @override
+  String get requestFailed => 'No se pudo responder a la solicitud.';
+
+  @override
+  String get verifiedInPerson => 'Verificado en persona';
 }

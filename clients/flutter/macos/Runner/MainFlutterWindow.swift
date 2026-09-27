@@ -11,6 +11,7 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     ProfileChannel.register(with: flutterViewController)
     UpdateChannel.register(with: flutterViewController)
+    ShareChannel.register(with: flutterViewController)
 
     super.awakeFromNib()
   }
@@ -96,3 +97,26 @@ enum UpdateChannel {
   }
 }
 
+/// Sharing a contact link (ADR-012 §4) through the system's share menu. The
+/// app only hands over the text; the person picks where it goes.
+enum ShareChannel {
+  static func register(with controller: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "io.github.ulzuhan.arveil/share",
+      binaryMessenger: controller.engine.binaryMessenger)
+    channel.setMethodCallHandler { [weak controller] call, result in
+      guard call.method == "text",
+        let arguments = call.arguments as? [String: Any],
+        let text = arguments["text"] as? String, !text.isEmpty,
+        let view = controller?.view
+      else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let picker = NSSharingServicePicker(items: [text])
+      let anchor = NSRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+      picker.show(relativeTo: anchor, of: view, preferredEdge: .minY)
+      result(true)
+    }
+  }
+}

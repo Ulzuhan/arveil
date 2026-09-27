@@ -5,6 +5,7 @@
 
 use std::process::ExitCode;
 
+mod cards;
 mod carrier;
 mod chat;
 mod commands;
@@ -35,12 +36,19 @@ const USAGE: &str = "usage:
   arveil notify set --data-dir <dir> <bootstrap> <url>
   arveil notify clear --data-dir <dir> <bootstrap>
   arveil contact list --data-dir <dir>
+  arveil contact card --data-dir <dir> [--in-person]
+  arveil contact card-close --data-dir <dir> <secret>
+  arveil contact card-name --data-dir <dir> <name>
+  arveil contact open --data-dir <dir> <bootstrap> <card> [--scanned]
   arveil contact verify --data-dir <dir> <identity-id> <safety-number>
   arveil contact name --data-dir <dir> <identity-id> <name>
   arveil mailbox create --data-dir <dir> <bootstrap>
   arveil send --data-dir <dir> <bootstrap> <route> <text>
   arveil fetch --data-dir <dir> <bootstrap>
   arveil chat start --data-dir <dir> <bootstrap> <peer-route>...
+  arveil chat requests --data-dir <dir>
+  arveil chat accept --data-dir <dir> <group-prefix>
+  arveil chat decline --data-dir <dir> <group-prefix>
   arveil chat list --data-dir <dir>
   arveil chat add --data-dir <dir> <bootstrap> <peer-route> [--group <prefix>]
   arveil chat remove --data-dir <dir> <bootstrap> <device-id>
@@ -165,6 +173,42 @@ fn main() -> ExitCode {
             },
             ["notify", "clear", bootstrap] => match data_dir {
                 Some(d) => commands::notify_set(&d, bootstrap, ""),
+                None => usage(),
+            },
+            ["contact", "card"] => match data_dir {
+                Some(d) => cards::card(&d, false),
+                None => usage(),
+            },
+            ["contact", "card", "--in-person"] => match data_dir {
+                Some(d) => cards::card(&d, true),
+                None => usage(),
+            },
+            ["contact", "card-close", secret] => match data_dir {
+                Some(d) => cards::close(&d, secret),
+                None => usage(),
+            },
+            ["contact", "card-name", name] => match data_dir {
+                Some(d) => cards::name(&d, name),
+                None => usage(),
+            },
+            ["contact", "open", bootstrap, text] => match data_dir {
+                Some(d) => cards::open(&d, bootstrap, text, false),
+                None => usage(),
+            },
+            ["contact", "open", bootstrap, text, "--scanned"] => match data_dir {
+                Some(d) => cards::open(&d, bootstrap, text, true),
+                None => usage(),
+            },
+            ["chat", "requests"] => match data_dir {
+                Some(d) => cards::requests(&d),
+                None => usage(),
+            },
+            ["chat", "accept", group] => match data_dir {
+                Some(d) => cards::answer(&d, group, true),
+                None => usage(),
+            },
+            ["chat", "decline", group] => match data_dir {
+                Some(d) => cards::answer(&d, group, false),
                 None => usage(),
             },
             ["contact", "list"] => match data_dir {

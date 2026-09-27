@@ -252,7 +252,7 @@ class _ConversationDetailsState extends State<ConversationDetails> {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              '${verified ? l10n.verified : l10n.unverified} · '
+              '${verified ? (peer.verifiedHow == 'in-person' ? l10n.verifiedInPerson : l10n.verified) : l10n.unverified} · '
               '${l10n.devicesCount(active)}',
             ),
             trailing: onName == null

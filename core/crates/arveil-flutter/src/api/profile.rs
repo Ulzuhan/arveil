@@ -165,6 +165,10 @@ pub struct ContactView {
     pub name: Option<String>,
     pub label: String,
     pub verified: bool,
+    /// `comparison` or `in-person` when verified.
+    pub verified_how: Option<String>,
+    /// Chosen by this person, as opposed to only met in a group.
+    pub accepted: bool,
     pub safety_number: String,
     pub devices: Vec<ContactDeviceView>,
 }
@@ -185,6 +189,8 @@ pub struct PeerView {
     pub named: bool,
     pub own: bool,
     pub verified: bool,
+    /// `comparison` or `in-person` when verified.
+    pub verified_how: Option<String>,
     /// The number to compare with this person before verifying them;
     /// absent for this profile's own devices.
     pub safety_number: Option<String>,
@@ -242,7 +248,9 @@ pub enum CardView {
     },
     /// A code shown by another device of the same identity, to link this one.
     Link { server: String, expires_at: u64 },
-    /// A code meant for another screen: `kind` is `contact`.
+    /// A person's contact card (ADR-012 §4): open it to talk to them.
+    Contact { name: Option<String> },
+    /// A kind this version does not use here.
     Other { kind: String },
 }
 
@@ -483,6 +491,42 @@ pub struct ConversationView {
     /// Unix seconds of the newest event, or of when this device started
     /// keeping the conversation.
     pub last_activity: i64,
+    /// Present while someone who is not a contact waits for an answer.
+    pub request: Option<RequestView>,
+}
+
+/// A conversation someone who is not a contact started (ADR-012 §4).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequestView {
+    /// Who started it, once known.
+    pub from: Option<String>,
+    /// How they describe themselves; shown, never trusted.
+    pub name: Option<String>,
+    /// `none`, `link`, `in-person-pending` or `in-person`.
+    pub card: String,
+    /// When the shared link they used was made.
+    pub card_at: Option<i64>,
+}
+
+/// A card of this device: a code to show, or a link to share.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CardOfferView {
+    pub secret: Vec<u8>,
+    /// Empty in a list of links already shared.
+    pub link: String,
+    pub in_person: bool,
+    pub created_at: i64,
+    pub expires_at: i64,
+}
+
+/// Who a contact card names, before talking to them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CardPreviewView {
+    pub identity_id: String,
+    pub name: Option<String>,
+    pub known_as: Option<String>,
+    pub safety_number: String,
+    pub verified: bool,
 }
 
 /// What a conversation row says about its newest event.
@@ -953,6 +997,77 @@ impl Profile {
         self.inner
             .verify_contact(decode_hex(&identity_id)?, safety_number)
             .map(contact_view)
+            .map_err(command_error)
+    }
+
+    /// A card of this device: `in_person` for a code shown on this screen
+    /// (ten minutes, once), otherwise a link to share (30 days).
+    pub fn offer_card(&self, in_person: bool) -> Result<CardOfferView, CommandError> {
+        self.inner
+            .offer_card(in_person)
+            .map(card_offer_view)
+            .map_err(command_error)
+    }
+
+    /// Stop a card from working: its screen closed, or the link is revoked.
+    pub fn close_card(&self, secret: Vec<u8>) -> Result<(), CommandError> {
+        self.inner
+            .close_card(&secret)
+            .map(|_| ())
+            .map_err(command_error)
+    }
+
+    /// Links this device shared that still work, newest first.
+    pub fn shared_cards(&self) -> Result<Vec<CardOfferView>, CommandError> {
+        Ok(self
+            .inner
+            .shared_cards()
+            .map_err(command_error)?
+            .into_iter()
+            .map(card_offer_view)
+            .collect())
+    }
+
+    /// The name this person puts on their cards; empty removes it.
+    pub fn set_card_name(&self, name: Option<String>) -> Result<(), CommandError> {
+        self.inner
+            .set_card_name(name.as_deref())
+            .map(|_| ())
+            .map_err(command_error)
+    }
+
+    pub fn card_name(&self) -> Result<Option<String>, CommandError> {
+        self.inner.card_name().map_err(command_error)
+    }
+
+    /// Who a contact card names, before talking to them.
+    pub fn preview_card(&self, text: String) -> Result<CardPreviewView, CommandError> {
+        let p = self.inner.preview_card(&text).map_err(command_error)?;
+        Ok(CardPreviewView {
+            identity_id: hex(&p.identity_id),
+            name: p.name,
+            known_as: p.known_as,
+            safety_number: p.safety_number,
+            verified: p.verified,
+        })
+    }
+
+    /// Start talking to the person a card names. `scanned` says it was read
+    /// in person from their screen, which verifies them.
+    pub fn start_from_card(
+        &self,
+        bootstrap: String,
+        text: String,
+        scanned: bool,
+    ) -> Result<ChatMutationView, CommandError> {
+        chat_mutation(self.inner.start_from_card(&bootstrap, &text, scanned))
+    }
+
+    /// Accept or decline a conversation someone who is not a contact started.
+    pub fn answer_request(&self, group_id: String, accept: bool) -> Result<(), CommandError> {
+        self.inner
+            .answer_request(&decode_hex(&group_id)?, accept)
+            .map(|_| ())
             .map_err(command_error)
     }
 
@@ -1431,6 +1546,8 @@ fn contact_view(contact: arveil_app::ContactSummary) -> ContactView {
         name: contact.name,
         label: contact.label,
         verified: contact.verified,
+        verified_how: contact.verified_how.map(how).map(str::to_string),
+        accepted: contact.accepted,
         safety_number: contact.safety_number,
         devices: contact
             .devices
@@ -1458,6 +1575,7 @@ fn view(summary: ConversationSummary) -> ConversationView {
                 named: p.named,
                 own: p.own,
                 verified: p.verified,
+                verified_how: p.verified_how.map(how).map(str::to_string),
                 safety_number: p.safety_number,
                 revoked: p.revoked,
             })
@@ -1466,6 +1584,37 @@ fn view(summary: ConversationSummary) -> ConversationView {
         last_event: summary.last_event.map(last_event_view),
         unread: summary.unread,
         last_activity: summary.last_activity,
+        request: summary.request.map(|r| {
+            let (card, card_at) = match r.card {
+                arveil_app::CardUse::None => ("none", None),
+                arveil_app::CardUse::Link { created_at } => ("link", Some(created_at)),
+                arveil_app::CardUse::InPersonPending => ("in-person-pending", None),
+                arveil_app::CardUse::InPerson => ("in-person", None),
+            };
+            RequestView {
+                from: r.from.as_deref().map(hex),
+                name: r.name,
+                card: card.into(),
+                card_at,
+            }
+        }),
+    }
+}
+
+fn how(how: arveil_app::VerifiedHow) -> &'static str {
+    match how {
+        arveil_app::VerifiedHow::Comparison => "comparison",
+        arveil_app::VerifiedHow::InPerson => "in-person",
+    }
+}
+
+fn card_offer_view(card: arveil_app::CardOffer) -> CardOfferView {
+    CardOfferView {
+        secret: card.secret,
+        link: card.link,
+        in_person: card.in_person,
+        created_at: card.created_at,
+        expires_at: card.expires_at,
     }
 }
 
@@ -1602,6 +1751,14 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::AwaitLinkRequest => "await-link-request",
         Operation::AnswerLink => "answer-link",
         Operation::JoinLink => "join-link",
+        Operation::OfferCard => "offer-card",
+        Operation::CloseCard => "close-card",
+        Operation::QuerySharedCards => "query-shared-cards",
+        Operation::SetCardName => "set-card-name",
+        Operation::QueryCardName => "query-card-name",
+        Operation::PreviewCard => "preview-card",
+        Operation::StartFromCard => "start-from-card",
+        Operation::AnswerRequest => "answer-request",
         Operation::QueryOnboarding => "query-onboarding",
         Operation::QueryKeyPackageSupply => "query-key-package-supply",
         Operation::CheckKeyPackages => "check-key-packages",
@@ -1657,9 +1814,7 @@ fn read_card(text: &str) -> Result<CardView, CardProblem> {
             server: realm.url,
             expires_at,
         }),
-        Ok(other) => Ok(CardView::Other {
-            kind: other.kind().to_string(),
-        }),
+        Ok(Card::Contact { name, .. }) => Ok(CardView::Contact { name }),
         Err(LinkError::NotALink) => Err(CardProblem::NotALink),
         Err(LinkError::TooLarge) => Err(CardProblem::TooLarge),
         Err(LinkError::Damaged(_)) => Err(CardProblem::Damaged),
@@ -1704,6 +1859,7 @@ mod tests {
             }),
             unread: 0,
             last_activity: activity,
+            request: None,
         };
         // Started in this order: a, b, c, d, e.
         let mut rows = vec![

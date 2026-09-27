@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import 'contact_cards.dart';
 import 'design/design.dart';
-import 'own_route.dart';
+import 'qr_scanner.dart';
 import 'rust/api/profile.dart';
 
 String contactId(String id) => id.length <= 12 ? id : id.substring(0, 12);
@@ -60,6 +61,38 @@ class _ContactsPageState extends State<ContactsPage> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  /// Someone's card: scanned in person, or a link they sent.
+  Future<void> _open({required bool scan}) async {
+    final l10n = context.l10n;
+    final String? text;
+    if (scan) {
+      text = await scanContactCard(context, widget.profile);
+    } else {
+      text = await _askForLink();
+    }
+    if (text == null || !mounted) return;
+    final bootstrap = (await widget.profile.setup()).bootstrap;
+    if (bootstrap == null || !mounted) return;
+    final group = await openContactCard(
+      context,
+      profile: widget.profile,
+      bootstrap: bootstrap,
+      text: text,
+      scanned: scan,
+    );
+    if (group != null && mounted) {
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(l10n.cardStarted)));
+      await _load();
+    }
+  }
+
+  Future<String?> _askForLink() => showDialog<String>(
+    context: context,
+    builder: (_) => ContactLinkDialog(profile: widget.profile),
+  );
 
   Future<void> _edit([ContactView? contact]) async {
     await Navigator.of(context).push<void>(
@@ -177,12 +210,29 @@ class _ContactsPageState extends State<ContactsPage> {
                         SettingsGroup(
                           children: [
                             SettingsRow(
-                              key: const Key('share-route'),
-                              icon: Icons.share_outlined,
-                              title: context.l10n.ownRouteTitle,
-                              subtitle: context.l10n.shareMyRouteHelp,
-                              onTap: () =>
-                                  showOwnRoute(context, widget.profile),
+                              key: const Key('my-card'),
+                              icon: Icons.badge_outlined,
+                              title: context.l10n.cardMineTitle,
+                              subtitle: context.l10n.cardMineRow,
+                              onTap: () => Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      MyCardPage(profile: widget.profile),
+                                ),
+                              ),
+                            ),
+                            if (canScan)
+                              SettingsRow(
+                                key: const Key('contact-scan'),
+                                icon: Icons.qr_code_scanner,
+                                title: context.l10n.contactScan,
+                                onTap: () => _open(scan: true),
+                              ),
+                            SettingsRow(
+                              key: const Key('contact-open-link'),
+                              icon: Icons.link,
+                              title: context.l10n.contactOpenLink,
+                              onTap: () => _open(scan: false),
                             ),
                           ],
                         ),
@@ -616,4 +666,69 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
       ),
     );
   }
+}
+
+/// Paste someone's contact link. The field lives with the dialog, so it
+/// outlasts the closing animation.
+class ContactLinkDialog extends StatefulWidget {
+  const ContactLinkDialog({super.key, required this.profile});
+  final Profile profile;
+
+  @override
+  State<ContactLinkDialog> createState() => _ContactLinkDialogState();
+}
+
+class _ContactLinkDialogState extends State<ContactLinkDialog> {
+  final _field = TextEditingController();
+  String? _problem;
+
+  @override
+  void dispose() {
+    _field.dispose();
+    super.dispose();
+  }
+
+  Future<void> _open() async {
+    final value = _field.text.trim();
+    var contact = false;
+    try {
+      contact = await widget.profile.readCard(text: value) is CardView_Contact;
+    } catch (_) {}
+    if (!mounted) return;
+    if (contact) {
+      Navigator.pop(context, value);
+    } else {
+      setState(() => _problem = context.l10n.contactOpenLinkInvalid);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(context.l10n.contactOpenLink),
+    content: TextField(
+      key: const Key('contact-link'),
+      controller: _field,
+      autocorrect: false,
+      enableSuggestions: false,
+      enableIMEPersonalizedLearning: false,
+      minLines: 1,
+      maxLines: 4,
+      decoration: InputDecoration(
+        labelText: context.l10n.contactOpenLinkLabel,
+        errorText: _problem,
+        errorMaxLines: 3,
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.l10n.cancel),
+      ),
+      FilledButton(
+        key: const Key('contact-link-open'),
+        onPressed: _open,
+        child: Text(context.l10n.contactOpen),
+      ),
+    ],
+  );
 }
