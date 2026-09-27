@@ -2330,16 +2330,10 @@ abstract class AppLocalizations {
   /// **'Preparar comparación'**
   String get newConversationPrepare;
 
-  /// No description provided for @newConversationMatches.
-  ///
-  /// In es, this message translates to:
-  /// **'Lo hemos comparado por otro canal y coincide'**
-  String get newConversationMatches;
-
   /// No description provided for @newConversationLater.
   ///
   /// In es, this message translates to:
-  /// **'Quien no marques aparecerá como sin verificar. Podrás comparar el número después desde los detalles de la conversación.'**
+  /// **'Aparecerán como sin verificar. Podrás comparar el número después desde los detalles de la conversación, o escanear su código en persona.'**
   String get newConversationLater;
 
   /// No description provided for @newConversationCreate.
@@ -3337,6 +3331,300 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'El código caducó o ya no está disponible. Muestra uno nuevo.'**
   String get errorLinkExpired;
+
+  /// No description provided for @cardMineTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi tarjeta de contacto'**
+  String get cardMineTitle;
+
+  /// No description provided for @cardMineRow.
+  ///
+  /// In es, this message translates to:
+  /// **'Muestra tu código o comparte un enlace para que te escriban'**
+  String get cardMineRow;
+
+  /// No description provided for @cardMineHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Quien abra tu tarjeta podrá escribirte. Si escanea tu código en persona, quedaréis verificados los dos.'**
+  String get cardMineHelp;
+
+  /// No description provided for @cardShowCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar mi código'**
+  String get cardShowCode;
+
+  /// No description provided for @cardShowCodeHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Para alguien que tengas delante. Vale 10 minutos y una sola vez.'**
+  String get cardShowCodeHelp;
+
+  /// No description provided for @cardShareLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir mi contacto'**
+  String get cardShareLink;
+
+  /// No description provided for @cardShareLinkHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Un enlace para enviar por otra app. Vale 30 días y puedes revocarlo.'**
+  String get cardShareLinkHelp;
+
+  /// No description provided for @cardNameLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu nombre en tus tarjetas'**
+  String get cardNameLabel;
+
+  /// No description provided for @cardNameHelper.
+  ///
+  /// In es, this message translates to:
+  /// **'Lo verá quien abra tu tarjeta. Es solo una descripción: cada persona decide cómo llamarte.'**
+  String get cardNameHelper;
+
+  /// No description provided for @cardNameSave.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar nombre'**
+  String get cardNameSave;
+
+  /// No description provided for @cardNameSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre guardado.'**
+  String get cardNameSaved;
+
+  /// No description provided for @cardNameInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese nombre no puede ir en una tarjeta.'**
+  String get cardNameInvalid;
+
+  /// No description provided for @cardLinkCopied.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlace copiado. Pégalo en un mensaje para esa persona.'**
+  String get cardLinkCopied;
+
+  /// No description provided for @cardFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo preparar tu tarjeta.'**
+  String get cardFailed;
+
+  /// No description provided for @cardSharedTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlaces compartidos'**
+  String get cardSharedTitle;
+
+  /// No description provided for @cardSharedEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay enlaces activos.'**
+  String get cardSharedEmpty;
+
+  /// No description provided for @cardSharedRow.
+  ///
+  /// In es, this message translates to:
+  /// **'Creado el {created}; caduca el {expires}'**
+  String cardSharedRow(String created, String expires);
+
+  /// No description provided for @cardRevoke.
+  ///
+  /// In es, this message translates to:
+  /// **'Revocar'**
+  String get cardRevoke;
+
+  /// No description provided for @cardRevoked.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlace revocado. Quien lo use ahora llegará como solicitud sin enlace.'**
+  String get cardRevoked;
+
+  /// No description provided for @cardOlderRoute.
+  ///
+  /// In es, this message translates to:
+  /// **'Ruta para versiones anteriores'**
+  String get cardOlderRoute;
+
+  /// No description provided for @cardCodeTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi código'**
+  String get cardCodeTitle;
+
+  /// No description provided for @cardCodeHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Pide a la otra persona que lo escanee con Arveil, en Contactos › Escanear un código. Quedaréis verificados los dos.'**
+  String get cardCodeHelp;
+
+  /// No description provided for @cardCodeQrLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Código QR de tu contacto'**
+  String get cardCodeQrLabel;
+
+  /// No description provided for @cardCodeExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'El código caducó. Vuelve atrás y muéstralo de nuevo.'**
+  String get cardCodeExpired;
+
+  /// No description provided for @cardOpenFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese enlace no es un contacto de tu servidor.'**
+  String get cardOpenFailed;
+
+  /// No description provided for @cardPreviewUnnamed.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin nombre en la tarjeta'**
+  String get cardPreviewUnnamed;
+
+  /// No description provided for @cardPreviewSays.
+  ///
+  /// In es, this message translates to:
+  /// **'Dice llamarse {name}'**
+  String cardPreviewSays(String name);
+
+  /// No description provided for @cardPreviewScanned.
+  ///
+  /// In es, this message translates to:
+  /// **'Leíste su código en persona: quedará verificado.'**
+  String get cardPreviewScanned;
+
+  /// No description provided for @cardPreviewLinked.
+  ///
+  /// In es, this message translates to:
+  /// **'Llegó por un enlace: quedará sin verificar hasta que comparéis el número.'**
+  String get cardPreviewLinked;
+
+  /// No description provided for @cardStart.
+  ///
+  /// In es, this message translates to:
+  /// **'Empezar a hablar'**
+  String get cardStart;
+
+  /// No description provided for @cardStarted.
+  ///
+  /// In es, this message translates to:
+  /// **'Conversación creada.'**
+  String get cardStarted;
+
+  /// No description provided for @cardStartFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo empezar la conversación.'**
+  String get cardStartFailed;
+
+  /// No description provided for @scanNotContact.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese código no es de un contacto.'**
+  String get scanNotContact;
+
+  /// No description provided for @contactScan.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear un código'**
+  String get contactScan;
+
+  /// No description provided for @contactOpenLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir un enlace de contacto'**
+  String get contactOpenLink;
+
+  /// No description provided for @contactOpenLinkLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlace de contacto'**
+  String get contactOpenLinkLabel;
+
+  /// No description provided for @contactOpenLinkInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Pega el enlace de contacto que te enviaron. Para una ruta de una versión anterior, usa Añadir contacto.'**
+  String get contactOpenLinkInvalid;
+
+  /// No description provided for @contactOpen.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir'**
+  String get contactOpen;
+
+  /// No description provided for @requestsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Solicitudes'**
+  String get requestsTitle;
+
+  /// No description provided for @requestFromNamed.
+  ///
+  /// In es, this message translates to:
+  /// **'{name} quiere hablar contigo'**
+  String requestFromNamed(String name);
+
+  /// No description provided for @requestFromUnnamed.
+  ///
+  /// In es, this message translates to:
+  /// **'Alguien quiere hablar contigo ({id})'**
+  String requestFromUnnamed(String id);
+
+  /// No description provided for @requestUsedLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Usó tu enlace del {date}'**
+  String requestUsedLink(String date);
+
+  /// No description provided for @requestNoLink.
+  ///
+  /// In es, this message translates to:
+  /// **'No usó ninguno de tus enlaces'**
+  String get requestNoLink;
+
+  /// No description provided for @requestChecking.
+  ///
+  /// In es, this message translates to:
+  /// **'Escaneó tu código; comprobando…'**
+  String get requestChecking;
+
+  /// No description provided for @requestInPerson.
+  ///
+  /// In es, this message translates to:
+  /// **'Escaneó tu código en persona'**
+  String get requestInPerson;
+
+  /// No description provided for @requestAccept.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar'**
+  String get requestAccept;
+
+  /// No description provided for @requestDecline.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazar'**
+  String get requestDecline;
+
+  /// No description provided for @requestFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo responder a la solicitud.'**
+  String get requestFailed;
+
+  /// No description provided for @verifiedInPerson.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificado en persona'**
+  String get verifiedInPerson;
 }
 
 class _AppLocalizationsDelegate

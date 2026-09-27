@@ -10,7 +10,7 @@ import 'devices_page.dart';
 import 'diagnostics_page.dart';
 import 'key_packages_panel.dart';
 import 'kit_files.dart';
-import 'own_route.dart';
+import 'contact_cards.dart';
 import 'pairing_panel.dart';
 import 'profile_session.dart';
 import 'recovery_panel.dart';
@@ -183,12 +183,16 @@ class SettingsPage extends StatelessWidget {
                                   : l10n.identityLinked,
                             ),
                             SettingsRow(
-                              key: const Key('share-route'),
-                              icon: Icons.share_outlined,
-                              title: l10n.ownRouteTitle,
-                              subtitle: l10n.shareMyRouteHelp,
-                              onTap: () =>
-                                  showOwnRoute(context, session.profile!),
+                              key: const Key('my-card'),
+                              icon: Icons.badge_outlined,
+                              title: l10n.cardMineTitle,
+                              subtitle: l10n.cardMineRow,
+                              onTap: () => Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      MyCardPage(profile: session.profile!),
+                                ),
+                              ),
                             ),
                           ],
                         ),

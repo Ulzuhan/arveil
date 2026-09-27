@@ -324,7 +324,9 @@ mod contacts {
                 identity_id: them.to_vec(),
                 root_public: vec![4; 32],
                 verified: true,
-                name: None
+                name: None,
+                accepted: true,
+                verified_how: Some(crate::client::VerifiedHow::Comparison),
             })
         );
         // The same identity arriving with a different root is refused, and

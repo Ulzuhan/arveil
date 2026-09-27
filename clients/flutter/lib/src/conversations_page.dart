@@ -15,6 +15,7 @@ import 'conversation_details.dart';
 import 'name_dialog.dart';
 import 'conversation_search.dart';
 import 'conversation_text.dart';
+import 'requests_section.dart';
 import 'design/design.dart';
 import 'message_list.dart';
 import 'rust/api/profile.dart';
@@ -583,6 +584,7 @@ class ConversationsPageState extends State<ConversationsPage>
     onOpen: _select,
     onNew: chat.creating ? null : _create,
     notices: [
+      if (chat.requests.isNotEmpty) RequestsSection(chat: chat),
       ...widget.notices,
       if (chat.networkError case final message?)
         StatusBanner(
@@ -794,9 +796,6 @@ class _NewConversationPageState extends State<NewConversationPage> {
   List<String> _checkedRoutes = [];
   List<RoutePreviewView> _previews = [];
 
-  /// People whose safety number was compared and matched; only they are
-  /// saved as verified.
-  final Set<String> _matched = {};
   bool _checking = false;
   String? _error;
   int _revision = 0;
@@ -882,7 +881,6 @@ class _NewConversationPageState extends State<NewConversationPage> {
     setState(() {
       _checking = true;
       _error = null;
-      _matched.clear();
       _previews = [];
     });
     try {
@@ -909,9 +907,10 @@ class _NewConversationPageState extends State<NewConversationPage> {
   }
 
   Future<void> _create() async {
+    // Verifying comes later, from the conversation or in person
+    // (ADR-012 §4): nothing here asks to tick a box.
     final group = await widget.chat.create(_checkedRoutes, [
-      for (final p in _previews)
-        _matched.contains(p.identityId) ? p.safetyNumber : null,
+      for (final _ in _previews) null,
     ]);
     if (!mounted) return;
     if (group == null) {
@@ -972,7 +971,6 @@ class _NewConversationPageState extends State<NewConversationPage> {
                         _revision++;
                         _previews = [];
                         _checkedRoutes = [];
-                        _matched.clear();
                         _error = null;
                       }),
                     ),
@@ -1018,25 +1016,6 @@ class _NewConversationPageState extends State<NewConversationPage> {
                                     labelText: context.l10n.contactNameLabel,
                                     helperText: context.l10n.contactNameHelper,
                                     helperMaxLines: 3,
-                                  ),
-                                ),
-                                CheckboxListTile(
-                                  key: Key('compared-${preview.identityId}'),
-                                  contentPadding: EdgeInsets.zero,
-                                  controlAffinity:
-                                      ListTileControlAffinity.leading,
-                                  value: _matched.contains(preview.identityId),
-                                  onChanged: busy
-                                      ? null
-                                      : (v) => setState(() {
-                                          if (v == true) {
-                                            _matched.add(preview.identityId);
-                                          } else {
-                                            _matched.remove(preview.identityId);
-                                          }
-                                        }),
-                                  title: Text(
-                                    context.l10n.newConversationMatches,
                                   ),
                                 ),
                               ],

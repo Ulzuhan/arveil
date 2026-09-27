@@ -55,12 +55,13 @@ extension CardViewPatterns on CardView {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CardView_Join value)?  join,TResult Function( CardView_Link value)?  link,TResult Function( CardView_Other value)?  other,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CardView_Join value)?  join,TResult Function( CardView_Link value)?  link,TResult Function( CardView_Contact value)?  contact,TResult Function( CardView_Other value)?  other,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case CardView_Join() when join != null:
 return join(_that);case CardView_Link() when link != null:
-return link(_that);case CardView_Other() when other != null:
+return link(_that);case CardView_Contact() when contact != null:
+return contact(_that);case CardView_Other() when other != null:
 return other(_that);case _:
   return orElse();
 
@@ -79,12 +80,13 @@ return other(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CardView_Join value)  join,required TResult Function( CardView_Link value)  link,required TResult Function( CardView_Other value)  other,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CardView_Join value)  join,required TResult Function( CardView_Link value)  link,required TResult Function( CardView_Contact value)  contact,required TResult Function( CardView_Other value)  other,}){
 final _that = this;
 switch (_that) {
 case CardView_Join():
 return join(_that);case CardView_Link():
-return link(_that);case CardView_Other():
+return link(_that);case CardView_Contact():
+return contact(_that);case CardView_Other():
 return other(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -99,12 +101,13 @@ return other(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CardView_Join value)?  join,TResult? Function( CardView_Link value)?  link,TResult? Function( CardView_Other value)?  other,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CardView_Join value)?  join,TResult? Function( CardView_Link value)?  link,TResult? Function( CardView_Contact value)?  contact,TResult? Function( CardView_Other value)?  other,}){
 final _that = this;
 switch (_that) {
 case CardView_Join() when join != null:
 return join(_that);case CardView_Link() when link != null:
-return link(_that);case CardView_Other() when other != null:
+return link(_that);case CardView_Contact() when contact != null:
+return contact(_that);case CardView_Other() when other != null:
 return other(_that);case _:
   return null;
 
@@ -122,11 +125,12 @@ return other(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String bootstrap,  String invitation)?  join,TResult Function( String server,  BigInt expiresAt)?  link,TResult Function( String kind)?  other,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String bootstrap,  String invitation)?  join,TResult Function( String server,  BigInt expiresAt)?  link,TResult Function( String? name)?  contact,TResult Function( String kind)?  other,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case CardView_Join() when join != null:
 return join(_that.bootstrap,_that.invitation);case CardView_Link() when link != null:
-return link(_that.server,_that.expiresAt);case CardView_Other() when other != null:
+return link(_that.server,_that.expiresAt);case CardView_Contact() when contact != null:
+return contact(_that.name);case CardView_Other() when other != null:
 return other(_that.kind);case _:
   return orElse();
 
@@ -145,11 +149,12 @@ return other(_that.kind);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String bootstrap,  String invitation)  join,required TResult Function( String server,  BigInt expiresAt)  link,required TResult Function( String kind)  other,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String bootstrap,  String invitation)  join,required TResult Function( String server,  BigInt expiresAt)  link,required TResult Function( String? name)  contact,required TResult Function( String kind)  other,}) {final _that = this;
 switch (_that) {
 case CardView_Join():
 return join(_that.bootstrap,_that.invitation);case CardView_Link():
-return link(_that.server,_that.expiresAt);case CardView_Other():
+return link(_that.server,_that.expiresAt);case CardView_Contact():
+return contact(_that.name);case CardView_Other():
 return other(_that.kind);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -164,11 +169,12 @@ return other(_that.kind);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String bootstrap,  String invitation)?  join,TResult? Function( String server,  BigInt expiresAt)?  link,TResult? Function( String kind)?  other,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String bootstrap,  String invitation)?  join,TResult? Function( String server,  BigInt expiresAt)?  link,TResult? Function( String? name)?  contact,TResult? Function( String kind)?  other,}) {final _that = this;
 switch (_that) {
 case CardView_Join() when join != null:
 return join(_that.bootstrap,_that.invitation);case CardView_Link() when link != null:
-return link(_that.server,_that.expiresAt);case CardView_Other() when other != null:
+return link(_that.server,_that.expiresAt);case CardView_Contact() when contact != null:
+return contact(_that.name);case CardView_Other() when other != null:
 return other(_that.kind);case _:
   return null;
 
@@ -307,6 +313,72 @@ class _$CardView_LinkCopyWithImpl<$Res>
 server: null == server ? _self.server : server // ignore: cast_nullable_to_non_nullable
 as String,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as BigInt,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class CardView_Contact extends CardView {
+  const CardView_Contact({this.name}): super._();
+  
+
+ final  String? name;
+
+/// Create a copy of CardView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CardView_ContactCopyWith<CardView_Contact> get copyWith => _$CardView_ContactCopyWithImpl<CardView_Contact>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardView_Contact&&(identical(other.name, name) || other.name == name));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,name);
+
+@override
+String toString() {
+  return 'CardView.contact(name: $name)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CardView_ContactCopyWith<$Res> implements $CardViewCopyWith<$Res> {
+  factory $CardView_ContactCopyWith(CardView_Contact value, $Res Function(CardView_Contact) _then) = _$CardView_ContactCopyWithImpl;
+@useResult
+$Res call({
+ String? name
+});
+
+
+
+
+}
+/// @nodoc
+class _$CardView_ContactCopyWithImpl<$Res>
+    implements $CardView_ContactCopyWith<$Res> {
+  _$CardView_ContactCopyWithImpl(this._self, this._then);
+
+  final CardView_Contact _self;
+  final $Res Function(CardView_Contact) _then;
+
+/// Create a copy of CardView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? name = freezed,}) {
+  return _then(CardView_Contact(
+name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

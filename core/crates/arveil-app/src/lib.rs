@@ -22,7 +22,10 @@ mod attachment_ui;
 pub mod carrier;
 pub mod links;
 pub mod qr;
+mod requests;
+pub use arveil_core::client::{CardUse, VerifiedHow};
 pub use attachment_ui::{AttachmentState, AttachmentSummary, MAX_ATTACHMENT_BYTES};
+pub use requests::{CardOffer, CardPreview, Hello, RequestSummary};
 mod contacts;
 #[cfg(test)]
 mod device_tests;
@@ -107,6 +110,14 @@ pub enum Operation {
     AwaitLinkRequest,
     AnswerLink,
     JoinLink,
+    OfferCard,
+    CloseCard,
+    QuerySharedCards,
+    SetCardName,
+    QueryCardName,
+    PreviewCard,
+    StartFromCard,
+    AnswerRequest,
     ExportArchive,
     ImportArchive,
     QueryArchivePage,
@@ -215,6 +226,29 @@ pub enum ClientCommand {
         text: String,
         description: Option<String>,
         scanned: bool,
+    },
+    OfferCard {
+        in_person: bool,
+    },
+    CloseCard {
+        secret: Vec<u8>,
+    },
+    QuerySharedCards,
+    SetCardName {
+        name: Option<String>,
+    },
+    QueryCardName,
+    PreviewCard {
+        text: String,
+    },
+    StartFromCard {
+        bootstrap: String,
+        text: String,
+        scanned: bool,
+    },
+    AnswerRequest {
+        group_id: Vec<u8>,
+        accept: bool,
     },
     ExportArchive,
     ImportArchive {
@@ -346,6 +380,14 @@ impl ClientCommand {
             Self::AwaitLinkRequest { .. } => Operation::AwaitLinkRequest,
             Self::AnswerLink { .. } => Operation::AnswerLink,
             Self::JoinLink { .. } => Operation::JoinLink,
+            Self::OfferCard { .. } => Operation::OfferCard,
+            Self::CloseCard { .. } => Operation::CloseCard,
+            Self::QuerySharedCards => Operation::QuerySharedCards,
+            Self::SetCardName { .. } => Operation::SetCardName,
+            Self::QueryCardName => Operation::QueryCardName,
+            Self::PreviewCard { .. } => Operation::PreviewCard,
+            Self::StartFromCard { .. } => Operation::StartFromCard,
+            Self::AnswerRequest { .. } => Operation::AnswerRequest,
             Self::QueryOnboarding => Operation::QueryOnboarding,
             Self::QueryKeyPackageSupply => Operation::QueryKeyPackageSupply,
             Self::CheckKeyPackages => Operation::CheckKeyPackages,
@@ -513,6 +555,22 @@ pub enum StateChange {
     LinkAnswered {
         pair_id: Vec<u8>,
         approved: bool,
+    },
+    /// A conversation's first event said which card it used, if any.
+    HelloReceived {
+        group_id: Vec<u8>,
+        name: Option<String>,
+        card: CardUse,
+    },
+    /// An in-person code bound to its sender's root: verified in person.
+    ContactVerifiedInPerson {
+        group_id: Vec<u8>,
+        identity_id: Vec<u8>,
+    },
+    /// The person accepted or declined a request.
+    RequestAnswered {
+        group_id: Vec<u8>,
+        accepted: bool,
     },
     MessageQueued {
         receipt: MessageReceipt,
@@ -1157,6 +1215,9 @@ pub struct ConversationSummary {
     /// order conversations were started, which the command line lists and
     /// its scripts rely on; a screen orders by this instead.
     pub last_activity: i64,
+    /// Present while someone who is not a contact waits for an answer
+    /// (ADR-012 §4). Such a conversation stays out of the chat list.
+    pub request: Option<RequestSummary>,
 }
 
 /// How far a conversation has been read on this device, after marking it.
@@ -1210,6 +1271,8 @@ pub struct PeerSummary {
     pub named: bool,
     pub own: bool,
     pub verified: bool,
+    /// How a verified identity was verified.
+    pub verified_how: Option<VerifiedHow>,
     /// The number to compare with this identity, over the root this profile
     /// keeps for it; absent for this profile's own devices.
     pub safety_number: Option<String>,
@@ -1327,6 +1390,10 @@ pub enum CommandOutput {
     Contact(ContactSummary),
     OwnRoute(String),
     RoutePreviews(Vec<RoutePreview>),
+    CardOffer(CardOffer),
+    SharedCards(Vec<CardOffer>),
+    CardName(Option<String>),
+    CardPreview(CardPreview),
     Conversations(Vec<ConversationSummary>),
     Peers(Vec<PeerSummary>),
     HistoryPage(HistoryPage),
@@ -1510,7 +1577,10 @@ impl ClientCommand {
             | Self::QueryContacts
             | Self::PreviewRoutes { .. }
             | Self::QueryKeyPackageSupply
-            | Self::QueryPendingPairing => Admission::Query,
+            | Self::QueryPendingPairing
+            | Self::QuerySharedCards
+            | Self::QueryCardName
+            | Self::PreviewCard { .. } => Admission::Query,
             _ => Admission::Mutation,
         }
     }
@@ -2372,6 +2442,76 @@ impl Application {
         )
     }
 
+    /// A card of this device: a code to show in person, or a link to share.
+    pub fn offer_card(&self, in_person: bool) -> Result<CardOffer, ApplicationError> {
+        match self.execute(ClientCommand::OfferCard { in_person })? {
+            CommandOutput::CardOffer(card) => Ok(card),
+            _ => unreachable!("card output"),
+        }
+    }
+
+    /// Stop a card from working: its screen closed, or the link is revoked.
+    pub fn close_card(&self, secret: &[u8]) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::CloseCard {
+            secret: secret.into(),
+        })
+    }
+
+    /// Links this device shared that still work.
+    pub fn shared_cards(&self) -> Result<Vec<CardOffer>, ApplicationError> {
+        match self.execute(ClientCommand::QuerySharedCards)? {
+            CommandOutput::SharedCards(cards) => Ok(cards),
+            _ => unreachable!("shared cards output"),
+        }
+    }
+
+    pub fn set_card_name(&self, name: Option<&str>) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::SetCardName {
+            name: name.map(str::to_string),
+        })
+    }
+
+    pub fn card_name(&self) -> Result<Option<String>, ApplicationError> {
+        match self.execute(ClientCommand::QueryCardName)? {
+            CommandOutput::CardName(name) => Ok(name),
+            _ => unreachable!("card name output"),
+        }
+    }
+
+    /// Who a contact card names, before talking to them.
+    pub fn preview_card(&self, text: &str) -> Result<CardPreview, ApplicationError> {
+        match self.execute(ClientCommand::PreviewCard { text: text.into() })? {
+            CommandOutput::CardPreview(preview) => Ok(preview),
+            _ => unreachable!("card preview output"),
+        }
+    }
+
+    /// Start talking to the person a card names.
+    pub fn start_from_card(
+        &self,
+        bootstrap: &str,
+        text: &str,
+        scanned: bool,
+    ) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::StartFromCard {
+            bootstrap: bootstrap.into(),
+            text: text.into(),
+            scanned,
+        })
+    }
+
+    /// Accept or decline a conversation someone who is not a contact started.
+    pub fn answer_request(
+        &self,
+        group_id: &[u8],
+        accept: bool,
+    ) -> Result<OperationResult, ApplicationError> {
+        self.operation(ClientCommand::AnswerRequest {
+            group_id: group_id.into(),
+            accept,
+        })
+    }
+
     pub fn pending_pairing(&self) -> Result<Option<PairingVerification>, ApplicationError> {
         match self.execute(ClientCommand::QueryPendingPairing)? {
             CommandOutput::PendingPairing(pairing) => Ok(pairing),
@@ -2821,6 +2961,76 @@ async fn run_command(
         }))
         .await
         .map(CommandOutput::Operation),
+        ClientCommand::OfferCard { in_person } => requests::offer_card(config, in_person)
+            .map(CommandOutput::CardOffer)
+            .map_err(|e| application_error(Operation::OfferCard, e)),
+        ClientCommand::CloseCard { secret } => run_operation(Operation::CloseCard, async {
+            open_client(config)?
+                .card_revoke(&secret)
+                .map_err(storage_error("card"))?;
+            Ok(())
+        })
+        .await
+        .map(CommandOutput::Operation),
+        ClientCommand::QuerySharedCards => open_client(config)
+            .and_then(|client| {
+                client
+                    .cards_shared(unix_now())
+                    .map_err(storage_error("cards"))
+            })
+            .map(|cards| {
+                CommandOutput::SharedCards(
+                    cards
+                        .into_iter()
+                        .map(|c| CardOffer {
+                            secret: c.secret,
+                            link: String::new(),
+                            in_person: false,
+                            created_at: c.created_at,
+                            expires_at: c.expires_at,
+                        })
+                        .collect(),
+                )
+            })
+            .map_err(|e| application_error(Operation::QuerySharedCards, e)),
+        ClientCommand::SetCardName { name } => run_operation(Operation::SetCardName, async {
+            let name = match name.as_deref().map(str::trim) {
+                None | Some("") => None,
+                Some(n) => Some(
+                    crate::links::clean_name(n)
+                        .ok_or_else(|| CliError::Domain("that name cannot go on a card".into()))?,
+                ),
+            };
+            open_client(config)?
+                .card_name_set(name.as_deref())
+                .map_err(storage_error("card name"))
+        })
+        .await
+        .map(CommandOutput::Operation),
+        ClientCommand::QueryCardName => open_client(config)
+            .and_then(|client| client.card_name().map_err(storage_error("card name")))
+            .map(CommandOutput::CardName)
+            .map_err(|e| application_error(Operation::QueryCardName, e)),
+        ClientCommand::PreviewCard { text } => requests::preview_card(config, &text)
+            .map(CommandOutput::CardPreview)
+            .map_err(|e| application_error(Operation::PreviewCard, e)),
+        ClientCommand::StartFromCard {
+            bootstrap,
+            text,
+            scanned,
+        } => Box::pin(run_operation(
+            Operation::StartFromCard,
+            requests::start_from_card(config, &bootstrap, &text, scanned),
+        ))
+        .await
+        .map(CommandOutput::Operation),
+        ClientCommand::AnswerRequest { group_id, accept } => {
+            run_operation(Operation::AnswerRequest, async {
+                requests::answer(config, &group_id, accept)
+            })
+            .await
+            .map(CommandOutput::Operation)
+        }
         ClientCommand::QueryOwnRoute => conversation_ui::own(config)
             .map(CommandOutput::OwnRoute)
             .map_err(|e| application_error(Operation::QueryOwnRoute, e)),
@@ -3250,7 +3460,15 @@ fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSumm
         .conversations()
         .map_err(storage_error("conversations"))?
         .into_iter()
-        .map(|conversation| {
+        .filter_map(|conversation| {
+            // A declined request is gone from every list.
+            match session.client.request(&conversation.group_id) {
+                Ok(Some(r)) if r.status == arveil_core::client::RequestStatus::Declined => None,
+                Ok(request) => Some((conversation, request.map(RequestSummary::from))),
+                Err(_) => Some((conversation, None)),
+            }
+        })
+        .map(|(conversation, request)| {
             // A summary needs the count and the newest row, not every body
             // in the conversation.
             let event_count = session
@@ -3290,6 +3508,7 @@ fn conversation_summaries(config: &ProfileConfig) -> Result<Vec<ConversationSumm
                 last_event,
                 unread,
                 last_activity,
+                request,
             })
         })
         .collect()
@@ -3363,7 +3582,8 @@ fn peer_summary(session: &LocalRead, peer: &Peer) -> Result<PeerSummary, CliErro
         ),
         named: contact.as_ref().is_some_and(|c| c.name.is_some()),
         own,
-        verified: contact.is_some_and(|c| c.verified),
+        verified: contact.as_ref().is_some_and(|c| c.verified),
+        verified_how: contact.and_then(|c| c.verified_how),
         safety_number,
         routable: peer.routable(),
         revoked: peer.revoked,
@@ -4339,6 +4559,19 @@ async fn start(
     bootstrap: &str,
     peer_routes: &[&str],
 ) -> Result<(), CliError> {
+    let hello = requests::plain_hello(&open_client(config)?)?;
+    Box::pin(start_with(config, bootstrap, peer_routes, hello)).await
+}
+
+/// Create a conversation. Its first event after the roster is `hello`
+/// (ADR-012 §4) when there is something to say: the secret of the card it
+/// came from, and the name this device puts on its cards.
+async fn start_with(
+    config: &ProfileConfig,
+    bootstrap: &str,
+    peer_routes: &[&str],
+    hello: Option<requests::Hello>,
+) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let peers: Vec<Route> = peer_routes
         .iter()
@@ -4378,6 +4611,15 @@ async fn start(
         .to_bytes()
         .map_err(protocol_error("welcome"))?;
     let roster = roster_message(&s, &mut group, &conv.peers)?;
+    let hello = hello
+        .map(|hello| {
+            group
+                .encrypt_application_message(&requests::encode_hello(&hello)?, Default::default())
+                .map_err(protocol_error("mls encrypt"))?
+                .to_bytes()
+                .map_err(protocol_error("mls encode"))
+        })
+        .transpose()?;
 
     s.client
         .unit_of_work(|| {
@@ -4389,6 +4631,9 @@ async fn start(
                 .map_err(|_| rusqlite::Error::InvalidQuery)?;
             enqueue_for_all(&s, &conv.peers, None, &welcome)?;
             enqueue_for_all(&s, &conv.peers, None, &roster)?;
+            if let Some(hello) = &hello {
+                enqueue_for_all(&s, &conv.peers, None, hello)?;
+            }
             Ok::<_, rusqlite::Error>(())
         })
         .map_err(storage_error("start unit"))?;
@@ -4732,6 +4977,10 @@ fn handle_mls<C: MlsConfig>(
                     peers: Vec::new(),
                 })
                 .map_err(storage_error("conversation"))?;
+            // Until its roster names who started it (ADR-012 §4).
+            s.client
+                .request_open(group.group_id())
+                .map_err(storage_error("request"))?;
             Ok(StateChange::ConversationJoined {
                 group_id: group.group_id().to_vec(),
                 epoch: group.current_epoch(),
@@ -4744,6 +4993,12 @@ fn handle_mls<C: MlsConfig>(
                 .group_id()
                 .ok_or_else(|| CliError::Protocol("message without group id".into()))?
                 .to_vec();
+            if requests::declined(s, &gid)? {
+                return Ok(StateChange::MlsMessageProcessed {
+                    group_id: gid,
+                    description: "declined conversation: dropped".into(),
+                });
+            }
             let mut group = engine.load_group(&gid).map_err(storage_error("mls load"))?;
             let received = group
                 .process_incoming_message(msg)
@@ -4771,9 +5026,12 @@ fn handle_mls<C: MlsConfig>(
                                 .conversation_save(&Conversation {
                                     group_id: gid.clone(),
                                     creator: false,
-                                    peers,
+                                    peers: peers.clone(),
                                 })
                                 .map_err(storage_error("conversation"))?;
+                            let sender = event_sender(s, &group, &gid, app.sender_index)?
+                                .and_then(|sender| sender.identity_id);
+                            requests::classify(s, &gid, sender.as_deref(), &peers)?;
                             Ok(StateChange::RosterUpdated {
                                 group_id: gid,
                                 peers: n,
@@ -4858,6 +5116,11 @@ fn handle_mls<C: MlsConfig>(
                                 name: d.safe_name(),
                                 size: d.size,
                             })
+                        }
+                        "hello" => {
+                            let sender = event_sender(s, &group, &gid, app.sender_index)?
+                                .and_then(|sender| sender.identity_id);
+                            requests::receive_hello(s, &gid, sender.as_deref(), &ev.body)
                         }
                         other => Ok(StateChange::MlsMessageProcessed {
                             group_id: gid,
@@ -4972,6 +5235,9 @@ async fn sync(config: &ProfileConfig, bootstrap: &str) -> Result<(), CliError> {
         advanced_to = item.seq;
     }
     let next = advanced_to;
+    // An in-person code is believed once its sender binds to a signed
+    // credential; a network failure here waits for the next sync.
+    let _ = requests::settle_in_person(&s, &engine, &mut conn).await;
     if !config.manual_attachments {
         download_pending(&s, &mut conn, config).await?;
     }

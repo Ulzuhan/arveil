@@ -56,6 +56,7 @@ class VerifyingProfile extends ChatProfile {
     verifications.add((identityId, safetyNumber));
     verified.add(identityId);
     return ContactView(
+      accepted: true,
       identityId: identityId,
       label: identityId.substring(0, 8),
       verified: true,

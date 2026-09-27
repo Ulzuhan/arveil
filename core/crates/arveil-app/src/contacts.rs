@@ -15,6 +15,9 @@ pub struct ContactSummary {
     pub name: Option<String>,
     pub label: String,
     pub verified: bool,
+    pub verified_how: Option<arveil_core::client::VerifiedHow>,
+    /// Chosen by this person, as opposed to only met in a group.
+    pub accepted: bool,
     pub safety_number: String,
     pub devices: Vec<ContactDevice>,
 }
@@ -55,6 +58,8 @@ fn summary(client: &Client, contact: Contact) -> Result<ContactSummary, CliError
         identity_id: contact.identity_id,
         name: contact.name,
         verified: contact.verified,
+        verified_how: contact.verified_how,
+        accepted: contact.accepted,
         safety_number,
         devices,
     })

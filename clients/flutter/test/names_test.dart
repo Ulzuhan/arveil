@@ -47,6 +47,7 @@ class NamingProfile extends ChatProfile {
   Future<List<ContactView>> contacts() async => [
     for (final p in people)
       ContactView(
+        accepted: true,
         identityId: p,
         name: names[p],
         label: names[p] ?? p.substring(0, 8),

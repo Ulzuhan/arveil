@@ -184,14 +184,14 @@ fn a_newer_profile_is_refused_without_writes() {
     {
         let newer = Connection::open(&path).unwrap();
         newer
-            .execute_batch("CREATE TABLE future (v BLOB); PRAGMA user_version = 7;")
+            .execute_batch("CREATE TABLE future (v BLOB); PRAGMA user_version = 8;")
             .unwrap();
     }
     let before = std::fs::read(&path).unwrap();
 
     match SharedConn::open_file(&path) {
         Err(StorageError::SchemaTooNew { found, supported }) => {
-            assert_eq!((found, supported), (7, PROFILE_SCHEMA_VERSION));
+            assert_eq!((found, supported), (8, PROFILE_SCHEMA_VERSION));
         }
         other => panic!("expected a newer schema, got {other:?}"),
     }
@@ -375,5 +375,53 @@ fn version_three_marks_existing_conversations_read() {
     assert_eq!(delivery.read_cursor(&[1u8]).unwrap(), 2);
     assert_eq!(delivery.read_cursor(&[2u8]).unwrap(), 3);
     drop((delivery, conn));
+    cleanup(&path);
+}
+
+/// Contacts recorded before cards existed stay chosen, and their earlier
+/// verifications count as comparisons: an update demotes nobody.
+#[test]
+fn version_seven_keeps_every_earlier_contact_chosen() {
+    let path = scratch("cards");
+    {
+        let v6 = SharedConn::open_file(&path).unwrap();
+        let conn = v6.lock();
+        conn.execute_batch(
+            "INSERT INTO contacts (identity_id, root_public, verified) VALUES (x'01', x'aa', 1);
+             INSERT INTO contacts (identity_id, root_public, verified) VALUES (x'02', x'bb', 0);
+             INSERT INTO conversations (group_id) VALUES (x'c1');
+             ALTER TABLE contacts DROP COLUMN accepted;
+             ALTER TABLE contacts DROP COLUMN verified_how;
+             ALTER TABLE conversations DROP COLUMN request;
+             ALTER TABLE conversations DROP COLUMN request_from;
+             ALTER TABLE conversations DROP COLUMN request_card;
+             ALTER TABLE conversations DROP COLUMN request_card_at;
+             ALTER TABLE conversations DROP COLUMN request_name;
+             DROP TABLE contact_cards;
+             DROP TABLE own_card;
+             PRAGMA user_version = 6;",
+        )
+        .unwrap();
+    }
+    let conn = SharedConn::open_file(&path).unwrap();
+    let guard = conn.lock();
+    assert_eq!(version_of(&guard), PROFILE_SCHEMA_VERSION);
+    let rows: Vec<(Vec<u8>, i64, Option<String>)> = guard
+        .prepare("SELECT identity_id, accepted, verified_how FROM contacts ORDER BY identity_id")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(
+        rows,
+        vec![(vec![1], 1, Some("comparison".into())), (vec![2], 1, None)]
+    );
+    let request: Option<i64> = guard
+        .query_row("SELECT request FROM conversations", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(request, None, "an existing conversation is not a request");
+    drop(guard);
+    drop(conn);
     cleanup(&path);
 }

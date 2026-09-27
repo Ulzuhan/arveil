@@ -184,6 +184,30 @@ fn render_change(change: StateChange) {
             println!("pairing: session {} expired", hex::encode(session_id))
         }
         StateChange::LinkOffered { .. } => {}
+        StateChange::HelloReceived {
+            group_id,
+            name,
+            card,
+        } => println!(
+            "hello: in {} {}{}",
+            hex::encode(&group_id[..6.min(group_id.len())]),
+            match card {
+                arveil_app::CardUse::None => "without any of your cards",
+                arveil_app::CardUse::Link { .. } => "with your shared link",
+                arveil_app::CardUse::InPersonPending | arveil_app::CardUse::InPerson =>
+                    "with your in-person code",
+            },
+            name.map(|n| format!(", says it is {n}"))
+                .unwrap_or_default()
+        ),
+        StateChange::ContactVerifiedInPerson { identity_id, .. } => {
+            println!("verified in person: {}", hex::encode(identity_id))
+        }
+        StateChange::RequestAnswered { group_id, accepted } => println!(
+            "request {} {}",
+            hex::encode(group_id),
+            if accepted { "accepted" } else { "declined" }
+        ),
         StateChange::LinkRequested {
             verification_code,
             device_id,
@@ -488,6 +512,13 @@ pub fn list(data_dir: &Path) -> Result<(), CliError> {
         return Ok(());
     }
     for conversation in conversations {
+        if conversation.request.is_some() {
+            println!(
+                "{} (request: see `chat requests`)",
+                hex::encode(&conversation.group_id)
+            );
+            continue;
+        }
         let last = conversation
             .last_event
             .map(|event| format!("{}: {}", event.kind, String::from_utf8_lossy(&event.body)))

@@ -345,4 +345,55 @@ grep -q "ARVEIL_REVISION" "$ROOT/.github/workflows/release.yml" || fail "the rel
 grep -q "attest-build-provenance" "$ROOT/.github/workflows/release.yml" || fail "the release workflow produces no provenance"
 grep -q "SHA256SUMS" "$ROOT/.github/workflows/release.yml" || fail "the release workflow publishes no checksums"
 
+step "ADR-012 contacts: a shared link starts a request that names the link"
+for who in frank gina hana ivan; do
+  "$CLI" enroll --data-dir "$DATA/$who" "$BOOTSTRAP2" "$(invite)" > "$DATA/$who.enroll"
+done
+id_of() { sed -n 's/^identity: //p' "$DATA/$1.enroll" | sed 's/ .*//' | head -1; }
+FRANK_ID="$(id_of frank)"; GINA_ID="$(id_of gina)"; HANA_ID="$(id_of hana)"
+"$CLI" contact card-name --data-dir "$DATA/frank" "Frank" > /dev/null
+"$CLI" contact card --data-dir "$DATA/gina" > "$DATA/gina.card"
+GINA_CARD="$(sed -n 's/^card: //p' "$DATA/gina.card")"
+case "$GINA_CARD" in https://arveil.kaicorplabs.com/contact#*) ;; *) fail "no contact card: $(cat "$DATA/gina.card")" ;; esac
+"$CLI" contact open --data-dir "$DATA/frank" "$BOOTSTRAP2" "Escríbeme: $GINA_CARD" > "$DATA/frank.open"
+grep -q "^card: identity $GINA_ID" "$DATA/frank.open" || fail "the card did not name gina: $(cat "$DATA/frank.open")"
+"$CLI" chat sync --data-dir "$DATA/gina" "$BOOTSTRAP2" > "$DATA/gina.sync1"
+"$CLI" chat requests --data-dir "$DATA/gina" | tee "$DATA/gina.requests"
+grep -q "^request [0-9a-f]* from $FRANK_ID (used your link from [0-9]*), says it is Frank" "$DATA/gina.requests" || fail "the request does not say who and which link"
+"$CLI" chat list --data-dir "$DATA/gina" > "$DATA/gina.list"
+grep -q "(request: see" "$DATA/gina.list" || fail "a request was listed as a conversation"
+REQUEST="$(sed -n 's/^request \([0-9a-f]*\) .*/\1/p' "$DATA/gina.requests" | head -1)"
+"$CLI" chat accept --data-dir "$DATA/gina" "${REQUEST:0:12}" | tee "$DATA/gina.accept"
+grep -q "accepted" "$DATA/gina.accept" || fail "accepting did not take"
+"$CLI" chat requests --data-dir "$DATA/gina" | grep -q "^requests: none" || fail "the accepted request is still waiting"
+"$CLI" contact list --data-dir "$DATA/gina" | grep -q "^contact $FRANK_ID \[not verified\] Frank" || fail "accepting did not save frank as a contact under his name"
+"$CLI" chat send --data-dir "$DATA/gina" "$BOOTSTRAP2" "hola Frank" > /dev/null
+"$CLI" chat sync --data-dir "$DATA/frank" "$BOOTSTRAP2" | grep -q "message: hola Frank" || fail "frank does not hear back"
+
+step "ADR-012 contacts: one in-person scan verifies both sides and needs no answer"
+"$CLI" contact card --data-dir "$DATA/hana" --in-person > "$DATA/hana.code"
+HANA_CODE="$(sed -n 's/^card: //p' "$DATA/hana.code")"
+"$CLI" contact open --data-dir "$DATA/frank" "$BOOTSTRAP2" "$HANA_CODE" --scanned > "$DATA/frank.scan"
+"$CLI" contact list --data-dir "$DATA/frank" > "$DATA/frank.contacts"
+grep -A2 "^contact $HANA_ID \[verified\]" "$DATA/frank.contacts" | grep -q "verified: in person" || fail "the scanning side did not verify in person: $(cat "$DATA/frank.contacts")"
+"$CLI" chat sync --data-dir "$DATA/hana" "$BOOTSTRAP2" > "$DATA/hana.sync"
+grep -q "verified in person: $FRANK_ID" "$DATA/hana.sync" || fail "the side that showed the code did not verify the scanner: $(cat "$DATA/hana.sync")"
+"$CLI" chat requests --data-dir "$DATA/hana" | grep -q "^requests: none" || fail "an in-person scan still asked for an answer"
+"$CLI" contact list --data-dir "$DATA/hana" | grep -A2 "^contact $FRANK_ID \[verified\]" | grep -q "verified: in person" || fail "hana does not list frank as verified in person"
+# The code works once: someone else opening it later is an ordinary request.
+"$CLI" contact open --data-dir "$DATA/gina" "$BOOTSTRAP2" "$HANA_CODE" > /dev/null
+"$CLI" chat sync --data-dir "$DATA/hana" "$BOOTSTRAP2" > /dev/null
+"$CLI" chat requests --data-dir "$DATA/hana" | grep -q "from $GINA_ID (did not use any of your links)" || fail "a spent in-person code was honoured again"
+
+step "ADR-012 contacts: a stranger without a card is a request, and a declined one is dropped"
+"$CLI" chat start --data-dir "$DATA/ivan" "$BOOTSTRAP2" "$(route_of "$DATA/gina.enroll")" > /dev/null
+"$CLI" chat sync --data-dir "$DATA/gina" "$BOOTSTRAP2" > /dev/null
+IVAN_REQ="$(sed -n "s/^request \([0-9a-f]*\) from $(id_of ivan) (did not use any of your links).*/\1/p" <("$CLI" chat requests --data-dir "$DATA/gina"))"
+[ -n "$IVAN_REQ" ] || fail "a conversation from a stranger was joined without asking"
+"$CLI" chat decline --data-dir "$DATA/gina" "${IVAN_REQ:0:12}" | grep -q "declined" || fail "declining did not take"
+"$CLI" chat send --data-dir "$DATA/ivan" "$BOOTSTRAP2" "¿hola?" > /dev/null
+"$CLI" chat sync --data-dir "$DATA/gina" "$BOOTSTRAP2" > "$DATA/gina.sync3"
+grep -q "message: ¿hola?" "$DATA/gina.sync3" && fail "a declined conversation still delivered a message"
+"$CLI" chat list --data-dir "$DATA/gina" | grep -q "$IVAN_REQ" && fail "a declined conversation is still listed"
+
 step "phase 3 ok"

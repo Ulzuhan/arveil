@@ -15,6 +15,7 @@ ContactView person({
   bool verified = false,
   List<ContactDeviceView>? devices,
 }) => ContactView(
+  accepted: true,
   identityId: id,
   label: name,
   name: name,

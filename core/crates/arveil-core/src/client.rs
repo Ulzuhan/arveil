@@ -22,6 +22,12 @@ mod archive_store;
 #[path = "device_store.rs"]
 mod device_store;
 pub use device_store::Revocation;
+#[path = "card_store.rs"]
+mod card_store;
+pub use card_store::{
+    CardKind, CardUse, IN_PERSON_SECONDS, LINK_SECONDS, OwnCard, Request, RequestStatus,
+    VerifiedHow,
+};
 
 /// Client tables, part of the version 1 baseline in [`crate::schema`].
 /// Frozen: a change to these tables is a new migration, not an edit here.
@@ -383,6 +389,11 @@ pub struct Contact {
     /// A local label. It never travels, never authenticates anything and
     /// never takes part in a check: the safety number does that (M4.8).
     pub name: Option<String>,
+    /// Chosen by this person (a saved route, an opened card, an accepted
+    /// request), as opposed to only met in a group (ADR-012 §4).
+    pub accepted: bool,
+    /// How a verified contact was verified.
+    pub verified_how: Option<VerifiedHow>,
 }
 
 impl Contact {
@@ -1271,10 +1282,16 @@ impl Client {
         if self.contact(identity)?.is_none() {
             return Err(ClientError::NoSuchContact(hex_of(identity)));
         }
-        self.conn.lock().execute(
+        let conn = self.conn.lock();
+        conn.execute(
             "INSERT INTO contact_routes (identity_id, device_id, route) VALUES (?1, ?2, ?3)
              ON CONFLICT (identity_id, device_id) DO UPDATE SET route = excluded.route",
             params![identity, device, route],
+        )?;
+        // Saving someone's route is choosing them as a contact.
+        conn.execute(
+            "UPDATE contacts SET accepted = 1 WHERE identity_id = ?1",
+            params![identity],
         )?;
         Ok(())
     }
@@ -1291,14 +1308,25 @@ impl Client {
     pub fn contacts(&self) -> Result<Vec<Contact>, ClientError> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
-            "SELECT identity_id, root_public, verified, name FROM contacts ORDER BY first_seen, identity_id",
+            "SELECT identity_id, root_public, verified, name, accepted, verified_how
+             FROM contacts ORDER BY first_seen, identity_id",
         )?;
         let rows = stmt.query_map([], |r| {
+            let verified = r.get::<_, i64>(2)? != 0;
             Ok(Contact {
                 identity_id: r.get(0)?,
                 root_public: r.get(1)?,
-                verified: r.get::<_, i64>(2)? != 0,
+                verified,
                 name: r.get(3)?,
+                accepted: r.get::<_, Option<i64>>(4)? == Some(1),
+                verified_how: if verified {
+                    r.get::<_, Option<String>>(5)?
+                        .as_deref()
+                        .and_then(VerifiedHow::parse)
+                        .or(Some(VerifiedHow::Comparison))
+                } else {
+                    None
+                },
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -1351,7 +1379,9 @@ impl Client {
             return Ok(false);
         }
         self.conn.lock().execute(
-            "UPDATE contacts SET verified = 1, verified_at = ?2 WHERE identity_id = ?1",
+            "UPDATE contacts SET verified = 1, verified_at = ?2, verified_how = 'comparison',
+                    accepted = 1
+             WHERE identity_id = ?1",
             params![identity, now],
         )?;
         Ok(true)

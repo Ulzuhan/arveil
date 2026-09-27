@@ -39,6 +39,9 @@ class ConversationController extends ChangeNotifier {
   final Profile profile;
   final String bootstrap;
   List<ConversationView> conversations = [];
+
+  /// Conversations started by people who are not contacts (ADR-012 §4).
+  List<ConversationView> requests = [];
   List<HistoryEventView> events = [];
   String? selected;
   int? before;
@@ -112,6 +115,20 @@ class ConversationController extends ChangeNotifier {
     }
   }
 
+  /// Accept or decline a request. Accepting makes its sender a contact.
+  Future<bool> answerRequest(String groupId, {required bool accept}) async {
+    try {
+      await profile.answerRequest(groupId: groupId, accept: accept);
+      await refresh();
+      return true;
+    } catch (failure) {
+      FailureLog.record(failure);
+      error = currentStrings.requestFailed;
+      _changed();
+      return false;
+    }
+  }
+
   Future<void> refresh() {
     if (_disposed) return Future.value();
     if (_refreshWork case final pending?) {
@@ -129,7 +146,15 @@ class ConversationController extends ChangeNotifier {
         _refreshAgain = false;
         final rows = await profile.conversations();
         if (_disposed) return;
-        conversations = rows;
+        // Someone who is not a contact waits apart until answered.
+        conversations = [
+          for (final row in rows)
+            if (row.request == null) row,
+        ];
+        requests = [
+          for (final row in rows)
+            if (row.request != null) row,
+        ];
         await _readSelected();
         _changed();
       } while (_refreshAgain && !_disposed);

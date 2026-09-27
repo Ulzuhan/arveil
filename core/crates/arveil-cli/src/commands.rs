@@ -602,6 +602,9 @@ pub fn contact_list(data_dir: &Path) -> Result<(), CliError> {
             }
         );
         println!("  safety number: {number}");
+        if contact.verified_how == Some(arveil_core::client::VerifiedHow::InPerson) {
+            println!("  verified: in person");
+        }
     }
     Ok(())
 }
