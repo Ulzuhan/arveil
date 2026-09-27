@@ -99,3 +99,33 @@ func TestManifestAndCapabilitiesCommitTogetherAndResumeLegacyPartialPublication(
 		t.Fatalf("revoked read capability survived: %v", err)
 	}
 }
+
+func TestCredentialByHashAnswersOnlyForItsOwnIdentity(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "relay.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	now := time.Now()
+	e := enrollment(1)
+	if err := s.CreateInvite(ctx, []byte("fixture"), "member", now.Add(time.Hour), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RedeemInvite(ctx, []byte("fixture"), now, e, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.CredentialByHash(ctx, e.IdentityID, e.CredentialHash)
+	if err != nil || !bytes.Equal(got, e.SignedCred) {
+		t.Fatalf("own credential: %x %v", got, err)
+	}
+	other := enrollment(2)
+	for _, q := range []struct{ identity, hash []byte }{
+		{other.IdentityID, e.CredentialHash},
+		{e.IdentityID, other.CredentialHash},
+	} {
+		if got, err := s.CredentialByHash(ctx, q.identity, q.hash); err != nil || got != nil {
+			t.Fatalf("answered for another identity or hash: %x %v", got, err)
+		}
+	}
+}

@@ -48,6 +48,10 @@ pub enum IdentityError {
     ManifestConflict(u64),
     #[error("identity: manifest chain broken (previous hash mismatch)")]
     ChainBroken,
+    #[error("identity: the credential does not name this {0}")]
+    BindingMismatch(&'static str),
+    #[error("identity: the credential is not active in the identity's newest manifest")]
+    NotActive,
 }
 
 fn hash(context: &str, data: &[u8]) -> Vec<u8> {
@@ -252,6 +256,54 @@ pub fn verify_credential(
         root,
         hash: credential_hash(signed_credential),
     })
+}
+
+/// What a route or a contact card claims about one device of a person.
+#[derive(Clone, Copy, Debug)]
+pub struct ClaimedDevice<'a> {
+    pub root: &'a VerifyingKey,
+    pub device_id: &'a [u8],
+    pub credential_hash: &'a [u8],
+    pub envelope_hpke_public_key: &'a [u8],
+}
+
+/// Bind a claimed device to what its root signed (ADR-012 §4).
+///
+/// A route travels through other apps and through the realm, so its fields
+/// are only believed once a credential signed by the claimed root names the
+/// same device and envelope key, hashes to the claimed hash, and the root's
+/// manifest lists it active. The realm supplies both signed objects but can
+/// forge neither: a substitute credential changes the hash, and the manifest
+/// is verified under the same root.
+pub fn verify_claimed_device(
+    claimed: ClaimedDevice<'_>,
+    signed_credential: &[u8],
+    signed_manifest: &[u8],
+    now: u64,
+) -> Result<DeviceCredential, IdentityError> {
+    let verified = verify_credential(signed_credential, Some(claimed.root), now)?;
+    if verified.hash != claimed.credential_hash {
+        return Err(IdentityError::BindingMismatch("credential hash"));
+    }
+    let c = verified.credential;
+    if c.device_id != claimed.device_id {
+        return Err(IdentityError::BindingMismatch("device"));
+    }
+    if c.envelope_hpke_public_key != claimed.envelope_hpke_public_key {
+        return Err(IdentityError::BindingMismatch("envelope key"));
+    }
+    if c.allowed_uses & (USE_MLS_LEAF | USE_ENVELOPE) != USE_MLS_LEAF | USE_ENVELOPE {
+        return Err(IdentityError::BindingMismatch("use"));
+    }
+    let (manifest, _) = accept_manifest(signed_manifest, claimed.root, None)?;
+    if !manifest
+        .active_credential_hashes
+        .iter()
+        .any(|h| h.as_slice() == verified.hash.as_slice())
+    {
+        return Err(IdentityError::NotActive);
+    }
+    Ok(c)
 }
 
 /// The identity a manifest claims, read before any verification, only to

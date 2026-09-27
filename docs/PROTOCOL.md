@@ -110,6 +110,8 @@ Each device generates its own standard KeyPackages and keeps the corresponding p
 
 Identity is carried in an MLS credential with an explicit binding to the device credential. The client checks that the KeyPackage signing key and the leaf match the root authorization. Using a `BasicCredential` with an arbitrary name does not satisfy that validation. The exact binding format is a deliverable of the spike.
 
+**Implemented binding (ADR-012).** Leaves still carry a `BasicCredential` whose name is the device id, so the binding is checked where a route is used rather than inside MLS. Before creating a conversation or adding a device from a route, the client asks the realm with `credential_get { identity_id, credential_hash }` for the credential that identity registered under that hash, and with `manifest_get` for its newest manifest. It uses the route only if the credential verifies under the route's root, hashes to the route's credential hash, names the route's device and envelope key, allows MLS leaf and envelope use, and the manifest verified under the same root lists it active. The claimed KeyPackage must then be signed with that credential's MLS key and name the same device. The realm supplies both signed objects but can forge neither, so a route altered on its way (another envelope key, another hash) is refused before any KeyPackage is claimed or anything is sent. Routes received in a roster event come from members inside the encrypted group and are not re-checked; a custom MLS credential that carries the signed device credential remains future work.
+
 ### Creation and enrollment
 
 1. The creator verifies initial identities and devices, obtains KeyPackages and creates the group with a random ID and an authenticated policy.
@@ -182,6 +184,7 @@ All operations are CBOR frames with a `frame_id` inside the Noise channel; the r
 | `manifest_put` | Channel + root signature | Increasing sequence on an honest server; final validation on the client |
 | `key_packages_publish` | Device channel | Bounded batch associated with that device |
 | `key_packages_claim` | Authorized member | Atomic consumption; a package does not yet equal a trusted identity |
+| `credential_get` | Authorized member | Signed credential an identity registered under a hash, or empty; the client verifies it under the root it holds |
 | `mailbox_create` | Device channel | Mailbox and separate capabilities |
 | `envelope_put` | Channel + write capability | Durable commit, idempotency and quota |
 | `envelope_fetch` | Owner + read capability | Bounded page, opaque cursor |

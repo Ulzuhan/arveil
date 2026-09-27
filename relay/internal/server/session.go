@@ -63,6 +63,8 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.manifestPut(ctx, s, f)
 	case channel.KindManifestGet:
 		return srv.manifestGet(ctx, s, f)
+	case channel.KindCredentialGet:
+		return srv.credentialGet(ctx, s, f)
 	case channel.KindRecoverIdentity:
 		return srv.recoverIdentity(ctx, s, f, now)
 	case channel.KindNotifyHintSet:
@@ -388,6 +390,21 @@ func (srv *Server) manifestGet(ctx context.Context, s *session, f channel.Frame)
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindManifestLatest, Manifest: signed}}
+}
+
+// credentialGet returns the signed credential an identity registered under
+// a hash, so a member can check that a route or a contact card names keys
+// its root actually signed. The realm cannot forge one: the client verifies
+// the signature under the root it already holds and compares the hash.
+func (srv *Server) credentialGet(ctx context.Context, s *session, f channel.Frame) channel.Frame {
+	if !s.member() {
+		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
+	}
+	signed, err := srv.Store.CredentialByHash(ctx, f.Payload.IdentityID, f.Payload.CredentialHash)
+	if err != nil {
+		return errFrame(f.ID, channel.CodeInternal, "store error")
+	}
+	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindCredentialFound, Credential: signed}}
 }
 
 func containsHash(list [][]byte, h []byte) bool {

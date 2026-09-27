@@ -403,3 +403,27 @@ func TestCodecMatchesRustVectorsPairing(t *testing.T) {
 		}
 	}
 }
+
+func TestCodecMatchesRustVectorsCredentialGet(t *testing.T) {
+	vectors := []struct {
+		hex   string
+		frame Frame
+	}{
+		{"a26269640b677061796c6f6164a16d43726564656e7469616c476574a26b6964656e746974795f69644209096f63726564656e7469616c5f68617368420506", Frame{ID: 11, Payload: Payload{Kind: KindCredentialGet, IdentityID: []byte{9, 9}, CredentialHash: []byte{5, 6}}}},
+		{"a26269640b677061796c6f6164a16f43726564656e7469616c466f756e64a16a63726564656e7469616c43010203", Frame{ID: 11, Payload: Payload{Kind: KindCredentialFound, Credential: []byte{1, 2, 3}}}},
+	}
+	for _, v := range vectors {
+		want, _ := hex.DecodeString(v.hex)
+		got, err := Encode(v.frame)
+		if err != nil || !bytes.Equal(got, want) {
+			t.Errorf("%s: encode mismatch (%v)\n got %x\nwant %x", v.frame.Payload.Kind, err, got, want)
+		}
+		dec, err := Decode(want)
+		if err != nil || dec.Payload.Kind != v.frame.Payload.Kind ||
+			!bytes.Equal(dec.Payload.IdentityID, v.frame.Payload.IdentityID) ||
+			!bytes.Equal(dec.Payload.CredentialHash, v.frame.Payload.CredentialHash) ||
+			!bytes.Equal(dec.Payload.Credential, v.frame.Payload.Credential) {
+			t.Errorf("%s: decode mismatch (%v): %+v", v.frame.Payload.Kind, err, dec.Payload)
+		}
+	}
+}

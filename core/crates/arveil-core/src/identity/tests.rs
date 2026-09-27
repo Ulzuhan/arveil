@@ -45,6 +45,105 @@ fn credential_issued_by_root_verifies_and_binds_keys() {
 }
 
 #[test]
+fn a_claimed_device_is_believed_only_when_its_root_signed_it_active() {
+    let root = RootKey::generate().unwrap();
+    let dev = device();
+    let all = USE_MLS_LEAF | USE_TRANSPORT | USE_ENVELOPE;
+    let signed = issue_credential(&root, &dev, VALID, all).unwrap();
+    let hash = credential_hash(&signed);
+    let manifest = issue_manifest(&root, None, std::slice::from_ref(&hash), &[]).unwrap();
+    let public = root.public();
+    let claimed = ClaimedDevice {
+        root: &public,
+        device_id: &dev.device_id,
+        credential_hash: &hash,
+        envelope_hpke_public_key: &dev.envelope_hpke_public_key,
+    };
+    let c = verify_claimed_device(claimed, &signed, &manifest, NOW).unwrap();
+    assert_eq!(c.mls_signature_public_key, dev.mls_signature_public_key);
+
+    // Each claimed field must be the signed one.
+    let other_key = vec![9u8; 32];
+    let other_device = vec![9u8; 16];
+    for (field, wrong) in [
+        (
+            "envelope key",
+            ClaimedDevice {
+                envelope_hpke_public_key: &other_key,
+                ..claimed
+            },
+        ),
+        (
+            "device",
+            ClaimedDevice {
+                device_id: &other_device,
+                ..claimed
+            },
+        ),
+        (
+            "credential hash",
+            ClaimedDevice {
+                credential_hash: &other_key,
+                ..claimed
+            },
+        ),
+    ] {
+        assert!(
+            matches!(
+                verify_claimed_device(wrong, &signed, &manifest, NOW),
+                Err(IdentityError::BindingMismatch(f)) if f == field
+            ),
+            "{field}"
+        );
+    }
+    // Another root cannot vouch for the device.
+    let impostor = RootKey::generate().unwrap().public();
+    assert!(matches!(
+        verify_claimed_device(
+            ClaimedDevice {
+                root: &impostor,
+                ..claimed
+            },
+            &signed,
+            &manifest,
+            NOW
+        ),
+        Err(IdentityError::RootMismatch)
+    ));
+    // Revoked (or never listed): not active.
+    let revoked = issue_manifest(
+        &root,
+        Some(&ManifestState {
+            sequence: 1,
+            hash: manifest_hash(&manifest),
+        }),
+        &[],
+        std::slice::from_ref(&hash),
+    )
+    .unwrap();
+    assert!(matches!(
+        verify_claimed_device(claimed, &signed, &revoked, NOW),
+        Err(IdentityError::NotActive)
+    ));
+    // A credential without the envelope use cannot receive envelopes.
+    let transport_only = issue_credential(&root, &dev, VALID, USE_TRANSPORT).unwrap();
+    let h2 = credential_hash(&transport_only);
+    let m2 = issue_manifest(&root, None, std::slice::from_ref(&h2), &[]).unwrap();
+    assert!(matches!(
+        verify_claimed_device(
+            ClaimedDevice {
+                credential_hash: &h2,
+                ..claimed
+            },
+            &transport_only,
+            &m2,
+            NOW
+        ),
+        Err(IdentityError::BindingMismatch("use"))
+    ));
+}
+
+#[test]
 fn credential_signed_by_a_foreign_root_is_refused() {
     // Body claims root A but is signed by root B.
     let a = RootKey::generate().unwrap();

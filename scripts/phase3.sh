@@ -146,7 +146,18 @@ NUM_B2="$(grep -A1 "^contact $ALICE_ID" "$DATA/bob.contacts2" | sed -n 's/^  saf
 [ "$NUM_B2" = "$NUM_B" ] || fail "the number changed when a device was added"
 # A different identity gives a different number.
 "$CLI" enroll --data-dir "$DATA/carol" "$BOOTSTRAP2" "$(invite)" > "$DATA/carol.enroll"
-"$CLI" chat add --data-dir "$DATA/bob" "$BOOTSTRAP2" "$(route_of "$DATA/carol.enroll")" > "$DATA/bob.addcarol"
+# ADR-012: a route is believed only as far as its root signed it. A route
+# whose envelope key or credential hash was swapped on its way is refused
+# before any KeyPackage is claimed or anything is sent.
+CAROL_ROUTE="$(route_of "$DATA/carol.enroll")"
+OTHER_KEY="$(printf '%064d' 7)"
+for forged in \
+  "$(echo "$CAROL_ROUTE" | awk -F: -v k="$OTHER_KEY" 'BEGIN{OFS=":"} {$9=k; print}')" \
+  "$(echo "$CAROL_ROUTE" | awk -F: -v k="$OTHER_KEY" 'BEGIN{OFS=":"} {$5=k; print}')"; do
+  expect_fail "$DATA/bob.forged" "$CLI" chat add --data-dir "$DATA/bob" "$BOOTSTRAP2" "$forged" || fail "a forged route was accepted"
+  grep -q "route: " "$DATA/bob.forged" || fail "unexpected refusal: $(cat "$DATA/bob.forged")"
+done
+"$CLI" chat add --data-dir "$DATA/bob" "$BOOTSTRAP2" "$CAROL_ROUTE" > "$DATA/bob.addcarol"
 CAROL_ID="$(sed -n 's/^identity: //p' "$DATA/carol.enroll" | sed 's/ .*//' | head -1)"
 "$CLI" contact list --data-dir "$DATA/bob" > "$DATA/bob.contacts3"
 NUM_C="$(grep -A1 "^contact $CAROL_ID" "$DATA/bob.contacts3" | sed -n 's/^  safety number: //p')"

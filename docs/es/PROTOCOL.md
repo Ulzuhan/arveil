@@ -110,6 +110,8 @@ Cada dispositivo genera sus propios KeyPackages estándar y conserva el material
 
 La identidad se transporta en una credencial MLS con binding explícito a la credencial de dispositivo. El cliente comprueba que la clave de firma del KeyPackage y la leaf coinciden con la autorización raíz. Usar una `BasicCredential` con un nombre arbitrario no satisface esa validación. El formato exacto del binding es un entregable del spike.
 
+**Vinculación implementada (ADR-012).** Las hojas siguen llevando una `BasicCredential` cuyo nombre es el id del dispositivo, así que la vinculación se comprueba donde se usa una ruta y no dentro de MLS. Antes de crear una conversación o añadir un dispositivo a partir de una ruta, el cliente pide al realm con `credential_get { identity_id, credential_hash }` la credencial que esa identidad registró con ese hash, y con `manifest_get` su manifiesto más reciente. Solo usa la ruta si la credencial verifica bajo la raíz de la ruta, su hash es el de la ruta, nombra el dispositivo y la clave de sobres de la ruta, permite el uso como hoja MLS y para sobres, y el manifiesto verificado bajo la misma raíz la da por activa. El KeyPackage reclamado debe estar firmado con la clave MLS de esa credencial y nombrar el mismo dispositivo. El realm entrega los dos objetos firmados pero no puede falsificar ninguno, así que una ruta alterada por el camino (otra clave de sobres, otro hash) se rechaza antes de reclamar ningún KeyPackage o enviar nada. Las rutas que llegan en un evento de roster vienen de miembros dentro del grupo cifrado y no se vuelven a comprobar; una credencial MLS propia que lleve la credencial de dispositivo firmada queda como trabajo futuro.
+
 ### Creación y alta
 
 1. El creador verifica identidades y dispositivos iniciales, obtiene KeyPackages y crea grupo con ID aleatorio y política autenticada.
@@ -182,6 +184,7 @@ Todas las operaciones son frames CBOR con `frame_id` dentro del canal Noise; el 
 | `manifest_put` | Canal + firma raíz | Secuencia creciente en servidor honesto; validación final cliente |
 | `key_packages_publish` | Canal del dispositivo | Lote acotado asociado a ese dispositivo |
 | `key_packages_claim` | Miembro autorizado | Consumo atómico; paquete aún no equivale a identidad confiable |
+| `credential_get` | Miembro autorizado | Credencial firmada que una identidad registró con un hash, o vacío; el cliente la verifica bajo la raíz que conoce |
 | `mailbox_create` | Canal del dispositivo | Mailbox y capabilities separadas |
 | `envelope_put` | Canal + capability de escritura | Commit durable, idempotencia y cuota |
 | `envelope_fetch` | Propietario + capability de lectura | Página acotada, cursor opaco |

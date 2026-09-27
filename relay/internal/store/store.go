@@ -459,6 +459,18 @@ func (s *Store) LatestManifest(ctx context.Context, identityID []byte) (uint64, 
 	return seq, signed, err
 }
 
+// CredentialByHash returns the signed credential one identity registered
+// under a hash (nil if none), whatever its status: the client decides from
+// the manifest whether it is still active.
+func (s *Store) CredentialByHash(ctx context.Context, identityID, hash []byte) ([]byte, error) {
+	var signed []byte
+	err := s.db.QueryRowContext(ctx, `SELECT signed FROM device_credentials WHERE credential_hash = ? AND identity_id = ?`, hash, identityID).Scan(&signed)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return signed, err
+}
+
 // SetCredentialStatus marks credentials (by hash) of one identity; used when
 // a manifest revokes them. Returns how many rows changed.
 func (s *Store) SetCredentialStatus(ctx context.Context, identityID []byte, hashes [][]byte, status string) (int64, error) {
