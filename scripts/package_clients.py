@@ -84,6 +84,36 @@ def audit_bytes(data, name):
             raise ValueError(f"Test configuration or private key marker in {name}; package withheld.")
 
 
+def bundle_contents(path):
+    """Check an Android App Bundle for Google Play: arm64 code only, no
+    self-update permission and no debug flag in its protobuf manifest."""
+    with zipfile.ZipFile(path) as archive:
+        names = archive.namelist()
+        manifest = archive.read("base/manifest/AndroidManifest.xml")
+    abis = {name.split("/")[2] for name in names if name.startswith("base/lib/") and name.count("/") >= 3}
+    if abis != {"arm64-v8a"}:
+        raise ValueError("The bundle must contain native code for arm64-v8a only; package withheld.")
+    if b"android.permission.INTERNET" not in manifest:
+        raise ValueError("The bundle does not request network access; package withheld.")
+    # Google Play forbids apps that update themselves outside Play.
+    if b"REQUEST_INSTALL_PACKAGES" in manifest:
+        raise ValueError("A Google Play bundle must not request REQUEST_INSTALL_PACKAGES; package withheld.")
+    if b"debuggable" in manifest:
+        raise ValueError("The bundle is debuggable; package withheld.")
+
+
+def bundle_signature(path, java):
+    """The SHA-256 of the upload certificate that signs [path]."""
+    verified = run(["jarsigner", "-verify", str(path)], env=java)
+    if "jar verified" not in verified:
+        raise ValueError("The bundle is not signed; package withheld.")
+    certificate = run(["keytool", "-printcert", "-jarfile", str(path)], env=java)
+    fingerprint = re.search(r"SHA256: ([0-9A-F:]{95})", certificate)
+    if not fingerprint or "CN=Android Debug" in certificate:
+        raise ValueError("Expected an upload certificate, not debug signing.")
+    return fingerprint[1].replace(":", "").lower()
+
+
 def audit_archive(path):
     with zipfile.ZipFile(path) as archive:
         for member in archive.infolist():
@@ -215,6 +245,9 @@ def android_details(badging, build, updates):
 
 def package(args):
     update_config = read_config(args.update_config) if args.update_config else None
+    android = args.platform in ("android", "android-bundle")
+    if args.platform == "android-bundle" and update_config:
+        raise ValueError("Google Play updates the app itself: build the bundle without --update-config.")
     if args.platform == "macos" and (sys.platform != "darwin" or platform.machine() != "arm64"):
         raise ValueError("The macOS package requires an Apple silicon Mac.")
     dirty = bool(run(["git", "status", "--porcelain", "--untracked-files=normal"]).strip())
@@ -233,7 +266,7 @@ def package(args):
     if destination.exists():
         raise ValueError("Output directory exists; choose a new build number or move the old candidate.")
     env = dict(os.environ)
-    if args.platform == "android":
+    if android:
         if args.signing_config:
             env.update(signing_environment(args.signing_config))
         for key in ("KEYSTORE", "STORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD"):
@@ -262,10 +295,10 @@ def package(args):
         client = source / "clients/flutter"
         env = build_environment(source)
         # build_environment starts from the process environment; restore JSON credentials.
-        if args.platform == "android" and args.signing_config:
+        if android and args.signing_config:
             env.update(signing_environment(args.signing_config))
         env["ARVEIL_REVISION"] = revision
-        if args.platform == "android":
+        if android:
             sdk_alias = scratch / "android-sdk"
             sdk_alias.mkdir()
             for child in sdk.iterdir():
@@ -276,7 +309,8 @@ def package(args):
         # Debug symbols stay private; the signed packages contain only runtime files.
         symbols = scratch / "symbols"
         # The app's diagnostic report names the version and commit it was built from.
-        command = [args.flutter, "build", "macos" if args.platform == "macos" else "apk",
+        target = {"macos": "macos", "android": "apk", "android-bundle": "appbundle"}[args.platform]
+        command = [args.flutter, "build", target,
                    "--release", "--target=lib/main.dart", f"--build-name={name}",
                    f"--build-number={number}", f"--split-debug-info={symbols}",
                    f"--dart-define=ARVEIL_VERSION={name}+{number}",
@@ -285,7 +319,7 @@ def package(args):
             defines = scratch / "update-config.json"
             private_json(defines, update_config)
             command.append(f"--dart-define-from-file={defines}")
-        if args.platform == "android":
+        if android:
             command += ["--target-platform=android-arm64"]
         log = private / f"{args.platform}-{number}.log"
         with open(log, "w", opener=lambda p, flags: os.open(p, flags, 0o600)) as output:
@@ -316,6 +350,12 @@ def package(args):
                             signing="ad-hoc; no Developer ID or notarization")
             artifact = staged / f"{stem}-macos-arm64.zip"
             run(["ditto", "-c", "-k", "--keepParent", "--norsrc", "--noextattr", str(app), str(artifact)])
+        elif args.platform == "android-bundle":
+            artifact = staged / f"{stem}-android-arm64.aab"
+            shutil.copyfile(client / "build/app/outputs/bundle/release/app-release.aab", artifact)
+            bundle_contents(artifact)
+            metadata.update(certificate_sha256=bundle_signature(artifact, java),
+                            signing="upload key; Google Play signs what it installs")
         else:
             artifact = staged / f"{stem}-android-arm64.apk"
             shutil.copyfile(client / "build/app/outputs/flutter-apk/app-release.apk", artifact)
@@ -357,7 +397,8 @@ def main():
     init.add_argument("--keytool", default="keytool")
     init.set_defaults(action=init_android)
     build = commands.add_parser("build", help="Build, verify and package a release client")
-    build.add_argument("platform", choices=["macos", "android"])
+    build.add_argument("platform", choices=["macos", "android", "android-bundle"],
+                       help="android-bundle: an App Bundle for Google Play, without the in-app updater")
     build.add_argument("--flutter", default="flutter")
     build.add_argument("--signing-config", type=Path)
     build.add_argument("--update-config", type=Path, help="Private JSON with public feed URL, update public key and channel")
