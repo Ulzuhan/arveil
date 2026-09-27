@@ -176,5 +176,34 @@ class PublicationTests(unittest.TestCase):
                     self.assertNotIn(directory, str(failure.exception))
 
 
+    def test_play_bundles_carry_arm64_code_and_no_self_update(self):
+        good = b"\n\x1candroid.permission.INTERNET"
+        with tempfile.TemporaryDirectory() as directory:
+            def bundle(libs=("arm64-v8a",), manifest=good):
+                path = Path(directory) / "app.aab"
+                with zipfile.ZipFile(path, "w") as archive:
+                    archive.writestr("base/manifest/AndroidManifest.xml", manifest)
+                    archive.writestr("base/dex/classes.dex", b"dex")
+                    for abi in libs:
+                        archive.writestr(f"base/lib/{abi}/libapp.so", b"elf")
+                return path
+            package.bundle_contents(bundle())
+            cases = {"arm64-v8a only": dict(libs=("arm64-v8a", "armeabi-v7a")),
+                     "network": dict(manifest=b"nothing"),
+                     "REQUEST_INSTALL_PACKAGES": dict(manifest=good + b"android.permission.REQUEST_INSTALL_PACKAGES"),
+                     "debuggable": dict(manifest=good + b"debuggable")}
+            for reason, change in cases.items():
+                with self.subTest(reason=reason), self.assertRaisesRegex(ValueError, reason):
+                    package.bundle_contents(bundle(**change))
+
+    def test_play_bundles_refuse_the_update_feed_before_building(self):
+        args = SimpleNamespace(platform="android-bundle", update_config=Path("distribution.json"), allow_dirty=False,
+                               build_number=None, flutter="flutter", signing_config=None)
+        with patch.object(package, "run") as run, patch.object(package, "read_config", return_value={"x": 1}):
+            with self.assertRaisesRegex(ValueError, "without --update-config"):
+                package.package(args)
+        run.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
