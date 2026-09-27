@@ -12,6 +12,7 @@ class MainFlutterWindow: NSWindow {
     ProfileChannel.register(with: flutterViewController)
     UpdateChannel.register(with: flutterViewController)
     ShareChannel.register(with: flutterViewController)
+    LinkChannel.register(with: flutterViewController)
 
     super.awakeFromNib()
   }
@@ -118,5 +119,36 @@ enum ShareChannel {
       picker.show(relativeTo: anchor, of: view, preferredEdge: .minY)
       result(true)
     }
+  }
+}
+
+/// Links that open the app (ADR-012 §5). Only their text crosses: Dart
+/// reads it and asks the person before anything happens. A link that
+/// arrives before Dart asks waits here.
+enum LinkChannel {
+  private static var channel: FlutterMethodChannel?
+  private static var pending: String?
+
+  static func register(with controller: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "io.github.ulzuhan.arveil/links",
+      binaryMessenger: controller.engine.binaryMessenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "initial" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(pending)
+      pending = nil
+    }
+    self.channel = channel
+  }
+
+  static func deliver(_ link: String) {
+    guard link.count <= 4096 else { return }
+    // Kept as well: Dart may not listen yet on a cold start, and it asks
+    // for what is pending once it does. It ignores a link it already has.
+    pending = link
+    channel?.invokeMethod("open", arguments: link)
   }
 }

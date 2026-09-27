@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:arveil/src/incoming_links.dart';
 import 'package:arveil/src/contacts_page.dart';
 import 'package:arveil/src/design/design.dart';
 import 'package:arveil/src/rust/api/profile.dart';
@@ -299,6 +300,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(profile.started, [(card, false)]);
     expect(find.text('Conversación creada.'), findsOneWidget);
+  });
+
+  testWidgets('a contact card opened from outside asks before talking', (
+    tester,
+  ) async {
+    addTearDown(incomingLinks.take);
+    final profile = SettingsProfile();
+    await openHome(tester, phone, profile: profile);
+    const card = 'https://arveil.kaicorplabs.com/contact#ana';
+    incomingLinks.receive(card);
+    await tester.pumpAndSettle();
+    expect(find.text('Dice llamarse Ana'), findsOneWidget);
+    expect(profile.started, isEmpty);
+    await tester.tap(row('card-start'));
+    await tester.pumpAndSettle();
+    expect(profile.started, [(card, false)]);
   });
 
   testWidgets('the in-person code lives as long as its screen', (tester) async {

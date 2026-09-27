@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'l10n/l10n.dart';
 import 'src/appearance.dart';
 import 'src/design/theme.dart';
+import 'src/incoming_links.dart';
 import 'src/kit_files.dart';
 import 'src/onboarding.dart';
 import 'src/profile_session.dart';
@@ -44,6 +45,8 @@ Future<void> main() async {
     );
     await updates.load();
   }
+  // Links that open the app: invitations, codes to link and contact cards.
+  await incomingLinks.start();
   runApp(ArveilApp(appearance: appearance, updates: updates));
 }
 

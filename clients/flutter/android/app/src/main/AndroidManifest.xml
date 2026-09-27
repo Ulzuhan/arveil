@@ -55,6 +55,26 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- ADR-012 §5: invitation, linking and contact links open the
+                 app directly once Android verifies the site's assetlinks.json.
+                 The code travels after the '#', which no web server sees; the
+                 app only reads it and asks before doing anything. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="arveil.kaicorplabs.com"/>
+                <data android:path="/join"/>
+                <data android:path="/link"/>
+                <data android:path="/contact"/>
+            </intent-filter>
+            <!-- The page's "Open in Arveil" button, and relays with their own page. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="arveil"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

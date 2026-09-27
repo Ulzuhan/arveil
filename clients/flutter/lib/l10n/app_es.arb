@@ -1038,5 +1038,7 @@
   "requestAccept": "Aceptar",
   "requestDecline": "Rechazar",
   "requestFailed": "No se pudo responder a la solicitud.",
-  "verifiedInPerson": "Verificado en persona"
+  "verifiedInPerson": "Verificado en persona",
+  "linkJoinHasIdentity": "Este dispositivo ya tiene una identidad. La invitación es para una persona nueva.",
+  "linkLinkHasIdentity": "Este dispositivo ya tiene una identidad. Abre ese código en el dispositivo nuevo."
 }

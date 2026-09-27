@@ -1,6 +1,7 @@
 import 'package:arveil/main.dart';
 import 'package:arveil/src/onboarding.dart' show splitInvitation;
 import 'package:arveil/src/design/design.dart';
+import 'package:arveil/src/incoming_links.dart';
 import 'package:arveil/src/profile_session.dart';
 import 'package:arveil/src/rust/api/profile.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,7 @@ class AdminProfile extends FakeProfile {
 
 const joinLink = 'https://arveil.kaicorplabs.com/join#payload';
 const contactLink = 'https://arveil.kaicorplabs.com/contact#payload';
+const deviceLink = 'https://arveil.kaicorplabs.com/link#payload';
 
 /// Reads links the way the core does, for the few shapes the tests use.
 class LinkProfile extends FakeProfile {
@@ -42,7 +44,10 @@ class LinkProfile extends FakeProfile {
       return CardView.join(bootstrap: relay, invitation: invitation);
     }
     if (text.contains(contactLink)) {
-      return const CardView.other(kind: 'contact');
+      return const CardView.contact(name: 'Ana');
+    }
+    if (text.contains(deviceLink)) {
+      return CardView.link(server: 'wss://x', expiresAt: BigInt.zero);
     }
     if (text.endsWith('#newer')) throw CardProblem.newerVersion;
     if (text.endsWith('#cut')) throw CardProblem.damaged;
@@ -191,6 +196,46 @@ void main() {
       expect(find.textContaining(message), findsOneWidget);
     });
   }
+
+  testWidgets('an invitation link that opened the app fills the invitation', (
+    tester,
+  ) async {
+    addTearDown(incomingLinks.take);
+    incomingLinks.receive('$joinLink#opened');
+    incomingLinks.receive(joinLink);
+    final profile = LinkProfile();
+    await openProfile(tester, profile);
+    expect(find.text('Paso 1 de 2'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('bootstrap')))
+          .controller!
+          .text,
+      joinLink,
+    );
+    expect(profile.enrollments, 0, reason: 'nothing happens without a tap');
+    await tapText(tester, 'Siguiente');
+    expect(find.textContaining('ya está rellenada'), findsOneWidget);
+    expect(incomingLinks.pending, isNull);
+  });
+
+  testWidgets('a code to link this device opens linking with it filled in', (
+    tester,
+  ) async {
+    addTearDown(incomingLinks.take);
+    final profile = LinkProfile();
+    await openProfile(tester, profile);
+    incomingLinks.receive(deviceLink);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('pair-new-device')), findsOneWidget);
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('pair-link')))
+          .controller!
+          .text,
+      deviceLink,
+    );
+  });
 
   testWidgets(
     'a new administration device is offered its kit, and later lands in chats',
