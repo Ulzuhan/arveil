@@ -140,6 +140,8 @@ pub enum Card {
         pair_id: Vec<u8>,
         capability: Vec<u8>,
         responder_key: Vec<u8>,
+        /// When the relay forgets the rendezvous (Unix seconds).
+        expires_at: u64,
     },
     /// Talk to a person (§4). `secret` tells the person who shows the card
     /// that a conversation came from it; `name` is how they describe
@@ -171,6 +173,8 @@ struct Wire {
     capability: Option<serde_bytes::ByteBuf>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     responder_key: Option<serde_bytes::ByteBuf>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    expires_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     device_id: Option<serde_bytes::ByteBuf>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -254,11 +258,13 @@ impl Card {
                 pair_id,
                 capability,
                 responder_key,
+                expires_at,
                 ..
             } => {
                 w.pair_id = bytes(pair_id);
                 w.capability = bytes(capability);
                 w.responder_key = bytes(responder_key);
+                w.expires_at = Some(*expires_at);
             }
             Card::Contact {
                 route,
@@ -395,6 +401,7 @@ impl Card {
                 pair_id: field(w.pair_id, 16, "pairing")?,
                 capability: field(w.capability, 32, "pairing")?,
                 responder_key: field(w.responder_key, 32, "pairing key")?,
+                expires_at: w.expires_at.ok_or(LinkError::Damaged("pairing"))?,
             }),
             "contact" => {
                 let route = CardRoute {
@@ -494,6 +501,7 @@ mod tests {
                 pair_id: vec![2; 16],
                 capability: vec![3; 32],
                 responder_key: vec![4; 32],
+                expires_at: 1_800_000_000,
             },
             contact(Some("Ana")),
             contact(None),

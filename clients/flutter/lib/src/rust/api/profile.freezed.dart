@@ -55,11 +55,12 @@ extension CardViewPatterns on CardView {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CardView_Join value)?  join,TResult Function( CardView_Other value)?  other,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CardView_Join value)?  join,TResult Function( CardView_Link value)?  link,TResult Function( CardView_Other value)?  other,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case CardView_Join() when join != null:
-return join(_that);case CardView_Other() when other != null:
+return join(_that);case CardView_Link() when link != null:
+return link(_that);case CardView_Other() when other != null:
 return other(_that);case _:
   return orElse();
 
@@ -78,11 +79,12 @@ return other(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CardView_Join value)  join,required TResult Function( CardView_Other value)  other,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CardView_Join value)  join,required TResult Function( CardView_Link value)  link,required TResult Function( CardView_Other value)  other,}){
 final _that = this;
 switch (_that) {
 case CardView_Join():
-return join(_that);case CardView_Other():
+return join(_that);case CardView_Link():
+return link(_that);case CardView_Other():
 return other(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -97,11 +99,12 @@ return other(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CardView_Join value)?  join,TResult? Function( CardView_Other value)?  other,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CardView_Join value)?  join,TResult? Function( CardView_Link value)?  link,TResult? Function( CardView_Other value)?  other,}){
 final _that = this;
 switch (_that) {
 case CardView_Join() when join != null:
-return join(_that);case CardView_Other() when other != null:
+return join(_that);case CardView_Link() when link != null:
+return link(_that);case CardView_Other() when other != null:
 return other(_that);case _:
   return null;
 
@@ -119,10 +122,11 @@ return other(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String bootstrap,  String invitation)?  join,TResult Function( String kind)?  other,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String bootstrap,  String invitation)?  join,TResult Function( String server,  BigInt expiresAt)?  link,TResult Function( String kind)?  other,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case CardView_Join() when join != null:
-return join(_that.bootstrap,_that.invitation);case CardView_Other() when other != null:
+return join(_that.bootstrap,_that.invitation);case CardView_Link() when link != null:
+return link(_that.server,_that.expiresAt);case CardView_Other() when other != null:
 return other(_that.kind);case _:
   return orElse();
 
@@ -141,10 +145,11 @@ return other(_that.kind);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String bootstrap,  String invitation)  join,required TResult Function( String kind)  other,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String bootstrap,  String invitation)  join,required TResult Function( String server,  BigInt expiresAt)  link,required TResult Function( String kind)  other,}) {final _that = this;
 switch (_that) {
 case CardView_Join():
-return join(_that.bootstrap,_that.invitation);case CardView_Other():
+return join(_that.bootstrap,_that.invitation);case CardView_Link():
+return link(_that.server,_that.expiresAt);case CardView_Other():
 return other(_that.kind);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -159,10 +164,11 @@ return other(_that.kind);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String bootstrap,  String invitation)?  join,TResult? Function( String kind)?  other,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String bootstrap,  String invitation)?  join,TResult? Function( String server,  BigInt expiresAt)?  link,TResult? Function( String kind)?  other,}) {final _that = this;
 switch (_that) {
 case CardView_Join() when join != null:
-return join(_that.bootstrap,_that.invitation);case CardView_Other() when other != null:
+return join(_that.bootstrap,_that.invitation);case CardView_Link() when link != null:
+return link(_that.server,_that.expiresAt);case CardView_Other() when other != null:
 return other(_that.kind);case _:
   return null;
 
@@ -233,6 +239,74 @@ class _$CardView_JoinCopyWithImpl<$Res>
 bootstrap: null == bootstrap ? _self.bootstrap : bootstrap // ignore: cast_nullable_to_non_nullable
 as String,invitation: null == invitation ? _self.invitation : invitation // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class CardView_Link extends CardView {
+  const CardView_Link({required this.server, required this.expiresAt}): super._();
+  
+
+ final  String server;
+ final  BigInt expiresAt;
+
+/// Create a copy of CardView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CardView_LinkCopyWith<CardView_Link> get copyWith => _$CardView_LinkCopyWithImpl<CardView_Link>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardView_Link&&(identical(other.server, server) || other.server == server)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,server,expiresAt);
+
+@override
+String toString() {
+  return 'CardView.link(server: $server, expiresAt: $expiresAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CardView_LinkCopyWith<$Res> implements $CardViewCopyWith<$Res> {
+  factory $CardView_LinkCopyWith(CardView_Link value, $Res Function(CardView_Link) _then) = _$CardView_LinkCopyWithImpl;
+@useResult
+$Res call({
+ String server, BigInt expiresAt
+});
+
+
+
+
+}
+/// @nodoc
+class _$CardView_LinkCopyWithImpl<$Res>
+    implements $CardView_LinkCopyWith<$Res> {
+  _$CardView_LinkCopyWithImpl(this._self, this._then);
+
+  final CardView_Link _self;
+  final $Res Function(CardView_Link) _then;
+
+/// Create a copy of CardView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? server = null,Object? expiresAt = null,}) {
+  return _then(CardView_Link(
+server: null == server ? _self.server : server // ignore: cast_nullable_to_non_nullable
+as String,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as BigInt,
   ));
 }
 
@@ -1897,7 +1971,7 @@ extension ProgressKindViewPatterns on ProgressKindView {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ProgressKindView_MessageQueued value)?  messageQueued,TResult Function( ProgressKindView_MessageReceived value)?  messageReceived,TResult Function( ProgressKindView_EnvelopesPublished value)?  envelopesPublished,TResult Function( ProgressKindView_DeliveryChanged value)?  deliveryChanged,TResult Function( ProgressKindView_FileAnnounced value)?  fileAnnounced,TResult Function( ProgressKindView_FileTransfer value)?  fileTransfer,TResult Function( ProgressKindView_FileSaved value)?  fileSaved,TResult Function( ProgressKindView_Synced value)?  synced,TResult Function( ProgressKindView_PairingChanged value)?  pairingChanged,TResult Function( ProgressKindView_RelayUnavailable value)?  relayUnavailable,TResult Function( ProgressKindView_Onboarding value)?  onboarding,TResult Function( ProgressKindView_Gap value)?  gap,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ProgressKindView_MessageQueued value)?  messageQueued,TResult Function( ProgressKindView_MessageReceived value)?  messageReceived,TResult Function( ProgressKindView_EnvelopesPublished value)?  envelopesPublished,TResult Function( ProgressKindView_DeliveryChanged value)?  deliveryChanged,TResult Function( ProgressKindView_FileAnnounced value)?  fileAnnounced,TResult Function( ProgressKindView_FileTransfer value)?  fileTransfer,TResult Function( ProgressKindView_FileSaved value)?  fileSaved,TResult Function( ProgressKindView_Synced value)?  synced,TResult Function( ProgressKindView_PairingChanged value)?  pairingChanged,TResult Function( ProgressKindView_PairingVerification value)?  pairingVerification,TResult Function( ProgressKindView_RelayUnavailable value)?  relayUnavailable,TResult Function( ProgressKindView_Onboarding value)?  onboarding,TResult Function( ProgressKindView_Gap value)?  gap,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case ProgressKindView_MessageQueued() when messageQueued != null:
@@ -1909,7 +1983,8 @@ return fileAnnounced(_that);case ProgressKindView_FileTransfer() when fileTransf
 return fileTransfer(_that);case ProgressKindView_FileSaved() when fileSaved != null:
 return fileSaved(_that);case ProgressKindView_Synced() when synced != null:
 return synced(_that);case ProgressKindView_PairingChanged() when pairingChanged != null:
-return pairingChanged(_that);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
+return pairingChanged(_that);case ProgressKindView_PairingVerification() when pairingVerification != null:
+return pairingVerification(_that);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
 return relayUnavailable(_that);case ProgressKindView_Onboarding() when onboarding != null:
 return onboarding(_that);case ProgressKindView_Gap() when gap != null:
 return gap(_that);case _:
@@ -1930,7 +2005,7 @@ return gap(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ProgressKindView_MessageQueued value)  messageQueued,required TResult Function( ProgressKindView_MessageReceived value)  messageReceived,required TResult Function( ProgressKindView_EnvelopesPublished value)  envelopesPublished,required TResult Function( ProgressKindView_DeliveryChanged value)  deliveryChanged,required TResult Function( ProgressKindView_FileAnnounced value)  fileAnnounced,required TResult Function( ProgressKindView_FileTransfer value)  fileTransfer,required TResult Function( ProgressKindView_FileSaved value)  fileSaved,required TResult Function( ProgressKindView_Synced value)  synced,required TResult Function( ProgressKindView_PairingChanged value)  pairingChanged,required TResult Function( ProgressKindView_RelayUnavailable value)  relayUnavailable,required TResult Function( ProgressKindView_Onboarding value)  onboarding,required TResult Function( ProgressKindView_Gap value)  gap,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ProgressKindView_MessageQueued value)  messageQueued,required TResult Function( ProgressKindView_MessageReceived value)  messageReceived,required TResult Function( ProgressKindView_EnvelopesPublished value)  envelopesPublished,required TResult Function( ProgressKindView_DeliveryChanged value)  deliveryChanged,required TResult Function( ProgressKindView_FileAnnounced value)  fileAnnounced,required TResult Function( ProgressKindView_FileTransfer value)  fileTransfer,required TResult Function( ProgressKindView_FileSaved value)  fileSaved,required TResult Function( ProgressKindView_Synced value)  synced,required TResult Function( ProgressKindView_PairingChanged value)  pairingChanged,required TResult Function( ProgressKindView_PairingVerification value)  pairingVerification,required TResult Function( ProgressKindView_RelayUnavailable value)  relayUnavailable,required TResult Function( ProgressKindView_Onboarding value)  onboarding,required TResult Function( ProgressKindView_Gap value)  gap,}){
 final _that = this;
 switch (_that) {
 case ProgressKindView_MessageQueued():
@@ -1942,7 +2017,8 @@ return fileAnnounced(_that);case ProgressKindView_FileTransfer():
 return fileTransfer(_that);case ProgressKindView_FileSaved():
 return fileSaved(_that);case ProgressKindView_Synced():
 return synced(_that);case ProgressKindView_PairingChanged():
-return pairingChanged(_that);case ProgressKindView_RelayUnavailable():
+return pairingChanged(_that);case ProgressKindView_PairingVerification():
+return pairingVerification(_that);case ProgressKindView_RelayUnavailable():
 return relayUnavailable(_that);case ProgressKindView_Onboarding():
 return onboarding(_that);case ProgressKindView_Gap():
 return gap(_that);}
@@ -1959,7 +2035,7 @@ return gap(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ProgressKindView_MessageQueued value)?  messageQueued,TResult? Function( ProgressKindView_MessageReceived value)?  messageReceived,TResult? Function( ProgressKindView_EnvelopesPublished value)?  envelopesPublished,TResult? Function( ProgressKindView_DeliveryChanged value)?  deliveryChanged,TResult? Function( ProgressKindView_FileAnnounced value)?  fileAnnounced,TResult? Function( ProgressKindView_FileTransfer value)?  fileTransfer,TResult? Function( ProgressKindView_FileSaved value)?  fileSaved,TResult? Function( ProgressKindView_Synced value)?  synced,TResult? Function( ProgressKindView_PairingChanged value)?  pairingChanged,TResult? Function( ProgressKindView_RelayUnavailable value)?  relayUnavailable,TResult? Function( ProgressKindView_Onboarding value)?  onboarding,TResult? Function( ProgressKindView_Gap value)?  gap,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ProgressKindView_MessageQueued value)?  messageQueued,TResult? Function( ProgressKindView_MessageReceived value)?  messageReceived,TResult? Function( ProgressKindView_EnvelopesPublished value)?  envelopesPublished,TResult? Function( ProgressKindView_DeliveryChanged value)?  deliveryChanged,TResult? Function( ProgressKindView_FileAnnounced value)?  fileAnnounced,TResult? Function( ProgressKindView_FileTransfer value)?  fileTransfer,TResult? Function( ProgressKindView_FileSaved value)?  fileSaved,TResult? Function( ProgressKindView_Synced value)?  synced,TResult? Function( ProgressKindView_PairingChanged value)?  pairingChanged,TResult? Function( ProgressKindView_PairingVerification value)?  pairingVerification,TResult? Function( ProgressKindView_RelayUnavailable value)?  relayUnavailable,TResult? Function( ProgressKindView_Onboarding value)?  onboarding,TResult? Function( ProgressKindView_Gap value)?  gap,}){
 final _that = this;
 switch (_that) {
 case ProgressKindView_MessageQueued() when messageQueued != null:
@@ -1971,7 +2047,8 @@ return fileAnnounced(_that);case ProgressKindView_FileTransfer() when fileTransf
 return fileTransfer(_that);case ProgressKindView_FileSaved() when fileSaved != null:
 return fileSaved(_that);case ProgressKindView_Synced() when synced != null:
 return synced(_that);case ProgressKindView_PairingChanged() when pairingChanged != null:
-return pairingChanged(_that);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
+return pairingChanged(_that);case ProgressKindView_PairingVerification() when pairingVerification != null:
+return pairingVerification(_that);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
 return relayUnavailable(_that);case ProgressKindView_Onboarding() when onboarding != null:
 return onboarding(_that);case ProgressKindView_Gap() when gap != null:
 return gap(_that);case _:
@@ -1991,7 +2068,7 @@ return gap(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String groupId,  String eventId)?  messageQueued,TResult Function( String groupId,  String eventId)?  messageReceived,TResult Function( int count,  bool pending)?  envelopesPublished,TResult Function( String deliveryId,  String state)?  deliveryChanged,TResult Function( String groupId,  String eventId,  String name,  BigInt size)?  fileAnnounced,TResult Function( String name,  BigInt offset,  BigInt? total)?  fileTransfer,TResult Function( String name)?  fileSaved,TResult Function( int fetched,  int new_,  int acked)?  synced,TResult Function( String sessionId,  String phase)?  pairingChanged,TResult Function( int pending)?  relayUnavailable,TResult Function( String step)?  onboarding,TResult Function( int dropped)?  gap,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String groupId,  String eventId)?  messageQueued,TResult Function( String groupId,  String eventId)?  messageReceived,TResult Function( int count,  bool pending)?  envelopesPublished,TResult Function( String deliveryId,  String state)?  deliveryChanged,TResult Function( String groupId,  String eventId,  String name,  BigInt size)?  fileAnnounced,TResult Function( String name,  BigInt offset,  BigInt? total)?  fileTransfer,TResult Function( String name)?  fileSaved,TResult Function( int fetched,  int new_,  int acked)?  synced,TResult Function( String sessionId,  String phase)?  pairingChanged,TResult Function( String sessionId,  String verificationCode,  bool confirmationRequired)?  pairingVerification,TResult Function( int pending)?  relayUnavailable,TResult Function( String step)?  onboarding,TResult Function( int dropped)?  gap,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case ProgressKindView_MessageQueued() when messageQueued != null:
 return messageQueued(_that.groupId,_that.eventId);case ProgressKindView_MessageReceived() when messageReceived != null:
@@ -2002,7 +2079,8 @@ return fileAnnounced(_that.groupId,_that.eventId,_that.name,_that.size);case Pro
 return fileTransfer(_that.name,_that.offset,_that.total);case ProgressKindView_FileSaved() when fileSaved != null:
 return fileSaved(_that.name);case ProgressKindView_Synced() when synced != null:
 return synced(_that.fetched,_that.new_,_that.acked);case ProgressKindView_PairingChanged() when pairingChanged != null:
-return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
+return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_PairingVerification() when pairingVerification != null:
+return pairingVerification(_that.sessionId,_that.verificationCode,_that.confirmationRequired);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
 return relayUnavailable(_that.pending);case ProgressKindView_Onboarding() when onboarding != null:
 return onboarding(_that.step);case ProgressKindView_Gap() when gap != null:
 return gap(_that.dropped);case _:
@@ -2023,7 +2101,7 @@ return gap(_that.dropped);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String groupId,  String eventId)  messageQueued,required TResult Function( String groupId,  String eventId)  messageReceived,required TResult Function( int count,  bool pending)  envelopesPublished,required TResult Function( String deliveryId,  String state)  deliveryChanged,required TResult Function( String groupId,  String eventId,  String name,  BigInt size)  fileAnnounced,required TResult Function( String name,  BigInt offset,  BigInt? total)  fileTransfer,required TResult Function( String name)  fileSaved,required TResult Function( int fetched,  int new_,  int acked)  synced,required TResult Function( String sessionId,  String phase)  pairingChanged,required TResult Function( int pending)  relayUnavailable,required TResult Function( String step)  onboarding,required TResult Function( int dropped)  gap,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String groupId,  String eventId)  messageQueued,required TResult Function( String groupId,  String eventId)  messageReceived,required TResult Function( int count,  bool pending)  envelopesPublished,required TResult Function( String deliveryId,  String state)  deliveryChanged,required TResult Function( String groupId,  String eventId,  String name,  BigInt size)  fileAnnounced,required TResult Function( String name,  BigInt offset,  BigInt? total)  fileTransfer,required TResult Function( String name)  fileSaved,required TResult Function( int fetched,  int new_,  int acked)  synced,required TResult Function( String sessionId,  String phase)  pairingChanged,required TResult Function( String sessionId,  String verificationCode,  bool confirmationRequired)  pairingVerification,required TResult Function( int pending)  relayUnavailable,required TResult Function( String step)  onboarding,required TResult Function( int dropped)  gap,}) {final _that = this;
 switch (_that) {
 case ProgressKindView_MessageQueued():
 return messageQueued(_that.groupId,_that.eventId);case ProgressKindView_MessageReceived():
@@ -2034,7 +2112,8 @@ return fileAnnounced(_that.groupId,_that.eventId,_that.name,_that.size);case Pro
 return fileTransfer(_that.name,_that.offset,_that.total);case ProgressKindView_FileSaved():
 return fileSaved(_that.name);case ProgressKindView_Synced():
 return synced(_that.fetched,_that.new_,_that.acked);case ProgressKindView_PairingChanged():
-return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_RelayUnavailable():
+return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_PairingVerification():
+return pairingVerification(_that.sessionId,_that.verificationCode,_that.confirmationRequired);case ProgressKindView_RelayUnavailable():
 return relayUnavailable(_that.pending);case ProgressKindView_Onboarding():
 return onboarding(_that.step);case ProgressKindView_Gap():
 return gap(_that.dropped);}
@@ -2051,7 +2130,7 @@ return gap(_that.dropped);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String groupId,  String eventId)?  messageQueued,TResult? Function( String groupId,  String eventId)?  messageReceived,TResult? Function( int count,  bool pending)?  envelopesPublished,TResult? Function( String deliveryId,  String state)?  deliveryChanged,TResult? Function( String groupId,  String eventId,  String name,  BigInt size)?  fileAnnounced,TResult? Function( String name,  BigInt offset,  BigInt? total)?  fileTransfer,TResult? Function( String name)?  fileSaved,TResult? Function( int fetched,  int new_,  int acked)?  synced,TResult? Function( String sessionId,  String phase)?  pairingChanged,TResult? Function( int pending)?  relayUnavailable,TResult? Function( String step)?  onboarding,TResult? Function( int dropped)?  gap,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String groupId,  String eventId)?  messageQueued,TResult? Function( String groupId,  String eventId)?  messageReceived,TResult? Function( int count,  bool pending)?  envelopesPublished,TResult? Function( String deliveryId,  String state)?  deliveryChanged,TResult? Function( String groupId,  String eventId,  String name,  BigInt size)?  fileAnnounced,TResult? Function( String name,  BigInt offset,  BigInt? total)?  fileTransfer,TResult? Function( String name)?  fileSaved,TResult? Function( int fetched,  int new_,  int acked)?  synced,TResult? Function( String sessionId,  String phase)?  pairingChanged,TResult? Function( String sessionId,  String verificationCode,  bool confirmationRequired)?  pairingVerification,TResult? Function( int pending)?  relayUnavailable,TResult? Function( String step)?  onboarding,TResult? Function( int dropped)?  gap,}) {final _that = this;
 switch (_that) {
 case ProgressKindView_MessageQueued() when messageQueued != null:
 return messageQueued(_that.groupId,_that.eventId);case ProgressKindView_MessageReceived() when messageReceived != null:
@@ -2062,7 +2141,8 @@ return fileAnnounced(_that.groupId,_that.eventId,_that.name,_that.size);case Pro
 return fileTransfer(_that.name,_that.offset,_that.total);case ProgressKindView_FileSaved() when fileSaved != null:
 return fileSaved(_that.name);case ProgressKindView_Synced() when synced != null:
 return synced(_that.fetched,_that.new_,_that.acked);case ProgressKindView_PairingChanged() when pairingChanged != null:
-return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
+return pairingChanged(_that.sessionId,_that.phase);case ProgressKindView_PairingVerification() when pairingVerification != null:
+return pairingVerification(_that.sessionId,_that.verificationCode,_that.confirmationRequired);case ProgressKindView_RelayUnavailable() when relayUnavailable != null:
 return relayUnavailable(_that.pending);case ProgressKindView_Onboarding() when onboarding != null:
 return onboarding(_that.step);case ProgressKindView_Gap() when gap != null:
 return gap(_that.dropped);case _:
@@ -2685,6 +2765,76 @@ class _$ProgressKindView_PairingChangedCopyWithImpl<$Res>
 sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
 as String,phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ProgressKindView_PairingVerification extends ProgressKindView {
+  const ProgressKindView_PairingVerification({required this.sessionId, required this.verificationCode, required this.confirmationRequired}): super._();
+  
+
+ final  String sessionId;
+ final  String verificationCode;
+ final  bool confirmationRequired;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProgressKindView_PairingVerificationCopyWith<ProgressKindView_PairingVerification> get copyWith => _$ProgressKindView_PairingVerificationCopyWithImpl<ProgressKindView_PairingVerification>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProgressKindView_PairingVerification&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.verificationCode, verificationCode) || other.verificationCode == verificationCode)&&(identical(other.confirmationRequired, confirmationRequired) || other.confirmationRequired == confirmationRequired));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,sessionId,verificationCode,confirmationRequired);
+
+@override
+String toString() {
+  return 'ProgressKindView.pairingVerification(sessionId: $sessionId, verificationCode: $verificationCode, confirmationRequired: $confirmationRequired)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProgressKindView_PairingVerificationCopyWith<$Res> implements $ProgressKindViewCopyWith<$Res> {
+  factory $ProgressKindView_PairingVerificationCopyWith(ProgressKindView_PairingVerification value, $Res Function(ProgressKindView_PairingVerification) _then) = _$ProgressKindView_PairingVerificationCopyWithImpl;
+@useResult
+$Res call({
+ String sessionId, String verificationCode, bool confirmationRequired
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProgressKindView_PairingVerificationCopyWithImpl<$Res>
+    implements $ProgressKindView_PairingVerificationCopyWith<$Res> {
+  _$ProgressKindView_PairingVerificationCopyWithImpl(this._self, this._then);
+
+  final ProgressKindView_PairingVerification _self;
+  final $Res Function(ProgressKindView_PairingVerification) _then;
+
+/// Create a copy of ProgressKindView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? sessionId = null,Object? verificationCode = null,Object? confirmationRequired = null,}) {
+  return _then(ProgressKindView_PairingVerification(
+sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
+as String,verificationCode: null == verificationCode ? _self.verificationCode : verificationCode // ignore: cast_nullable_to_non_nullable
+as String,confirmationRequired: null == confirmationRequired ? _self.confirmationRequired : confirmationRequired // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

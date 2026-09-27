@@ -1550,28 +1550,10 @@ abstract class AppLocalizations {
   /// **'Datos del servidor copiados.'**
   String get pairingServerDetailsCopied;
 
-  /// No description provided for @pairingAdminCompare.
-  ///
-  /// In es, this message translates to:
-  /// **'Compara este código con el del nuevo dispositivo e introdúcelo allí para terminar.'**
-  String get pairingAdminCompare;
-
-  /// No description provided for @pairingAuthorizationIssued.
-  ///
-  /// In es, this message translates to:
-  /// **'Ya se ha emitido la autorización. Cerrar esta comparación no la revoca. Si no reconoces la solicitud, revoca ese dispositivo desde la CLI.'**
-  String get pairingAuthorizationIssued;
-
-  /// No description provided for @pairingCloseComparison.
-  ///
-  /// In es, this message translates to:
-  /// **'Cerrar comparación'**
-  String get pairingCloseComparison;
-
   /// No description provided for @pairingPasteOwnCode.
   ///
   /// In es, this message translates to:
-  /// **'Pega únicamente el código de un dispositivo tuyo que tengas delante. Este paso emite su autorización.'**
+  /// **'Pega únicamente el código de un dispositivo tuyo que tengas delante. Después compararás el número antes de autorizarlo.'**
   String get pairingPasteOwnCode;
 
   /// No description provided for @pairingCodeLabel.
@@ -1589,7 +1571,7 @@ abstract class AppLocalizations {
   /// No description provided for @pairingAuthorize.
   ///
   /// In es, this message translates to:
-  /// **'Autorizar y comparar'**
+  /// **'Comparar el número'**
   String get pairingAuthorize;
 
   /// No description provided for @pairingKeepOpen.
@@ -3127,6 +3109,234 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'https://arveil.kaicorplabs.com/join#…'**
   String get enrollRelayHint;
+
+  /// No description provided for @pairingLinkExplanation.
+  ///
+  /// In es, this message translates to:
+  /// **'En el dispositivo que tiene tu identidad, abre Ajustes › Vincular otro dispositivo. Mostrará un código: escanéalo o pega aquí su enlace. La vinculación conserva tu identidad; no copia el historial anterior.'**
+  String get pairingLinkExplanation;
+
+  /// No description provided for @pairingScan.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear el código'**
+  String get pairingScan;
+
+  /// No description provided for @pairingLinkLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlace del otro dispositivo'**
+  String get pairingLinkLabel;
+
+  /// No description provided for @pairingUseLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Usar este enlace'**
+  String get pairingUseLink;
+
+  /// No description provided for @pairingLinkInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Pega el enlace que muestra tu otro dispositivo.'**
+  String get pairingLinkInvalid;
+
+  /// No description provided for @pairingOlderDevice.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi otro dispositivo tiene una versión anterior'**
+  String get pairingOlderDevice;
+
+  /// No description provided for @pairingNewerFlow.
+  ///
+  /// In es, this message translates to:
+  /// **'Volver a escanear o pegar un enlace'**
+  String get pairingNewerFlow;
+
+  /// No description provided for @pairingJoining.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperando a tu otro dispositivo…'**
+  String get pairingJoining;
+
+  /// No description provided for @pairingJoinCompare.
+  ///
+  /// In es, this message translates to:
+  /// **'Los dos dispositivos muestran este número:'**
+  String get pairingJoinCompare;
+
+  /// No description provided for @pairingJoinConfirmThere.
+  ///
+  /// In es, this message translates to:
+  /// **'Si coincide con el de tu otro dispositivo, confirma allí. Este dispositivo terminará solo.'**
+  String get pairingJoinConfirmThere;
+
+  /// No description provided for @pairingLinkInterrupted.
+  ///
+  /// In es, this message translates to:
+  /// **'La vinculación se interrumpió. Cancélala y vuelve a escanear el código.'**
+  String get pairingLinkInterrupted;
+
+  /// No description provided for @pairingOfferExplanation.
+  ///
+  /// In es, this message translates to:
+  /// **'Muestra un código en esta pantalla. En el dispositivo nuevo, elige «Vincular con mi otro dispositivo» y escanéalo, o ábrelo como enlace. Nada se autoriza hasta que confirmes aquí.'**
+  String get pairingOfferExplanation;
+
+  /// No description provided for @pairingShowCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar código'**
+  String get pairingShowCode;
+
+  /// No description provided for @pairingOfferHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanea este código con el dispositivo nuevo. Si no tiene cámara, envíale el enlace por un canal privado.'**
+  String get pairingOfferHelp;
+
+  /// No description provided for @pairingQrLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Código QR para vincular un dispositivo'**
+  String get pairingQrLabel;
+
+  /// No description provided for @pairingCopyLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Copiar enlace'**
+  String get pairingCopyLink;
+
+  /// No description provided for @pairingLinkCopied.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlace copiado. Quien lo abra puede pedir la vinculación, pero solo tú la autorizas aquí.'**
+  String get pairingLinkCopied;
+
+  /// No description provided for @pairingOfferWaiting.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperando al dispositivo nuevo…'**
+  String get pairingOfferWaiting;
+
+  /// No description provided for @pairingOfferInterrupted.
+  ///
+  /// In es, this message translates to:
+  /// **'La espera se detuvo, pero el código sigue valiendo hasta que caduque.'**
+  String get pairingOfferInterrupted;
+
+  /// No description provided for @pairingOfferClose.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar el código'**
+  String get pairingOfferClose;
+
+  /// No description provided for @pairingAdminAsk.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Vincular «{name}»?'**
+  String pairingAdminAsk(String name);
+
+  /// No description provided for @pairingAdminAskUnnamed.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Vincular este dispositivo?'**
+  String get pairingAdminAskUnnamed;
+
+  /// No description provided for @pairingAdminCompareNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'Comprueba que el dispositivo nuevo muestra el mismo número:'**
+  String get pairingAdminCompareNumber;
+
+  /// No description provided for @pairingApprove.
+  ///
+  /// In es, this message translates to:
+  /// **'Vincular'**
+  String get pairingApprove;
+
+  /// No description provided for @pairingDecline.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazar'**
+  String get pairingDecline;
+
+  /// No description provided for @pairingApproveNote.
+  ///
+  /// In es, this message translates to:
+  /// **'Vincular firma con tu identidad una autorización para ese dispositivo. Si no lo reconoces o el número no coincide, recházalo.'**
+  String get pairingApproveNote;
+
+  /// No description provided for @pairingLinkedDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Dispositivo vinculado. Terminará solo en unos segundos.'**
+  String get pairingLinkedDone;
+
+  /// No description provided for @pairingDeclinedDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazado. No se firmó nada.'**
+  String get pairingDeclinedDone;
+
+  /// No description provided for @pairingDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Hecho'**
+  String get pairingDone;
+
+  /// No description provided for @pairingOlderDeviceAdmin.
+  ///
+  /// In es, this message translates to:
+  /// **'El dispositivo nuevo muestra un código (versión anterior)'**
+  String get pairingOlderDeviceAdmin;
+
+  /// No description provided for @scanTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear código'**
+  String get scanTitle;
+
+  /// No description provided for @scanHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Apunta la cámara al código.'**
+  String get scanHint;
+
+  /// No description provided for @scanDenied.
+  ///
+  /// In es, this message translates to:
+  /// **'Arveil no tiene permiso para usar la cámara. Pega el enlace en su lugar, o da el permiso en los ajustes del sistema.'**
+  String get scanDenied;
+
+  /// No description provided for @scanUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay una cámara disponible. Pega el enlace en su lugar.'**
+  String get scanUnavailable;
+
+  /// No description provided for @scanPasteInstead.
+  ///
+  /// In es, this message translates to:
+  /// **'Pegar el enlace'**
+  String get scanPasteInstead;
+
+  /// No description provided for @scanNotLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese código no es para vincular un dispositivo.'**
+  String get scanNotLink;
+
+  /// No description provided for @errorLinkJoin.
+  ///
+  /// In es, this message translates to:
+  /// **'La vinculación no se completó: el código caducó, se rechazó en el otro dispositivo u otro dispositivo respondió antes. Muestra un código nuevo.'**
+  String get errorLinkJoin;
+
+  /// No description provided for @errorLinkExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'El código caducó o ya no está disponible. Muestra uno nuevo.'**
+  String get errorLinkExpired;
 }
 
 class _AppLocalizationsDelegate

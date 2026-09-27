@@ -55,6 +55,10 @@ pub struct SetupView {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PairingView {
+    /// A link this device answered (ADR-012) rather than a code it showed.
+    /// Such a session cannot be resumed after the app closed: its code is
+    /// read again instead.
+    pub link: bool,
     pub session_id: Vec<u8>,
     pub code: String,
     pub expires_at: u64,
@@ -236,8 +240,29 @@ pub enum CardView {
         bootstrap: String,
         invitation: String,
     },
-    /// A code meant for another screen: `kind` is `link` or `contact`.
+    /// A code shown by another device of the same identity, to link this one.
+    Link { server: String, expires_at: u64 },
+    /// A code meant for another screen: `kind` is `contact`.
     Other { kind: String },
+}
+
+/// A code shown on the device that holds the root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkOfferView {
+    pub pair_id: Vec<u8>,
+    pub link: String,
+    pub expires_at: u64,
+}
+
+/// A device asking to be linked, waiting for the person's answer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkRequestView {
+    pub pair_id: Vec<u8>,
+    pub verification_code: String,
+    pub device_id: Option<String>,
+    /// How the device describes itself. Shown, never trusted.
+    pub description: Option<String>,
+    pub expires_at: Option<u64>,
 }
 
 /// Why a text is not a card the app can use.
@@ -360,6 +385,12 @@ pub enum ProgressKindView {
     PairingChanged {
         session_id: String,
         phase: String,
+    },
+    /// Both screens now show this number, while the pairing still waits.
+    PairingVerification {
+        session_id: String,
+        verification_code: String,
+        confirmation_required: bool,
     },
     RelayUnavailable {
         pending: u32,
@@ -582,6 +613,7 @@ impl Profile {
             kit_saved_at: status.kit_saved_at.map(|at| at as i64),
             kit_stale: status.kit_stale,
             pairing: status.pairing.map(|p| PairingView {
+                link: p.link,
                 session_id: p.session.session_id,
                 code: p.session.code,
                 expires_at: p.session.expires_at,
@@ -626,13 +658,79 @@ impl Profile {
         Ok(())
     }
 
-    pub fn approve_pairing(&self, bootstrap: String, code: String) -> Result<String, CommandError> {
-        Ok(self
+    /// Answer the code an older device shows. Returns what to confirm;
+    /// nothing is signed until `answer_link` says yes.
+    pub fn approve_pairing(
+        &self,
+        bootstrap: String,
+        code: String,
+    ) -> Result<LinkRequestView, CommandError> {
+        let v = self
             .inner
             .approve_pairing(bootstrap.trim(), code.trim())
             .map_err(command_error)?
-            .value
-            .verification_code)
+            .value;
+        Ok(LinkRequestView {
+            pair_id: v.session_id,
+            verification_code: v.verification_code,
+            device_id: None,
+            description: None,
+            expires_at: None,
+        })
+    }
+
+    /// On the device that holds the root: show a code that links another
+    /// device (ADR-012 §3).
+    pub fn offer_link(&self) -> Result<LinkOfferView, CommandError> {
+        let offer = self.inner.offer_link().map_err(command_error)?.value;
+        Ok(LinkOfferView {
+            pair_id: offer.pair_id,
+            link: offer.link,
+            expires_at: offer.expires_at,
+        })
+    }
+
+    /// Wait until a new device answers the code; returns what to confirm.
+    pub fn await_link_request(&self, pair_id: Vec<u8>) -> Result<LinkRequestView, CommandError> {
+        let r = self
+            .inner
+            .await_link_request(&pair_id)
+            .map_err(command_error)?
+            .value;
+        Ok(LinkRequestView {
+            pair_id: r.pair_id,
+            verification_code: r.verification_code,
+            device_id: Some(hex(&r.device_id)),
+            description: r.description,
+            expires_at: r.expires_at,
+        })
+    }
+
+    /// The person's answer. Only a yes signs and sends the authorization.
+    pub fn answer_link(&self, pair_id: Vec<u8>, approve: bool) -> Result<(), CommandError> {
+        self.inner
+            .answer_link(&pair_id, approve)
+            .map_err(command_error)
+            .map(|_| ())
+    }
+
+    /// On a new device: answer a code shown by the other device. `scanned`
+    /// says it was read from that screen with the camera, which
+    /// authenticates it; otherwise the number is confirmed here as well.
+    /// Returns whether the device is linked already.
+    pub fn join_link(
+        &self,
+        text: String,
+        description: Option<String>,
+        scanned: bool,
+    ) -> Result<bool, CommandError> {
+        Ok(matches!(
+            self.inner
+                .join_link(&text, description.as_deref(), scanned)
+                .map_err(command_error)?
+                .value,
+            arveil_app::JoinOutcome::Linked(_)
+        ))
     }
 
     pub fn confirm_pairing(
@@ -1218,6 +1316,15 @@ fn progress_view(event: ProgressEvent) -> ProgressView {
             session_id: hex(&session_id),
             phase,
         },
+        ProgressKind::PairingVerification {
+            session_id,
+            verification_code,
+            confirmation_required,
+        } => ProgressKindView::PairingVerification {
+            session_id: hex(&session_id),
+            verification_code,
+            confirmation_required,
+        },
         ProgressKind::RelayUnavailable { pending } => ProgressKindView::RelayUnavailable {
             pending: pending as u32,
         },
@@ -1491,6 +1598,10 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::ConfirmPairing => "confirm-pairing",
         Operation::CancelPairing => "cancel-pairing",
         Operation::QueryPendingPairing => "query-pending-pairing",
+        Operation::OfferLink => "offer-link",
+        Operation::AwaitLinkRequest => "await-link-request",
+        Operation::AnswerLink => "answer-link",
+        Operation::JoinLink => "join-link",
         Operation::QueryOnboarding => "query-onboarding",
         Operation::QueryKeyPackageSupply => "query-key-package-supply",
         Operation::CheckKeyPackages => "check-key-packages",
@@ -1539,6 +1650,12 @@ fn read_card(text: &str) -> Result<CardView, CardProblem> {
         Ok(Card::Join { realm, invitation }) => Ok(CardView::Join {
             bootstrap: realm.bootstrap(),
             invitation: hex(&invitation),
+        }),
+        Ok(Card::Link {
+            realm, expires_at, ..
+        }) => Ok(CardView::Link {
+            server: realm.url,
+            expires_at,
         }),
         Ok(other) => Ok(CardView::Other {
             kind: other.kind().to_string(),

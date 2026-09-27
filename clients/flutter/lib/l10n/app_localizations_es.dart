@@ -900,19 +900,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get pairingServerDetailsCopied => 'Datos del servidor copiados.';
 
   @override
-  String get pairingAdminCompare =>
-      'Compara este código con el del nuevo dispositivo e introdúcelo allí para terminar.';
-
-  @override
-  String get pairingAuthorizationIssued =>
-      'Ya se ha emitido la autorización. Cerrar esta comparación no la revoca. Si no reconoces la solicitud, revoca ese dispositivo desde la CLI.';
-
-  @override
-  String get pairingCloseComparison => 'Cerrar comparación';
-
-  @override
   String get pairingPasteOwnCode =>
-      'Pega únicamente el código de un dispositivo tuyo que tengas delante. Este paso emite su autorización.';
+      'Pega únicamente el código de un dispositivo tuyo que tengas delante. Después compararás el número antes de autorizarlo.';
 
   @override
   String get pairingCodeLabel => 'Código de vinculación';
@@ -921,7 +910,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get pairingCodeInvalid => 'Pega el código de vinculación completo.';
 
   @override
-  String get pairingAuthorize => 'Autorizar y comparar';
+  String get pairingAuthorize => 'Comparar el número';
 
   @override
   String get pairingKeepOpen =>
@@ -1883,4 +1872,137 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get enrollRelayHint => 'https://arveil.kaicorplabs.com/join#…';
+
+  @override
+  String get pairingLinkExplanation =>
+      'En el dispositivo que tiene tu identidad, abre Ajustes › Vincular otro dispositivo. Mostrará un código: escanéalo o pega aquí su enlace. La vinculación conserva tu identidad; no copia el historial anterior.';
+
+  @override
+  String get pairingScan => 'Escanear el código';
+
+  @override
+  String get pairingLinkLabel => 'Enlace del otro dispositivo';
+
+  @override
+  String get pairingUseLink => 'Usar este enlace';
+
+  @override
+  String get pairingLinkInvalid =>
+      'Pega el enlace que muestra tu otro dispositivo.';
+
+  @override
+  String get pairingOlderDevice =>
+      'Mi otro dispositivo tiene una versión anterior';
+
+  @override
+  String get pairingNewerFlow => 'Volver a escanear o pegar un enlace';
+
+  @override
+  String get pairingJoining => 'Esperando a tu otro dispositivo…';
+
+  @override
+  String get pairingJoinCompare => 'Los dos dispositivos muestran este número:';
+
+  @override
+  String get pairingJoinConfirmThere =>
+      'Si coincide con el de tu otro dispositivo, confirma allí. Este dispositivo terminará solo.';
+
+  @override
+  String get pairingLinkInterrupted =>
+      'La vinculación se interrumpió. Cancélala y vuelve a escanear el código.';
+
+  @override
+  String get pairingOfferExplanation =>
+      'Muestra un código en esta pantalla. En el dispositivo nuevo, elige «Vincular con mi otro dispositivo» y escanéalo, o ábrelo como enlace. Nada se autoriza hasta que confirmes aquí.';
+
+  @override
+  String get pairingShowCode => 'Mostrar código';
+
+  @override
+  String get pairingOfferHelp =>
+      'Escanea este código con el dispositivo nuevo. Si no tiene cámara, envíale el enlace por un canal privado.';
+
+  @override
+  String get pairingQrLabel => 'Código QR para vincular un dispositivo';
+
+  @override
+  String get pairingCopyLink => 'Copiar enlace';
+
+  @override
+  String get pairingLinkCopied =>
+      'Enlace copiado. Quien lo abra puede pedir la vinculación, pero solo tú la autorizas aquí.';
+
+  @override
+  String get pairingOfferWaiting => 'Esperando al dispositivo nuevo…';
+
+  @override
+  String get pairingOfferInterrupted =>
+      'La espera se detuvo, pero el código sigue valiendo hasta que caduque.';
+
+  @override
+  String get pairingOfferClose => 'Cerrar el código';
+
+  @override
+  String pairingAdminAsk(String name) {
+    return '¿Vincular «$name»?';
+  }
+
+  @override
+  String get pairingAdminAskUnnamed => '¿Vincular este dispositivo?';
+
+  @override
+  String get pairingAdminCompareNumber =>
+      'Comprueba que el dispositivo nuevo muestra el mismo número:';
+
+  @override
+  String get pairingApprove => 'Vincular';
+
+  @override
+  String get pairingDecline => 'Rechazar';
+
+  @override
+  String get pairingApproveNote =>
+      'Vincular firma con tu identidad una autorización para ese dispositivo. Si no lo reconoces o el número no coincide, recházalo.';
+
+  @override
+  String get pairingLinkedDone =>
+      'Dispositivo vinculado. Terminará solo en unos segundos.';
+
+  @override
+  String get pairingDeclinedDone => 'Rechazado. No se firmó nada.';
+
+  @override
+  String get pairingDone => 'Hecho';
+
+  @override
+  String get pairingOlderDeviceAdmin =>
+      'El dispositivo nuevo muestra un código (versión anterior)';
+
+  @override
+  String get scanTitle => 'Escanear código';
+
+  @override
+  String get scanHint => 'Apunta la cámara al código.';
+
+  @override
+  String get scanDenied =>
+      'Arveil no tiene permiso para usar la cámara. Pega el enlace en su lugar, o da el permiso en los ajustes del sistema.';
+
+  @override
+  String get scanUnavailable =>
+      'No hay una cámara disponible. Pega el enlace en su lugar.';
+
+  @override
+  String get scanPasteInstead => 'Pegar el enlace';
+
+  @override
+  String get scanNotLink => 'Ese código no es para vincular un dispositivo.';
+
+  @override
+  String get errorLinkJoin =>
+      'La vinculación no se completó: el código caducó, se rechazó en el otro dispositivo u otro dispositivo respondió antes. Muestra un código nuevo.';
+
+  @override
+  String get errorLinkExpired =>
+      'El código caducó o ya no está disponible. Muestra uno nuevo.';
 }

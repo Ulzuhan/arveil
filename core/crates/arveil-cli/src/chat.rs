@@ -183,6 +183,26 @@ fn render_change(change: StateChange) {
         StateChange::PairingExpired { session_id } => {
             println!("pairing: session {} expired", hex::encode(session_id))
         }
+        StateChange::LinkOffered { .. } => {}
+        StateChange::LinkRequested {
+            verification_code,
+            device_id,
+            ..
+        } => {
+            println!(
+                "request: device {} asks to be linked",
+                hex::encode(device_id)
+            );
+            println!("verification code: {verification_code}");
+        }
+        StateChange::LinkAnswered { approved, .. } => println!(
+            "{}",
+            if approved {
+                "linked: the grant is on its way to the new device"
+            } else {
+                "declined: nothing was signed"
+            }
+        ),
         StateChange::MessageQueued { receipt, epoch } => {
             let LocalAcceptance::PersistedToOutbox { envelopes, .. } = &receipt.local_acceptance;
             match receipt.kind {

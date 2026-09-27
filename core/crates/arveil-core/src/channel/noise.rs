@@ -87,6 +87,20 @@ impl Initiator {
         Ok(buf)
     }
 
+    /// Message 1 carrying a payload (device linking, ADR-012 §3): the new
+    /// device states the keys it wants signed in its first message, bound to
+    /// the transcript both screens' numbers cover. Only the responder can
+    /// read it, and only the responder named in the link is asked.
+    pub fn write_message_1_payload(&mut self, payload: &[u8]) -> Result<Vec<u8>, NoiseError> {
+        if payload.len() > MAX_NOISE_PAYLOAD {
+            return Err(NoiseError::PayloadTooLarge(payload.len()));
+        }
+        let mut buf = vec![0u8; MAX_NOISE_MESSAGE];
+        let n = self.state.write_message(payload, &mut buf)?;
+        buf.truncate(n);
+        Ok(buf)
+    }
+
     /// Message 2 carrying a payload from the responder. Used by device
     /// pairing, where the responder's first authenticated act is to state
     /// which keys it wants signed (M3.1); the realm channel keeps the
@@ -150,6 +164,23 @@ impl Responder {
             .get_remote_static()
             .expect("IK message 1 carries the initiator static")
             .to_vec())
+    }
+
+    /// Message 1 with a payload (device linking, ADR-012 §3). Returns the
+    /// initiator's static public key and what it said.
+    pub fn read_message_1_payload(
+        &mut self,
+        message: &[u8],
+    ) -> Result<(Vec<u8>, Vec<u8>), NoiseError> {
+        let mut buf = vec![0u8; MAX_NOISE_MESSAGE];
+        let n = self.state.read_message(message, &mut buf)?;
+        buf.truncate(n);
+        let remote = self
+            .state
+            .get_remote_static()
+            .expect("IK message 1 carries the initiator static")
+            .to_vec();
+        Ok((remote, buf))
     }
 
     /// Message 2; on success the channel is established.

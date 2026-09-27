@@ -30,6 +30,21 @@ invite() { "$RELAY" invite -data-dir "$DATA/relay" | sed -n 's/^invite: //p'; }
 route_of() { sed -n 's/^route: //p' "$1"; }
 expect_fail() { local out="$1"; shift; if "$@" > "$out" 2>&1; then return 1; fi; return 0; }
 # Wait until a file contains a pattern, or give up after ~20 seconds.
+# Answer an older device's code on the administration device, which now
+# signs only after the number is typed back (ADR-012 §3). $5 is what to
+# type once the number shows: "same" types it back, anything else declines.
+approve_code() {
+  local fifo="$DATA/confirm.$$.$RANDOM"
+  mkfifo "$fifo"
+  "$CLI" device pair-approve --data-dir "$1" "$2" "$3" < "$fifo" > "$4" 2>&1 &
+  local pid=$!
+  exec 7> "$fifo"
+  if ! wait_for "$4" "^confirm: "; then exec 7>&-; return 1; fi
+  if [ "$5" = same ]; then sed -n 's/^verification code: //p' "$4" >&7; else echo "$5" >&7; fi
+  exec 7>&-
+  rm -f "$fifo"
+  wait "$pid"
+}
 wait_for() {
   for _ in $(seq 1 200); do grep -q "$2" "$1" 2>/dev/null && return 0; sleep 0.1; done
   echo "--- $1 ---"; cat "$1" 2>/dev/null || true
@@ -39,7 +54,8 @@ wait_for() {
 (cd "$ROOT/relay" && go build -o bin/arveil-relay ./cmd/arveil-relay && go build -o bin/arveil-hintsink ./cmd/arveil-hintsink)
 (cd "$ROOT/core" && cargo build -q -p arveil-cli)
 
-start_relay
+# More rendezvous than one person opens: every pairing below comes from 127.0.0.1.
+start_relay -max-pairings-per-addr 32
 BOOTSTRAP="$(sed -n 's/^bootstrap: //p' "$DATA/relay.out" | head -1)"
 "$CLI" enroll --data-dir "$DATA/alice" "$BOOTSTRAP" "$(invite)" > "$DATA/alice.enroll"
 
@@ -60,7 +76,8 @@ step "M3.1 pairing: two devices meet through the realm and show the same number"
 PAIR_PID=$!
 wait_for "$DATA/laptop.pair" "^code: "
 CODE="$(sed -n 's/^code: //p' "$DATA/laptop.pair")"
-"$CLI" device pair-approve --data-dir "$DATA/alice" "$BOOTSTRAP" "$CODE" | tee "$DATA/alice.approve"
+approve_code "$DATA/alice" "$BOOTSTRAP" "$CODE" "$DATA/alice.approve" same || fail "the administration device did not answer: $(cat "$DATA/alice.approve")"
+cat "$DATA/alice.approve"
 wait "$PAIR_PID" || fail "the new device gave up during pairing"
 SAS_ADMIN="$(sed -n 's/^verification code: //p' "$DATA/alice.approve")"
 SAS_NEW="$(sed -n 's/^verification code: //p' "$DATA/laptop.pair")"
@@ -92,13 +109,72 @@ grep -q "joined conversation" "$DATA/laptop.sync1" || fail "the paired device di
 "$CLI" chat sync --data-dir "$DATA/alice-laptop" "$BOOTSTRAP" | tee "$DATA/laptop.sync2"
 grep -q "message: hola desde bob" "$DATA/laptop.sync2" || fail "the paired device does not receive messages"
 
+step "ADR-012 linking: the device with the root shows a link and signs only after the person confirms there"
+linked_count() { grep -c "device linked: identity" "$DATA/relay.err" || true; }
+offer_link() { # $1 = output file; leaves the offer waiting on fd 8
+  mkfifo "$DATA/offer.in.$1"
+  "$CLI" device link-offer --data-dir "$DATA/alice" < "$DATA/offer.in.$1" > "$DATA/$1" 2>&1 &
+  OFFER_PID=$!
+  exec 8> "$DATA/offer.in.$1"
+  wait_for "$DATA/$1" "^link: "
+  LINK="$(sed -n 's/^link: //p' "$DATA/$1")"
+  case "$LINK" in https://arveil.kaicorplabs.com/link#*) ;; *) fail "no link offered: $(cat "$DATA/$1")" ;; esac
+}
+offer_link alice.offer
+"$CLI" device link-join --data-dir "$DATA/alice-phone" "$LINK" --scanned > "$DATA/phone.join" 2>&1 &
+JOIN_PID=$!
+wait_for "$DATA/alice.offer" "^confirm: "
+wait_for "$DATA/phone.join" "^verification code: "
+SAS_OFFER="$(sed -n 's/^verification code: //p' "$DATA/alice.offer")"
+[ "$SAS_OFFER" = "$(sed -n 's/^verification code: //p' "$DATA/phone.join")" ] || fail "the two screens show different numbers"
+BEFORE="$(linked_count)"
+sleep 1
+[ "$(linked_count)" = "$BEFORE" ] || fail "a credential was published before the person confirmed"
+grep -q "^linked" "$DATA/phone.join" && fail "the new device linked before the person confirmed"
+echo "$SAS_OFFER" >&8; exec 8>&-
+wait "$OFFER_PID" || fail "the offer failed: $(cat "$DATA/alice.offer")"
+wait "$JOIN_PID" || fail "the scanned link did not finish: $(cat "$DATA/phone.join")"
+grep -q "^linked: device" "$DATA/phone.join" || fail "the scanned link did not link without asking again: $(cat "$DATA/phone.join")"
+[ "$(linked_count)" -gt "$BEFORE" ] || fail "the realm did not log the enrolment"
+"$CLI" status --data-dir "$DATA/alice-phone" > "$DATA/phone.status"
+[ "$(sed -n 's/^identity: \([0-9a-f]*\).*/\1/p' "$DATA/phone.status")" = "$(sed -n 's/^identity: \([0-9a-f]*\).*/\1/p' "$DATA/alice.status")" ] || fail "the linked phone belongs to another identity"
+echo "linked by link after confirming $SAS_OFFER"
+
+step "ADR-012 a photographed link answered first is visible and declined: nothing is signed"
+offer_link alice.offer2
+"$CLI" device link-join --data-dir "$DATA/intruder" "$LINK" --scanned > "$DATA/intruder.join" 2>&1 &
+INTRUDER_PID=$!
+wait_for "$DATA/alice.offer2" "^confirm: "
+expect_fail "$DATA/late.join" "$CLI" device link-join --data-dir "$DATA/late-phone" "$LINK" --scanned || fail "a second device answered a link already answered"
+grep -q "another device already answered this code" "$DATA/late.join" || fail "unexpected refusal: $(cat "$DATA/late.join")"
+BEFORE="$(linked_count)"
+echo no >&8; exec 8>&-
+wait "$OFFER_PID" || fail "declining failed: $(cat "$DATA/alice.offer2")"
+grep -q "^declined: nothing was signed" "$DATA/alice.offer2" || fail "the refusal was not reported: $(cat "$DATA/alice.offer2")"
+if wait "$INTRUDER_PID"; then fail "a declined device linked"; fi
+grep -q "declined this link" "$DATA/intruder.join" || fail "the declined device kept waiting: $(cat "$DATA/intruder.join")"
+[ "$(linked_count)" = "$BEFORE" ] || fail "a declined device got a credential"
+
+step "ADR-012 a link that crossed another app is also confirmed on the new device"
+offer_link alice.offer3
+"$CLI" device link-join --data-dir "$DATA/alice-tablet" "Mi enlace: $LINK" > "$DATA/tablet.join" 2>&1 &
+JOIN3_PID=$!
+wait_for "$DATA/alice.offer3" "^confirm: "
+sed -n 's/^verification code: //p' "$DATA/alice.offer3" >&8; exec 8>&-
+wait "$OFFER_PID" || fail "the offer failed: $(cat "$DATA/alice.offer3")"
+wait "$JOIN3_PID" || fail "the pasted link did not finish: $(cat "$DATA/tablet.join")"
+grep -q "^linked: device" "$DATA/tablet.join" && fail "a pasted link applied the grant without asking"
+SAS_TABLET="$(sed -n 's/^verification code: //p' "$DATA/tablet.join")"
+"$CLI" device pair-confirm --data-dir "$DATA/alice-tablet" "$BOOTSTRAP" "$SAS_TABLET" > "$DATA/tablet.confirm"
+grep -q "^linked: device" "$DATA/tablet.confirm" || fail "the tablet did not link after confirming: $(cat "$DATA/tablet.confirm")"
+
 step "M3.1 a second device answering the same code is refused, and the rendezvous is opaque and expires"
 "$CLI" device pair --data-dir "$DATA/eve-target" "$BOOTSTRAP" > "$DATA/eve.pair" 2>&1 &
 PAIR2_PID=$!
 wait_for "$DATA/eve.pair" "^code: "
 CODE2="$(sed -n 's/^code: //p' "$DATA/eve.pair")"
-"$CLI" device pair-approve --data-dir "$DATA/alice" "$BOOTSTRAP" "$CODE2" > "$DATA/alice.approve2"
-expect_fail "$DATA/bob.approve2" "$CLI" device pair-approve --data-dir "$DATA/bob" "$BOOTSTRAP" "$CODE2" || fail "a second device took over a pairing already answered"
+approve_code "$DATA/alice" "$BOOTSTRAP" "$CODE2" "$DATA/alice.approve2" same || fail "the administration device did not answer: $(cat "$DATA/alice.approve2")"
+expect_fail "$DATA/bob.approve2" "$CLI" device pair-approve --data-dir "$DATA/bob" "$BOOTSTRAP" "$CODE2" < /dev/null || fail "a second device took over a pairing already answered"
 grep -q "Someone else already answered this code" "$DATA/bob.approve2" || fail "unexpected refusal: $(cat "$DATA/bob.approve2")"
 wait "$PAIR2_PID" || fail "the second pairing did not finish"
 if command -v sqlite3 >/dev/null; then
@@ -122,7 +198,7 @@ EXPIRED_CODE="$(sed -n 's/^code: //p' "$DATA/expired.pair")"
 kill "$EXP_PID" 2>/dev/null || true
 wait "$EXP_PID" 2>/dev/null || true
 sleep 4
-expect_fail "$DATA/alice.expired" "$CLI" device pair-approve --data-dir "$DATA/alice" "$BOOTSTRAP2" "$EXPIRED_CODE" || fail "an expired rendezvous still worked"
+expect_fail "$DATA/alice.expired" "$CLI" device pair-approve --data-dir "$DATA/alice" "$BOOTSTRAP2" "$EXPIRED_CODE" < /dev/null || fail "an expired rendezvous still worked"
 grep -q "expired" "$DATA/alice.expired" || fail "unexpected error for an expired rendezvous: $(cat "$DATA/alice.expired")"
 grep -q "pairing(s) removed" "$DATA/relay.err" || fail "the relay did not sweep the expired rendezvous"
 

@@ -111,10 +111,13 @@ Future<void> main() async {
     await linked.beginPairing(bootstrap: bootstrap);
     final pair = (await linked.setup()).pairing!;
     final waiting = linked.awaitPairing(bootstrap: bootstrap, session: pair);
-    final comparison = await admin.approvePairing(
+    final request = await admin.approvePairing(
       bootstrap: bootstrap,
       code: pair.code,
     );
+    // Nothing is signed until the number is confirmed (ADR-012 §3).
+    await admin.answerLink(pairId: request.pairId, approve: true);
+    final comparison = request.verificationCode;
     await waiting;
     await linked.confirmPairing(
       bootstrap: bootstrap,

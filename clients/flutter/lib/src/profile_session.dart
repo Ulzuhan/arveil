@@ -49,8 +49,19 @@ class ProfileSession extends ChangeNotifier {
   bool kitReminderDismissed = false;
   bool cancellingPairing = false;
   bool _cancelledWait = false;
-  String? approvalCode;
   KeyPackageSupplyView? keyPackages;
+
+  /// Linking from the device that holds the root (ADR-012 §3): the code it
+  /// shows, the device that answered and waits for a yes, and how it ended.
+  LinkOfferView? linkOffer;
+  LinkRequestView? linkRequest;
+  bool waitingForLink = false;
+  bool? linkApproved;
+
+  /// Linking from a new device: the number both screens show, as soon as it
+  /// exists, while the other device still has to confirm.
+  bool joiningLink = false;
+  String? joiningCode;
   bool keyPackagesUnavailable = false;
 
   Profile? get profile => _profile;
@@ -201,6 +212,12 @@ class ProfileSession extends ChangeNotifier {
   // Cancellation must be able to enter Rust while the rendezvous wait is
   // suspended. It does not promise to undo a confirmation that committed.
   Future<bool> cancelPairing() async {
+    // A link answered from this screen starts its session inside the wait.
+    if (joiningLink && setup?.pairing == null && _profile != null) {
+      try {
+        setup = await _profile!.setup();
+      } catch (_) {}
+    }
     final state = setup;
     if (_disposed ||
         cancellingPairing ||
@@ -227,18 +244,102 @@ class ProfileSession extends ChangeNotifier {
     }
   }
 
+  /// Answer the code an older device shows. Nothing is signed until the
+  /// person confirms the number with [answerLink].
   Future<bool> approvePairing(String code) => _run(() async {
     _cancelledWait = false;
-    approvalCode = await _profile!.approvePairing(
+    linkApproved = null;
+    linkRequest = await _profile!.approvePairing(
       bootstrap: setup!.bootstrap!,
       code: code,
     );
   });
 
-  void dismissApproval() {
-    approvalCode = null;
-    _changed();
+  /// Show a code for a new device to scan or open.
+  Future<bool> offerLink() => _run(() async {
+    linkApproved = null;
+    linkRequest = null;
+    linkOffer = await _profile!.offerLink();
+  });
+
+  /// Wait for the new device. Leaving the screen or the app may stop the
+  /// wait; the offer stays valid and the wait can resume.
+  Future<bool> waitForLink() {
+    final offer = linkOffer;
+    if (offer == null) return Future.value(false);
+    return _run(() async {
+      waitingForLink = true;
+      _changed();
+      try {
+        linkRequest = await _profile!.awaitLinkRequest(pairId: offer.pairId);
+      } finally {
+        waitingForLink = false;
+      }
+    });
   }
+
+  /// The person's answer to the device that asked. Only a yes signs.
+  Future<bool> answerLink({required bool approve}) {
+    final request = linkRequest;
+    if (request == null) return Future.value(false);
+    return _run(() async {
+      await _profile!.answerLink(pairId: request.pairId, approve: approve);
+      linkOffer = null;
+      linkRequest = null;
+      linkApproved = approve;
+    });
+  }
+
+  /// Leave linking: an offer nobody answered is withdrawn, a device that
+  /// asked and was not confirmed is declined.
+  Future<void> closeLink() async {
+    final pending = linkRequest?.pairId ?? linkOffer?.pairId;
+    linkOffer = null;
+    linkRequest = null;
+    linkApproved = null;
+    _changed();
+    if (pending != null && _profile != null) {
+      try {
+        await _profile!.answerLink(pairId: pending, approve: false);
+      } catch (_) {
+        // Nothing was signed either way; the other device stops on its own.
+      }
+    }
+  }
+
+  /// On a new device: answer a code the other device shows. [scanned] means
+  /// it was read from that screen; a code that crossed another app is also
+  /// confirmed here before anything is applied.
+  Future<bool> joinLink(String text, {required bool scanned}) => _run(() async {
+    final profile = _profile!;
+    joiningLink = true;
+    joiningCode = null;
+    waitingForPairing = true;
+    _changed();
+    final generation = profile.startWatching();
+    final progress = profile.watch(generation: generation).listen((event) {
+      if (event.kind case ProgressKindView_PairingVerification(
+        :final verificationCode,
+      )) {
+        joiningCode = verificationCode;
+        _changed();
+      }
+    }, onError: (Object _) {});
+    try {
+      final description = await describeDevice();
+      await _reloadAfter(
+        (p) =>
+            p.joinLink(text: text, description: description, scanned: scanned),
+      );
+    } finally {
+      profile.stopWatching(generation: generation);
+      // The stream ends from the Rust side; nothing here waits for it.
+      unawaited(progress.cancel());
+      joiningLink = false;
+      joiningCode = null;
+      waitingForPairing = false;
+    }
+  });
 
   Future<String?> saveKit(Future<bool> Function(List<int>) save) async {
     String? secret;
@@ -295,7 +396,9 @@ class ProfileSession extends ChangeNotifier {
     conversations = null;
     keyPackages = null;
     keyPackagesUnavailable = false;
-    approvalCode = null;
+    linkOffer = null;
+    linkRequest = null;
+    linkApproved = null;
     _cancelledWait = false;
   });
 
@@ -307,6 +410,29 @@ class ProfileSession extends ChangeNotifier {
     if (profile != null) unawaited(profile.close().catchError((Object _) {}));
     super.dispose();
   }
+}
+
+/// How this device describes itself to the device that links it, such as
+/// "Pixel 8 · Android 15". Shown there, never trusted; absent if unknown.
+Future<String?> describeDevice() async {
+  const channel = MethodChannel('io.github.ulzuhan.arveil/updates');
+  try {
+    final data = await channel.invokeMapMethod<String, dynamic>('device');
+    if (data == null) return null;
+    if (Platform.isAndroid) {
+      final model = '${data['model'] ?? ''}'.trim();
+      final release = '${data['release'] ?? ''}'.trim();
+      if (model.isEmpty) return null;
+      return release.isEmpty ? model : '$model · Android $release';
+    }
+    if (Platform.isMacOS) {
+      final version = '${data['osVersion'] ?? ''}'.trim();
+      return version.isEmpty ? 'Mac' : 'Mac · macOS $version';
+    }
+  } catch (_) {
+    // A build without the channel describes nothing.
+  }
+  return null;
 }
 
 // Public-facing messages never interpolate paths, tokens, SQL or remote text.
@@ -327,11 +453,15 @@ String describeFailure(Object failure) {
     // the code ran out; the generic advice is about enrollment.
     CommandError_Domain(operation: 'approve-pairing') => s.errorPairingNoAnswer,
     CommandError_Domain(operation: 'await-pairing') => s.errorPairingExpired,
+    CommandError_Domain(operation: 'join-link') => s.errorLinkJoin,
+    CommandError_Domain(operation: 'await-link-request') => s.errorLinkExpired,
+    CommandError_Domain(operation: 'answer-link') => s.errorLinkExpired,
     CommandError_Domain() => s.errorDomain,
     CommandError_Protocol() => s.errorProtocol,
     // Only pairing has a limit an address can hit on its own, and it clears
     // within the relay's pairing window.
     CommandError_Quota(operation: 'begin-pairing') => s.errorPairingQuota,
+    CommandError_Quota(operation: 'offer-link') => s.errorPairingQuota,
     CommandError_Quota() => s.errorQuota,
     CommandError_Busy() => s.errorBusy,
     CommandError_Storage() || CommandError_FileSystem() => s.errorStorage,

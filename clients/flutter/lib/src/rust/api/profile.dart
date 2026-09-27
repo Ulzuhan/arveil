@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `by_activity`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `read_card`, `shown`, `view`, `watch_with`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -36,7 +36,12 @@ Future<Profile> openUnencryptedProfile({required String dir}) =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>>
 abstract class Profile implements RustOpaqueInterface {
-  Future<String> approvePairing({
+  /// The person's answer. Only a yes signs and sends the authorization.
+  Future<void> answerLink({required List<int> pairId, required bool approve});
+
+  /// Answer the code an older device shows. Returns what to confirm;
+  /// nothing is signed until `answer_link` says yes.
+  Future<LinkRequestView> approvePairing({
     required String bootstrap,
     required String code,
   });
@@ -50,6 +55,9 @@ abstract class Profile implements RustOpaqueInterface {
     PlatformInt64? before,
     required int limit,
   });
+
+  /// Wait until a new device answers the code; returns what to confirm.
+  Future<LinkRequestView> awaitLinkRequest({required List<int> pairId});
 
   Future<void> awaitPairing({
     required String bootstrap,
@@ -136,6 +144,16 @@ abstract class Profile implements RustOpaqueInterface {
     required String secret,
   });
 
+  /// On a new device: answer a code shown by the other device. `scanned`
+  /// says it was read from that screen with the camera, which
+  /// authenticates it; otherwise the number is confirmed here as well.
+  /// Returns whether the device is linked already.
+  Future<bool> joinLink({
+    required String text,
+    String? description,
+    required bool scanned,
+  });
+
   /// Local snapshot only: its timestamp identifies an earlier relay report.
   Future<KeyPackageSupplyView> keyPackageSupply();
 
@@ -145,6 +163,10 @@ abstract class Profile implements RustOpaqueInterface {
     required String groupId,
     required PlatformInt64 cursor,
   });
+
+  /// On the device that holds the root: show a code that links another
+  /// device (ADR-012 §3).
+  Future<LinkOfferView> offerLink();
 
   Future<String> ownRoute();
 
@@ -451,7 +473,13 @@ sealed class CardView with _$CardView {
     required String invitation,
   }) = CardView_Join;
 
-  /// A code meant for another screen: `kind` is `link` or `contact`.
+  /// A code shown by another device of the same identity, to link this one.
+  const factory CardView.link({
+    required String server,
+    required BigInt expiresAt,
+  }) = CardView_Link;
+
+  /// A code meant for another screen: `kind` is `contact`.
   const factory CardView.other({required String kind}) = CardView_Other;
 }
 
@@ -883,6 +911,69 @@ class LastEventView {
           notice == other.notice;
 }
 
+/// A code shown on the device that holds the root.
+class LinkOfferView {
+  final Uint8List pairId;
+  final String link;
+  final BigInt expiresAt;
+
+  const LinkOfferView({
+    required this.pairId,
+    required this.link,
+    required this.expiresAt,
+  });
+
+  @override
+  int get hashCode => pairId.hashCode ^ link.hashCode ^ expiresAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LinkOfferView &&
+          runtimeType == other.runtimeType &&
+          pairId == other.pairId &&
+          link == other.link &&
+          expiresAt == other.expiresAt;
+}
+
+/// A device asking to be linked, waiting for the person's answer.
+class LinkRequestView {
+  final Uint8List pairId;
+  final String verificationCode;
+  final String? deviceId;
+
+  /// How the device describes itself. Shown, never trusted.
+  final String? description;
+  final BigInt? expiresAt;
+
+  const LinkRequestView({
+    required this.pairId,
+    required this.verificationCode,
+    this.deviceId,
+    this.description,
+    this.expiresAt,
+  });
+
+  @override
+  int get hashCode =>
+      pairId.hashCode ^
+      verificationCode.hashCode ^
+      deviceId.hashCode ^
+      description.hashCode ^
+      expiresAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LinkRequestView &&
+          runtimeType == other.runtimeType &&
+          pairId == other.pairId &&
+          verificationCode == other.verificationCode &&
+          deviceId == other.deviceId &&
+          description == other.description &&
+          expiresAt == other.expiresAt;
+}
+
 class ManagedDeviceView {
   final String deviceId;
   final bool current;
@@ -934,6 +1025,10 @@ class NoticeView {
 }
 
 class PairingView {
+  /// A link this device answered (ADR-012) rather than a code it showed.
+  /// Such a session cannot be resumed after the app closed: its code is
+  /// read again instead.
+  final bool link;
   final Uint8List sessionId;
   final String code;
   final BigInt expiresAt;
@@ -942,6 +1037,7 @@ class PairingView {
   final bool expired;
 
   const PairingView({
+    required this.link,
     required this.sessionId,
     required this.code,
     required this.expiresAt,
@@ -952,6 +1048,7 @@ class PairingView {
 
   @override
   int get hashCode =>
+      link.hashCode ^
       sessionId.hashCode ^
       code.hashCode ^
       expiresAt.hashCode ^
@@ -964,6 +1061,7 @@ class PairingView {
       identical(this, other) ||
       other is PairingView &&
           runtimeType == other.runtimeType &&
+          link == other.link &&
           sessionId == other.sessionId &&
           code == other.code &&
           expiresAt == other.expiresAt &&
@@ -1111,6 +1209,13 @@ sealed class ProgressKindView with _$ProgressKindView {
     required String sessionId,
     required String phase,
   }) = ProgressKindView_PairingChanged;
+
+  /// Both screens now show this number, while the pairing still waits.
+  const factory ProgressKindView.pairingVerification({
+    required String sessionId,
+    required String verificationCode,
+    required bool confirmationRequired,
+  }) = ProgressKindView_PairingVerification;
   const factory ProgressKindView.relayUnavailable({required int pending}) =
       ProgressKindView_RelayUnavailable;
   const factory ProgressKindView.onboarding({required String step}) =

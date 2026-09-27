@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="macos")
-    parser.add_argument("--scenario", choices=("conversations", "attachments", "devices", "archives"), default="conversations")
+    parser.add_argument("--scenario", choices=("conversations", "attachments", "devices", "archives", "pairing_recovery"), default="conversations")
     args = parser.parse_args()
     flutter = shutil.which("flutter")
     adb = shutil.which("adb") if args.device != "macos" else None
@@ -105,7 +105,7 @@ def main():
                 worker = threading.Thread(target=control.serve_forever)
                 worker.start()
                 config = directory / "defines.json"
-                config.write_text(json.dumps({"ARVEIL_TEST_BOOTSTRAP": bootstrap, "ARVEIL_TEST_INVITE_A": invites[0], "ARVEIL_TEST_INVITE_B": invites[1], "ARVEIL_TEST_CONTROL": f"http://127.0.0.1:{control_port}", "ARVEIL_TEST_CONTROL_TOKEN": token}))
+                config.write_text(json.dumps({"ARVEIL_TEST_BOOTSTRAP": bootstrap, "ARVEIL_TEST_INVITE": invites[0], "ARVEIL_TEST_INVITE_A": invites[0], "ARVEIL_TEST_INVITE_B": invites[1], "ARVEIL_TEST_CONTROL": f"http://127.0.0.1:{control_port}", "ARVEIL_TEST_CONTROL_TOKEN": token}))
                 config.chmod(0o600)
                 if adb:
                     for number in (port, control_port):
@@ -137,6 +137,7 @@ def main():
                     raise RuntimeError("Native conversation acceptance failed. Private diagnostics retained in .local/client-acceptance/.")
                 summaries = {
                     "archives": "encrypted export, profile loss, identity recovery, read-only import, archived attachment bytes, duplicates, reopen, no resend/rejoin and a new conversation.",
+                    "pairing_recovery": "pairing by an older code confirmed on both screens, linking by a scanned link after a yes (ADR-012), kit export and recovery of the same identity.",
                     "devices": "device inventory, pairing, offline revocation, encrypted reopen, relay refusal, MLS removal and remaining-peer text.",
                     "attachments": "explicit attachments, offline queue, encrypted reopen, download, export boundary, duplicate names, cancellation and reconnect without duplicates.",
                     "conversations": "saved contacts, talking before verifying, verification from the conversation on both sides, rename, duplex text, offline queue, encrypted reopen, pagination, reconnect without duplicates.",

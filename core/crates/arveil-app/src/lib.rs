@@ -43,7 +43,8 @@ pub use recovery::{KitExport, RecoveryRequest, RecoveryResult};
 pub use arveil_core::client::{DeviceChange, EnrollmentPhase, PairingCompletionPhase, SavedKit};
 pub use onboarding::{
     DeviceLinkAuthorization, DeviceLinkRequest, Enrollment, EnrollmentFinish, Identity,
-    LinkedDevice, PairingSession, PairingVerification, finish_enrollment,
+    JoinOutcome, LinkOffer, LinkRequest, LinkedDevice, PairingSession, PairingVerification,
+    finish_enrollment,
 };
 
 use std::cell::RefCell;
@@ -102,6 +103,10 @@ pub enum Operation {
     ConfirmPairing,
     CancelPairing,
     QueryPendingPairing,
+    OfferLink,
+    AwaitLinkRequest,
+    AnswerLink,
+    JoinLink,
     ExportArchive,
     ImportArchive,
     QueryArchivePage,
@@ -198,6 +203,19 @@ pub enum ClientCommand {
         session_id: Vec<u8>,
     },
     QueryPendingPairing,
+    OfferLink,
+    AwaitLinkRequest {
+        pair_id: Vec<u8>,
+    },
+    AnswerLink {
+        pair_id: Vec<u8>,
+        approve: bool,
+    },
+    JoinLink {
+        text: String,
+        description: Option<String>,
+        scanned: bool,
+    },
     ExportArchive,
     ImportArchive {
         request: ArchiveImport,
@@ -324,6 +342,10 @@ impl ClientCommand {
             Self::ConfirmPairing { .. } => Operation::ConfirmPairing,
             Self::CancelPairing { .. } => Operation::CancelPairing,
             Self::QueryPendingPairing => Operation::QueryPendingPairing,
+            Self::OfferLink => Operation::OfferLink,
+            Self::AwaitLinkRequest { .. } => Operation::AwaitLinkRequest,
+            Self::AnswerLink { .. } => Operation::AnswerLink,
+            Self::JoinLink { .. } => Operation::JoinLink,
             Self::QueryOnboarding => Operation::QueryOnboarding,
             Self::QueryKeyPackageSupply => Operation::QueryKeyPackageSupply,
             Self::CheckKeyPackages => Operation::CheckKeyPackages,
@@ -475,6 +497,22 @@ pub enum StateChange {
     },
     PairingExpired {
         session_id: Vec<u8>,
+    },
+    /// The device that holds the root opened a rendezvous and shows its code.
+    LinkOffered {
+        pair_id: Vec<u8>,
+        expires_at: u64,
+    },
+    /// A new device answered; both screens show the number.
+    LinkRequested {
+        pair_id: Vec<u8>,
+        verification_code: String,
+        device_id: Vec<u8>,
+    },
+    /// The person answered on the device that holds the root.
+    LinkAnswered {
+        pair_id: Vec<u8>,
+        approved: bool,
     },
     MessageQueued {
         receipt: MessageReceipt,
@@ -816,6 +854,14 @@ pub enum ProgressKind {
         session_id: Vec<u8>,
         phase: String,
     },
+    /// Both screens of a pairing or link now show this number. It arrives
+    /// while the operation still waits for the other device, which is when
+    /// the person needs to read it.
+    PairingVerification {
+        session_id: Vec<u8>,
+        verification_code: String,
+        confirmation_required: bool,
+    },
     RelayUnavailable {
         pending: usize,
     },
@@ -1013,13 +1059,36 @@ fn project(change: &StateChange) -> Option<ProgressKind> {
                 phase: format!("{phase:?}"),
             }
         }
-        StateChange::PairingVerificationReady { session_id, .. } => ProgressKind::PairingChanged {
+        StateChange::PairingVerificationReady {
+            session_id,
+            verification_code,
+            confirmation_required,
+            ..
+        } => ProgressKind::PairingVerification {
             session_id: session_id.clone(),
-            phase: "verification-ready".into(),
+            verification_code: verification_code.clone(),
+            confirmation_required: *confirmation_required,
         },
         StateChange::PairingGrantSent { session_id, .. } => ProgressKind::PairingChanged {
             session_id: session_id.clone(),
             phase: "grant-sent".into(),
+        },
+        StateChange::LinkOffered { pair_id, .. } => ProgressKind::PairingChanged {
+            session_id: pair_id.clone(),
+            phase: "link-offered".into(),
+        },
+        StateChange::LinkRequested { pair_id, .. } => ProgressKind::PairingChanged {
+            session_id: pair_id.clone(),
+            phase: "link-requested".into(),
+        },
+        StateChange::LinkAnswered { pair_id, approved } => ProgressKind::PairingChanged {
+            session_id: pair_id.clone(),
+            phase: if *approved {
+                "link-approved"
+            } else {
+                "link-declined"
+            }
+            .into(),
         },
         StateChange::RelayUnavailable { pending, .. } => {
             ProgressKind::RelayUnavailable { pending: *pending }
@@ -1123,6 +1192,8 @@ pub struct OnboardingStatus {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PairingStatus {
+    /// A link this device answered (ADR-012) rather than a code it showed.
+    pub link: bool,
     pub session: PairingSession,
     pub verification_code: Option<String>,
     pub committing: bool,
@@ -1226,6 +1297,10 @@ pub enum OnboardingOutput {
     PairingSession(PairingSession),
     PairingVerification(PairingVerification),
     PairingCancellation(PairingCancellation),
+    LinkOffer(LinkOffer),
+    LinkAsked(LinkRequest),
+    LinkAnswered,
+    Joined(JoinOutcome),
 }
 
 /// The typed output produced by a client command.
@@ -1765,6 +1840,7 @@ fn command_future(
                 ClientCommand::CompleteLink { .. }
                     | ClientCommand::ConfirmPairing { .. }
                     | ClientCommand::BeginPairing { .. }
+                    | ClientCommand::JoinLink { .. }
             ) {
                 // Linking may wait on the relay between durable local phases.
                 // Only one finalizer may cross those phases for this profile;
@@ -1773,7 +1849,9 @@ fn command_future(
                 Box::pin(run_command(&config, command)).await
             } else if matches!(
                 &command,
-                ClientCommand::AwaitPairing { .. } | ClientCommand::ApprovePairing { .. }
+                ClientCommand::AwaitPairing { .. }
+                    | ClientCommand::ApprovePairing { .. }
+                    | ClientCommand::AwaitLinkRequest { .. }
             ) {
                 let _single_pairing_wait = exclusions.pairing_wait.lock().await;
                 Box::pin(run_command(&config, command)).await
@@ -2228,6 +2306,68 @@ impl Application {
             |value| match value {
                 OnboardingOutput::PairingCancellation(outcome) => outcome,
                 _ => unreachable!("pairing cancellation returned another output type"),
+            },
+        )
+    }
+
+    /// Show a code that links another device to this identity (ADR-012 §3).
+    pub fn offer_link(&self) -> Result<ServiceResult<LinkOffer>, ApplicationError> {
+        self.onboarding(ClientCommand::OfferLink, |value| match value {
+            OnboardingOutput::LinkOffer(offer) => offer,
+            _ => unreachable!("link offer returned another output type"),
+        })
+    }
+
+    /// Wait until a new device answers the offer; returns what to confirm.
+    pub fn await_link_request(
+        &self,
+        pair_id: &[u8],
+    ) -> Result<ServiceResult<LinkRequest>, ApplicationError> {
+        self.onboarding(
+            ClientCommand::AwaitLinkRequest {
+                pair_id: pair_id.into(),
+            },
+            |value| match value {
+                OnboardingOutput::LinkAsked(request) => request,
+                _ => unreachable!("link wait returned another output type"),
+            },
+        )
+    }
+
+    /// The person's answer: only a yes signs and sends the grant.
+    pub fn answer_link(
+        &self,
+        pair_id: &[u8],
+        approve: bool,
+    ) -> Result<ServiceResult<()>, ApplicationError> {
+        self.onboarding(
+            ClientCommand::AnswerLink {
+                pair_id: pair_id.into(),
+                approve,
+            },
+            |value| match value {
+                OnboardingOutput::LinkAnswered => (),
+                _ => unreachable!("link answer returned another output type"),
+            },
+        )
+    }
+
+    /// On a new device: answer a link card, scanned or pasted.
+    pub fn join_link(
+        &self,
+        text: &str,
+        description: Option<&str>,
+        scanned: bool,
+    ) -> Result<ServiceResult<JoinOutcome>, ApplicationError> {
+        self.onboarding(
+            ClientCommand::JoinLink {
+                text: text.into(),
+                description: description.map(str::to_string),
+                scanned,
+            },
+            |value| match value {
+                OnboardingOutput::Joined(outcome) => outcome,
+                _ => unreachable!("link join returned another output type"),
             },
         )
     }
@@ -2811,7 +2951,7 @@ async fn run_command(
         ClientCommand::ApprovePairing { bootstrap, code } => {
             onboarding_command(
                 Operation::ApprovePairing,
-                onboarding::approve_pairing(config, &bootstrap, &code),
+                Box::pin(onboarding::approve_pairing(config, &bootstrap, &code)),
                 OnboardingOutput::PairingVerification,
             )
             .await
@@ -2833,6 +2973,47 @@ async fn run_command(
                 Operation::CancelPairing,
                 onboarding::cancel_pairing(config, &session_id),
                 OnboardingOutput::PairingCancellation,
+            )
+            .await
+        }
+        ClientCommand::OfferLink => {
+            onboarding_command(
+                Operation::OfferLink,
+                Box::pin(onboarding::offer_link(config)),
+                OnboardingOutput::LinkOffer,
+            )
+            .await
+        }
+        ClientCommand::AwaitLinkRequest { pair_id } => {
+            onboarding_command(
+                Operation::AwaitLinkRequest,
+                Box::pin(onboarding::await_link_request(config, &pair_id)),
+                OnboardingOutput::LinkAsked,
+            )
+            .await
+        }
+        ClientCommand::AnswerLink { pair_id, approve } => {
+            onboarding_command(
+                Operation::AnswerLink,
+                Box::pin(onboarding::answer_link(config, &pair_id, approve)),
+                |()| OnboardingOutput::LinkAnswered,
+            )
+            .await
+        }
+        ClientCommand::JoinLink {
+            text,
+            description,
+            scanned,
+        } => {
+            onboarding_command(
+                Operation::JoinLink,
+                Box::pin(onboarding::join_link(
+                    config,
+                    &text,
+                    description.as_deref(),
+                    scanned,
+                )),
+                OnboardingOutput::Joined,
             )
             .await
         }

@@ -156,6 +156,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   LastEventView dco_decode_last_event_view(dynamic raw);
 
   @protected
+  LinkOfferView dco_decode_link_offer_view(dynamic raw);
+
+  @protected
+  LinkRequestView dco_decode_link_request_view(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -436,6 +442,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   LastEventView sse_decode_last_event_view(SseDeserializer deserializer);
+
+  @protected
+  LinkOfferView sse_decode_link_offer_view(SseDeserializer deserializer);
+
+  @protected
+  LinkRequestView sse_decode_link_request_view(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -795,6 +807,15 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_last_event_view(LastEventView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_link_offer_view(LinkOfferView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_link_request_view(
+    LinkRequestView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
