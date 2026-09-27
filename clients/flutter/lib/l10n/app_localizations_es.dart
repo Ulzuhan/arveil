@@ -208,7 +208,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get enrollBody =>
-      'Pide al administrador los datos del servidor y una invitación. Si te llegaron en un mismo mensaje, pégalo entero: la app encuentra cada cosa. Tu identidad se crea en este dispositivo al continuar.';
+      'Pide al administrador tu enlace de invitación, o los datos del servidor y una invitación. Pega el enlace o el mensaje entero: la app encuentra cada cosa. Tu identidad se crea en este dispositivo al continuar.';
 
   @override
   String get setupRedeeming => 'Pendiente de confirmar la invitación.';
@@ -228,10 +228,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get setupNew => 'Listo para crear tu identidad.';
 
   @override
-  String get enrollRelayLabel => 'Datos del servidor';
+  String get enrollRelayLabel => 'Enlace de invitación o datos del servidor';
 
   @override
-  String get enrollRelayInvalid => 'Pega los datos completos del servidor.';
+  String get enrollRelayInvalid =>
+      'Pega el enlace de invitación o los datos completos del servidor.';
 
   @override
   String get enrollInviteLabel => 'Invitación';
@@ -1819,4 +1820,23 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get closeSearch => 'Cerrar la búsqueda';
+
+  @override
+  String get cardNotInvitation =>
+      'Este código no es una invitación: es para vincular un dispositivo o para añadir un contacto.';
+
+  @override
+  String get cardNewerVersion =>
+      'Este enlace es de una versión más nueva de Arveil. Actualiza la app y vuelve a abrirlo.';
+
+  @override
+  String get cardAmbiguous =>
+      'El mensaje tiene dos códigos distintos. Pega solo uno.';
+
+  @override
+  String get cardDamaged =>
+      'El enlace está incompleto o dañado. Pide que te lo vuelvan a enviar.';
+
+  @override
+  String get enrollRelayHint => 'https://arveil.kaicorplabs.com/join#…';
 }

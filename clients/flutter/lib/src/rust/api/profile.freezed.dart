@@ -12,6 +12,300 @@ part of 'profile.dart';
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
+mixin _$CardView {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardView);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'CardView()';
+}
+
+
+}
+
+/// @nodoc
+class $CardViewCopyWith<$Res>  {
+$CardViewCopyWith(CardView _, $Res Function(CardView) __);
+}
+
+
+/// Adds pattern-matching-related methods to [CardView].
+extension CardViewPatterns on CardView {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CardView_Join value)?  join,TResult Function( CardView_Other value)?  other,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case CardView_Join() when join != null:
+return join(_that);case CardView_Other() when other != null:
+return other(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CardView_Join value)  join,required TResult Function( CardView_Other value)  other,}){
+final _that = this;
+switch (_that) {
+case CardView_Join():
+return join(_that);case CardView_Other():
+return other(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CardView_Join value)?  join,TResult? Function( CardView_Other value)?  other,}){
+final _that = this;
+switch (_that) {
+case CardView_Join() when join != null:
+return join(_that);case CardView_Other() when other != null:
+return other(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String bootstrap,  String invitation)?  join,TResult Function( String kind)?  other,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case CardView_Join() when join != null:
+return join(_that.bootstrap,_that.invitation);case CardView_Other() when other != null:
+return other(_that.kind);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String bootstrap,  String invitation)  join,required TResult Function( String kind)  other,}) {final _that = this;
+switch (_that) {
+case CardView_Join():
+return join(_that.bootstrap,_that.invitation);case CardView_Other():
+return other(_that.kind);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String bootstrap,  String invitation)?  join,TResult? Function( String kind)?  other,}) {final _that = this;
+switch (_that) {
+case CardView_Join() when join != null:
+return join(_that.bootstrap,_that.invitation);case CardView_Other() when other != null:
+return other(_that.kind);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class CardView_Join extends CardView {
+  const CardView_Join({required this.bootstrap, required this.invitation}): super._();
+  
+
+ final  String bootstrap;
+ final  String invitation;
+
+/// Create a copy of CardView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CardView_JoinCopyWith<CardView_Join> get copyWith => _$CardView_JoinCopyWithImpl<CardView_Join>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardView_Join&&(identical(other.bootstrap, bootstrap) || other.bootstrap == bootstrap)&&(identical(other.invitation, invitation) || other.invitation == invitation));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,bootstrap,invitation);
+
+@override
+String toString() {
+  return 'CardView.join(bootstrap: $bootstrap, invitation: $invitation)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CardView_JoinCopyWith<$Res> implements $CardViewCopyWith<$Res> {
+  factory $CardView_JoinCopyWith(CardView_Join value, $Res Function(CardView_Join) _then) = _$CardView_JoinCopyWithImpl;
+@useResult
+$Res call({
+ String bootstrap, String invitation
+});
+
+
+
+
+}
+/// @nodoc
+class _$CardView_JoinCopyWithImpl<$Res>
+    implements $CardView_JoinCopyWith<$Res> {
+  _$CardView_JoinCopyWithImpl(this._self, this._then);
+
+  final CardView_Join _self;
+  final $Res Function(CardView_Join) _then;
+
+/// Create a copy of CardView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? bootstrap = null,Object? invitation = null,}) {
+  return _then(CardView_Join(
+bootstrap: null == bootstrap ? _self.bootstrap : bootstrap // ignore: cast_nullable_to_non_nullable
+as String,invitation: null == invitation ? _self.invitation : invitation // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class CardView_Other extends CardView {
+  const CardView_Other({required this.kind}): super._();
+  
+
+ final  String kind;
+
+/// Create a copy of CardView
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CardView_OtherCopyWith<CardView_Other> get copyWith => _$CardView_OtherCopyWithImpl<CardView_Other>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardView_Other&&(identical(other.kind, kind) || other.kind == kind));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,kind);
+
+@override
+String toString() {
+  return 'CardView.other(kind: $kind)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CardView_OtherCopyWith<$Res> implements $CardViewCopyWith<$Res> {
+  factory $CardView_OtherCopyWith(CardView_Other value, $Res Function(CardView_Other) _then) = _$CardView_OtherCopyWithImpl;
+@useResult
+$Res call({
+ String kind
+});
+
+
+
+
+}
+/// @nodoc
+class _$CardView_OtherCopyWithImpl<$Res>
+    implements $CardView_OtherCopyWith<$Res> {
+  _$CardView_OtherCopyWithImpl(this._self, this._then);
+
+  final CardView_Other _self;
+  final $Res Function(CardView_Other) _then;
+
+/// Create a copy of CardView
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? kind = null,}) {
+  return _then(CardView_Other(
+kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$CommandError {
 
 

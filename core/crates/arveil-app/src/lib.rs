@@ -20,6 +20,8 @@ pub use archives::{
 };
 mod attachment_ui;
 pub mod carrier;
+pub mod links;
+pub mod qr;
 pub use attachment_ui::{AttachmentState, AttachmentSummary, MAX_ATTACHMENT_BYTES};
 mod contacts;
 #[cfg(test)]

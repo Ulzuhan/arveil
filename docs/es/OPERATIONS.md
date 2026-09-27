@@ -38,6 +38,8 @@ En cualquiera de los tres casos, lo primero tras arrancar es una invitación por
 arveil-relay invite -data-dir /var/lib/arveil
 ```
 
+Imprime el token (`invite:`) y un enlace de alta (`link:`) que lleva a la vez el realm y la invitación, dibujado como código QR en una terminal ([ADR-012](adr/ADR-012-qr-codes-and-links.md)). El enlace abre `https://arveil.kaicorplabs.com` salvo que `-link-base` indique otra página; la invitación va en el fragmento de la URL, que ningún servidor web recibe. El relay guarda el endpoint que anuncia primero en `advertised-endpoint`, dentro del directorio de datos, y `invite` lo usa salvo que `-url` diga otro.
+
 ## Cómo llega la gente
 
 El canal es independiente del portador ([ADR-008](adr/ADR-008-carrier-independent-transport.md)): el handshake Noise autentica el realm y cifra todo lo que va dentro, así que lo que lo transporte no puede leerlo. Por eso aquí es aceptable un túnel que termina TLS, y en otro sitio no lo sería.

@@ -43,6 +43,18 @@ start_relay
 BOOTSTRAP="$(sed -n 's/^bootstrap: //p' "$DATA/relay.out" | head -1)"
 "$CLI" enroll --data-dir "$DATA/alice" "$BOOTSTRAP" "$(invite)" > "$DATA/alice.enroll"
 
+step "ADR-012 joining: one link carries the realm and the invitation"
+"$RELAY" invite -data-dir "$DATA/relay" > "$DATA/join.invite"
+grep -q '^invite: [0-9a-f]\{64\}$' "$DATA/join.invite" || fail "the invite line changed: $(cat "$DATA/join.invite")"
+JOIN_LINK="$(sed -n 's/^link: //p' "$DATA/join.invite")"
+case "$JOIN_LINK" in https://arveil.kaicorplabs.com/join#*) ;; *) fail "no join link: $(cat "$DATA/join.invite")" ;; esac
+grep -q $'\e\[' "$DATA/join.invite" && fail "a QR code was printed into a file"
+"$CLI" enroll --data-dir "$DATA/dave" "Te invito a Arveil: $JOIN_LINK" > "$DATA/dave.enroll"
+grep -q '^identity: ' "$DATA/dave.enroll" || fail "the link did not enroll: $(cat "$DATA/dave.enroll")"
+expect_fail "$DATA/erin.enroll" "$CLI" enroll --data-dir "$DATA/erin" "$JOIN_LINK" || fail "a used invitation link enrolled a second person"
+"$RELAY" invite -data-dir "$DATA/relay" -link-base https://chat.example.org/ -url wss://chat.example.org/v1/channel > "$DATA/join.other"
+grep -q '^link: https://chat.example.org/join#' "$DATA/join.other" || fail "-link-base was ignored: $(cat "$DATA/join.other")"
+
 step "M3.1 pairing: two devices meet through the realm and show the same number"
 "$CLI" device pair --data-dir "$DATA/alice-laptop" "$BOOTSTRAP" > "$DATA/laptop.pair" 2>&1 &
 PAIR_PID=$!

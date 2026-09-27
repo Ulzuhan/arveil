@@ -207,7 +207,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enrollBody =>
-      'Ask the administrator for the server details and an invitation. If both came in one message, paste it whole: the app finds each one. Your identity is created on this device when you continue.';
+      'Ask the administrator for your invitation link, or for the server details and an invitation. Paste the link or the whole message: the app finds each one. Your identity is created on this device when you continue.';
 
   @override
   String get setupRedeeming => 'Waiting to confirm the invitation.';
@@ -227,10 +227,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get setupNew => 'Ready to create your identity.';
 
   @override
-  String get enrollRelayLabel => 'Server details';
+  String get enrollRelayLabel => 'Invitation link or server details';
 
   @override
-  String get enrollRelayInvalid => 'Paste the complete server details.';
+  String get enrollRelayInvalid =>
+      'Paste the invitation link or the complete server details.';
 
   @override
   String get enrollInviteLabel => 'Invitation';
@@ -1808,4 +1809,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get closeSearch => 'Close the search';
+
+  @override
+  String get cardNotInvitation =>
+      'This code is not an invitation: it is for linking a device or adding a contact.';
+
+  @override
+  String get cardNewerVersion =>
+      'This link comes from a newer version of Arveil. Update the app and open it again.';
+
+  @override
+  String get cardAmbiguous =>
+      'The message holds two different codes. Paste only one.';
+
+  @override
+  String get cardDamaged =>
+      'The link is incomplete or damaged. Ask for it to be sent again.';
+
+  @override
+  String get enrollRelayHint => 'https://arveil.kaicorplabs.com/join#…';
 }

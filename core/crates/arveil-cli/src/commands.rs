@@ -89,6 +89,22 @@ pub fn identity_new(data_dir: &Path) -> Result<(), CliError> {
     Ok(())
 }
 
+/// `arveil enroll --data-dir D <join-link>` (ADR-012 §2): the link, QR text
+/// or bare payload `arveil-relay invite` printed, which carries the realm
+/// and the invitation at once.
+pub fn enroll_link(data_dir: &Path, link: &str) -> Result<(), CliError> {
+    match arveil_app::links::Card::find(link) {
+        Ok(arveil_app::links::Card::Join { realm, invitation }) => {
+            enroll(data_dir, &realm.bootstrap(), &hex::encode(invitation))
+        }
+        Ok(other) => Err(CliError(format!(
+            "this is a {} code, not an invitation",
+            other.kind()
+        ))),
+        Err(e) => Err(CliError(format!("invitation link: {e}"))),
+    }
+}
+
 /// `arveil enroll --data-dir D <bootstrap> <invite-token-hex>`
 ///
 /// Creates the device keys and credential under the local root, opens a

@@ -23,6 +23,7 @@ import (
 
 	"github.com/Ulzuhan/arveil/relay/internal/endpoints"
 	"github.com/Ulzuhan/arveil/relay/internal/limits"
+	"github.com/Ulzuhan/arveil/relay/internal/links"
 	"github.com/Ulzuhan/arveil/relay/internal/metrics"
 	"github.com/Ulzuhan/arveil/relay/internal/realm"
 	"github.com/Ulzuhan/arveil/relay/internal/server"
@@ -46,15 +47,28 @@ func main() {
 	serve()
 }
 
-// inviteCommand creates a one-use invite and prints its token. The relay
-// stores only the token hash. Run on the admin side (loopback/LAN/tailnet).
+// advertisedFile holds the endpoint the running relay advertises first, so
+// `invite` can put it in a join link without being told again. It is not a
+// secret: the bootstrap line prints the same URL.
+const advertisedFile = "advertised-endpoint"
+
+// inviteCommand creates a one-use invite and prints its token, then the join
+// link of ADR-012 and, on a terminal, its QR code. The relay stores only the
+// token hash. Run on the admin side (loopback/LAN/tailnet).
 func inviteCommand(args []string) int {
 	fs := flag.NewFlagSet("invite", flag.ContinueOnError)
 	dataDir := fs.String("data-dir", "./data", "relay data directory")
 	ttl := fs.Duration("ttl", 24*time.Hour, "invite validity")
 	uses := fs.Int("uses", 1, "number of enrollments the invite allows")
 	role := fs.String("role", "member", "role granted (member or admin)")
+	url := fs.String("url", "", "endpoint the link names (default: the one the relay last advertised)")
+	linkBase := fs.String("link-base", links.DefaultBase, "page the join link opens")
+	qrMode := fs.String("qr", "auto", "print the link as a QR code: auto (on a terminal), always or never")
 	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *qrMode != "auto" && *qrMode != "always" && *qrMode != "never" {
+		fmt.Fprintf(os.Stderr, "-qr must be auto, always or never\n")
 		return 2
 	}
 	st, err := store.Open(filepath.Join(*dataDir, "realm.db"))
@@ -74,7 +88,42 @@ func inviteCommand(args []string) int {
 		return 1
 	}
 	fmt.Printf("invite: %s\n", hex.EncodeToString(token))
+
+	endpoint := *url
+	if endpoint == "" {
+		saved, err := os.ReadFile(filepath.Join(*dataDir, advertisedFile))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "no join link: start the relay once or pass -url\n")
+			return 0
+		}
+		endpoint = strings.TrimSpace(string(saved))
+	}
+	id, err := realm.Load(*dataDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "no join link: realm identity: %v\n", err)
+		return 0
+	}
+	payload, err := links.JoinPayload(id.SigningPublic(), id.NoiseKey.Public, endpoint, token)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "no join link: %v\n", err)
+		return 0
+	}
+	link := links.Link(*linkBase, "join", payload)
+	fmt.Printf("link: %s\n", link)
+	if *qrMode == "always" || (*qrMode == "auto" && isTerminal(os.Stdout)) {
+		code, err := links.TerminalQR(link)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "qr: %v\n", err)
+			return 0
+		}
+		fmt.Print(code)
+	}
 	return 0
+}
+
+func isTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 // healthcheckCommand asks the admin listener whether the relay is usable.
@@ -225,6 +274,9 @@ func serve() {
 		hex.EncodeToString(id.SigningPublic()),
 		hex.EncodeToString(id.NoiseKey.Public),
 		eps[0].URL)
+	if err := writeFileAtomic(filepath.Join(*dataDir, advertisedFile), []byte(eps[0].URL+"\n")); err != nil {
+		logger.Printf("could not record the advertised endpoint for invite links: %v", err)
+	}
 	logger.Printf("listening on %s, endpoint list sequence %d", ln.Addr(), seq)
 
 	// Health and metrics on their own listener, only when asked for.
@@ -283,4 +335,12 @@ func parseAdvertise(spec, listen string, tls bool) ([]endpoints.Endpoint, error)
 		out = append(out, endpoints.Endpoint{Kind: kind, URL: url, Priority: uint8(i)})
 	}
 	return out, nil
+}
+
+func writeFileAtomic(path string, data []byte) error {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }

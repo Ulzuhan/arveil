@@ -94,6 +94,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView dco_decode_box_autoadd_pairing_view(dynamic raw);
 
   @protected
+  QrView dco_decode_box_autoadd_qr_view(dynamic raw);
+
+  @protected
   RevocationProgressView dco_decode_box_autoadd_revocation_progress_view(
     dynamic raw,
   );
@@ -103,6 +106,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  CardProblem dco_decode_card_problem(dynamic raw);
+
+  @protected
+  CardView dco_decode_card_view(dynamic raw);
 
   @protected
   ChatMutationView dco_decode_chat_mutation_view(dynamic raw);
@@ -213,6 +222,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView? dco_decode_opt_box_autoadd_pairing_view(dynamic raw);
 
   @protected
+  QrView? dco_decode_opt_box_autoadd_qr_view(dynamic raw);
+
+  @protected
   RevocationProgressView? dco_decode_opt_box_autoadd_revocation_progress_view(
     dynamic raw,
   );
@@ -237,6 +249,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ProgressView dco_decode_progress_view(dynamic raw);
+
+  @protected
+  QrView dco_decode_qr_view(dynamic raw);
 
   @protected
   ReadMarkerView dco_decode_read_marker_view(dynamic raw);
@@ -353,6 +368,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PairingView sse_decode_box_autoadd_pairing_view(SseDeserializer deserializer);
 
   @protected
+  QrView sse_decode_box_autoadd_qr_view(SseDeserializer deserializer);
+
+  @protected
   RevocationProgressView sse_decode_box_autoadd_revocation_progress_view(
     SseDeserializer deserializer,
   );
@@ -362,6 +380,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  CardProblem sse_decode_card_problem(SseDeserializer deserializer);
+
+  @protected
+  CardView sse_decode_card_view(SseDeserializer deserializer);
 
   @protected
   ChatMutationView sse_decode_chat_mutation_view(SseDeserializer deserializer);
@@ -506,6 +530,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  QrView? sse_decode_opt_box_autoadd_qr_view(SseDeserializer deserializer);
+
+  @protected
   RevocationProgressView? sse_decode_opt_box_autoadd_revocation_progress_view(
     SseDeserializer deserializer,
   );
@@ -530,6 +557,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   ProgressView sse_decode_progress_view(SseDeserializer deserializer);
+
+  @protected
+  QrView sse_decode_qr_view(SseDeserializer deserializer);
 
   @protected
   ReadMarkerView sse_decode_read_marker_view(SseDeserializer deserializer);
@@ -680,6 +710,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_qr_view(QrView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_revocation_progress_view(
     RevocationProgressView self,
     SseSerializer serializer,
@@ -690,6 +723,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_card_problem(CardProblem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_card_view(CardView self, SseSerializer serializer);
 
   @protected
   void sse_encode_chat_mutation_view(
@@ -872,6 +911,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_qr_view(
+    QrView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_revocation_progress_view(
     RevocationProgressView? self,
     SseSerializer serializer,
@@ -900,6 +945,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_progress_view(ProgressView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_qr_view(QrView self, SseSerializer serializer);
 
   @protected
   void sse_encode_read_marker_view(
