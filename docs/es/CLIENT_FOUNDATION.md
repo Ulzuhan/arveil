@@ -1102,3 +1102,46 @@ aceptación de conversaciones elige un contacto guardado sin verificar, lo
 verifica después y verifica al creador desde el perfil que recibe. Las capturas
 de la conversación en teléfono y escritorio muestran la nueva línea y la
 comparación en los detalles.
+
+## Códigos QR y enlaces (27 de septiembre de 2026)
+
+La [ADR-012](adr/ADR-012-qr-codes-and-links.md) sustituye las cadenas largas
+que había que llevar de una app a otra. Un único payload viaja como código QR,
+enlace https o texto pegado, para unirse, vincular un dispositivo y añadir un
+contacto.
+
+- **Alta.** `arveil-relay invite` imprime una línea `link:` y, en una
+  terminal, su código QR. El campo del alta acepta el enlace, o un mensaje
+  entero que lo contenga, y rellena los datos del servidor y la invitación. Un
+  código que no es una invitación, uno más nuevo, uno dañado o dos a la vez lo
+  dicen.
+- **Vincular un dispositivo.** Ajustes › Vincular otro dispositivo muestra un
+  código QR, una cuenta atrás y **Copiar enlace**. El dispositivo nuevo elige
+  **Vincular con mi otro dispositivo** y lo escanea (Android) o pega el enlace.
+  Los dos muestran el mismo número mientras el nuevo espera; el que tiene la
+  raíz pregunta **¿Vincular «Pixel 8 · Android 15»?** y no firma nada hasta
+  **Vincular**. **Rechazar** detiene al nuevo enseguida. Un código escaneado se
+  aplica al llegar la concesión; uno pegado se confirma también en el
+  dispositivo nuevo. El flujo anterior, en el que el nuevo muestra un código,
+  queda a un toque en las dos pantallas y ahora se confirma igual.
+- **Contactos.** Contactos › **Mi tarjeta de contacto** ofrece **Mostrar mi
+  código** (un QR válido diez minutos, una vez y mientras la pantalla esté
+  abierta) y **Compartir mi contacto** (un enlace por la hoja de compartir del
+  sistema, válido 30 días, listado y revocable), con un nombre opcional para la
+  tarjeta. **Escanear un código** (Android) y **Abrir un enlace de contacto**
+  muestran a quién nombra la tarjeta y el número de seguridad antes de
+  **Empezar a hablar**. Escanear en persona verifica a las dos personas; los
+  detalles dicen **Verificado en persona**. Desaparece la casilla que marcaba un
+  número como comparado al crear una conversación: se verifica desde los
+  detalles o en persona.
+- **Solicitudes.** Una conversación de alguien que no es un contacto elegido
+  espera en **Solicitudes**, arriba de la lista de chats: «Ana quiere hablar
+  contigo», con qué enlace compartido usó o que no usó ninguno, y **Aceptar** o
+  **Rechazar**. Las conversaciones rechazadas desaparecen y no entregan nada más.
+- **Abrir enlaces.** En Android, los enlaces a `arveil.kaicorplabs.com/join`,
+  `/link` y `/contact` abren la app directamente; las dos plataformas aceptan el
+  esquema `arveil:` del botón **Abrir en Arveil** de la página. Cada enlace
+  rellena la pantalla que corresponde y espera un toque.
+- **Cámara.** Solo en Android, pedida tras **Escanear**; los fotogramas se leen
+  en el núcleo Rust y nada sale del dispositivo. Sin cámara, o con el permiso
+  rechazado, siempre se puede pegar.
