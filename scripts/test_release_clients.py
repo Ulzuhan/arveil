@@ -213,6 +213,12 @@ class ReleaseClientsTests(unittest.TestCase):
 
         class Site(http.server.BaseHTTPRequestHandler):
             def reply(self):
+                # Like the real front end, refuse Python's default User-Agent.
+                if self.headers.get("User-Agent", "").startswith("Python-urllib"):
+                    self.send_response(403)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
                 status, value = routes.get(self.path, (404, b""))
                 self.send_response(status)
                 if status == 302:
@@ -238,6 +244,9 @@ class ReleaseClientsTests(unittest.TestCase):
             release.check_live(site, "beta", announced, REPO, TAG, packages)
         routes["/updates/clients-beta.json"] = (200, b"older")
         with self.assertRaisesRegex(release.ReleaseError, "announcement"):
+            release.check_live(site, "beta", announced, REPO, TAG, packages)
+        routes.pop("/updates/clients-beta.json")
+        with self.assertRaisesRegex(release.ReleaseError, "404"):
             release.check_live(site, "beta", announced, REPO, TAG, packages)
 
 

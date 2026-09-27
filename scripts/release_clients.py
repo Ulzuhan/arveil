@@ -33,16 +33,18 @@ RELEASES = ROOT / ".local/releases"
 TAG = re.compile(r"clients-v(\d+\.\d+\.\d+)(?:-([a-z]+)\.(\d+))?")
 PLATFORMS = (("android", ".apk"), ("macos", ".zip"))
 GOOD_CHECKS = {"success", "skipped", "neutral"}
+# The website's front end refuses Python's default User-Agent with a 403.
+AGENT = {"User-Agent": "arveil-release-check"}
 
 
 class ReleaseError(Exception):
     pass
 
 
-def run(command, *, cwd=ROOT, capture=True, env=None):
+def run(command, *, cwd=None, capture=True, env=None):
     """Run a command; its output, or a ReleaseError naming the step."""
     try:
-        result = subprocess.run(command, cwd=cwd, env=env, check=True, text=True,
+        result = subprocess.run(command, cwd=cwd or ROOT, env=env, check=True, text=True,
                                 stdout=subprocess.PIPE if capture else None,
                                 stderr=subprocess.PIPE if capture else None)
     except FileNotFoundError:
@@ -485,17 +487,22 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 def check_live(site, channel, feed, repo, tag, packages):
     """The deployed feed is this one and /download/… point at this release."""
     opener = urllib.request.build_opener(NoRedirect)
-    request = urllib.request.Request(f"{site}/updates/clients-{channel}.json", headers={"Cache-Control": "no-cache"})
-    with opener.open(request, timeout=20) as response:
-        if response.read() != feed.read_bytes():
-            raise ReleaseError("The website does not serve the new announcement yet.")
+    request = urllib.request.Request(f"{site}/updates/clients-{channel}.json",
+                                     headers={**AGENT, "Cache-Control": "no-cache"})
+    try:
+        with opener.open(request, timeout=20) as response:
+            served = response.read()
+    except urllib.error.HTTPError as error:
+        raise ReleaseError(f"The website answered {error.code} for the announcement.") from None
+    if served != feed.read_bytes():
+        raise ReleaseError("The website does not serve the new announcement yet.")
     base = f"https://github.com/{repo}/releases"
     expected = {"android": f"{base}/download/{tag}/{packages['android'][0].name}",
                 "macos": f"{base}/download/{tag}/{packages['macos'][0].name}",
                 "notes": f"{base}/tag/{tag}"}
     for path, url in expected.items():
         try:
-            opener.open(urllib.request.Request(f"{site}/download/{path}", method="HEAD"), timeout=20)
+            opener.open(urllib.request.Request(f"{site}/download/{path}", headers=AGENT, method="HEAD"), timeout=20)
             location = None
         except urllib.error.HTTPError as error:
             location = error.headers.get("Location") if error.code == 302 else None
