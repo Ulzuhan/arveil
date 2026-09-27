@@ -2579,8 +2579,86 @@ abstract class AppLocalizations {
   /// No description provided for @licenses.
   ///
   /// In es, this message translates to:
-  /// **'Licencias'**
+  /// **'Licencias de código abierto'**
   String get licenses;
+
+  /// No description provided for @licensesHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Los avisos de las bibliotecas y tipografías que usa Arveil'**
+  String get licensesHelp;
+
+  /// No description provided for @aboutTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Acerca de Arveil'**
+  String get aboutTitle;
+
+  /// No description provided for @aboutBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Mensajería cifrada de extremo a extremo: tus mensajes pasan por el servidor de quien te invitó, que no puede leerlos. Sin cuentas, sin publicidad y sin analítica.'**
+  String get aboutBody;
+
+  /// No description provided for @aboutVersion.
+  ///
+  /// In es, this message translates to:
+  /// **'Versión {version}'**
+  String aboutVersion(String version);
+
+  /// No description provided for @aboutLocalBuild.
+  ///
+  /// In es, this message translates to:
+  /// **'Compilación local'**
+  String get aboutLocalBuild;
+
+  /// No description provided for @aboutMadeBy.
+  ///
+  /// In es, this message translates to:
+  /// **'Hecho por KaiCorp Labs'**
+  String get aboutMadeBy;
+
+  /// No description provided for @aboutWebsite.
+  ///
+  /// In es, this message translates to:
+  /// **'Web de Arveil'**
+  String get aboutWebsite;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In es, this message translates to:
+  /// **'Política de privacidad'**
+  String get privacyPolicy;
+
+  /// No description provided for @privacyPolicyHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Qué se guarda, dónde y cómo borrarlo'**
+  String get privacyPolicyHelp;
+
+  /// No description provided for @aboutSource.
+  ///
+  /// In es, this message translates to:
+  /// **'Código fuente'**
+  String get aboutSource;
+
+  /// No description provided for @aboutSourceHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Código abierto con licencia Apache 2.0'**
+  String get aboutSourceHelp;
+
+  /// No description provided for @aboutLegalese.
+  ///
+  /// In es, this message translates to:
+  /// **'© 2026 KaiCorp Labs · Licencia Apache 2.0'**
+  String get aboutLegalese;
+
+  /// No description provided for @linkCopied.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo abrir el navegador: se ha copiado el enlace'**
+  String get linkCopied;
 
   /// No description provided for @safetyNumberTitle.
   ///

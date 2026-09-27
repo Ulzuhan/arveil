@@ -11,4 +11,4 @@ PRODUCT_NAME = arveil
 PRODUCT_BUNDLE_IDENTIFIER = io.github.ulzuhan.arveil
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 io.github.ulzuhan. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 KaiCorp Labs. Apache License 2.0.
