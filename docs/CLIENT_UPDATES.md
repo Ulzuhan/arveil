@@ -137,8 +137,8 @@ already distributed under that Android signing key. The packaging helper
 checks that the APK's `versionCode` equals this build number, which
 `BUILD.json` records and the announcement carries, and that the APK requests
 Android's permission to install packages only when built with
-`--update-config`. It refuses `--update-config` for macOS, which has no signed
-updater yet. Commit the source first; dirty candidates can be tested locally
+`--update-config`. Build the macOS package with the same `--update-config` and
+build number, so the Mac app can announce the release. Commit the source first; dirty candidates can be tested locally
 but cannot be announced by the signing command. The feed is a distribution
 choice, not a dependency of self-hosting.
 

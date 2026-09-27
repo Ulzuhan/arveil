@@ -150,8 +150,9 @@ las compilaciones ya distribuidas con esa clave de firma de Android. El
 asistente de empaquetado comprueba que el `versionCode` del APK coincide con
 este número de compilación, que `BUILD.json` registra y el anuncio transmite, y
 que el APK pide el permiso de Android para instalar paquetes solo cuando se
-compila con `--update-config`. Rechaza `--update-config` para macOS, que
-todavía no tiene actualizador firmado. Haz antes commit del código; los
+compila con `--update-config`. Compila el paquete de macOS con el mismo
+`--update-config` y número de compilación, para que la app del Mac pueda avisar
+de la versión. Haz antes commit del código; los
 candidatos con cambios sin confirmar pueden probarse en local, pero el comando
 de firma no puede anunciarlos. El manifiesto es una opción de distribución, no
 una dependencia del autoalojamiento.
