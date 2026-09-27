@@ -1,6 +1,6 @@
 # ADR-012 — Códigos QR y enlaces para unirse, vincular y añadir contactos
 
-- **Estado:** propuesta. Nada de lo que describe está implementado.
+- **Estado:** aceptada e implementada el 2026-09-27 ([#127](https://github.com/Ulzuhan/arveil/pull/127), [#128](https://github.com/Ulzuhan/arveil/pull/128), [#129](https://github.com/Ulzuhan/arveil/pull/129), [#130](https://github.com/Ulzuhan/arveil/pull/130), [#131](https://github.com/Ulzuhan/arveil/pull/131) y las páginas de enlace de la web). [Implementación](#implementación) dice qué se decidió donde este documento dejaba opciones abiertas, y qué criterios de aceptación necesitan aún un dispositivo físico.
 - **Fecha:** 2026-09-27.
 - **Alcance:** cómo se une una persona a un realm, cómo vincula otro de sus dispositivos y cómo añade un contacto sin copiar cadenas largas entre apps; y cómo verificar un contacto pasa a ser un paso aparte y opcional. La administración del realm desde la app es la [ADR-013](ADR-013-realm-administration-from-the-app.md).
 
@@ -40,7 +40,7 @@ Qué hacen mensajeros comparables:
 4. **Ningún dispositivo queda autorizado antes de que la persona lo confirme en la pantalla que lo autoriza.**
 5. **Pegar siempre funciona.** Cubre los dispositivos sin cámara, el permiso de cámara denegado y la accesibilidad.
 
-## Decisión (propuesta)
+## Decisión
 
 ### 1. Una carga, tres usos
 
@@ -171,9 +171,45 @@ El enlace lleva un secreto al portador, como las cadenas de hoy. Las mitigacione
 6. **Páginas de enlace.** No cargan recursos de terceros ni envían referrer. Con la app instalada en Android, pulsar un enlace abre la app directamente.
 7. **Clientes antiguos.** Un cliente sin este cambio que recibe un evento `hello` sigue funcionando y no guarda nada.
 
+## Implementación
+
+Se construyó en el orden de [Consecuencias](#consecuencias), un pull request por parte:
+
+| Parte | Pull request |
+|---|---|
+| Rutas vinculadas a credenciales firmadas por la raíz; KeyPackages reclamados vinculados a la misma credencial | [#127](https://github.com/Ulzuhan/arveil/pull/127) |
+| Un payload (§1), dibujar y leer QR, unirse con un enlace (§2) | [#128](https://github.com/Ulzuhan/arveil/pull/128) |
+| Vinculación invertida, autorización tras la confirmación, el escáner (§3, §6) | [#129](https://github.com/Ulzuhan/arveil/pull/129) |
+| Tarjetas de contacto, `hello`, solicitudes, estados de verificación (§4) | [#130](https://github.com/Ulzuhan/arveil/pull/130) |
+| Enlaces que abren la app (§5, lado de la app) | [#131](https://github.com/Ulzuhan/arveil/pull/131) |
+| `/join`, `/link`, `/contact` y `assetlinks.json` en arveil.kaicorplabs.com (§5) | repositorio de la web |
+
+Decisiones tomadas donde este documento dejaba elegir:
+
+- **Vinculación de rutas.** La credencial se pide al realm con un frame nuevo de miembro, `credential_get { identity_id, credential_hash }`, y se comprueba bajo la raíz que nombra la ruta: hash, dispositivo, clave de sobres, usos, y activa en el manifiesto más reciente de esa raíz. No viaja en la tarjeta, que habría hecho el código QR unos 250 bytes mayor. Una credencial MLS propia que lleve la credencial de dispositivo firmada queda como trabajo futuro; las rutas de roster que envían miembros dentro del grupo no se vuelven a comprobar.
+- **Escáner.** El plugin oficial `camera` de Flutter (CameraX) para la vista previa y los fotogramas, y `rqrr` en el núcleo Rust para leerlos; `qrcode` en el núcleo dibuja los códigos. No se usó `mobile_scanner`: ML Kit envía métricas de uso a Google según sus términos. Tampoco un escáner con zxing-cpp: decodifica en C++, por FFI, una entrada que controla un atacante. Se quitan los permisos de audio y almacenamiento del plugin de cámara y la cámara es opcional; el empaquetado rechaza un APK que pida cualquiera de ellos.
+- **macOS no tiene escáner.** El Mac muestra códigos y recibe enlaces por el esquema `arveil:` o pegándolos. No se añadió el entitlement de cámara ni su descripción de uso.
+- **Base de los enlaces.** Los enlaces apuntan a `https://arveil.kaicorplabs.com` salvo que un relay pase `-link-base`. El relay guarda en `advertised-endpoint` el endpoint que anuncia primero, e `invite` lo usa salvo que se le dé `-url`.
+- **Payload `link`.** Lleva también la caducidad de la cita, para que el dispositivo nuevo diga cuánto dura el código.
+- **Nombres en tarjetas y hellos.** Una tarjeta y su `hello` pueden llevar una autodescripción de 64 bytes como máximo, que se muestra como «Dice llamarse …» y nunca se cree; un dispositivo nuevo se describe igual («Pixel 8 · Android 15»).
+- **Solicitudes.** Una conversación se une sin preguntar cuando su primer roster nombra esta identidad, otro de sus dispositivos o un contacto que la persona eligió (`contacts.accepted`); todos los contactos de antes cuentan como elegidos, así que una actualización no convierte ninguna conversación existente en solicitud. Un código en persona solo verifica a quien lo usó cuando su ruta queda vinculada a la credencial firmada y a la hoja MLS que envió el `hello`.
+- **El flujo anterior.** Responder a un código `arveil-pair:v1` queda protegido igual: se muestra el número y no se firma nada hasta que la persona lo confirma.
+- **Capacidad por tarjeta:** no se añadió. Revocar una tarjeta revoca su secreto, y la capacidad del buzón es la de la ruta, como antes.
+- **«Personas en este servidor»:** no se construyó; sigue como pregunta abierta.
+- **Páginas de enlace.** Son el único sitio de esa web con script: un fichero del propio sitio, permitido solo en esas tres rutas, que copia el fragmento al botón `arveil:` y elige el idioma antes de pintar la página. Las páginas no envían referrer, no se indexan y muestran metadatos de vista previa genéricos.
+
+Criterios de aceptación, verificados el 2026-09-27:
+
+1. **Vinculación.** Cubierta de extremo a extremo con la línea de comandos y un relay real (`scripts/phase3.sh`) y en macOS a través del puente (`test_client_conversations.py --scenario pairing_recovery`): nada se publica antes de la confirmación, y un intruso que responde primero es visible y no obtiene nada al rechazarlo. Escanear con la cámara de un teléfono necesita un dispositivo Android físico.
+2. **Alta.** Una persona se une con un enlace dentro de un mensaje (`phase3.sh`); la invitación va en el fragmento y no llega ni al servidor web ni al registro del relay.
+3. **Contactos.** Un escaneo en persona verifica a los dos lados; un enlace compartido llega como solicitud que nombra el enlace; el número de seguridad es el mismo en los dos lados (`phase3.sh`, pruebas de widgets).
+4. **Cadenas anteriores:** se siguen aceptando al pegarlas: bootstrap más invitación, `arveil-pair:v1`, `arveil-route:v1`.
+5. **Cámara.** Se crea solo tras **Escanear**; rechazada o ausente, la pantalla ofrece pegar (pruebas de widgets). Falta un dispositivo para confirmar el diálogo de permiso.
+6. **Páginas de enlace:** no cargan nada de terceros ni envían referrer (cabeceras comprobadas en la web publicada); la API Digital Asset Links de Google devuelve la declaración de la app. Abrir la app directamente al tocar necesita un dispositivo Android físico.
+7. **Clientes anteriores:** ignoran `hello` como tipo de evento desconocido y siguen funcionando.
+
 ## Preguntas abiertas
 
-- Qué biblioteca de lectura usar, tras su revisión de la cadena de suministro.
 - Si la capacidad de escritura de larga duración de una tarjeta debería pasar a ser una capacidad aparte y revocable por tarjeta.
 - Si ofrecer la lista de «Personas en este servidor», y quién puede verla.
 - Si los enlaces de relays que no son del proyecto deberían usar por defecto el dominio del proyecto.

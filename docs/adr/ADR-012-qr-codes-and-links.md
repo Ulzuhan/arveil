@@ -1,6 +1,6 @@
 # ADR-012 — QR codes and links for joining, linking and contacts
 
-- **Status:** proposed. Nothing in this record is implemented.
+- **Status:** accepted and implemented on 2026-09-27 ([#127](https://github.com/Ulzuhan/arveil/pull/127), [#128](https://github.com/Ulzuhan/arveil/pull/128), [#129](https://github.com/Ulzuhan/arveil/pull/129), [#130](https://github.com/Ulzuhan/arveil/pull/130), [#131](https://github.com/Ulzuhan/arveil/pull/131) and the link pages on the website). [Implementation](#implementation) says what was decided where this record left choices open, and which acceptance criteria still need a physical device.
 - **Date:** 2026-09-27.
 - **Scope:** how a person joins a realm, links another of their devices and adds a contact without copying long strings between apps; and how verifying a contact becomes a separate, optional step. Realm administration from the app is [ADR-013](ADR-013-realm-administration-from-the-app.md).
 
@@ -40,7 +40,7 @@ What comparable messengers do:
 4. **No device is authorized before the person confirms on the screen that authorizes it.**
 5. **Pasting always works.** It covers devices without a camera, a refused camera permission, and accessibility.
 
-## Decision (proposed)
+## Decision
 
 ### 1. One payload, three uses
 
@@ -171,9 +171,45 @@ The link carries a bearer secret, like today's strings. The mitigations are sing
 6. **Link pages.** They load no third-party resources and send no referrer. With the app installed on Android, a tap on a link opens the app directly.
 7. **Older clients.** A client without this change that receives a `hello` event keeps working and stores nothing.
 
+## Implementation
+
+Built in the order of [Consequences](#consequences), one pull request per part:
+
+| Part | Pull request |
+|---|---|
+| Routes bound to root-signed credentials; claimed KeyPackages bound to the same credential | [#127](https://github.com/Ulzuhan/arveil/pull/127) |
+| One payload (§1), QR drawing and reading, joining with a link (§2) | [#128](https://github.com/Ulzuhan/arveil/pull/128) |
+| Linking reversed, authorization after confirmation, the scanner (§3, §6) | [#129](https://github.com/Ulzuhan/arveil/pull/129) |
+| Contact cards, `hello`, requests, verification states (§4) | [#130](https://github.com/Ulzuhan/arveil/pull/130) |
+| Links that open the app (§5, app side) | [#131](https://github.com/Ulzuhan/arveil/pull/131) |
+| `/join`, `/link`, `/contact` and `assetlinks.json` on arveil.kaicorplabs.com (§5) | website repository |
+
+Decisions taken where this record left a choice:
+
+- **Binding.** The credential is fetched from the realm with a new member frame, `credential_get { identity_id, credential_hash }`, and checked under the root the route names: hash, device, envelope key, uses, and active in the root's newest manifest. It is not carried in the card, which would have made the QR code about 250 bytes larger. A custom MLS credential carrying the signed device credential remains future work; roster routes from members inside the group are not re-checked.
+- **Scanner.** Flutter's official `camera` plugin (CameraX) for the preview and frames, and `rqrr` in the Rust core to read them; `qrcode` in the core draws codes. `mobile_scanner` was not used: ML Kit sends usage metrics to Google under its terms. A zxing-cpp scanner was not used either: it decodes attacker-controlled input in C++ through FFI. The camera plugin's audio and storage permissions are removed and the camera is optional; packaging refuses an APK that asks for either.
+- **macOS has no scanner.** The Mac shows codes, and receives links through the `arveil:` scheme or a paste. No camera entitlement or usage description was added.
+- **Link base.** Links point to `https://arveil.kaicorplabs.com` unless a relay passes `-link-base`. The relay records the endpoint it advertises first in `advertised-endpoint`, which `invite` names unless given `-url`.
+- **Link payload.** A `link` payload also carries the rendezvous expiry, so the new device can say how long the code lasts.
+- **Names on cards and hellos.** A card and its `hello` may carry a self-description of at most 64 bytes, shown as "Says they are …" and never trusted; a new device describes itself the same way ("Pixel 8 · Android 15").
+- **Requests.** A conversation is joined without asking when its first roster names this identity, another device of it, or a contact the person chose (`contacts.accepted`); every contact from before is taken as chosen, so an update turns no existing conversation into a request. An in-person code only verifies the person who used it after their route binds to the signed credential and to the MLS leaf that sent the `hello`.
+- **The older flow.** Answering an `arveil-pair:v1` code is gated the same way: the number is shown and nothing is signed until the person confirms it.
+- **Per-card capability** was not added: revoking a card revokes its secret, and the mailbox capability is the route's, as before.
+- **"People on this server"** was not built; it stays an open question below.
+- **Link pages.** They are the one place on that site with a script: a same-origin file, allowed only on those three paths, that copies the fragment into the `arveil:` button and picks the language before the page is painted. The pages send no referrer, are not indexed, and show generic preview metadata.
+
+Acceptance criteria, as verified on 2026-09-27:
+
+1. **Linking.** Covered end to end with the command line and a real relay (`scripts/phase3.sh`) and on macOS through the bridge (`test_client_conversations.py --scenario pairing_recovery`): nothing is published before confirmation, and an intruder answering first is visible and gets nothing when declined. Scanning with a phone camera needs a physical Android device.
+2. **Joining.** A person joins from one link inside a message (`phase3.sh`); the invitation sits in the fragment and reaches neither the web server nor the relay log.
+3. **Contacts.** One in-person scan verifies both sides; a shared link arrives as a request that names the link; the safety number is the same on both sides (`phase3.sh`, widget tests).
+4. **Old strings** are still accepted when pasted: bootstrap plus invitation, `arveil-pair:v1`, `arveil-route:v1`.
+5. **Camera.** Created only after **Scan**; refused or missing, the screen offers pasting (widget tests). Needs a device to confirm the permission dialog.
+6. **Link pages** load nothing from third parties and send no referrer (headers checked on the live site); Google's Digital Asset Links API returns the app's statement. Opening the app directly from a tap needs a physical Android device.
+7. **Older clients** ignore `hello` as an unknown event kind and keep working.
+
 ## Open questions
 
-- Which scanner library to use, after its supply-chain review.
 - Whether a card's long-lived write capability should become a separate, revocable capability per card.
 - Whether to offer the "People on this server" list, and who may see it.
 - Whether links for relays that are not the project's should use the project domain by default.

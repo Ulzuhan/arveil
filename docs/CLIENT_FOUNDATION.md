@@ -1022,3 +1022,43 @@ open a conversation with someone unverified. The conversation acceptance helper
 chooses an unverified saved contact, verifies it afterwards and verifies the
 creator from the receiving profile. The phone and desktop conversation
 screenshots show the new line and the comparison in the details.
+
+## QR codes and links (September 27, 2026)
+
+[ADR-012](adr/ADR-012-qr-codes-and-links.md) replaces the long strings people
+carried between apps. One payload travels as a QR code, an https link or a
+paste, for joining, linking a device and adding a contact.
+
+- **Joining.** `arveil-relay invite` prints a `link:` line and, on a terminal,
+  its QR code. The enrollment field takes the link, or a whole message that
+  contains it, and fills the server details and the invitation. A code that is
+  not an invitation, a newer one, a damaged one or two at once each say so.
+- **Linking a device.** Settings › Link another device shows a QR code, a
+  countdown and **Copy link**. The new device chooses **Link with my other
+  device** and scans it (Android) or pastes the link. Both show the same
+  number while the new device waits; the device with the root asks **Link
+  "Pixel 8 · Android 15"?** and signs nothing until **Link**. **Decline** stops
+  the new device at once. A scanned code is applied when the grant arrives; a
+  pasted one is also confirmed on the new device. The older flow, where the new
+  device shows a code, is one tap away on both screens and is now confirmed the
+  same way.
+- **Contacts.** Contacts › **My contact card** offers **Show my code** (a QR
+  valid ten minutes, once, while the screen is open) and **Share my contact**
+  (a link through the system share sheet, valid 30 days, listed and revocable),
+  with an optional name for the card. **Scan a code** (Android) and **Open a
+  contact link** show who the card names and the safety number before **Start
+  talking**. Scanning in person verifies both people; the details say
+  **Verified in person**. The checkbox that marked a number as compared when
+  creating a conversation is gone: verification is done from the details or in
+  person.
+- **Requests.** A conversation from someone who is not a chosen contact waits
+  under **Requests** at the top of the chat list: "Ana wants to talk to you",
+  with which shared link was used or that none was, and **Accept** or
+  **Decline**. Declined conversations disappear and deliver nothing more.
+- **Opening links.** On Android, links to `arveil.kaicorplabs.com/join`,
+  `/link` and `/contact` open the app directly; both platforms take the
+  `arveil:` scheme from the page's **Open in Arveil** button. Each link fills
+  the right screen and waits for a tap.
+- **Camera.** Android only, requested after **Scan**; frames are read in the
+  Rust core and nothing leaves the device. Without a camera, or with the
+  permission refused, pasting stays available.

@@ -2,7 +2,7 @@
 
 [Versión española](es/CLIENT_DESIGN.md). The Spanish document is the normative source; this condensed English translation must be updated in the same review, and the Spanish text prevails if they diverge.
 
-Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history), A1b (sender in the encrypted history), A2 (conversation summary and unread counts), A3 (kit state, device notices and sync status), B1 (tokens, theme and components), B2 (Spanish and English), C1 (adaptive navigation and shortcuts), C2 (chat list), C3 (conversation), C4 (welcome and enrollment), C5 (contacts, verification and settings), D1 (appearance), the automated part of E1 (accessibility) and E2 (diagnostics); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
+Status: visual direction approved on September 25, 2026 from mockups of the main screens. Implemented: A0 (schema versioning), A1 (sender and time in live history), A1b (sender in the encrypted history), A2 (conversation summary and unread counts), A3 (kit state, device notices and sync status), B1 (tokens, theme and components), B2 (Spanish and English), C1 (adaptive navigation and shortcuts), C2 (chat list), C3 (conversation), C4 (welcome and enrollment), C5 (contacts, verification and settings), D1 (appearance), the automated part of E1 (accessibility), E2 (diagnostics) and F1 as part of [ADR-012](adr/ADR-012-qr-codes-and-links.md) (QR codes and links); the rest is pending. The plan runs inside [M3b.5](PHASE3B.md), before the test with three external users. It changes neither the protocol nor the relay, except optional package F1 (QR invitation), which needs its own format review.
 
 ## Why, and what not
 
@@ -73,7 +73,7 @@ One small PR per package with its own tests. Relative size: S (up to a day), M (
 | E1 Accessibility (automated part implemented; TalkBack reviewed on an emulator; physical TalkBack and VoiceOver untested) | M | C2–C5, D1 | Semantics labels, focus order, 200 % text without overflow, reduced motion; manual TalkBack (physical Android) and VoiceOver (macOS) review |
 | E2 Secret-free diagnostics (implemented) | S | C5 | Exported report with version, OS, locale, profile state and typed error codes only; a test searches it for test-profile secrets |
 | E3 Documentation and screenshots | S | E1, E2 | Update installation, client foundation and platform docs in both languages |
-| F1 QR invitation (optional) | L | B1 | Versioned join payload documented as one-use sensitive data; relay `invite` may print a QR; camera only after tapping "Scan"; paste always available; never logged. Superseded by the broader proposal in [ADR-012](adr/ADR-012-qr-codes-and-links.md) |
+| F1 QR invitation (optional) | L | B1 | Versioned join payload documented as one-use sensitive data; relay `invite` may print a QR; camera only after tapping "Scan"; paste always available; never logged. Superseded by [ADR-012](adr/ADR-012-qr-codes-and-links.md), implemented on 2026-09-27 |
 | F2 In-conversation search (optional, implemented) | S | B1 | Bounded Rust query over the open conversation, with ⌘F on desktop |
 
 A and B can proceed in parallel.
