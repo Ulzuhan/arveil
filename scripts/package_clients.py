@@ -165,6 +165,26 @@ def java_environment(env, flutter):
     return java
 
 
+def android_sdk(env, flutter):
+    """The Android SDK: ANDROID_HOME or ANDROID_SDK_ROOT, else the one Flutter builds with."""
+    given = env.get("ANDROID_HOME") or env.get("ANDROID_SDK_ROOT")
+    if not given:
+        # Flutter's android-sdk setting, then the SDK managers' default
+        # locations. The path itself is never printed.
+        try:
+            output = run([flutter, "config", "--machine"], env=env)
+            config = json.JSONDecoder().raw_decode(output, output.index("{"))[0]
+            given = config.get("android-sdk") if isinstance(config, dict) else None
+        except (ValueError, OSError, subprocess.CalledProcessError):
+            given = None
+    candidates = [Path(given)] if given else [
+        Path.home() / ("Library/Android/sdk" if sys.platform == "darwin" else "Android/Sdk")]
+    for sdk in candidates:
+        if sdk.is_absolute() and sdk.is_dir():
+            return sdk
+    raise ValueError("Set ANDROID_HOME to the Android SDK directory.")
+
+
 def android_details(badging, build, updates):
     """Check `aapt2 dump badging` output; return the facts BUILD.json records."""
     if "android.permission.INTERNET" not in badging or "application-debuggable" in badging:
@@ -221,6 +241,7 @@ def package(args):
                 raise ValueError("Android release signing is required; see docs/CLIENT_RELEASES.md.")
         # The build finds its own JDK; apksigner runs after it. Check first.
         java = java_environment(env, args.flutter)
+        sdk = android_sdk(env, args.flutter)
     private = ROOT / ".local/client-builds"
     private.mkdir(parents=True, exist_ok=True, mode=0o700)
     # A real isolated source directory also removes Dart-generated absolute
@@ -245,12 +266,9 @@ def package(args):
             env.update(signing_environment(args.signing_config))
         env["ARVEIL_REVISION"] = revision
         if args.platform == "android":
-            real_sdk = Path(env.get("ANDROID_HOME") or env.get("ANDROID_SDK_ROOT") or "")
-            if not real_sdk.is_absolute() or not real_sdk.is_dir():
-                raise ValueError("Set ANDROID_HOME to the Android SDK directory.")
             sdk_alias = scratch / "android-sdk"
             sdk_alias.mkdir()
-            for child in real_sdk.iterdir():
+            for child in sdk.iterdir():
                 (sdk_alias / child.name).symlink_to(child, target_is_directory=child.is_dir())
             env["ANDROID_HOME"] = env["ANDROID_SDK_ROOT"] = str(sdk_alias)
         staged = scratch / "packages"
