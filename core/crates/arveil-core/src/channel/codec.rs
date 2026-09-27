@@ -143,6 +143,20 @@ pub enum Payload {
         #[serde(with = "serde_bytes")]
         manifest: Vec<u8>,
     },
+    /// The signed credential an identity registered under a hash (ADR-012).
+    /// A member asks for it to check that a route or a contact card names
+    /// keys the root signed. The reply carries an empty `credential` when the
+    /// realm has none; the client verifies whatever arrives.
+    CredentialGet {
+        #[serde(with = "serde_bytes")]
+        identity_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        credential_hash: Vec<u8>,
+    },
+    CredentialFound {
+        #[serde(with = "serde_bytes")]
+        credential: Vec<u8>,
+    },
     /// Publish a bounded batch of KeyPackages for the session's device.
     KeyPackagesPublish {
         key_packages: Vec<serde_bytes::ByteBuf>,
@@ -412,6 +426,19 @@ mod vector_dump {
             Frame {
                 id: 10,
                 payload: Payload::KeyPackagesAvailable { count: 3 },
+            },
+            Frame {
+                id: 11,
+                payload: Payload::CredentialGet {
+                    identity_id: vec![9, 9],
+                    credential_hash: vec![5, 6],
+                },
+            },
+            Frame {
+                id: 11,
+                payload: Payload::CredentialFound {
+                    credential: vec![1, 2, 3],
+                },
             },
         ];
         for f in &frames {

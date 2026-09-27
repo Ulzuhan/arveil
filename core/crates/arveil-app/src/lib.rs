@@ -3495,13 +3495,7 @@ pub fn parse_route(value: &str) -> Result<Route, CliError> {
         write_capability: hex::decode(parts[7]).map_err(domain_error("write capability"))?,
         hpke_public: hex::decode(parts[8]).map_err(domain_error("hpke key"))?,
     };
-    let public: [u8; 32] = route
-        .root_public
-        .as_slice()
-        .try_into()
-        .map_err(|_| CliError::Domain("route: root key length".into()))?;
-    let verifying = ed25519_dalek::VerifyingKey::from_bytes(&public)
-        .map_err(domain_error("route: root key"))?;
+    let verifying = route_root(&route)?;
     if arveil_core::identity::identity_id(&verifying) != route.identity_id {
         return Err(CliError::Domain(
             "route: identity id does not derive from its root key".into(),
@@ -3976,8 +3970,15 @@ async fn connect(
     Err(last)
 }
 
+/// Claim a KeyPackage for a route only after the route is bound to its
+/// root (ADR-012 §4): the realm's copy of the device credential must be
+/// signed by the route's root, name the route's device and envelope key,
+/// hash to the route's credential hash and be active in the root's newest
+/// manifest. The claimed KeyPackage must then be signed with the MLS key of
+/// that same credential, under the route's device id.
 async fn claim_key_package(conn: &mut Connection, r: &Route) -> Result<MlsMessage, CliError> {
-    match conn
+    let credential = verified_route_credential(conn, r).await?;
+    let key_package = match conn
         .request(Payload::KeyPackagesClaim {
             identity_id: r.identity_id.clone(),
             device_id: r.device_id.clone(),
@@ -3985,10 +3986,104 @@ async fn claim_key_package(conn: &mut Connection, r: &Route) -> Result<MlsMessag
         .await?
     {
         Payload::KeyPackageClaimed { key_package } => {
-            MlsMessage::from_bytes(&key_package).map_err(protocol_error("key package"))
+            MlsMessage::from_bytes(&key_package).map_err(protocol_error("key package"))?
         }
-        other => Err(CliError::Protocol(format!("unexpected reply: {other:?}"))),
+        other => return Err(CliError::Protocol(format!("unexpected reply: {other:?}"))),
+    };
+    check_key_package_binding(&key_package, &credential)?;
+    Ok(key_package)
+}
+
+async fn verified_route_credential(
+    conn: &mut Connection,
+    r: &Route,
+) -> Result<arveil_core::identity::DeviceCredential, CliError> {
+    let signed_credential = match conn
+        .request(Payload::CredentialGet {
+            identity_id: r.identity_id.clone(),
+            credential_hash: r.credential_hash.clone(),
+        })
+        .await
+    {
+        Ok(Payload::CredentialFound { credential }) => credential,
+        // A relay from before ADR-012 does not know the frame. The check is
+        // not skipped for it: a relay that pretended not to know it would
+        // otherwise switch the check off.
+        Err(CliError::Relay { code: 400, message }) if message == "unsupported frame" => {
+            return Err(CliError::Domain(
+                "route: this server is too old to check routes; update the relay first".into(),
+            ));
+        }
+        Ok(other) => return Err(CliError::Protocol(format!("unexpected reply: {other:?}"))),
+        Err(e) => return Err(e),
+    };
+    if signed_credential.is_empty() {
+        return Err(CliError::Domain(
+            "route: the server holds no credential for this device; ask for a new route".into(),
+        ));
     }
+    let signed_manifest = match conn
+        .request(Payload::ManifestGet {
+            identity_id: r.identity_id.clone(),
+        })
+        .await?
+    {
+        Payload::ManifestLatest { manifest } => manifest,
+        other => return Err(CliError::Protocol(format!("unexpected reply: {other:?}"))),
+    };
+    if signed_manifest.is_empty() {
+        return Err(CliError::Domain(
+            "route: the server holds no device list for this person".into(),
+        ));
+    }
+    let root = route_root(r)?;
+    let now = u64::try_from(unix_now()).unwrap_or(0);
+    arveil_core::identity::verify_claimed_device(
+        arveil_core::identity::ClaimedDevice {
+            root: &root,
+            device_id: &r.device_id,
+            credential_hash: &r.credential_hash,
+            envelope_hpke_public_key: &r.hpke_public,
+        },
+        &signed_credential,
+        &signed_manifest,
+        now,
+    )
+    .map_err(|e| CliError::Domain(format!("route: {e}; nothing was sent")))
+}
+
+fn route_root(r: &Route) -> Result<ed25519_dalek::VerifyingKey, CliError> {
+    let public: [u8; 32] = r
+        .root_public
+        .as_slice()
+        .try_into()
+        .map_err(|_| CliError::Domain("route: root key length".into()))?;
+    ed25519_dalek::VerifyingKey::from_bytes(&public).map_err(domain_error("route: root key"))
+}
+
+/// A KeyPackage belongs to a credential when its leaf carries that
+/// credential's device id and is signed with its MLS key.
+fn check_key_package_binding(
+    key_package: &MlsMessage,
+    credential: &arveil_core::identity::DeviceCredential,
+) -> Result<(), CliError> {
+    let identity = key_package
+        .as_key_package()
+        .ok_or_else(|| CliError::Protocol("the claimed object is not a key package".into()))?
+        .signing_identity();
+    if identity.signature_key.as_bytes() != credential.mls_signature_public_key.as_slice() {
+        return Err(CliError::Domain(
+            "route: the server handed out a key package this person's root did not sign; nothing was sent".into(),
+        ));
+    }
+    if identity.credential.as_basic().map(|b| b.identifier())
+        != Some(credential.device_id.as_slice())
+    {
+        return Err(CliError::Domain(
+            "route: the key package names another device; nothing was sent".into(),
+        ));
+    }
+    Ok(())
 }
 
 /// The roster event: every member's route, this device's first.

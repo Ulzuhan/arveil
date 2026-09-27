@@ -23,6 +23,8 @@ const (
 	KindCredentialPut    = "CredentialPut"
 	KindManifestPut      = "ManifestPut"
 	KindManifestGet      = "ManifestGet"
+	KindCredentialGet    = "CredentialGet"
+	KindCredentialFound  = "CredentialFound"
 	KindRecoverIdentity  = "RecoverIdentity"
 	KindNotifyHintSet    = "NotifyHintSet"
 	KindPairBegin        = "PairBegin"
@@ -105,6 +107,8 @@ type Payload struct {
 	Token      []byte
 	Credential []byte
 	Manifest   []byte
+	// CredentialGet
+	CredentialHash []byte
 	// InviteRedeemed / KeyPackagesClaim
 	IdentityID []byte
 	DeviceID   []byte
@@ -313,6 +317,11 @@ type manifestGetBody struct {
 	IdentityID []byte `cbor:"identity_id"`
 }
 
+type credentialGetBody struct {
+	IdentityID     []byte `cbor:"identity_id"`
+	CredentialHash []byte `cbor:"credential_hash"`
+}
+
 type endpointListBody struct {
 	Signed []byte `cbor:"signed"`
 }
@@ -425,6 +434,10 @@ func Encode(f Frame) ([]byte, error) {
 		payload = map[string]manifestPutBody{KindManifestPut: {Manifest: f.Payload.Manifest}}
 	case KindManifestGet:
 		payload = map[string]manifestGetBody{KindManifestGet: {IdentityID: f.Payload.IdentityID}}
+	case KindCredentialGet:
+		payload = map[string]credentialGetBody{KindCredentialGet: {IdentityID: f.Payload.IdentityID, CredentialHash: f.Payload.CredentialHash}}
+	case KindCredentialFound:
+		payload = map[string]credentialPutBody{KindCredentialFound: {Credential: nonNil(f.Payload.Credential)}}
 	case KindRecoverIdentity:
 		payload = map[string]recoverIdentityBody{KindRecoverIdentity: {Credential: f.Payload.Credential, Manifest: f.Payload.Manifest}}
 	case KindRecovered:
@@ -562,6 +575,18 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, IdentityID: v.IdentityID}
+		case KindCredentialGet:
+			var v credentialGetBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, IdentityID: v.IdentityID, CredentialHash: v.CredentialHash}
+		case KindCredentialFound:
+			var v credentialPutBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, Credential: v.Credential}
 		case KindManifestPut, KindManifestLatest:
 			var v manifestPutBody
 			if err := cbor.Unmarshal(body, &v); err != nil {
