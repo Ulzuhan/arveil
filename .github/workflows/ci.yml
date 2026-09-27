@@ -27,9 +27,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Signed update and private tunnel configuration checks
+      - name: Signed update, client release and private tunnel configuration checks
         run: |
           python3 -m unittest discover -s scripts -p 'test_client_updates.py'
+          python3 -m unittest discover -s scripts -p 'test_release_clients.py'
           python3 -m unittest discover -s scripts -p 'test_prepare_tunnel.py'
           python3 -m unittest discover -s scripts -p 'test_podman.py'
       - name: Install nginx

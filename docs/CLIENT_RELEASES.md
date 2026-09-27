@@ -111,6 +111,57 @@ the same stored identity with the retained platform key across processes and
 APK replacement. Never publish this test build; rebuild the normal main entry
 point with the packaging helper afterward.
 
+## Release with two commands
+
+`scripts/release_clients.py` runs every step below and in
+[Signed Android updates](CLIENT_UPDATES.md#announce-a-release) for one
+release. It checks each finished step instead of repeating it, so a command can
+be run again after a failure. Keys stay on this machine: the APK is signed
+locally, and the update key's passphrase is typed on the terminal.
+
+```sh
+python3 scripts/release_clients.py prepare --tag clients-v0.1.0-beta.3 --build 21
+python3 scripts/release_clients.py publish --tag clients-v0.1.0-beta.3
+```
+
+**`prepare`** creates a draft on GitHub and publishes nothing. It:
+- requires a commit on `origin/main` with every CI check green;
+- builds both packages, or reuses the ones already built for that commit;
+- stages them with `SHA256SUMS-clients.txt`;
+- writes release-note templates, which must lose every `TODO`;
+- signs the announcement with the next sequence;
+- creates a draft prerelease, targeted at that exact commit, holding the packages, their metadata and the announcement.
+
+`--revision` releases an earlier commit on `origin/main` whose packages were
+already built and tested, without rebuilding them.
+
+**`publish`** checks that the draft still holds exactly the staged bytes. It
+asks you to type the tag, then publishes the release, which is immutable. After
+that it:
+- copies the announcement to the website and regenerates its download links and fixed `/download/…` redirects;
+- pushes and deploys the website, then checks that it serves the new announcement and redirects;
+- runs Lighthouse;
+- bumps the Homebrew cask.
+
+The operator settings live in the ignored `.local/release.json`. The website
+and tap sections are optional:
+
+```json
+{
+  "signing_config": ".local/signing/android-signing.json",
+  "update_config": ".local/distribution.json",
+  "update_key": ".local/update-signing/update.pem",
+  "web": {"repo": "<website checkout>", "site": "https://<site>",
+          "ssh": "<user@host>", "known_hosts": "<pinned host keys>",
+          "dir": "<checkout on the host>", "container": "<nginx container>",
+          "updates": "<announcement directory in the checkout>",
+          "generator": "<the site's download-link tool>"},
+  "tap": {"repo": "<homebrew tap checkout>", "cask": "Casks/arveil.rb"}
+}
+```
+
+The sections below describe the same steps by hand.
+
 ## Prepare the GitHub draft
 
 Client releases use **`clients-v<version>`** tags, for example

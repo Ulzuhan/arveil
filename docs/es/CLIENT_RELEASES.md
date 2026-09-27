@@ -108,6 +108,58 @@ Instala con `adb install -r` y arranca de nuevo. La señal fija
 con la clave del sistema conservada entre procesos y reemplazos del APK.
 No publiques esta compilación: genera después la app normal con el asistente.
 
+## Publicar con dos órdenes
+
+`scripts/release_clients.py` hace todos los pasos de abajo y los de
+[Actualizaciones Android firmadas](CLIENT_UPDATES.md#anunciar-una-versión) para
+una versión. Comprueba cada paso terminado en vez de repetirlo, así que una
+orden se puede volver a ejecutar tras un fallo. Las claves no salen de este
+equipo: el APK se firma en local y la contraseña de la clave de
+actualizaciones se teclea en la terminal.
+
+```sh
+python3 scripts/release_clients.py prepare --tag clients-v0.1.0-beta.3 --build 21
+python3 scripts/release_clients.py publish --tag clients-v0.1.0-beta.3
+```
+
+**`prepare`** crea un borrador en GitHub y no publica nada:
+- exige un commit en `origin/main` con todos los checks de CI en verde;
+- compila los dos paquetes, o reutiliza los ya compilados para ese commit;
+- los prepara con `SHA256SUMS-clients.txt`;
+- escribe plantillas de notas, que no deben conservar ningún `TODO`;
+- firma el anuncio con la siguiente secuencia;
+- crea una prerelease en borrador, apuntada a ese commit exacto, con los paquetes, sus metadatos y el anuncio.
+
+`--revision` publica un commit anterior de `origin/main` cuyos paquetes ya
+están compilados y probados, sin volver a compilarlos.
+
+**`publish`** comprueba que el borrador conserva exactamente los bytes
+preparados. Te pide teclear el tag y publica la release, que es inmutable.
+Después:
+- copia el anuncio a la web y regenera sus enlaces de descarga y las redirecciones fijas `/download/…`;
+- sube y despliega la web, y comprueba que sirve el anuncio nuevo y las redirecciones;
+- pasa Lighthouse;
+- actualiza el cask de Homebrew.
+
+La configuración del operador vive en `.local/release.json`, ignorado por Git.
+Las secciones de la web y del tap son opcionales:
+
+```json
+{
+  "signing_config": ".local/signing/android-signing.json",
+  "update_config": ".local/distribution.json",
+  "update_key": ".local/update-signing/update.pem",
+  "web": {"repo": "<copia de la web>", "site": "https://<sitio>",
+          "ssh": "<usuario@host>", "known_hosts": "<claves de host fijadas>",
+          "dir": "<copia en el host>", "container": "<contenedor nginx>",
+          "updates": "<directorio del anuncio en la copia>",
+          "generator": "<herramienta de enlaces de descarga del sitio>"},
+  "tap": {"repo": "<copia del tap de Homebrew>", "cask": "Casks/arveil.rb"}
+}
+```
+
+Las secciones siguientes describen los mismos pasos a mano.
+
 ## Preparar el borrador en GitHub
 
 Las releases del cliente usan tags **`clients-v<versión>`**, por ejemplo

@@ -153,5 +153,28 @@ class PublicationTests(unittest.TestCase):
                     self.assertNotIn(directory, str(failure.exception))
 
 
+    def test_android_sdk_defaults_to_the_one_flutter_builds_with(self):
+        with tempfile.TemporaryDirectory() as directory:
+            given, flutters = Path(directory) / "given", Path(directory) / "flutters"
+            given.mkdir()
+            flutters.mkdir()
+            machine = '{\n  "android-sdk": ' + json.dumps(str(flutters)) + "\n}\n"
+            # An explicit ANDROID_HOME wins and Flutter is not asked.
+            with patch.object(package, "run") as run:
+                self.assertEqual(package.android_sdk({"ANDROID_HOME": str(given)}, "flutter"), given)
+            run.assert_not_called()
+            # Without it, the SDK Flutter builds with.
+            with patch.object(package, "run", return_value="Welcome banner\n" + machine):
+                self.assertEqual(package.android_sdk({}, "flutter"), flutters)
+            # Nothing usable: stop before building, naming ANDROID_HOME but not paths.
+            missing = str(Path(directory) / "missing")
+            for given_env, reported in (({"ANDROID_HOME": missing}, machine), ({}, '{"android-sdk": "relative"}')):
+                with self.subTest(given=given_env), patch.object(package, "run", return_value=reported), \
+                        patch.object(package.Path, "home", return_value=Path(missing)):
+                    with self.assertRaisesRegex(ValueError, "ANDROID_HOME") as failure:
+                        package.android_sdk(given_env, "flutter")
+                    self.assertNotIn(directory, str(failure.exception))
+
+
 if __name__ == "__main__":
     unittest.main()
