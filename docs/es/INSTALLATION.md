@@ -202,7 +202,7 @@ entrar en las copias de seguridad del destino. Cancelar una transferencia
 incompleta elimina sus datos locales; no retira un mensaje enviado. Pide otra
 copia si el relay indica caducidad.
 
-### Visor y notificaciones Mac (incremento en código, no incluido en build 25)
+### Visor y notificaciones (incremento en código, no incluido en build 25)
 
 En un cliente compilado con este incremento, pulsa **Descargar y abrir** para
 un adjunto recibido o **Abrir** si ya está disponible. Las imágenes PNG/JPEG/WebP
@@ -221,10 +221,19 @@ o salir desde la barra de menús. Salir, cerrar el perfil o suspender el Mac
 detiene los avisos locales. Si se deniega el permiso, habilita Arveil en los
 ajustes de notificaciones de macOS y vuelve a activar la opción.
 
-Este código ha pasado compilaciones debug Mac/Android y aceptación nativa Mac
-de adjuntos con perfiles desechables. Quedan la apertura externa/limpieza de
-temporales, avisos Mac empaquetados y Android físico como aceptación interactiva.
-Android todavía no recibe notificaciones; consulta [alcance y evidencia](CLIENT_FILES_NOTIFICATIONS.md).
+Android añade **Ajustes → Notificaciones** experimental. Requiere ntfy de
+F-Droid con tu servidor HTTPS propio; introduce la misma dirección base en
+Arveil y concede permiso para avisar. Se rechaza ntfy.sh. Los avisos son genéricos
+y pueden llegar con el perfil cerrado, sin desbloquearlo. Desactiva la opción
+para detenerlos. Mantén Arveil abierto con conexión para completar altas/bajas
+pendientes. El cierre forzado y las restricciones de batería pueden impedir o
+retrasar la entrega.
+
+Se han ejecutado builds debug, instrumentación del receptor Android y aceptación
+de adjuntos Mac con perfiles desechables. Quedan el recorrido con ntfy Android
+real, avisos Mac empaquetados y Android físico antes de publicar; consulta
+[alcance y evidencia](CLIENT_FILES_NOTIFICATIONS.md). Estas pruebas no despliegan
+un servidor de notificaciones permanente.
 Los cambios no requieren migrar ni reinstalar el perfil: conserva el perfil
 y su llavero al actualizar mediante el procedimiento habitual.
 

@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1600597455;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 47564075;
 
 // Section: executor
 
@@ -2709,6 +2709,59 @@ fn wire__crate__api__profile__Profile_set_card_name_impl(
         },
     )
 }
+fn wire__crate__api__profile__Profile_set_notification_hint_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Profile_set_notification_hint",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>,
+            >>::sse_decode(&mut deserializer);
+            let api_endpoint = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::profile::CommandError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::profile::Profile::set_notification_hint(
+                        &*api_that_guard,
+                        api_endpoint,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__profile__Profile_setup_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -4857,30 +4910,36 @@ fn pde_ffi_dispatcher_primary_impl(
         50 => {
             wire__crate__api__profile__Profile_set_card_name_impl(port, ptr, rust_vec_len, data_len)
         }
-        51 => wire__crate__api__profile__Profile_setup_impl(port, ptr, rust_vec_len, data_len),
-        52 => {
+        51 => wire__crate__api__profile__Profile_set_notification_hint_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        52 => wire__crate__api__profile__Profile_setup_impl(port, ptr, rust_vec_len, data_len),
+        53 => {
             wire__crate__api__profile__Profile_shared_cards_impl(port, ptr, rust_vec_len, data_len)
         }
-        53 => wire__crate__api__profile__Profile_start_from_card_impl(
+        54 => wire__crate__api__profile__Profile_start_from_card_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__profile__Profile_sync_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__profile__Profile_verify_contact_impl(
+        57 => wire__crate__api__profile__Profile_sync_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__profile__Profile_verify_contact_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__profile__Profile_watch_impl(port, ptr, rust_vec_len, data_len),
-        59 => {
+        59 => wire__crate__api__profile__Profile_watch_impl(port, ptr, rust_vec_len, data_len),
+        60 => {
             wire__crate__api__profile__generate_profile_key_impl(port, ptr, rust_vec_len, data_len)
         }
-        60 => wire__crate__api__profile__has_profile_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__profile__open_profile_impl(port, ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__profile__open_unencrypted_profile_impl(
+        61 => wire__crate__api__profile__has_profile_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__profile__open_profile_impl(port, ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__profile__open_unencrypted_profile_impl(
             port,
             ptr,
             rust_vec_len,
@@ -4898,10 +4957,10 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        54 => wire__crate__api__profile__Profile_start_watching_impl(ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__profile__Profile_stop_watching_impl(ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__updates__update_signature_domain_impl(ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__updates__verify_update_signature_impl(ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__profile__Profile_start_watching_impl(ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__profile__Profile_stop_watching_impl(ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__updates__update_signature_domain_impl(ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__updates__verify_update_signature_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

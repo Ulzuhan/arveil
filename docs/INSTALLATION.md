@@ -196,7 +196,7 @@ by its destination. Cancelling an unfinished transfer discards its local data;
 it does not recall a sent message. Request another copy if the relay reports
 expiry.
 
-### File viewing and Mac notifications (source increment, not in build 25)
+### File viewing and notifications (source increment, not in build 25)
 
 In a client built with this increment, choose **Download and open** for an
 incoming attachment or **Open** for a local file. PNG/JPEG/WebP images display
@@ -213,10 +213,19 @@ profile unlocked, hides the window when closed, and provides menu-bar actions
 to reopen or quit. Quit, profile closure and Mac sleep stop local alerts.
 If permission is denied, enable Arveil in macOS notification settings and retry.
 
-This source has passed debug builds for Mac/Android and disposable-profile
-native Mac attachment acceptance. External viewer/temporary cleanup, packaged
-Mac banners and physical Android behavior still need interactive acceptance.
-Android notifications are not enabled yet; see [scope and evidence](CLIENT_FILES_NOTIFICATIONS.md).
+Android adds an experimental **Settings → Notifications** page. It requires
+ntfy's F-Droid app configured with your own HTTPS server; enter the same base
+address in Arveil and grant notification permission. The public ntfy.sh server
+is rejected. Notices are generic and can arrive with the profile closed; they
+never unlock it. Disable the option to stop them. Keep Arveil open online to
+finish pending registration/removal. Force-stop and battery restrictions can
+prevent or delay delivery.
+
+Debug builds, native Android receiver instrumentation and disposable Mac
+attachment acceptance have run. The real ntfy Android distributor path,
+packaged Mac banners and physical Android behavior remain release gates;
+see [scope and evidence](CLIENT_FILES_NOTIFICATIONS.md). No permanent notification
+server is deployed by these tests.
 No profile migration or reinstall is required by these changes. Keep the
 existing profile and Keychain when upgrading through the normal release path.
 

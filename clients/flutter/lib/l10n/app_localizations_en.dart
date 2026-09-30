@@ -2239,4 +2239,56 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get linkLinkHasIdentity =>
       'This device already has an identity. Open that code on the new device.';
+
+  @override
+  String get pushExplanation =>
+      'Experimental notifications without Google. Configure ntfy with your own server first. The receiver only shows generic activity and never opens your profile or reads messages.';
+
+  @override
+  String get pushInstall =>
+      'Install ntfy from F-Droid and configure your own HTTPS server. The public ntfy.sh server is not accepted in this mode.';
+
+  @override
+  String get pushServer => 'Your notification server';
+
+  @override
+  String get pushEnable => 'Receive activity notifications';
+
+  @override
+  String get pushWaiting =>
+      'Waiting for ntfy. Check that it uses the same server, then retry.';
+
+  @override
+  String get pushReady =>
+      'Connected. Notices are generic; messages are checked when Arveil opens.';
+
+  @override
+  String get pushPermission =>
+      'Allow Arveil notifications in Android settings, then retry.';
+
+  @override
+  String get pushEndpointMismatch =>
+      'ntfy returned a different or unsupported server. Check its server setting and the address entered here.';
+
+  @override
+  String get pushRegistrationFailed =>
+      'ntfy could not register this device. Open ntfy, check its connection, then retry.';
+
+  @override
+  String get pushUnavailable =>
+      'Notification settings could not be updated. Check ntfy, the server address and Android permissions.';
+
+  @override
+  String get pushRelayPending =>
+      'The change is saved on this device but is still pending on the relay. Keep Arveil open with a connection and retry. Disabled notices remain disabled locally.';
+
+  @override
+  String get pushLimits =>
+      'ntfy must be allowed to run in the background. Battery restrictions can delay notices. Force stop prevents delivery until reopening. Generic notices may arrive while the profile is closed; disable this option to stop them.';
+
+  @override
+  String get pushRetry => 'Retry connection';
+
+  @override
+  String get pushServerHint => 'https://notify.example.org';
 }

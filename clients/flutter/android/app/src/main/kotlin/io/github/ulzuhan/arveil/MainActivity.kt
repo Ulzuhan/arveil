@@ -10,6 +10,7 @@ class MainActivity : FlutterActivity() {
     private var viewer: AttachmentViewer? = null
     private var updates: UpdateInstaller? = null
     private var links: MethodChannel? = null
+    private var push: PushChannel? = null
 
     /// A link that opened the app before Dart asked for it.
     private var pendingLink: String? = null
@@ -19,6 +20,7 @@ class MainActivity : FlutterActivity() {
         attachments = AttachmentPicker(this, flutterEngine.dartExecutor.binaryMessenger)
         viewer = AttachmentViewer(this, flutterEngine.dartExecutor.binaryMessenger)
         updates = UpdateInstaller(this, flutterEngine.dartExecutor.binaryMessenger)
+        push = PushChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         // Links that open the app (ADR-012 §5). Only their text crosses:
         // Dart reads it and asks the person before anything happens.
         pendingLink = linkOf(intent)
@@ -49,6 +51,8 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
+        push?.opened(intent)
         val link = linkOf(intent) ?: return
         links?.invokeMethod("open", link) ?: run { pendingLink = link }
     }
@@ -56,8 +60,14 @@ class MainActivity : FlutterActivity() {
     private fun linkOf(intent: Intent?): String? =
         if (intent?.action == Intent.ACTION_VIEW) intent.dataString?.takeIf { it.length <= 4096 } else null
 
-    override fun onResume() { super.onResume(); updates?.onResume() }
-    override fun onPause() { updates?.onPause(); super.onPause() }
+    override fun onResume() { super.onResume(); updates?.onResume(); push?.visibility(true) }
+    override fun onPause() { push?.visibility(false); updates?.onPause(); super.onPause() }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PushChannel.permissionRequest) push?.permission(
+            grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED)
+    }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == AttachmentPicker.REQUEST) {
@@ -69,6 +79,8 @@ class MainActivity : FlutterActivity() {
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         attachments?.close()
+        push?.close()
+        push = null
         attachments = null
         viewer?.close()
         viewer = null

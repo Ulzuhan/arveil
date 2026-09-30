@@ -70,6 +70,23 @@ final class DesktopNotificationChannel: NSObject, UNUserNotificationCenterDelega
   private func handle(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
     let args = call.arguments as? [String: Any] ?? [:]
     switch call.method {
+    #if DEBUG
+    // Acceptance hooks query the real OS and window; never present in releases.
+    case "acceptanceInspect":
+      center.getDeliveredNotifications { notices in
+        DispatchQueue.main.async {
+          result(["visible": NSApp.windows.first(where: { $0 is MainFlutterWindow })?.isVisible == true,
+            "background": Self.shouldKeepRunning,
+            "delivered": notices.filter { $0.request.identifier == "arveil.activity" }.count])
+        }
+      }
+    case "acceptanceCloseWindow":
+      if Self.shouldKeepRunning {
+        NSApp.windows.first(where: { $0 is MainFlutterWindow })?.performClose(nil)
+      }
+      result(nil)
+    case "acceptanceOpenWindow": Self.reopen(); result(nil)
+    #endif
     case "status": status(result)
     case "takeOpen": result(pending); pending = nil
     case "profile":

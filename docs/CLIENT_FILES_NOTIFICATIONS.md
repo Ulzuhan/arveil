@@ -71,14 +71,40 @@ sleep/wake delivery still require interactive acceptance before a release promis
 flowchart LR
   R[Relay] -->|Generic mailbox hint| N[Self-hosted ntfy]
   N -->|Connection from phone| D[Android ntfy distributor]
-  D -->|UnifiedPush callback| A[Arveil receiver — pending]
-  A -->|Sync when allowed or on open| R
+  D -->|UnifiedPush callback| A[Arveil generic notification]
+  A -->|Open existing profile and sync| R
 ```
 
-The Mac mini can host ntfy beside the relay. The phone still needs a receiver:
-the first experiment uses the ntfy Android distributor as a second application.
-**Arveil's Android connector and notification UI are not implemented in this
-increment. Installing ntfy alone does not enable Arveil notifications.**
+The Mac mini can host ntfy beside the relay. This source increment adds an
+experimental Android receiver using the official UnifiedPush connector 3.0.10
+and the ntfy distributor as a second application. Install ntfy's F-Droid flavor,
+configure its default server to your own HTTPS server, then enter the same base
+address in **Arveil → Settings → Notifications** and enable activity notices.
+Grant Android's notification permission. A returned endpoint must belong to that
+server and path; the public ntfy.sh service is rejected. HTTP loopback is allowed
+only in debug builds for disposable acceptance.
+
+Registration, rotation and removal run through the already-open Rust profile
+executor. Offline changes are retained and retried on resume or every 30 seconds
+while active. Disabling immediately suppresses local notices even if remote
+removal is pending. A revision guards against an older network response marking
+a newer endpoint as applied. Opening a different identity unregisters the old
+local subscription. This does not promise remote removal from a closed profile.
+
+The native receiver stores its delivery capability encrypted with a separate
+Android Keystore key. It never starts Flutter, opens a profile, decrypts a message
+or changes read state. It accepts only the exact generic marker and coalesces
+notices until a successful foreground sync. A tap opens Arveil's inbox after
+unlock. Generic notices can arrive with the profile closed; disable them before
+closing if that is unwanted. Endpoint changes received in the background ask
+the person to open Arveil to finish registration.
+
+This is specifically ntfy's plaintext generic-marker path, supported by the
+connector's plaintext fallback. It is **not** a general WebPush/VAPID sender;
+the modern UnifiedPush encrypted-payload path remains separate work. Hints are
+untrusted activity, never proof of a sender or a message count. The connector's
+Tink dependency performs local cryptography; no FCM or Google Play Services
+dependency is added to Arveil.
 
 ntfy documents that self-hosted subscriptions avoid Firebase and its F-Droid
 flavor omits Firebase entirely: [Android/UnifiedPush documentation](https://docs.ntfy.sh/subscribe/phone/).
@@ -117,9 +143,9 @@ The official Darwin ntfy archive is client-only; its source has a
 - Before accepting general delivery endpoints, constrain destinations, resolved
   addresses and redirects, with intentional operator exceptions; bound delivery
   concurrency. Scheme validation alone is not an outbound network policy.
-- Implement endpoint registration/rotation/removal, Android notification permission,
-  locked-profile handling and a generic hint notice. Hints are not verified messages;
-  they must not cause a second profile executor or claim a sender/message count.
+- Verify the complete relay → real ntfy Android distributor → Arveil path with
+  endpoint rotation, process death and notification taps. The instrumented
+receiver test uses a disposable distributor fixture, not a real ntfy app.
 - Test screen-off/Doze, battery saver, Wi-Fi/mobile switching, restart, process death,
   Recents swipe and force-stop/reopen on a physical phone. Measure delay and battery.
   A server cannot bypass [Android's background limits](https://developer.android.com/training/monitoring-device-state/doze-standby).
@@ -129,7 +155,7 @@ The official Darwin ntfy archive is client-only; its source has a
 
 ## Evidence and limits
 
-The implementation passes Flutter analysis and 293 unit/widget tests, including
+The implementation passes Flutter analysis and 298 unit/widget tests, including
 preview bounds, external-sharing confirmation, failed verification, notification
 deduplication, permission denial and hidden read-marker protection. Debug builds
 passed on macOS and Android. Disposable native macOS acceptance checks encrypted
@@ -142,6 +168,18 @@ marker/coalescing/unregistration over an authenticated loopback SSH forward;
 its service and data were removed afterwards. Neither run used Firebase or an
 upstream provider. The remote run did not test its server's restart/outage.
 
-The ntfy experiment checks the transport separately from the phone. OS banner
-delivery, native external-app handoff/cleanup and physical Android behavior remain
-interactive release gates. Contact testing is deferred to the next iteration.
+The Android receiver passes native emulator instrumentation through the official
+connector, Keystore and notification manager: unknown-token/wrong-marker rejection,
+server mismatch rejection, generic delivery, coalescing and local disable. Five
+Dart tests cover registration, rotation races, offline removal, foreground-only
+sync and preserving a hint after failed sync. These are separate from the ntfy
+transport experiment; they do not establish physical-phone delivery.
+Native macOS profile acceptance also passed relay registration, exact marker
+delivery, endpoint rotation/removal and reopening the encrypted profile.
+
+Separate macOS native acceptance passed window hiding/reopening, real external
+text-file opening, 0700/0600 temporary permissions and expiry cleanup. The
+notification permission did not complete
+within the test timeout, so system banner delivery remains unverified. Packaged
+permissions, taps, sleep/wake and physical Android are still release gates.
+Contact testing is deferred to the next iteration.

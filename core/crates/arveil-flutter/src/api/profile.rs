@@ -814,6 +814,14 @@ impl Profile {
             .map_err(command_error)
     }
 
+    /// Register or remove the generic wake hint, using this profile's executor.
+    pub fn set_notification_hint(&self, endpoint: String) -> Result<(), CommandError> {
+        self.inner
+            .set_notification_hint(&endpoint)
+            .map(|_| ())
+            .map_err(command_error)
+    }
+
     pub fn replenish_key_packages(&self) -> Result<KeyPackageSupplyView, CommandError> {
         self.inner
             .replenish_key_packages()
@@ -1763,6 +1771,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::QueryKeyPackageSupply => "query-key-package-supply",
         Operation::CheckKeyPackages => "check-key-packages",
         Operation::ReplenishKeyPackages => "replenish-key-packages",
+        Operation::SetNotificationHint => "set-notification-hint",
         Operation::ExportArchive => "export-archive",
         Operation::ImportArchive => "import-archive",
         Operation::QueryArchivePage => "query-archive-page",

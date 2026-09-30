@@ -1061,5 +1061,19 @@
   "requestFailed": "No se pudo responder a la solicitud.",
   "verifiedInPerson": "Verificado en persona",
   "linkJoinHasIdentity": "Este dispositivo ya tiene una identidad. La invitación es para una persona nueva.",
-  "linkLinkHasIdentity": "Este dispositivo ya tiene una identidad. Abre ese código en el dispositivo nuevo."
+  "linkLinkHasIdentity": "Este dispositivo ya tiene una identidad. Abre ese código en el dispositivo nuevo.",
+  "pushExplanation": "Notificaciones experimentales sin Google. Configura primero ntfy con tu servidor propio. El receptor solo muestra actividad genérica y nunca abre tu perfil ni lee mensajes.",
+  "pushInstall": "Instala ntfy desde F-Droid y configura tu servidor HTTPS propio. El servidor público ntfy.sh no se admite en este modo.",
+  "pushServer": "Tu servidor de notificaciones",
+  "pushEnable": "Recibir avisos de actividad",
+  "pushWaiting": "Esperando a ntfy. Comprueba que use el mismo servidor y reintenta.",
+  "pushReady": "Conectado. Los avisos son genéricos; Arveil consulta los mensajes al abrirse.",
+  "pushPermission": "Permite las notificaciones de Arveil en los ajustes de Android y reintenta.",
+  "pushEndpointMismatch": "ntfy ha devuelto otro servidor o uno no compatible. Comprueba su configuración y la dirección introducida aquí.",
+  "pushRegistrationFailed": "ntfy no pudo registrar este dispositivo. Abre ntfy, comprueba su conexión y reintenta.",
+  "pushUnavailable": "No se pudo actualizar la configuración. Revisa ntfy, la dirección del servidor y los permisos de Android.",
+  "pushRelayPending": "El cambio está guardado en este móvil pero sigue pendiente en el relay. Mantén Arveil abierto con conexión y reintenta. Los avisos desactivados siguen desactivados en el móvil.",
+  "pushLimits": "ntfy necesita funcionar en segundo plano. Las restricciones de batería pueden retrasar avisos. Forzar el cierre impide recibirlos hasta reabrir la app. Pueden llegar avisos genéricos con el perfil cerrado; desactiva esta opción para detenerlos.",
+  "pushRetry": "Reintentar conexión",
+  "pushServerHint": "https://notify.example.org"
 }

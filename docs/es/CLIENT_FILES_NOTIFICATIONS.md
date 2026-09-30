@@ -75,14 +75,37 @@ en una versión publicada.
 flowchart LR
   R[Relay] -->|Aviso genérico del buzón| N[ntfy propio]
   N -->|Conexión desde el móvil| D[Distribuidor ntfy Android]
-  D -->|Callback UnifiedPush| A[Receptor Arveil — pendiente]
-  A -->|Sincronizar cuando sea posible o al abrir| R
+  D -->|Callback UnifiedPush| A[Aviso genérico Arveil]
+  A -->|Abrir perfil existente y sincronizar| R
 ```
 
-El Mac mini puede alojar ntfy junto al relay. El móvil necesita un receptor:
-el primer experimento usa el distribuidor ntfy para Android como segunda app.
-**Este incremento no implementa el conector Android ni sus notificaciones.
-Instalar ntfy por sí solo no activa los avisos de Arveil.**
+El Mac mini puede alojar ntfy junto al relay. Este incremento añade un receptor
+Android experimental con el conector oficial UnifiedPush 3.0.10 y ntfy como
+segunda aplicación. Instala la variante F-Droid de ntfy y configura tu propio
+servidor HTTPS como predeterminado. Introduce la misma dirección base en
+**Arveil → Ajustes → Notificaciones**, activa los avisos y concede el permiso
+Android. El endpoint recibido debe pertenecer a ese servidor y ruta; se rechaza
+ntfy.sh. HTTP local solo se admite en builds debug para pruebas desechables.
+
+El alta, rotación y baja usan el ejecutor Rust del perfil abierto. Los cambios
+sin conexión quedan pendientes y se reintentan al volver o cada 30 segundos
+mientras la app está activa. Desactivar suprime los avisos locales inmediatamente,
+aunque la baja remota siga pendiente. Una revisión evita que una respuesta antigua
+confirme un endpoint nuevo. Abrir otra identidad elimina la suscripción local
+anterior; no promete borrar su registro remoto con el perfil cerrado.
+
+El receptor nativo cifra sus preferencias y endpoint con una clave independiente
+del Keystore Android. No inicia Flutter, abre perfiles, descifra mensajes ni
+modifica lecturas. Solo admite el marcador genérico exacto y agrupa avisos hasta
+una sincronización correcta en primer plano. Pulsar el aviso abre los chats tras
+desbloquear. Puede avisar con el perfil cerrado: desactívalo antes si no lo deseas.
+Una rotación recibida en segundo plano solicita abrir Arveil para completar el alta.
+
+Se integra específicamente el marcador genérico en texto plano de ntfy mediante
+la compatibilidad del conector. **No es un emisor WebPush/VAPID general**; la vía
+moderna de payload cifrado de UnifiedPush queda aparte. Un hint no demuestra un
+remitente ni una cantidad de mensajes. Tink se usa como biblioteca criptográfica
+local; Arveil no añade FCM ni Google Play Services.
 
 ntfy documenta que las suscripciones a servidores propios evitan Firebase y su
 variante F-Droid lo excluye: [documentación Android/UnifiedPush](https://docs.ntfy.sh/subscribe/phone/).
@@ -121,9 +144,9 @@ ofrece `make cli-darwin-server` para este experimento. Verificado con v2.28.0.
 - Antes de admitir endpoints generales, limitar destinos, direcciones resueltas,
   redirecciones y concurrencia, con excepciones intencionales del operador.
   Comprobar solo el esquema de la URL no limita las conexiones salientes.
-- Implementar alta/rotación/baja del endpoint, permiso Android, perfil bloqueado
-  y aviso genérico. Un hint no es un mensaje verificado: no debe abrir otro
-  ejecutor del perfil ni afirmar remitentes o cantidades.
+- Verificar relay → distribuidor ntfy Android real → Arveil, incluyendo rotación,
+  muerte del proceso y pulsación del aviso. La prueba instrumentada usa un
+  distribuidor sintético desechable, no la app ntfy real.
 - Probar pantalla apagada/Doze, ahorro de batería, Wi-Fi/datos, reinicio, muerte
   del proceso, retirada de Recientes y cierre forzado/reapertura en móvil físico.
   Medir demora y consumo. El servidor no evita las
@@ -134,7 +157,7 @@ ofrece `make cli-darwin-server` para este experimento. Verificado con v2.28.0.
 
 ## Evidencia y límites
 
-Pasan el análisis Flutter y 293 pruebas unitarias/de interfaz: límites del visor,
+Pasan el análisis Flutter y 298 pruebas unitarias/de interfaz: límites del visor,
 confirmación de apertura externa, rechazo de bytes no verificados, deduplicación,
 permiso denegado y protección de lecturas ocultas. Compilan los clientes debug
 Mac y Android. La aceptación nativa macOS con perfiles desechables comprueba
@@ -147,7 +170,18 @@ marcador/agrupación/baja mediante redirección SSH local autenticada; se retira
 el servicio y sus datos al terminar. Ninguno usó Firebase ni proveedor upstream.
 La prueba remota no comprobó caída/reinicio de su servidor.
 
-El experimento ntfy verifica el transporte por separado del móvil. La entrega
-del aviso del sistema, apertura externa/limpieza nativa y Android físico siguen
-siendo requisitos de aceptación interactiva antes de publicar. Las pruebas de
-contactos quedan para la siguiente iteración.
+El receptor Android pasa instrumentación nativa en emulador con el conector
+oficial, Keystore y gestor de notificaciones: rechazo de token/marcador incorrecto,
+rechazo de otro servidor, aviso genérico, agrupación y desactivación local. Cinco
+pruebas Dart cubren alta, carreras de rotación, baja sin conexión, sincronización
+solo en primer plano y conservación del aviso tras fallar la sincronización.
+Son pruebas separadas del transporte ntfy; no demuestran entrega en móvil físico.
+La aceptación del perfil nativo Mac también pasó alta en el relay, entrega del
+marcador exacto, rotación/baja y reapertura del perfil cifrado.
+
+La aceptación nativa Mac por separado pasó ocultar y reabrir la ventana, abrir
+un archivo real externo, permisos temporales 0700/0600 y limpieza al caducar.
+El permiso no se completó dentro del tiempo de la prueba:
+la entrega del aviso del sistema sigue sin verificar. Permisos empaquetados,
+pulsación, suspensión/reactivación y Android físico siguen pendientes antes de
+publicar. Las pruebas de contactos quedan para la siguiente iteración.

@@ -2254,4 +2254,56 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get linkLinkHasIdentity =>
       'Este dispositivo ya tiene una identidad. Abre ese código en el dispositivo nuevo.';
+
+  @override
+  String get pushExplanation =>
+      'Notificaciones experimentales sin Google. Configura primero ntfy con tu servidor propio. El receptor solo muestra actividad genérica y nunca abre tu perfil ni lee mensajes.';
+
+  @override
+  String get pushInstall =>
+      'Instala ntfy desde F-Droid y configura tu servidor HTTPS propio. El servidor público ntfy.sh no se admite en este modo.';
+
+  @override
+  String get pushServer => 'Tu servidor de notificaciones';
+
+  @override
+  String get pushEnable => 'Recibir avisos de actividad';
+
+  @override
+  String get pushWaiting =>
+      'Esperando a ntfy. Comprueba que use el mismo servidor y reintenta.';
+
+  @override
+  String get pushReady =>
+      'Conectado. Los avisos son genéricos; Arveil consulta los mensajes al abrirse.';
+
+  @override
+  String get pushPermission =>
+      'Permite las notificaciones de Arveil en los ajustes de Android y reintenta.';
+
+  @override
+  String get pushEndpointMismatch =>
+      'ntfy ha devuelto otro servidor o uno no compatible. Comprueba su configuración y la dirección introducida aquí.';
+
+  @override
+  String get pushRegistrationFailed =>
+      'ntfy no pudo registrar este dispositivo. Abre ntfy, comprueba su conexión y reintenta.';
+
+  @override
+  String get pushUnavailable =>
+      'No se pudo actualizar la configuración. Revisa ntfy, la dirección del servidor y los permisos de Android.';
+
+  @override
+  String get pushRelayPending =>
+      'El cambio está guardado en este móvil pero sigue pendiente en el relay. Mantén Arveil abierto con conexión y reintenta. Los avisos desactivados siguen desactivados en el móvil.';
+
+  @override
+  String get pushLimits =>
+      'ntfy necesita funcionar en segundo plano. Las restricciones de batería pueden retrasar avisos. Forzar el cierre impide recibirlos hasta reabrir la app. Pueden llegar avisos genéricos con el perfil cerrado; desactiva esta opción para detenerlos.';
+
+  @override
+  String get pushRetry => 'Reintentar conexión';
+
+  @override
+  String get pushServerHint => 'https://notify.example.org';
 }

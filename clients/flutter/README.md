@@ -272,6 +272,42 @@ The Rust suite separately injects lost upload acknowledgements, interrupted
 downloads and cancellation during a network request. Private fixture cleanup
 and the Android tool settings above apply to both scenarios.
 
+### Native notification and external-viewer acceptance
+
+The Android receiver uses the official UnifiedPush connector with a disposable
+test distributor. This exercises the real Keystore, service and notification
+manager; it does not establish delivery through the real ntfy Android app.
+Start a disposable emulator and run from `clients/flutter/android` with the
+same JDK used by Flutter:
+
+```sh
+./gradlew :app:testDebugUnitTest :app:connectedDebugAndroidTest -Ptarget-platform=android-arm64
+```
+
+The existing helper verifies profile hint registration/rotation/removal against
+a disposable relay and reopens the encrypted profile:
+
+```sh
+python3 scripts/test_client_conversations.py --device macos --scenario notifications
+```
+
+From `clients/flutter`, Mac window hiding/reopening and external-viewer staging,
+permissions and expiry cleanup can be checked without opening a profile:
+
+```sh
+flutter test integration_test/mac_notifications_test.dart -d macos \
+  --dart-define ARVEIL_TEST_MAC_NATIVE=true
+```
+
+This opens harmless text fixtures in the system viewer. Add
+`--dart-define ARVEIL_TEST_MAC_NOTIFICATIONS=true` to request system notification
+permission and check retention/removal in the notification center. That part is
+interactive and has not yet passed: the permission request timed out in the
+recorded run. It does not prove banner visibility, clicks or sleep/wake behavior.
+Debug-only inspection hooks are absent from release builds.
+See [scope and limits](../../docs/CLIENT_FILES_NOTIFICATIONS.md) for installation,
+locked-profile behavior and physical-device release gates.
+
 ### Android native attachment dialogs (interactive)
 
 On a disposable emulator, put `arveil-picker-fixture.txt` in Downloads with

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 import 'attachment_files.dart';
+import 'android_notifications.dart';
 import 'contact_cards.dart';
 import 'contacts_page.dart';
 import 'conversation_controller.dart';
@@ -90,6 +91,13 @@ class _HomeShellState extends State<HomeShell> {
   );
   final _chats = GlobalKey<ConversationsPageState>();
   final _notifications = DesktopNotifications();
+  late final _androidNotifications = AndroidNotifications(
+    profile: _chat.profile,
+    sync: () async {
+      await _chat.sync();
+      return _chat.syncState == SyncState.synced;
+    },
+  );
 
   /// Keeps the destinations' state when the window crosses a size class
   /// and the layout around them changes.
@@ -112,6 +120,11 @@ class _HomeShellState extends State<HomeShell> {
     _notifications.addListener(_notificationSettingsChanged);
     _chat.onSnapshot = (rows) => unawaited(_notifications.observe(rows));
     unawaited(_notifications.initialize());
+    _androidNotifications.onOpen = () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      _inChats((page) => unawaited(page.openNotifiedConversation(null)));
+    };
+    unawaited(_androidNotifications.initialize());
     WidgetsBinding.instance.addPostFrameCallback((_) => _onLink());
   }
 
@@ -121,6 +134,7 @@ class _HomeShellState extends State<HomeShell> {
     _chat.onSnapshot = null;
     _notifications.removeListener(_notificationSettingsChanged);
     _notifications.dispose();
+    _androidNotifications.dispose();
     super.dispose();
   }
 
@@ -254,6 +268,7 @@ class _HomeShellState extends State<HomeShell> {
           kitFiles: widget.kitFiles,
           onClose: widget.onClose,
           notifications: _notifications,
+          androidNotifications: _androidNotifications,
         ),
       };
 

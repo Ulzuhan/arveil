@@ -7,6 +7,8 @@ import 'appearance_page.dart';
 import 'archives_page.dart';
 import 'design/design.dart';
 import 'desktop_notifications.dart';
+import 'android_notifications.dart';
+import 'android_notification_settings.dart';
 import 'notification_settings.dart';
 import 'devices_page.dart';
 import 'diagnostics_page.dart';
@@ -114,11 +116,13 @@ class SettingsPage extends StatelessWidget {
     required this.kitFiles,
     required this.onClose,
     this.notifications,
+    this.androidNotifications,
   });
   final ProfileSession session;
   final KitFiles kitFiles;
   final VoidCallback onClose;
   final DesktopNotifications? notifications;
+  final AndroidNotifications? androidNotifications;
 
   void _push(BuildContext context, Route<void> route) =>
       Navigator.of(context).push(route);
@@ -316,6 +320,20 @@ class SettingsPage extends StatelessWidget {
                         SettingsGroup(
                           title: l10n.settingsApp,
                           children: [
+                            if (androidNotifications?.supported ?? false)
+                              SettingsRow(
+                                key: const Key('open-android-notifications'),
+                                icon: Icons.notifications_outlined,
+                                title: l10n.notificationsTitle,
+                                onTap: () => _push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AndroidNotificationSettings(
+                                      controller: androidNotifications!,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             if (notifications?.supported ?? false)
                               SettingsRow(
                                 key: const Key('open-notifications'),
