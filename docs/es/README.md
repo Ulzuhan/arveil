@@ -9,13 +9,15 @@ marcha, cómo está diseñado y qué se ha verificado.
 
 *English version: [../README.md](../README.md)*
 
-**Estado (26 de septiembre de 2026).** El relay, el núcleo Rust y la CLI
-están completos hasta la fase 4. Las apps implementan los hitos M3b.0 a
-M3b.4, y el siguiente paso es una beta limitada para macOS y Android (M3b.5).
-No hay ninguna versión publicada y el proyecto no ha pasado una auditoría
-independiente. Cada ADR declara su estado; «DEBE» expresa un requisito del
-diseño, y la [matriz de plataformas](PLATFORMS.md) indica qué requisitos se
-han probado.
+**Estado (30 de septiembre de 2026).** El relay/CLI v0.1.0 y el cliente
+beta 3 (0.1.0+21) están [publicados](https://github.com/Ulzuhan/arveil/releases).
+Los flujos principales de M3b.0–M3b.4 están implementados; sigue abierta la
+aceptación por plataforma y con usuarios externos de M3b.5. Los QR, enlaces
+y solicitudes de contacto están implementados después de beta 3 y necesitan
+un relay actualizado. La [preparación de la beta](BETA_READINESS.md) recoge
+compatibilidad y tareas. El proyecto no ha pasado una auditoría independiente.
+Cada ADR declara su estado; «DEBE» es un requisito de diseño, y la
+[matriz de plataformas](PLATFORMS.md) indica lo que se ha probado.
 
 ## Por dónde empezar
 

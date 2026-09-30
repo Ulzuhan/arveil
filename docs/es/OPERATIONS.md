@@ -17,8 +17,7 @@ docker build -f relay/Dockerfile -t arveil-relay .
 docker compose -f relay/compose.yaml up -d
 ```
 
-**Imágenes versionadas.** Desde la primera versión `v*` etiquetada después de
-incorporar este flujo, `.github/workflows/relay-image.yml` publica
+**Imágenes versionadas.** Con etiquetas `v*`, `.github/workflows/relay-image.yml` publica
 `ghcr.io/ulzuhan/arveil-relay:<versión>` para Linux x86-64 y ARM64, etiquetada
 también con el commit completo y con procedencia firmada
 (`gh attestation verify oci://ghcr.io/ulzuhan/arveil-relay:<versión> --owner
@@ -26,7 +25,9 @@ Ulzuhan`). El binario de cada imagen informa de ese commit con `-version`. Los
 pull requests que tocan el relay compilan ambas arquitecturas sin publicar.
 Con una etiqueta, no se compila ni se publica nada hasta que una persona
 mantenedora aprueba la ejecución en el entorno `release` del repositorio.
-Hasta que haya una versión etiquetada, compila la imagen como arriba.
+Para código posterior a la release publicada, compila la revisión elegida
+como arriba. Consulta la [preparación de la beta](BETA_READINESS.md) para
+compatibilidad cliente/relay y orden de actualización.
 
 **systemd.** Copia [`relay/packaging/arveil-relay.service`](https://github.com/Ulzuhan/arveil/blob/main/relay/packaging/arveil-relay.service), que corre con su propio usuario, con una sección de servicio endurecida y sus datos en `/var/lib/arveil`.
 

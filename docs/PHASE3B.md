@@ -4,6 +4,8 @@ Status: implementation direction accepted; milestone acceptance remains pending,
 
 The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria. This condensed English translation must be updated in the same review; the Spanish text prevails if they diverge.
 
+Client beta 3 (0.1.0+21) is public. Publication does not close M3b.5: physical-device and three-external-user acceptance remain open. [Beta readiness](BETA_READINESS.md) tracks the next release, relay compatibility and acceptance tasks.
+
 ## Scope and structure
 
 Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. The client opens encrypted profiles and enrolls an identity through invitation/bootstrap fields, resumes a failed enrollment and recognizes completion after reopening. Pairing with manual code comparison and encrypted identity-kit export/restore are implemented. Dated KeyPackage availability, exhaustion and resumable replenishment are implemented. Conversation creation, paginated history, offline text and sync are implemented. Separate release apps passed Mac ↔ Android-emulator messaging, upgrade and offline/reconnect checks on September 24; physical-device acceptance remains pending. See the [platform record](PLATFORMS.md#cross-platform-package-acceptance-september-24-2026). SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.

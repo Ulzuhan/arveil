@@ -2,14 +2,14 @@
 
 Qué está fijado, qué se ha compilado y qué se ha ejecutado de verdad. [English version](../PLATFORMS.md).
 
-Una plataforma cuenta como **probada** solo donde el flujo de aceptación se ejecutó en ese sistema. Compilar para un target demuestra el toolchain, no el producto; la distribución es una afirmación distinta que aquí todavía no se hace.
+Una plataforma cuenta como **probada** solo donde el flujo de aceptación se ejecutó en ese sistema. Compilar para un target demuestra el toolchain, no el producto; la distribución se registra aparte de la aceptación. Los paquetes beta públicos no acreditan pruebas en dispositivos físicos.
 
 ## Toolchain fijado
 
 | Componente | Versión | Dónde se fija |
 |---|---|---|
 | Toolchain de Rust | 1.98.1 | `core/rust-toolchain.toml` |
-| SDK de Flutter | 3.44.1 (canal stable) | este documento, hasta que lo fije CI |
+| SDK de Flutter | 3.44.1 (canal stable) | este documento y la acción de instalación de CI |
 | Dart | 3.12.1 | incluido en el SDK de Flutter |
 | flutter_rust_bridge | 2.13.0 (runtime y generador) | `core/crates/arveil-flutter/Cargo.toml` (`=2.13.0`) |
 | NDK de Android | 28.2.13676358, API mínima 24 | instalación del SDK de Android |
@@ -22,13 +22,19 @@ Una plataforma cuenta como **probada** solo donde el flujo de aceptación se eje
 
 | Plataforma | Target de Rust | Compilado | Probado | Distribuido |
 |---|---|---|---|---|
-| macOS (Apple silicon) | `aarch64-apple-darwin` | sí | sí — aceptación ejecutada en el anfitrión | no |
-| Android | `aarch64-linux-android`, `x86_64-linux-android` | sí — aplicación y puente | solo emulador — Android 15 (API 35), arm64; falta dispositivo físico | no |
+| macOS (Apple silicon) | `aarch64-apple-darwin` | sí | sí — aceptación ejecutada en el anfitrión | ZIP beta 3 (0.1.0+21) |
+| Android | `aarch64-linux-android`, `x86_64-linux-android` | sí — aplicación y puente | solo emulador — Android 15 (API 35), arm64; falta dispositivo físico | APK ARM64 beta 3 (0.1.0+21) |
 | iOS | `aarch64-apple-ios` | solo núcleo y capa de aplicación | no | no |
 | Linux | — | no | no | no |
 | Windows | — | no | no | no |
 
 SQLCipher y su OpenSSL vendorizado cruzan a Android sin recurrir a la alternativa que ADR-009 dejó en reserva: los objetos resultantes son `elf64-littleaarch64` tanto para `libcrypto` como para `sqlite3`.
+
+La [beta 3 pública](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3)
+usa el código `9489ce6`. Los registros posteriores y pruebas del código de abajo
+no certifican esos paquetes concretos. Consulta la
+[preparación de la beta](BETA_READINESS.md) para la siguiente versión y su
+aceptación pendiente.
 
 ## Protección del perfil, y qué recupera cada cosa
 

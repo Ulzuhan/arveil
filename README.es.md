@@ -24,7 +24,7 @@ Cifrado de extremo a extremo con MLS (RFC 9420) · un único binario Go como rel
 
 > [!WARNING]
 > Arveil es experimental y **no** ha pasado una auditoría de seguridad
-> independiente. Todavía no hay ninguna versión publicada. Usa perfiles de
+> independiente. Hay paquetes beta públicos disponibles. Usa perfiles de
 > prueba desechables y lee el [modelo de amenazas](docs/es/THREAT_MODEL.md)
 > antes de confiarle algo importante.
 
@@ -170,8 +170,10 @@ condiciones y los invariantes (I-01 a I-13) que comprueban las pruebas.
 
 ## Estado del proyecto
 
-El relay, el núcleo Rust y la CLI están completos hasta la fase 4. Las apps
-Flutter cubren los flujos del día a día y avanzan hacia una beta limitada.
+El relay, el núcleo Rust y la CLI están implementados hasta la fase 4. Son públicos
+el relay/CLI [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) y el
+cliente [beta 3 (0.1.0+21)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3).
+Las apps Flutter cubren el día a día; la aceptación de la beta sigue abierta.
 
 | Fase | Alcance | Estado |
 |---|---|---|
@@ -182,12 +184,14 @@ Flutter cubren los flujos del día a día y avanzan hacia una beta limitada.
 | 4 · Operable | Empaquetado, límites por dirección, salud y métricas, TLS, copias de seguridad | ✅ Hecha |
 | 3b · Apps | Clientes Flutter, actualizaciones firmadas, revisión de seguridad externa | 🚧 En curso |
 
-Los hitos M3b.0 a M3b.4 de la fase 3b están implementados: compilación
-nativa y puente, contrato de la aplicación, alta y vinculación,
-conversaciones y uso diario. Lo siguiente es **M3b.5**, una beta limitada
-para macOS y Android en la que tres personas externas completan los flujos
-principales. Para producción (M3b.8) hacen falta además una revisión de
-seguridad externa y actualizaciones firmadas. Consulta el
+Los flujos principales de M3b.0 a M3b.4 están implementados, con aceptación
+por plataforma pendiente. **M3b.5** requiere pruebas en dispositivos físicos
+y tres personas externas completando los flujos principales. Los anuncios de
+actualización firmados ya están implementados; producción (M3b.8) aún requiere
+revisión externa de seguridad y aceptación final por plataforma. Los QR,
+enlaces y solicitudes de contacto están en `main`, después de beta 3, y
+necesitan un relay posterior a v0.1.0. Consulta el
+[registro de preparación de la beta](docs/es/BETA_READINESS.md), el
 [plan de la fase 3b](docs/es/PHASE3B.md) y el
 [registro de implementación del cliente](docs/es/CLIENT_FOUNDATION.md).
 
@@ -195,10 +199,10 @@ seguridad externa y actualizaciones firmadas. Consulta el
 
 | Plataforma | Estado |
 |---|---|
-| Relay en Linux x86-64 y ARM64 | Las imágenes de contenedor se construyen en CI y se publican con la primera etiqueta de versión |
-| Relay y CLI en Linux x86-64 y macOS arm64 | Flujo de publicación listo, con sumas de comprobación y procedencia de compilación |
-| App para macOS 12 o posterior (Apple silicon) | Paquete experimental; actualización desde una versión anterior verificada |
-| App para Android 7.0 o posterior (arm64) | APK experimental; verificada en el emulador, falta en dispositivos físicos |
+| Relay en Linux x86-64 y ARM64 | Flujo de publicación de imágenes versionadas; véase la guía de operación |
+| Relay y CLI en Linux x86-64 y macOS arm64 | v0.1.0 publicada con sumas de comprobación y procedencia de compilación |
+| App para macOS 12 o posterior (Apple silicon) | ZIP beta público; actualizaciones de paquetes anteriores verificadas; falta instalación limpia descargada |
+| App para Android 7.0 o posterior (arm64) | APK beta público; aceptación registrada en emulador; falta dispositivo físico |
 | Apps de escritorio para Windows y Linux | Previstas (M3b.6) |
 | App para iOS | Prevista (M3b.7) |
 
@@ -232,11 +236,10 @@ sigue la [guía de Podman sin root y Tailscale](docs/PODMAN.md) (en inglés).
 
 ### Conseguir las apps
 
-Aún no hay ninguna versión publicada de las apps. Compílalas desde el código
-(más abajo) o pide a una persona mantenedora un ZIP de macOS o un APK de
-Android experimentales, preparados con la
-[guía de paquetes del cliente](docs/es/CLIENT_RELEASES.md). Ninguno necesita
-herramientas de desarrollo para instalarse. La
+Descarga el ZIP de macOS o APK de Android de la
+[beta 3 del cliente](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3).
+Ninguno necesita herramientas de desarrollo. Comprueba las notas y sumas;
+actualiza sobre la app existente sin desinstalarla ni borrar sus datos. La
 [guía de instalación](docs/es/INSTALLATION.md) explica cada camino, qué se ha
 verificado y qué falta. Para quien simplemente ha recibido una invitación, la
 web tiene una [guía paso a paso](https://arveil.kaicorplabs.com/es/instalar/)
@@ -287,13 +290,13 @@ La documentación completa está publicada en
 **[ulzuhan.github.io/arveil](https://ulzuhan.github.io/arveil/)**, en inglés
 y [en español](docs/es/README.md). La web del proyecto,
 **[arveil.kaicorplabs.com](https://arveil.kaicorplabs.com/es/)**, presenta
-Arveil a quien no es técnico y tendrá los enlaces de descarga.
+Arveil a quien no es técnico y explica cómo instalarlo.
 
 | Tema | Documentos |
 |---|---|
 | Usarlo y administrarlo | [Instalación](docs/es/INSTALLATION.md) · [Poner en marcha un realm](docs/es/OPERATIONS.md) · [Podman sin root](docs/PODMAN.md) (en inglés) · [Paquetes del cliente](docs/es/CLIENT_RELEASES.md) |
 | Diseño | [Arquitectura](docs/es/ARCHITECTURE.md) · [Modelo de amenazas](docs/es/THREAT_MODEL.md) · [Protocolo](docs/es/PROTOCOL.md) · [Modelo de dominio](docs/es/DOMAIN_MODEL.md) |
-| Decisiones | [ADR-001 a ADR-013](docs/es/adr/): Go y Rust, MLS, servidor sin confianza, SQLite, identidad, recuperación, redundancia, transporte, Flutter, y distribución y actualizaciones; propuestas: nombres elegidos, códigos QR y enlaces, y administración del realm desde la app |
+| Decisiones | [ADR-001 a ADR-013](docs/es/adr/): Go y Rust, MLS, servidor sin confianza, SQLite, identidad, recuperación, redundancia, transporte, Flutter, distribución y actualizaciones, códigos QR y enlaces; propuestas: nombres elegidos y administración del realm desde la app |
 | Apps | [Diseño del cliente](docs/es/CLIENT_DESIGN.md) · [Registro de implementación](docs/es/CLIENT_FOUNDATION.md) · [Plan de la fase 3b](docs/es/PHASE3B.md) · [Matriz de plataformas](docs/es/PLATFORMS.md) |
 | Historia | Planes de las fases [0](docs/PHASE0.md) · [1](docs/PHASE1.md) · [2](docs/PHASE2.md) · [3](docs/PHASE3.md) · [4](docs/PHASE4.md) (en inglés) · [Revisión de viabilidad v0.3](docs/es/REVIEW-v0.3.md) |
 
@@ -306,7 +309,7 @@ de vulnerabilidades en privado mediante los
 [avisos de seguridad de GitHub](https://github.com/Ulzuhan/arveil/security/advisories/new);
 [SECURITY.md](SECURITY.md) (en inglés) explica el alcance y qué incluir.
 
-Las versiones incluirán archivos `SHA256SUMS` y procedencia de compilación
+Las versiones del relay/CLI incluyen archivos `SHA256SUMS` y procedencia de compilación
 firmada (`gh attestation verify <archivo> --repo Ulzuhan/arveil`). Las
 compilaciones no están notarizadas ni firmadas para cada plataforma, así que
 macOS y Windows mostrarán un aviso la primera vez. Verifica las descargas con

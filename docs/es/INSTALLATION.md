@@ -7,30 +7,32 @@ para ti: [Instalar Arveil](https://arveil.kaicorplabs.com/es/instalar/).
 Esta página es la referencia completa, también para poner en marcha un relay
 y compilar desde el código.
 
-**Disponibilidad actual (25 de septiembre de 2026):** todavía no hay releases
-publicadas en GitHub. El [comando de empaquetado](CLIENT_RELEASES.md) prepara
-candidatos experimentales: ZIP para macOS y APK para Android. El código actual permite
-alta por invitación, emparejamiento y exportación/restauración del kit cifrado
-de identidad, creación verificada de conversaciones, historial paginado, texto
-sin conexión y sincronización, contactos guardados, adjuntos, revocación de
-dispositivos y exportación/importación cifrada del historial. Los candidatos
-`0.1.0+10` incluyen estas funciones y la corrección de la clave tras el selector
-nativo. El emulador Android conservó el perfil al actualizar y pasó guardado,
-apertura, importación repetida y reinicio; falta verificar la reapertura del
-perfil macOS en esta versión. Consulta el
-[registro de aceptación](PLATFORMS.md#aceptación-del-paquete-corregido-y-sus-selectores-25-de-septiembre-de-2026).
-Los candidatos anteriores `0.1.0+5` pasaron conversación Mac ↔ emulador Android.
-Los paquetes anteriores pueden incluir solo el alta: comprueba la revisión
-y sus notas. En esta fase, utiliza perfiles de prueba desechables.
+**Disponibilidad actual (30 de septiembre de 2026):** son públicos el relay/CLI
+[v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) y el cliente
+[beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3).
+La release incluye ZIP para macOS Apple silicon y APK para Android ARM64,
+sumas, metadatos de compilación y un anuncio de actualización firmado.
+El proyecto es experimental y no ha pasado una revisión independiente de
+seguridad. Usa perfiles de prueba desechables; publicar paquetes no cierra
+la aceptación en dispositivos físicos ni con usuarios externos. Consulta la
+[matriz de plataformas](PLATFORMS.md).
+
+**Código frente a descarga.** Los QR, enlaces y solicitudes de contacto de esta
+guía están implementados en `main` después de beta 3. Beta 3 funciona con relay
+v0.1.0 mediante datos del servidor y códigos de invitación. El cliente nuevo
+requiere un relay con `CredentialGet` (introducido en `d26b5c5`); v0.1.0 no puede
+validar sus rutas de contacto. Actualiza el relay antes de distribuir el nuevo
+cliente. El [registro de preparación de la beta](BETA_READINESS.md) sigue la
+publicación coordinada.
 
 ## Elige por dónde empezar
 
-| Quiero… | Ruta disponible | Qué falta para una versión descargable |
+| Quiero… | Ruta disponible | Aceptación pendiente |
 |---|---|---|
-| Desplegar un relay | Compilar con Docker Compose o usar el asistente de staging con Podman sin root | La primera versión etiquetada de las imágenes versionadas para Linux x86-64/ARM64 (el flujo ya existe; véase [operación](OPERATIONS.md)) y guía de instalación/actualización probada |
-| Probar la app en macOS | ZIP experimental del mantenedor o compilar desde el código | Release pública y aceptación de una instalación nueva descargada |
-| Probar la app en Android | APK experimental del mantenedor o compilar desde el código | Release pública y aceptación de instalación/actualización en teléfono físico |
-| Usar un iPhone | Hito posterior y separado | Aceptación nativa y una vía compatible de firma/distribución |
+| Desplegar un relay | Binarios publicados v0.1.0, o código actual con Docker Compose/Podman | Registrar instalación y actualización en un host limpio compatible; el cliente de código actual necesita un relay actualizado |
+| Probar la app en macOS | Descargar el ZIP de beta 3 | Instalación limpia descargada en otro Mac y VoiceOver |
+| Probar la app en Android | Descargar el APK de beta 3 | Instalación/actualización en teléfono físico, cámara, enlaces, TalkBack y Doze/reconexión |
+| Usar un iPhone | Hito posterior y separado | Aceptación nativa y firma/distribución compatible |
 
 ## Relay: primer arranque local con Docker Compose
 
@@ -88,8 +90,8 @@ del realm.
 Las releases del cliente usan tags `clients-v…` e incluyen `BUILD-macos.json`,
 `BUILD-android.json` y `SHA256SUMS-clients.txt`. Un candidato local de una sola
 plataforma incluye `BUILD.json` y `SHA256SUMS.txt`.
-Las descargas públicas aparecerán en
-[GitHub Releases](https://github.com/Ulzuhan/arveil/releases) cuando se publiquen.
+Descarga el ZIP o APK de la
+[beta 3](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3).
 Para instalar estos paquetes no necesitas Flutter, Rust, Xcode ni Android Studio.
 
 ### macOS: Apple silicon, macOS 12 o posterior
