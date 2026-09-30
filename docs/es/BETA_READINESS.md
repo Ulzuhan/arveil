@@ -14,8 +14,8 @@ preparación para producción.
 | [Relay/CLI v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) | `dc03eef` | Binarios y sumas públicos |
 | [Cliente beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3) | `9489ce6` | ZIP macOS ARM64, APK Android ARM64 y anuncio de actualización firmado públicos |
 | Candidato beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | Borrador de GitHub con ZIP, APK y anuncio firmado (secuencia 6); sumas de archivos subidos verificadas; sin publicación pública |
-| Google Play beta 4, versionCode 24 | `eae5ff7d655ed6cd2cff94ee58e1f8e6104c02a4` | Sustituye al código 23 en pruebas internas desde el 30 de septiembre; Play Console confirma disponibilidad para testers internos, con estado Sin revisar |
-| macOS beta 4 local, 0.1.0+24 | `eae5ff7d655ed6cd2cff94ee58e1f8e6104c02a4` | Instalada sobre la build 23; perfil cifrado conservado y abierto; comprobado que el QR generado usa la ruta pública anunciada actualmente |
+| Google Play beta 4, versionCode 25 | `edbf30a0bd3798f9e5a97a1cde44946b6710ab71` | Sustituye al código 24 en pruebas internas desde el 30 de septiembre; Play Console confirma disponibilidad para testers internos, con estado Sin revisar |
+| macOS beta 4 local, 0.1.0+25 | `edbf30a0bd3798f9e5a97a1cde44946b6710ab71` | Instalada sobre la build 24 con copia cifrada verificada; perfil existente abierto y sincronizado; QR de contacto generado y decodificado localmente, comprobada la ruta WSS pública |
 | Relay para acompañar la beta | `cf7073823c4695c6246684061fedf47773107613` | Código candidato; faltan compilación/publicación de release y aceptación del despliegue |
 
 El candidato añade QR, enlaces, tarjetas de contacto y solicitudes
@@ -84,8 +84,11 @@ y la aceptación completa en hardware. Los 16 trabajos de CI de `eae5ff7` pasaro
 
 La revisión posterior encontró que los QR/enlaces de contacto y los datos del
 servidor al reabrir aún copiaban la dirección original de alta. La corrección y
-sus pruebas se siguen en [PR #139](https://github.com/Ulzuhan/arveil/pull/139);
-no están en la build 24 instalada/publicada. La siguiente aceptación debe cubrir
+sus pruebas de [PR #139](https://github.com/Ulzuhan/arveil/pull/139) ya están en
+la build 25. El AAB mantiene el certificado de subida de la build 24; las sumas
+y los metadatos de código limpio de ambos paquetes están verificados. Pasaron
+158 pruebas Rust, 284 Flutter, el análisis Flutter y la aceptación nativa de
+vinculación/recuperación. La siguiente aceptación debe cubrir
 contactos, mensajes, adjuntos y uso sin conexión/al reabrir en el móvil físico;
 después, restauración del kit en un perfil aislado y prueba con tres personas.
 

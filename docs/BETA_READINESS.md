@@ -13,8 +13,8 @@ experimental package does not close a milestone or establish production readines
 | [Relay/CLI v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) | `dc03eef` | Public binaries and checksums |
 | [Client beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3) | `9489ce6` | Public macOS ARM64 ZIP, Android ARM64 APK and signed update announcement |
 | Candidate client beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | GitHub draft with ZIP, APK and signed update announcement (sequence 6); uploaded hashes verified; not a public release |
-| Google Play beta 4, versionCode 24 | `eae5ff7d655ed6cd2cff94ee58e1f8e6104c02a4` | Replaced versionCode 23 in internal testing on September 30; Play Console confirms availability to internal testers, with status unreviewed |
-| Local macOS beta 4, 0.1.0+24 | `eae5ff7d655ed6cd2cff94ee58e1f8e6104c02a4` | Installed over build 23; encrypted profile retained and reopened; rendered linking QR verified to use the currently advertised public route |
+| Google Play beta 4, versionCode 25 | `edbf30a0bd3798f9e5a97a1cde44946b6710ab71` | Replaced versionCode 24 in internal testing on September 30; Play Console confirms availability to internal testers, with status unreviewed |
+| Local macOS beta 4, 0.1.0+25 | `edbf30a0bd3798f9e5a97a1cde44946b6710ab71` | Installed over build 24 with a verified encrypted-data backup; existing profile reopened and synced; rendered contact QR decoded locally and verified to carry the public WSS route |
 | Companion relay release | `cf7073823c4695c6246684061fedf47773107613` | Source candidate; release build/publication and deployment acceptance remain open |
 
 The client candidate adds QR codes, links, contact cards and requests
@@ -82,8 +82,11 @@ acceptance run remain unrecorded. All 16 CI jobs passed for `eae5ff7`.
 
 A follow-up review found that contact QR/shared links and reopened server details
 still copied the original enrollment URL. The correction and regression tests
-are tracked in [PR #139](https://github.com/Ulzuhan/arveil/pull/139); they are not
-in the installed/published build 24. The next acceptance step is contact exchange,
+in [PR #139](https://github.com/Ulzuhan/arveil/pull/139) are now packaged in build 25.
+The signed AAB retains build 24's upload certificate; both build 25 packages have
+verified checksums and clean source metadata. Local validation passed 158 Rust
+tests, 284 Flutter tests, Flutter analysis and native pairing/recovery acceptance.
+The next acceptance step is contact exchange,
 messages, attachments and offline/reopen behavior on the physical phone, followed
 by an isolated kit restore and the three-person trial.
 
