@@ -19,6 +19,10 @@ trap cleanup EXIT
 (cd "$ROOT/relay" && go build -o bin/arveil-relay ./cmd/arveil-relay)
 (cd "$ROOT/core" && cargo build -q -p arveil-cli)
 
+# The parent can enter the polling loop before the background child opens its
+# redirected output. Create both files first so that an empty first read waits.
+: > "$DATA/relay.out"
+: > "$DATA/relay.err"
 "$RELAY" -data-dir "$DATA/relay" -listen "127.0.0.1:$PORT" > "$DATA/relay.out" 2> "$DATA/relay.err" &
 RELAY_PID=$!
 
