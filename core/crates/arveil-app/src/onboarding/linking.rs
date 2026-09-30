@@ -132,27 +132,9 @@ fn administrator(config: &ProfileConfig) -> Result<(Client, StoredDevice, Bootst
         hex::encode(&realm.realm_id),
         hex::encode(realm.signing_public.as_bytes()),
         hex::encode(&realm.noise_public),
-        link_endpoint(&realm),
+        realm.preferred_endpoint_url(),
     ))?;
     Ok((client, device, bootstrap))
-}
-
-/// A bootstrap can be an old LAN or tailnet address. New devices need the
-/// realm's current preferred route, from the signature-verified endpoint
-/// list stored at enrollment/sync, just as normal client connections do.
-fn link_endpoint(realm: &arveil_core::client::StoredRealm) -> &str {
-    realm
-        .endpoint_list
-        .as_ref()
-        .and_then(|list| {
-            list.endpoints
-                .iter()
-                .filter(|endpoint| endpoint.kind != "admin")
-                .min_by_key(|endpoint| endpoint.priority)
-        })
-        .map_or(realm.bootstrap_url.as_str(), |endpoint| {
-            endpoint.url.as_str()
-        })
 }
 
 /// Open a rendezvous and describe it as a `link` card.
@@ -178,7 +160,7 @@ pub async fn offer_link(config: &ProfileConfig) -> Result<LinkOffer, CliError> {
                 .realm()
                 .map_err(client_error("realm"))?
                 .ok_or_else(|| CliError::Domain("no enrolled realm".into()))?;
-            bootstrap.url = link_endpoint(&realm).to_owned();
+            bootstrap.url = realm.preferred_endpoint_url().to_owned();
             bootstrap.noise_public = realm.noise_public;
         }
         other => return Err(unexpected(other)),
@@ -786,7 +768,7 @@ mod tests {
             .realm_save(&realm_id, &signing.verifying_key(), &[8; 32], private_url)
             .unwrap();
         assert_eq!(
-            link_endpoint(&client.realm().unwrap().unwrap()),
+            client.realm().unwrap().unwrap().preferred_endpoint_url(),
             private_url
         );
         let list = RealmEndpointList {
@@ -818,7 +800,7 @@ mod tests {
             .unwrap();
         let realm = client.realm().unwrap().unwrap();
         assert_eq!(realm.bootstrap_url, private_url, "enrollment is preserved");
-        assert_eq!(link_endpoint(&realm), public_url);
+        assert_eq!(realm.preferred_endpoint_url(), public_url);
         let mut hostile = list;
         hostile.sequence = 3;
         hostile.endpoints[2].url = "wss://untrusted.example.org".into();
@@ -829,7 +811,10 @@ mod tests {
         )
         .unwrap();
         assert!(client.realm_accept_endpoint_list(&realm_id, &bad).is_err());
-        assert_eq!(link_endpoint(&client.realm().unwrap().unwrap()), public_url);
+        assert_eq!(
+            client.realm().unwrap().unwrap().preferred_endpoint_url(),
+            public_url
+        );
     }
 
     #[test]

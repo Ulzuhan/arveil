@@ -56,6 +56,8 @@ pub async fn update(config: &ProfileConfig, replenish: bool) -> Result<KeyPackag
         realm_id: session.realm.realm_id.clone(),
         signing_key: session.realm.signing_public,
         noise_public: session.realm.noise_public.clone(),
+        // connect() tries the signed endpoints first and keeps this original
+        // enrollment route only as its last connection fallback.
         url: session.realm.bootstrap_url.clone(),
     };
     let mut connection = crate::connect(config, &session, &bootstrap).await?;

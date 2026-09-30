@@ -257,6 +257,14 @@ QR inside the frame and hold steady. Compare the numbers and approve on the
 administrator device. A pasted or externally opened link also requires confirming
 the number on the phone. Linking preserves identity; it does not copy old history.
 
+Contact QR codes, shared contact links and restored server details also use the
+preferred non-admin endpoint from the stored signature-verified list. Sync before
+creating a contact card after the operator changes the relay's addresses; cards
+can still be created offline from the last verified list. Existing shared links
+keep their original payload, so create and share a new link after such a change.
+Private-only realms remain supported: a public route must be configured and
+preferred by the operator before a code works outside its private network.
+
 The linking code uses the preferred non-admin endpoint from the relay's verified
 signed list. If the administrator originally enrolled through a private network,
 the relay must now advertise a route reachable by the phone. A public WSS route

@@ -76,6 +76,8 @@ Future<void> main() async {
       );
       final identity = (await admin.setup()).identityId;
       expect(identity, isNotNull);
+      final publishedUrl = bootstrap.split(':').skip(5).join(':');
+      expect((await admin.setup()).bootstrap, bootstrap);
       var linked = await create();
       await linked.beginPairing(bootstrap: bootstrap);
       final pair = (await linked.setup()).pairing!;
@@ -118,10 +120,7 @@ Future<void> main() async {
       // current route signed by the relay, not its enrollment address.
       final card = await admin.readCard(text: offer.link);
       expect(card, isA<CardView_Link>());
-      expect(
-        (card as CardView_Link).server,
-        bootstrap.split(':').skip(5).join(':'),
-      );
+      expect((card as CardView_Link).server, publishedUrl);
       final asking = admin.awaitLinkRequest(pairId: offer.pairId);
       final joining = phone.joinLink(
         text: offer.link,

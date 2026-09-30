@@ -269,6 +269,15 @@ y autoriza desde el administrador. Si pegas o abres el enlace desde otra app,
 también debes confirmar el número en el móvil. La vinculación conserva la
 identidad; no copia el historial anterior.
 
+Los QR de contacto, los enlaces de contacto compartidos y los datos del servidor
+recuperados también usan el endpoint no administrativo preferido de la lista
+guardada y verificada por firma. Sincroniza antes de generar una tarjeta si el
+operador ha cambiado las direcciones; sin conexión se usa la última lista
+verificada. Los enlaces ya compartidos conservan su contenido original: genera
+y comparte uno nuevo después del cambio. Los servidores exclusivamente privados
+siguen admitidos; el operador debe configurar y dar prioridad a una ruta pública
+para que el código funcione fuera de su red privada.
+
 El código usa el endpoint de cliente prioritario de la lista firmada y verificada
 del relay. Si el administrador se dio de alta por una red privada, el relay debe
 anunciar ahora una ruta accesible desde el móvil. Da la máxima prioridad a la
