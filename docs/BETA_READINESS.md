@@ -13,7 +13,8 @@ experimental package does not close a milestone or establish production readines
 | [Relay/CLI v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) | `dc03eef` | Public binaries and checksums |
 | [Client beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3) | `9489ce6` | Public macOS ARM64 ZIP, Android ARM64 APK and signed update announcement |
 | Candidate client beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | GitHub draft with ZIP, APK and signed update announcement (sequence 6); uploaded hashes verified; not a public release |
-| Google Play beta 4, versionCode 23 | `cf7073823c4695c6246684061fedf47773107613` | AAB published to internal testing on September 30; Play Console confirms availability to internal testers, with status unreviewed |
+| Google Play beta 4, versionCode 24 | `eae5ff7d655ed6cd2cff94ee58e1f8e6104c02a4` | Replaced versionCode 23 in internal testing on September 30; Play Console confirms availability to internal testers, with status unreviewed |
+| Local macOS beta 4, 0.1.0+24 | `eae5ff7d655ed6cd2cff94ee58e1f8e6104c02a4` | Installed over build 23; encrypted profile retained and reopened; rendered linking QR verified to use the currently advertised public route |
 | Companion relay release | `cf7073823c4695c6246684061fedf47773107613` | Source candidate; release build/publication and deployment acceptance remain open |
 
 The client candidate adds QR codes, links, contact cards and requests
@@ -74,13 +75,25 @@ remain proposals. Windows/Linux and iOS remain M3b.6/M3b.7.
 
 ## Evidence and limits
 
+On September 30, the tester reported successful QR scanning/device linking from
+the existing Mac identity to a physical Android phone after the build 24 update.
+This is a user-reported result; the exact phone model/OS and a complete hardware
+acceptance run remain unrecorded. All 16 CI jobs passed for `eae5ff7`.
+
+A follow-up review found that contact QR/shared links and reopened server details
+still copied the original enrollment URL. The correction and regression tests
+are tracked in [PR #139](https://github.com/Ulzuhan/arveil/pull/139); they are not
+in the installed/published build 24. The next acceptance step is contact exchange,
+messages, attachments and offline/reopen behavior on the physical phone, followed
+by an isolated kit restore and the three-person trial.
+
 On `cf70738`, [CI](https://github.com/Ulzuhan/arveil/actions/runs/36316913022)
 completed all 15 jobs, including native bridge builds and phase acceptance.
 The local September 29 review passed Go tests, 169 Rust tests (one ignored
 vector-dump helper), 280 Flutter tests and Flutter analysis. The September 30
 package audit checked the candidate files without rebuilding or changing them.
 
-These checks do not establish physical Android, clean downloaded macOS,
+These checks do not establish complete physical Android acceptance, clean downloaded macOS,
 VoiceOver, physical-device TalkBack, Doze, or the three-person external trial.
 Record each acceptance result against a package hash, OS/device and source
 commit in [the platform record](PLATFORMS.md). Keep live endpoints, invitations,

@@ -14,7 +14,8 @@ preparación para producción.
 | [Relay/CLI v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) | `dc03eef` | Binarios y sumas públicos |
 | [Cliente beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3) | `9489ce6` | ZIP macOS ARM64, APK Android ARM64 y anuncio de actualización firmado públicos |
 | Candidato beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | Borrador de GitHub con ZIP, APK y anuncio firmado (secuencia 6); sumas de archivos subidos verificadas; sin publicación pública |
-| Google Play beta 4, versionCode 23 | `cf7073823c4695c6246684061fedf47773107613` | AAB publicado en pruebas internas el 30 de septiembre; Play Console confirma disponibilidad para testers internos, con estado Sin revisar |
+| Google Play beta 4, versionCode 24 | `eae5ff7d655ed6cd2cff94ee58e1f8e6104c02a4` | Sustituye al código 23 en pruebas internas desde el 30 de septiembre; Play Console confirma disponibilidad para testers internos, con estado Sin revisar |
+| macOS beta 4 local, 0.1.0+24 | `eae5ff7d655ed6cd2cff94ee58e1f8e6104c02a4` | Instalada sobre la build 23; perfil cifrado conservado y abierto; comprobado que el QR generado usa la ruta pública anunciada actualmente |
 | Relay para acompañar la beta | `cf7073823c4695c6246684061fedf47773107613` | Código candidato; faltan compilación/publicación de release y aceptación del despliegue |
 
 El candidato añade QR, enlaces, tarjetas de contacto y solicitudes
@@ -76,6 +77,18 @@ siguen como propuestas. Windows/Linux e iOS siguen en M3b.6/M3b.7.
 
 ## Evidencia y límites
 
+El 30 de septiembre, el tester confirmó que el escaneo y la vinculación de la
+identidad del Mac con un Android físico funcionaron tras actualizar a la build 24.
+Es un resultado comunicado por el usuario; faltan el modelo/SO exactos del móvil
+y la aceptación completa en hardware. Los 16 trabajos de CI de `eae5ff7` pasaron.
+
+La revisión posterior encontró que los QR/enlaces de contacto y los datos del
+servidor al reabrir aún copiaban la dirección original de alta. La corrección y
+sus pruebas se siguen en [PR #139](https://github.com/Ulzuhan/arveil/pull/139);
+no están en la build 24 instalada/publicada. La siguiente aceptación debe cubrir
+contactos, mensajes, adjuntos y uso sin conexión/al reabrir en el móvil físico;
+después, restauración del kit en un perfil aislado y prueba con tres personas.
+
 En `cf70738`, [CI](https://github.com/Ulzuhan/arveil/actions/runs/36316913022)
 completó sus 15 trabajos, incluidos los puentes nativos y aceptación de fases.
 La revisión local del 29 de septiembre pasó las pruebas Go, 169 pruebas Rust
@@ -83,7 +96,7 @@ La revisión local del 29 de septiembre pasó las pruebas Go, 169 pruebas Rust
 La comprobación de paquetes del 30 de septiembre revisó los archivos candidatos
 sin recompilarlos ni modificarlos.
 
-Esto no acredita Android físico, macOS descargado en limpio, VoiceOver,
+Esto no acredita la aceptación completa en Android físico, macOS descargado en limpio, VoiceOver,
 TalkBack en hardware, Doze ni la prueba externa de tres personas. Registra cada
 resultado con suma del paquete, SO/dispositivo y commit en la
 [matriz de plataformas](PLATFORMS.md). No publiques endpoints reales,
