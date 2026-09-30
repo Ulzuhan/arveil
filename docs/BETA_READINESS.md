@@ -12,7 +12,8 @@ experimental package does not close a milestone or establish production readines
 |---|---|---|
 | [Relay/CLI v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) | `dc03eef` | Public binaries and checksums |
 | [Client beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3) | `9489ce6` | Public macOS ARM64 ZIP, Android ARM64 APK and signed update announcement |
-| Candidate client beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | GitHub draft with ZIP, APK and signed update announcement (sequence 6); uploaded hashes verified; separate Play AAB remains local; not a public release |
+| Candidate client beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | GitHub draft with ZIP, APK and signed update announcement (sequence 6); uploaded hashes verified; not a public release |
+| Google Play beta 4, versionCode 23 | `cf7073823c4695c6246684061fedf47773107613` | AAB published to internal testing on September 30; Play Console confirms availability to internal testers, with status unreviewed |
 | Companion relay release | `cf7073823c4695c6246684061fedf47773107613` | Source candidate; release build/publication and deployment acceptance remain open |
 
 The client candidate adds QR codes, links, contact cards and requests

@@ -13,7 +13,8 @@ preparación para producción.
 |---|---|---|
 | [Relay/CLI v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) | `dc03eef` | Binarios y sumas públicos |
 | [Cliente beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3) | `9489ce6` | ZIP macOS ARM64, APK Android ARM64 y anuncio de actualización firmado públicos |
-| Candidato beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | Borrador de GitHub con ZIP, APK y anuncio firmado (secuencia 6); sumas de archivos subidos verificadas; el AAB para Play sigue local; sin publicar |
+| Candidato beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | Borrador de GitHub con ZIP, APK y anuncio firmado (secuencia 6); sumas de archivos subidos verificadas; sin publicación pública |
+| Google Play beta 4, versionCode 23 | `cf7073823c4695c6246684061fedf47773107613` | AAB publicado en pruebas internas el 30 de septiembre; Play Console confirma disponibilidad para testers internos, con estado Sin revisar |
 | Relay para acompañar la beta | `cf7073823c4695c6246684061fedf47773107613` | Código candidato; faltan compilación/publicación de release y aceptación del despliegue |
 
 El candidato añade QR, enlaces, tarjetas de contacto y solicitudes
