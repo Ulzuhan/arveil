@@ -97,7 +97,10 @@ anterior; no promete borrar su registro remoto con el perfil cerrado.
 El receptor nativo cifra sus preferencias y endpoint con una clave independiente
 del Keystore Android. No inicia Flutter, abre perfiles, descifra mensajes ni
 modifica lecturas. Solo admite el marcador genérico exacto y agrupa avisos hasta
-una sincronización correcta en primer plano. Pulsar el aviso abre los chats tras
+una sincronización correcta en primer plano. Si llega con Arveil visible y la
+sincronización no termina, se muestra una vez al pasar a segundo plano. Volver
+a cambiar de plano no repite un aviso ya mostrado o descartado.
+Pulsar el aviso abre los chats tras
 desbloquear. Puede avisar con el perfil cerrado: desactívalo antes si no lo deseas.
 Una rotación recibida en segundo plano solicita abrir Arveil para completar el alta.
 
@@ -172,7 +175,9 @@ La prueba remota no comprobó caída/reinicio de su servidor.
 
 El receptor Android pasa instrumentación nativa en emulador con el conector
 oficial, Keystore y gestor de notificaciones: rechazo de token/marcador incorrecto,
-rechazo de otro servidor, aviso genérico, agrupación y desactivación local. Cinco
+rechazo de otro servidor, aviso genérico, agrupación y desactivación local. Una
+prueba de regresión cubre un hint en primer plano seguido del paso a segundo plano
+sin otro push, transiciones repetidas y descarte antes de sincronizar. Cinco
 pruebas Dart cubren alta, carreras de rotación, baja sin conexión, sincronización
 solo en primer plano y conservación del aviso tras fallar la sincronización.
 Son pruebas separadas del transporte ntfy; no demuestran entrega en móvil físico.
@@ -181,7 +186,9 @@ marcador exacto, rotación/baja y reapertura del perfil cifrado.
 
 La aceptación nativa Mac por separado pasó ocultar y reabrir la ventana, abrir
 un archivo real externo, permisos temporales 0700/0600 y limpieza al caducar.
-El permiso no se completó dentro del tiempo de la prueba:
-la entrega del aviso del sistema sigue sin verificar. Permisos empaquetados,
-pulsación, suspensión/reactivación y Android físico siguen pendientes antes de
+Con el permiso de Arveil activado en Ajustes de macOS, también pasan la entrega
+al centro de notificaciones y su retirada al cerrar el perfil. La prueba reabre
+la ventana antes de cerrar el perfil para que retirar el último motivo para seguir
+en segundo plano no termine el proceso de aceptación. Permisos empaquetados,
+banner visible, pulsación, suspensión/reactivación y Android físico siguen pendientes antes de
 publicar. Las pruebas de contactos quedan para la siguiente iteración.

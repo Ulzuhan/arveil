@@ -36,10 +36,12 @@ class ArveilPushService : PushService() {
             !message.content.contentEquals(PushPolicy.marker)) return@safely
         // The fixed marker is intentionally untrusted. No Flutter engine,
         // profile, message decryption or second executor is started here.
-        val alreadyPending = state.optBoolean("pending")
-        PushStore.update(this) { it.put("pending", true).put("hintRevision", UUID.randomUUID().toString()) }
+        PushStore.update(this) {
+            if (!it.optBoolean("pending")) it.put("presented", false)
+            it.put("pending", true).put("hintRevision", UUID.randomUUID().toString())
+        }
         PushChannel.changed()
-        if (!alreadyPending && !PushChannel.foreground) PushNotice.show(this)
+        PushNotice.deliverPending(this, PushChannel.foreground)
     }
 
     override fun onRegistrationFailed(reason: FailedReason, instance: String) = failure(instance, "registration")
@@ -65,12 +67,29 @@ object PushNotice {
     const val id = 140
     const val openAction = "io.github.ulzuhan.arveil.OPEN_ACTIVITY"
     fun clear(context: Context) { NotificationManagerCompat.from(context).cancel(id) }
-    fun show(context: Context, setup: Boolean = false) {
-        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+    /** Pending sync and presented notification are independent. A foreground
+     * hint still needs one notice if the app leaves before sync succeeds. */
+    fun deliverPending(context: Context, foreground: Boolean) {
+        if (foreground) return
+        try {
+            val state = PushStore.read(context)
+            if (!state.optBoolean("enabled") || !state.optBoolean("pending") || state.optBoolean("presented")) return
+            if (show(context)) {
+                PushStore.update(context) {
+                    if (it.optBoolean("pending") && it.optString("instance") == state.optString("instance") &&
+                        it.optString("hintRevision") == state.optString("hintRevision")) it.put("presented", true)
+                }
+            }
+        } catch (_: Exception) { /* Retry after a later hint or visibility change. */ }
+    }
+
+    fun show(context: Context, setup: Boolean = false): Boolean {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
         val manager = context.getSystemService(NotificationManager::class.java)
         if (android.os.Build.VERSION.SDK_INT >= 26) {
             manager.createNotificationChannel(NotificationChannel(channel,
                 context.getString(R.string.push_channel), NotificationManager.IMPORTANCE_DEFAULT))
+            if (manager.getNotificationChannel(channel)?.importance == NotificationManager.IMPORTANCE_NONE) return false
         }
         val intent = Intent(context, MainActivity::class.java).setAction(openAction)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -80,6 +99,6 @@ object PushNotice {
             .setContentText(context.getString(if (setup) R.string.push_setup else R.string.push_activity))
             .setContentIntent(open).setAutoCancel(true).setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).build()
-        try { manager.notify(id, notice) } catch (_: SecurityException) { /* Permission was revoked. */ }
+        return try { manager.notify(id, notice); true } catch (_: SecurityException) { false }
     }
 }

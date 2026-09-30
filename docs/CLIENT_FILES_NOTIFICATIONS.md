@@ -94,7 +94,10 @@ local subscription. This does not promise remote removal from a closed profile.
 The native receiver stores its delivery capability encrypted with a separate
 Android Keystore key. It never starts Flutter, opens a profile, decrypts a message
 or changes read state. It accepts only the exact generic marker and coalesces
-notices until a successful foreground sync. A tap opens Arveil's inbox after
+notices until a successful foreground sync. A hint received while visible remains
+eligible for one notice when Arveil goes into the background before sync finishes;
+an already displayed or dismissed notice is not replayed on each transition.
+A tap opens Arveil's inbox after
 unlock. Generic notices can arrive with the profile closed; disable them before
 closing if that is unwanted. Endpoint changes received in the background ask
 the person to open Arveil to finish registration.
@@ -170,7 +173,9 @@ upstream provider. The remote run did not test its server's restart/outage.
 
 The Android receiver passes native emulator instrumentation through the official
 connector, Keystore and notification manager: unknown-token/wrong-marker rejection,
-server mismatch rejection, generic delivery, coalescing and local disable. Five
+server mismatch rejection, generic delivery, coalescing and local disable. A
+regression test also covers a foreground hint followed by a background transition
+without another push, repeated transitions and dismissal before sync. Five
 Dart tests cover registration, rotation races, offline removal, foreground-only
 sync and preserving a hint after failed sync. These are separate from the ntfy
 transport experiment; they do not establish physical-phone delivery.
@@ -178,8 +183,10 @@ Native macOS profile acceptance also passed relay registration, exact marker
 delivery, endpoint rotation/removal and reopening the encrypted profile.
 
 Separate macOS native acceptance passed window hiding/reopening, real external
-text-file opening, 0700/0600 temporary permissions and expiry cleanup. The
-notification permission did not complete
-within the test timeout, so system banner delivery remains unverified. Packaged
-permissions, taps, sleep/wake and physical Android are still release gates.
+text-file opening, 0700/0600 temporary permissions and expiry cleanup. With Arveil's
+notification permission enabled in macOS settings, notification-center delivery
+and removal on profile close also pass. The test reopens the window before
+closing the profile, so removing the last background keep-alive does not terminate
+the acceptance process. Packaged permissions, visible banners, taps, sleep/wake
+and physical Android are still release gates.
 Contact testing is deferred to the next iteration.

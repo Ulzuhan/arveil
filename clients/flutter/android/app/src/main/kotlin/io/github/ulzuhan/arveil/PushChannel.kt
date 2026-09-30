@@ -1,6 +1,7 @@
 package io.github.ulzuhan.arveil
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -55,7 +56,7 @@ class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger
                         val instance = PushStore.read(activity).optString("instance")
                         PushStore.update(activity) {
                             it.put("enabled", false).put("endpoint", "").put("error", "")
-                                .put("revision", UUID.randomUUID().toString()).put("pending", false)
+                                .put("revision", UUID.randomUUID().toString()).put("pending", false).put("presented", false)
                         }
                         if (instance.isNotEmpty()) UnifiedPush.unregister(activity, instance)
                         PushNotice.clear(activity)
@@ -75,7 +76,7 @@ class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger
                         PushStore.update(activity) {
                             if (it.optString("owner") == call.argument<String>("owner") &&
                                 it.optString("hintRevision") == call.argument<String>("revision")) {
-                                it.put("pending", false); clear = true
+                                it.put("pending", false).put("presented", false); clear = true
                             }
                         }
                         if (clear) PushNotice.clear(activity)
@@ -135,13 +136,13 @@ class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger
             "permission" to NotificationManagerCompat.from(activity).areNotificationsEnabled()
         )
     }
-    fun visibility(value: Boolean) { foreground = value; if (value) changed() }
+    fun visibility(value: Boolean) = updateVisibility(activity, value)
     fun opened(intent: Intent) {
         if (intent.action == PushNotice.openAction) { opened = true; channel.invokeMethod("opened", null) }
     }
     fun close() {
         if (live === this) live = null
-        foreground = false
+        updateVisibility(activity, false)
         permissionResult?.error("closed", "Activity closed.", null)
         permissionResult = null
         channel.setMethodCallHandler(null)
@@ -152,6 +153,10 @@ class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger
         var foreground = false
             private set
         private var live: PushChannel? = null
+        internal fun updateVisibility(context: Context, value: Boolean) {
+            foreground = value
+            if (value) changed() else PushNotice.deliverPending(context, false)
+        }
         fun changed() { Handler(Looper.getMainLooper()).post { live?.channel?.invokeMethod("changed", null) } }
     }
 }

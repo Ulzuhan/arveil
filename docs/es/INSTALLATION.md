@@ -230,7 +230,8 @@ pendientes. El cierre forzado y las restricciones de batería pueden impedir o
 retrasar la entrega.
 
 Se han ejecutado builds debug, instrumentación del receptor Android y aceptación
-de adjuntos Mac con perfiles desechables. Quedan el recorrido con ntfy Android
+de adjuntos Mac con perfiles desechables. También pasan la entrega y retirada del
+aviso en el centro de notificaciones Mac debug con el permiso activado. Quedan el recorrido con ntfy Android
 real, avisos Mac empaquetados y Android físico antes de publicar; consulta
 [alcance y evidencia](CLIENT_FILES_NOTIFICATIONS.md). Estas pruebas no despliegan
 un servidor de notificaciones permanente.

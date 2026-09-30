@@ -117,6 +117,9 @@ void main() {
         reason: 'The macOS notification center did not retain the notice.',
       );
       debugPrint('ARVEIL_NATIVE_DELIVERED');
+      // Closing a profile is a visible-window action. Reopen before removing the
+      // final background keep-alive so macOS keeps the test engine available.
+      await channel.invokeMethod<void>('acceptanceOpenWindow');
       await channel.invokeMethod<void>('profile', {'open': false});
       await Future<void>.delayed(const Duration(milliseconds: 300));
       final cleared = await channel.invokeMapMethod<String, Object?>(

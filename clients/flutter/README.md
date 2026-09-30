@@ -284,6 +284,22 @@ same JDK used by Flutter:
 ./gradlew :app:testDebugUnitTest :app:connectedDebugAndroidTest -Ptarget-platform=android-arm64
 ```
 
+`PushVisibilityTest` also verifies that a hint received in the foreground is
+presented once when leaving before sync completes, without needing another push.
+For the optional `NtfyDeliveryTest`, install the official ntfy F-Droid APK in the
+disposable emulator and configure its default server to a disposable ntfy server
+forwarded with `adb reverse`. Supply the same loopback URL as the `ntfyServer`
+instrumentation argument. The test is skipped by default and uses no real profile:
+
+```sh
+./gradlew :app:connectedDebugAndroidTest -Ptarget-platform=android-arm64 \
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.ulzuhan.arveil.NtfyDeliveryTest \
+  -Pandroid.testInstrumentationRunnerArguments.ntfyServer=http://127.0.0.1:2586
+```
+
+This checks real distributor registration, marker delivery, foreground/background
+coalescing and unregistration. It does not establish Doze or physical-phone delivery.
+
 The existing helper verifies profile hint registration/rotation/removal against
 a disposable relay and reopens the encrypted profile:
 
@@ -302,8 +318,8 @@ flutter test integration_test/mac_notifications_test.dart -d macos \
 This opens harmless text fixtures in the system viewer. Add
 `--dart-define ARVEIL_TEST_MAC_NOTIFICATIONS=true` to request system notification
 permission and check retention/removal in the notification center. That part is
-interactive and has not yet passed: the permission request timed out in the
-recorded run. It does not prove banner visibility, clicks or sleep/wake behavior.
+interactive and passed after enabling Arveil in macOS notification settings.
+It does not prove banner visibility, clicks or sleep/wake behavior.
 Debug-only inspection hooks are absent from release builds.
 See [scope and limits](../../docs/CLIENT_FILES_NOTIFICATIONS.md) for installation,
 locked-profile behavior and physical-device release gates.
