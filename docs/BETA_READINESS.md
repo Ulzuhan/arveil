@@ -12,7 +12,7 @@ experimental package does not close a milestone or establish production readines
 |---|---|---|
 | [Relay/CLI v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) | `dc03eef` | Public binaries and checksums |
 | [Client beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3) | `9489ce6` | Public macOS ARM64 ZIP, Android ARM64 APK and signed update announcement |
-| Candidate client beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | Local ZIP, APK and Play AAB; metadata, hashes, signatures and package-content audits rechecked on September 30; not a public release |
+| Candidate client beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | GitHub draft with ZIP, APK and signed update announcement (sequence 6); uploaded hashes verified; separate Play AAB remains local; not a public release |
 | Companion relay release | `cf7073823c4695c6246684061fedf47773107613` | Source candidate; release build/publication and deployment acceptance remain open |
 
 The client candidate adds QR codes, links, contact cards and requests
@@ -36,15 +36,14 @@ commit, not only that minimum frame introduction.
 3. Verify the candidate client against that relay: join, link/decline, contact
    requests, messaging, attachments, offline/reconnect and retained profile on
    update from beta 3. Confirm the old relay is refused clearly.
-4. Complete the signed client announcement. Review the notes and verify that
+4. Review the signed client announcement and notes, then verify that
    beta 3 sees the update. Publish the compatible relay before announcing the
    dependent client, then verify downloads/feed and the supported update paths.
 5. Record Google Play separately, including its track, versionCode, review state
    and tester eligibility. Do not assume sideload and Play builds can replace
    each other: compare their app-signing certificates first.
 
-The existing client candidate can be prepared with the release helper after
-its notes are reviewed; signing asks for the update key's passphrase locally:
+The existing client candidate was prepared with the release helper:
 
 ```sh
 python3 scripts/release_clients.py prepare \
@@ -52,8 +51,9 @@ python3 scripts/release_clients.py prepare \
   --revision cf7073823c4695c6246684061fedf47773107613
 ```
 
-`prepare` does not publish. The update announcement is not yet signed in this
-record. Release notes must state the relay dependency and actual acceptance.
+`prepare` does not publish. The update announcement was signed and verified
+on September 30 (sequence 6). All six draft assets match the local SHA-256
+hashes. Release notes state the relay dependency and remaining acceptance.
 The relay workflows require the repository's `release` environment approval;
 a draft or local package is not evidence that those builds have run.
 
