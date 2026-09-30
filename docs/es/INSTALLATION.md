@@ -231,8 +231,9 @@ retrasar la entrega.
 
 Se han ejecutado builds debug, instrumentación del receptor Android y aceptación
 de adjuntos Mac con perfiles desechables. También pasan la entrega y retirada del
-aviso en el centro de notificaciones Mac debug con el permiso activado. Quedan el recorrido con ntfy Android
-real, avisos Mac empaquetados y Android físico antes de publicar; consulta
+aviso en el centro de notificaciones Mac debug con el permiso activado. La app
+oficial ntfy F-Droid pasa la entrega en emulador con un servidor local desechable.
+Quedan el recorrido completo relay-móvil, avisos Mac empaquetados y Android físico antes de publicar; consulta
 [alcance y evidencia](CLIENT_FILES_NOTIFICATIONS.md). Estas pruebas no despliegan
 un servidor de notificaciones permanente.
 Los cambios no requieren migrar ni reinstalar el perfil: conserva el perfil

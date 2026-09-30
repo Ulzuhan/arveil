@@ -297,8 +297,13 @@ instrumentation argument. The test is skipped by default and uses no real profil
   -Pandroid.testInstrumentationRunnerArguments.ntfyServer=http://127.0.0.1:2586
 ```
 
-This checks real distributor registration, marker delivery, foreground/background
-coalescing and unregistration. It does not establish Doze or physical-phone delivery.
+This passed with the official ntfy v1.25.2 F-Droid release APK and ntfy v2.28.0
+on an Android 15 ARM64 emulator. It checks real distributor registration, marker
+delivery, foreground/background coalescing, local token removal and silence after
+disable/unregister. Debug network policy allows HTTP only for `127.0.0.1`; this
+configuration is absent from release builds. The marker is posted directly to
+ntfy, so this does not establish relay-to-phone delivery, Doze or physical-phone
+behavior. Remove the temporary server/forward and restore ntfy settings afterwards.
 
 The existing helper verifies profile hint registration/rotation/removal against
 a disposable relay and reopens the encrypted profile:

@@ -147,8 +147,9 @@ The official Darwin ntfy archive is client-only; its source has a
   addresses and redirects, with intentional operator exceptions; bound delivery
   concurrency. Scheme validation alone is not an outbound network policy.
 - Verify the complete relay → real ntfy Android distributor → Arveil path with
-  endpoint rotation, process death and notification taps. The instrumented
-receiver test uses a disposable distributor fixture, not a real ntfy app.
+  endpoint rotation, process death and notification taps. Relay transport and
+  the real Android distributor now pass separate disposable acceptance tests;
+  they have not yet been exercised together with a physical profile.
 - Test screen-off/Doze, battery saver, Wi-Fi/mobile switching, restart, process death,
   Recents swipe and force-stop/reopen on a physical phone. Measure delay and battery.
   A server cannot bypass [Android's background limits](https://developer.android.com/training/monitoring-device-state/doze-standby).
@@ -181,6 +182,18 @@ sync and preserving a hint after failed sync. These are separate from the ntfy
 transport experiment; they do not establish physical-phone delivery.
 Native macOS profile acceptance also passed relay registration, exact marker
 delivery, endpoint rotation/removal and reopening the encrypted profile.
+
+The optional `NtfyDeliveryTest` passed on an Android 15 ARM64 emulator using the
+official ntfy v1.25.2 F-Droid release APK (published checksum and signing certificate
+verified) and a loopback ntfy v2.28.0 server, without Firebase or an upstream
+provider. It checks real endpoint registration, marker delivery, foreground to
+background presentation, duplicate coalescing, local token removal and silence
+after disable/unregister. All three native tests also pass together. The native
+test posts the marker directly to ntfy; it does not open an Arveil profile, test
+relay-to-phone delivery end to end, or establish behavior after process death.
+Loopback HTTP for the test publisher is enabled only in the debug source set;
+release network policy is unchanged. The temporary server and forward are removed
+and ntfy's previous preferences restored after acceptance.
 
 Separate macOS native acceptance passed window hiding/reopening, real external
 text-file opening, 0700/0600 temporary permissions and expiry cleanup. With Arveil's

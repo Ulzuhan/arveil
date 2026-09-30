@@ -148,8 +148,9 @@ ofrece `make cli-darwin-server` para este experimento. Verificado con v2.28.0.
   redirecciones y concurrencia, con excepciones intencionales del operador.
   Comprobar solo el esquema de la URL no limita las conexiones salientes.
 - Verificar relay → distribuidor ntfy Android real → Arveil, incluyendo rotación,
-  muerte del proceso y pulsación del aviso. La prueba instrumentada usa un
-  distribuidor sintético desechable, no la app ntfy real.
+  muerte del proceso y pulsación del aviso. El transporte del relay y el
+  distribuidor Android real ya pasan pruebas desechables separadas; todavía
+  no se han probado juntos con un perfil en móvil físico.
 - Probar pantalla apagada/Doze, ahorro de batería, Wi-Fi/datos, reinicio, muerte
   del proceso, retirada de Recientes y cierre forzado/reapertura en móvil físico.
   Medir demora y consumo. El servidor no evita las
@@ -183,6 +184,17 @@ solo en primer plano y conservación del aviso tras fallar la sincronización.
 Son pruebas separadas del transporte ntfy; no demuestran entrega en móvil físico.
 La aceptación del perfil nativo Mac también pasó alta en el relay, entrega del
 marcador exacto, rotación/baja y reapertura del perfil cifrado.
+
+La prueba opcional `NtfyDeliveryTest` pasó en un emulador Android 15 ARM64 con el
+APK oficial ntfy v1.25.2 F-Droid (checksum publicado y certificado de firma
+verificados) y ntfy v2.28.0 local, sin Firebase ni proveedor upstream. Comprueba
+alta real del endpoint, entrega del marcador, presentación al pasar a segundo
+plano, agrupación, eliminación del token local y silencio tras desactivar/dar de
+baja. También pasan las tres pruebas nativas juntas. La prueba publica el marcador
+directamente en ntfy: no abre un perfil Arveil, no comprueba el recorrido completo
+relay-móvil ni la entrega tras terminar el proceso. HTTP local para este emisor
+solo se habilita en debug; la política de red publicada no cambia. Al terminar se
+retiran servidor y redirección y se restauran las preferencias anteriores de ntfy.
 
 La aceptación nativa Mac por separado pasó ocultar y reabrir la ventana, abrir
 un archivo real externo, permisos temporales 0700/0600 y limpieza al caducar.

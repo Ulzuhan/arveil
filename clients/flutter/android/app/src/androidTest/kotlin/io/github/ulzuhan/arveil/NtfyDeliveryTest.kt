@@ -1,6 +1,7 @@
 package io.github.ulzuhan.arveil
 
 import android.app.NotificationManager
+import android.content.Context
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -97,7 +98,8 @@ class NtfyDeliveryTest {
             UnifiedPush.unregister(context, instance)
             // The connector removes its token before sending UNREGISTER, so the
             // resulting remote callback is no longer mapped to this instance.
-            assertNull(UnifiedPush.getSavedDistributor(context))
+            assertNull(context.getSharedPreferences("unifiedpush.connector", Context.MODE_PRIVATE)
+                .getString("$instance/unifiedpush.connector", null))
             publish(endpoint, PushPolicy.marker)
             Thread.sleep(1000)
             assertFalse(PushStore.read(context).optBoolean("pending"))

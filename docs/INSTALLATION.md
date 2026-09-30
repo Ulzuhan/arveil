@@ -223,8 +223,9 @@ prevent or delay delivery.
 
 Debug builds, native Android receiver instrumentation and disposable Mac
 attachment acceptance have run. Mac debug notification-center delivery and removal
-also passed with system permission enabled. The real ntfy Android distributor path,
-packaged Mac banners and physical Android behavior remain release gates;
+also passed with system permission enabled. The official ntfy F-Droid Android app
+passes a separate emulator delivery test against a disposable local server.
+Full relay-to-phone acceptance, packaged Mac banners and physical Android behavior remain release gates;
 see [scope and evidence](CLIENT_FILES_NOTIFICATIONS.md). No permanent notification
 server is deployed by these tests.
 No profile migration or reinstall is required by these changes. Keep the

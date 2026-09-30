@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Disposable adb-reversed ntfy acceptance; absent from release builds. -->
+    <application android:networkSecurityConfig="@xml/debug_network_security_config"/>
 </manifest>
