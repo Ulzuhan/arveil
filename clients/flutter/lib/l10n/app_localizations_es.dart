@@ -12,6 +12,71 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appTitle => 'Arveil';
 
   @override
+  String get notificationsTitle => 'Notificaciones';
+
+  @override
+  String get notificationsExplanation =>
+      'Recibe avisos genéricos de mensajes nuevos mientras tu perfil esté abierto. Las notificaciones no muestran nombres ni contenido de los mensajes.';
+
+  @override
+  String get notificationsEnable => 'Mostrar notificaciones en este Mac';
+
+  @override
+  String get notificationsBackground => 'Mantener Arveil en segundo plano';
+
+  @override
+  String get notificationsBackgroundDetail =>
+      'Cerrar la ventana mantiene tu perfil abierto y sincroniza cada diez segundos. Puedes reabrir Arveil o salir desde la barra de menús.';
+
+  @override
+  String get notificationsLimits =>
+      'Salir de Arveil, cerrar el perfil o poner el Mac en reposo detiene estos avisos. Los mensajes vuelven a sincronizarse al regresar. Los modos de concentración y ajustes del sistema pueden silenciar los avisos.';
+
+  @override
+  String get notificationsDenied =>
+      'Las notificaciones no están permitidas. Activa Arveil en Ajustes del Sistema → Notificaciones y vuelve a activar esta opción.';
+
+  @override
+  String get notificationsUnavailable =>
+      'No se pudieron preparar las notificaciones. Revisa los permisos del sistema y el acceso al Llavero, y vuelve a intentarlo. Tus mensajes siguen en Arveil.';
+
+  @override
+  String get notificationsNewActivity =>
+      'Tienes mensajes nuevos. Abre Arveil para leerlos.';
+
+  @override
+  String get notificationsOpenApp => 'Abrir Arveil';
+
+  @override
+  String get notificationsQuitApp => 'Salir de Arveil';
+
+  @override
+  String get attachmentOpen => 'Abrir';
+
+  @override
+  String get attachmentOpenExternal => 'Abrir con…';
+
+  @override
+  String get attachmentOpenWarning =>
+      'La aplicación elegida recibirá una copia descifrada y puede conservarla o incluirla en sus copias de seguridad. Arveil conserva su copia temporal aproximadamente una hora mientras está en ejecución y limpia las copias caducadas al volver a abrirse.';
+
+  @override
+  String get attachmentNoViewer =>
+      'Ninguna aplicación compatible pudo abrir este archivo. Puedes guardar una copia.';
+
+  @override
+  String get attachmentOpenFailed =>
+      'No se pudo abrir el archivo. Comprueba que haya terminado de descargarse y vuelve a intentarlo.';
+
+  @override
+  String get attachmentPreviewFailed =>
+      'No se pudo previsualizar la imagen o supera el límite de tamaño del visor.';
+
+  @override
+  String get attachmentExternalPreview =>
+      'Abre este archivo con una aplicación compatible, sin tener que buscarlo en Descargas.';
+
+  @override
   String get navChats => 'Chats';
 
   @override
@@ -693,7 +758,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get attachmentResumeDownload => 'Reanudar descarga';
 
   @override
-  String get attachmentDownload => 'Descargar';
+  String get attachmentDownload => 'Descargar y abrir';
 
   @override
   String get attachmentCancel => 'Cancelar transferencia';

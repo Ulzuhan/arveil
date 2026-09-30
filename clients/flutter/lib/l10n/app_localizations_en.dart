@@ -12,6 +12,71 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'Arveil';
 
   @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsExplanation =>
+      'Receive generic alerts for new messages while your profile is open. Names and message content are not shown in notifications.';
+
+  @override
+  String get notificationsEnable => 'Show notifications on this Mac';
+
+  @override
+  String get notificationsBackground => 'Keep Arveil running in the background';
+
+  @override
+  String get notificationsBackgroundDetail =>
+      'Closing the window keeps your profile open and syncs every ten seconds. Reopen Arveil or quit from the menu bar.';
+
+  @override
+  String get notificationsLimits =>
+      'Quitting Arveil, closing your profile or putting the Mac to sleep stops these alerts. Messages sync again when you return. Focus and your system settings can silence alerts.';
+
+  @override
+  String get notificationsDenied =>
+      'Notifications are not allowed. Enable Arveil in System Settings → Notifications, then turn this option on again.';
+
+  @override
+  String get notificationsUnavailable =>
+      'Notifications could not be prepared. Check system permissions and Keychain access, then try again. Your messages remain in Arveil.';
+
+  @override
+  String get notificationsNewActivity =>
+      'You have new messages. Open Arveil to read them.';
+
+  @override
+  String get notificationsOpenApp => 'Open Arveil';
+
+  @override
+  String get notificationsQuitApp => 'Quit Arveil';
+
+  @override
+  String get attachmentOpen => 'Open';
+
+  @override
+  String get attachmentOpenExternal => 'Open with…';
+
+  @override
+  String get attachmentOpenWarning =>
+      'The selected app will receive a decrypted copy and may keep or back it up. Arveil keeps its temporary copy for about one hour while running and cleans expired copies on the next launch.';
+
+  @override
+  String get attachmentNoViewer =>
+      'No compatible app could open this file. You can save a copy instead.';
+
+  @override
+  String get attachmentOpenFailed =>
+      'The file could not be opened. Check that it has finished downloading and try again.';
+
+  @override
+  String get attachmentPreviewFailed =>
+      'This image could not be previewed or exceeds the preview size limit.';
+
+  @override
+  String get attachmentExternalPreview =>
+      'Open this file in a compatible app, without looking for it in Downloads.';
+
+  @override
   String get navChats => 'Chats';
 
   @override
@@ -686,7 +751,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachmentResumeDownload => 'Resume download';
 
   @override
-  String get attachmentDownload => 'Download';
+  String get attachmentDownload => 'Download and open';
 
   @override
   String get attachmentCancel => 'Cancel transfer';

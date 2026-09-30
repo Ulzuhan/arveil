@@ -7,6 +7,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private var attachments: AttachmentPicker? = null
+    private var viewer: AttachmentViewer? = null
     private var updates: UpdateInstaller? = null
     private var links: MethodChannel? = null
 
@@ -16,6 +17,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         attachments = AttachmentPicker(this, flutterEngine.dartExecutor.binaryMessenger)
+        viewer = AttachmentViewer(this, flutterEngine.dartExecutor.binaryMessenger)
         updates = UpdateInstaller(this, flutterEngine.dartExecutor.binaryMessenger)
         // Links that open the app (ADR-012 §5). Only their text crosses:
         // Dart reads it and asks the person before anything happens.
@@ -68,6 +70,8 @@ class MainActivity : FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         attachments?.close()
         attachments = null
+        viewer?.close()
+        viewer = null
         updates?.close()
         updates = null
         links?.setMethodCallHandler(null)

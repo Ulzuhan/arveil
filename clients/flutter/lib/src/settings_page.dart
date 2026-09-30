@@ -6,6 +6,8 @@ import 'appearance.dart';
 import 'appearance_page.dart';
 import 'archives_page.dart';
 import 'design/design.dart';
+import 'desktop_notifications.dart';
+import 'notification_settings.dart';
 import 'devices_page.dart';
 import 'diagnostics_page.dart';
 import 'key_packages_panel.dart';
@@ -111,10 +113,12 @@ class SettingsPage extends StatelessWidget {
     required this.session,
     required this.kitFiles,
     required this.onClose,
+    this.notifications,
   });
   final ProfileSession session;
   final KitFiles kitFiles;
   final VoidCallback onClose;
+  final DesktopNotifications? notifications;
 
   void _push(BuildContext context, Route<void> route) =>
       Navigator.of(context).push(route);
@@ -312,6 +316,20 @@ class SettingsPage extends StatelessWidget {
                         SettingsGroup(
                           title: l10n.settingsApp,
                           children: [
+                            if (notifications?.supported ?? false)
+                              SettingsRow(
+                                key: const Key('open-notifications'),
+                                icon: Icons.notifications_outlined,
+                                title: l10n.notificationsTitle,
+                                onTap: () => _push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => NotificationSettings(
+                                      controller: notifications!,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             if (UpdateScope.maybeOf(context)
                                 case final updates?)
                               ListenableBuilder(

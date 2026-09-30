@@ -28,6 +28,22 @@ String safeAttachmentName(String name) {
 class AttachmentFiles {
   const AttachmentFiles();
   static const _android = MethodChannel('io.github.ulzuhan.arveil/attachments');
+  static const _viewer = MethodChannel(
+    'io.github.ulzuhan.arveil/attachment_viewer',
+  );
+
+  /// Explicit handoff only. Native code owns a bounded-lived private copy and
+  /// grants access to the selected viewer; nothing is added to Downloads.
+  Future<bool> openExternal(String name, Uint8List bytes) async {
+    if (bytes.length > maximumAttachmentBytes) {
+      throw const FormatException('File too large.');
+    }
+    return await _viewer.invokeMethod<bool>('open', {
+          'name': safeAttachmentName(name),
+          'bytes': bytes,
+        }) ??
+        false;
+  }
 
   Future<PickedAttachment?> open() async {
     if (defaultTargetPlatform == TargetPlatform.android) {

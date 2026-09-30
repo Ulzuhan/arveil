@@ -104,6 +104,114 @@ abstract class AppLocalizations {
   /// **'Arveil'**
   String get appTitle;
 
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Notificaciones'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsExplanation.
+  ///
+  /// In es, this message translates to:
+  /// **'Recibe avisos genéricos de mensajes nuevos mientras tu perfil esté abierto. Las notificaciones no muestran nombres ni contenido de los mensajes.'**
+  String get notificationsExplanation;
+
+  /// No description provided for @notificationsEnable.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar notificaciones en este Mac'**
+  String get notificationsEnable;
+
+  /// No description provided for @notificationsBackground.
+  ///
+  /// In es, this message translates to:
+  /// **'Mantener Arveil en segundo plano'**
+  String get notificationsBackground;
+
+  /// No description provided for @notificationsBackgroundDetail.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar la ventana mantiene tu perfil abierto y sincroniza cada diez segundos. Puedes reabrir Arveil o salir desde la barra de menús.'**
+  String get notificationsBackgroundDetail;
+
+  /// No description provided for @notificationsLimits.
+  ///
+  /// In es, this message translates to:
+  /// **'Salir de Arveil, cerrar el perfil o poner el Mac en reposo detiene estos avisos. Los mensajes vuelven a sincronizarse al regresar. Los modos de concentración y ajustes del sistema pueden silenciar los avisos.'**
+  String get notificationsLimits;
+
+  /// No description provided for @notificationsDenied.
+  ///
+  /// In es, this message translates to:
+  /// **'Las notificaciones no están permitidas. Activa Arveil en Ajustes del Sistema → Notificaciones y vuelve a activar esta opción.'**
+  String get notificationsDenied;
+
+  /// No description provided for @notificationsUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudieron preparar las notificaciones. Revisa los permisos del sistema y el acceso al Llavero, y vuelve a intentarlo. Tus mensajes siguen en Arveil.'**
+  String get notificationsUnavailable;
+
+  /// No description provided for @notificationsNewActivity.
+  ///
+  /// In es, this message translates to:
+  /// **'Tienes mensajes nuevos. Abre Arveil para leerlos.'**
+  String get notificationsNewActivity;
+
+  /// No description provided for @notificationsOpenApp.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir Arveil'**
+  String get notificationsOpenApp;
+
+  /// No description provided for @notificationsQuitApp.
+  ///
+  /// In es, this message translates to:
+  /// **'Salir de Arveil'**
+  String get notificationsQuitApp;
+
+  /// No description provided for @attachmentOpen.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir'**
+  String get attachmentOpen;
+
+  /// No description provided for @attachmentOpenExternal.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir con…'**
+  String get attachmentOpenExternal;
+
+  /// No description provided for @attachmentOpenWarning.
+  ///
+  /// In es, this message translates to:
+  /// **'La aplicación elegida recibirá una copia descifrada y puede conservarla o incluirla en sus copias de seguridad. Arveil conserva su copia temporal aproximadamente una hora mientras está en ejecución y limpia las copias caducadas al volver a abrirse.'**
+  String get attachmentOpenWarning;
+
+  /// No description provided for @attachmentNoViewer.
+  ///
+  /// In es, this message translates to:
+  /// **'Ninguna aplicación compatible pudo abrir este archivo. Puedes guardar una copia.'**
+  String get attachmentNoViewer;
+
+  /// No description provided for @attachmentOpenFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo abrir el archivo. Comprueba que haya terminado de descargarse y vuelve a intentarlo.'**
+  String get attachmentOpenFailed;
+
+  /// No description provided for @attachmentPreviewFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo previsualizar la imagen o supera el límite de tamaño del visor.'**
+  String get attachmentPreviewFailed;
+
+  /// No description provided for @attachmentExternalPreview.
+  ///
+  /// In es, this message translates to:
+  /// **'Abre este archivo con una aplicación compatible, sin tener que buscarlo en Descargas.'**
+  String get attachmentExternalPreview;
+
   /// Main navigation destination with the conversation list.
   ///
   /// In es, this message translates to:
@@ -1217,7 +1325,7 @@ abstract class AppLocalizations {
   /// No description provided for @attachmentDownload.
   ///
   /// In es, this message translates to:
-  /// **'Descargar'**
+  /// **'Descargar y abrir'**
   String get attachmentDownload;
 
   /// No description provided for @attachmentCancel.

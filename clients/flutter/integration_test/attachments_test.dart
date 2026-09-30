@@ -1,7 +1,9 @@
 // Run through scripts/test_client_conversations.py --scenario attachments.
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:arveil/src/attachment_files.dart';
+import 'package:arveil/src/attachment_viewer.dart';
 import 'package:arveil/src/conversation_controller.dart';
 import 'package:arveil/src/conversations_page.dart';
 import 'package:arveil/src/profile_keys.dart';
@@ -199,6 +201,12 @@ Future<void> main() async {
       await settle();
       await tap(find.byKey(Key('resume-${received.eventId}')));
       await transferred(peerChat, received.eventId, AttachmentStateView.ready);
+      await until(
+        () => find.byType(AttachmentViewer).evaluate().isNotEmpty,
+        'Downloaded file did not open from the conversation',
+      );
+      expect(files.exported, isNull);
+      await tap(find.byType(BackButton));
       await tap(find.byKey(Key('export-${received.eventId}')));
       expect(files.exported, isNull);
       await tap(find.byKey(const Key('confirm-export')));
@@ -281,6 +289,64 @@ Future<void> main() async {
         limit: 50,
       )).events.singleWhere((e) => e.eventId == cancelled);
       expect(row.attachment!.state, AttachmentStateView.cancelled);
+
+      // A real image is authenticated by Rust and previewed from both sides,
+      // offline after reopening the receiver's encrypted profile.
+      final imageBytes = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNQaGj4DwAEBAIgeLZ75wAAAABJRU5ErkJggg==',
+      );
+      final imageId = await alice.queueAttachment(
+        groupId: group,
+        name: 'image.png',
+        bytes: imageBytes,
+      );
+      await alice.resumeAttachment(
+        bootstrap: bootstrap,
+        groupId: group,
+        eventId: imageId,
+      );
+      await bob.sync_(bootstrap: bootstrap);
+      final imageEvent = (await bob.historyPage(
+        groupId: group,
+        limit: 50,
+      )).events.singleWhere((e) => e.attachment?.name == 'image.png');
+      await bob.resumeAttachment(
+        bootstrap: bootstrap,
+        groupId: group,
+        eventId: imageEvent.eventId,
+      );
+      await tester.pumpWidget(const SizedBox());
+      await bob.close();
+      bob = await open(1);
+      await relayState('offline');
+      for (final entry in [(alice, imageId), (bob, imageEvent.eventId)]) {
+        final imageChat = ConversationController(entry.$1, bootstrap);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ConversationsPage(
+              controller: imageChat,
+              attachmentFiles: files,
+            ),
+          ),
+        );
+        await settle();
+        await imageChat.select(group);
+        await settle();
+        await tap(find.byKey(Key('open-${entry.$2}')));
+        await until(
+          () => find.byKey(const Key('attachment-image')).evaluate().isNotEmpty,
+          'Verified image did not render offline',
+        );
+        expect(
+          tester
+              .widget<RawImage>(find.byKey(const Key('attachment-image')))
+              .image!
+              .width,
+          1,
+        );
+        await tester.pumpWidget(const SizedBox());
+      }
+      expect(files.exported, bytes); // Preview did not call the export picker.
       expect(await Directory('${root.path}/0/downloads').exists(), isFalse);
       expect(await Directory('${root.path}/1/downloads').exists(), isFalse);
       await tester.pumpWidget(const SizedBox());

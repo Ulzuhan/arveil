@@ -70,6 +70,7 @@ nav:
   - Client foundation: CLIENT_FOUNDATION.md
   - Flutter plan (phase 3b): PHASE3B.md
   - Client design: CLIENT_DESIGN.md
+  - Attachments and notifications: CLIENT_FILES_NOTIFICATIONS.md
   - Platform matrix: PLATFORMS.md
   - Phase 4 plan: PHASE4.md
   - Decision records:
@@ -105,6 +106,7 @@ nav:
       - Base de aplicación implementada: es/CLIENT_FOUNDATION.md
       - Plan Flutter (fase 3b): es/PHASE3B.md
       - Diseño del cliente: es/CLIENT_DESIGN.md
+      - Adjuntos y notificaciones: es/CLIENT_FILES_NOTIFICATIONS.md
       - Matriz de plataformas: es/PLATFORMS.md
       - ADR-009 Flutter primero: es/adr/ADR-009-flutter-first.md
       - Modelo de amenazas: es/THREAT_MODEL.md
