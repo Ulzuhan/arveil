@@ -105,7 +105,7 @@ def main():
                 worker = threading.Thread(target=control.serve_forever)
                 worker.start()
                 config = directory / "defines.json"
-                config.write_text(json.dumps({"ARVEIL_TEST_BOOTSTRAP": bootstrap, "ARVEIL_TEST_INVITE": invites[0], "ARVEIL_TEST_INVITE_A": invites[0], "ARVEIL_TEST_INVITE_B": invites[1], "ARVEIL_TEST_CONTROL": f"http://127.0.0.1:{control_port}", "ARVEIL_TEST_CONTROL_TOKEN": token}))
+                config.write_text(json.dumps({"ARVEIL_TEST_BOOTSTRAP": bootstrap, "ARVEIL_TEST_LEGACY_BOOTSTRAP": bootstrap.replace("127.0.0.1", "localhost"), "ARVEIL_TEST_INVITE": invites[0], "ARVEIL_TEST_INVITE_A": invites[0], "ARVEIL_TEST_INVITE_B": invites[1], "ARVEIL_TEST_CONTROL": f"http://127.0.0.1:{control_port}", "ARVEIL_TEST_CONTROL_TOKEN": token}))
                 config.chmod(0o600)
                 if adb:
                     for number in (port, control_port):

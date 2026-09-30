@@ -54,16 +54,29 @@ class _QrScannerPageState extends State<QrScannerPage> {
   bool _done = false;
   DateTime _lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   String? _notice;
+  int _generation = 0;
+  int _readFailures = 0;
+  Future<void> _released = Future.value();
+  late final AppLifecycleListener _lifecycle;
 
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(
+      onInactive: _pause,
+      onResume: () => unawaited(_start()),
+    );
     unawaited(_start());
   }
 
   Future<void> _start() async {
+    final generation = ++_generation;
+    bool current() => mounted && generation == _generation && !_done;
     try {
+      await _released;
+      if (!current()) return;
       final cameras = await availableCameras();
+      if (!current()) return;
       if (cameras.isEmpty) {
         _set(_CameraState.unavailable);
         return;
@@ -74,23 +87,60 @@ class _QrScannerPageState extends State<QrScannerPage> {
       );
       final camera = CameraController(
         back,
-        ResolutionPreset.medium,
+        // Linking cards carry keys and are dense. A 480p preview loses too
+        // many modules when the whole code fits in the camera view.
+        ResolutionPreset.veryHigh,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
       _camera = camera;
       await camera.initialize();
-      if (!mounted) return;
-      await camera.startImageStream(_frame);
+      if (!current()) return;
+      try {
+        await camera.setFocusMode(FocusMode.auto);
+      } on CameraException catch (_) {
+        // Fixed-focus cameras can still scan.
+      }
+      if (!current()) return;
+      await camera.startImageStream((image) => _frame(image, generation));
+      if (!current()) return;
+      _notice = null;
+      _readFailures = 0;
       _set(_CameraState.ready);
     } on CameraException catch (e) {
+      if (!current()) return;
+      _pause();
       _set(
         e.code.contains('Denied') || e.code.contains('denied')
             ? _CameraState.denied
             : _CameraState.unavailable,
       );
     } catch (_) {
+      if (!current()) return;
+      _pause();
       _set(_CameraState.unavailable);
+    }
+  }
+
+  void _pause() {
+    ++_generation;
+    _reading = false;
+    final camera = _camera;
+    _camera = null;
+    if (camera != null) {
+      _released = _released.then((_) => _release(camera));
+    }
+    _set(_CameraState.starting);
+  }
+
+  Future<void> _release(CameraController camera) async {
+    try {
+      if (camera.value.isStreamingImages) await camera.stopImageStream();
+    } catch (_) {}
+    try {
+      await camera.dispose();
+    } catch (_) {
+      // The platform may already have closed an unavailable camera.
     }
   }
 
@@ -100,9 +150,12 @@ class _QrScannerPageState extends State<QrScannerPage> {
 
   /// One frame at a time, a few times a second: the luminance plane is all
   /// a QR code needs, and it is read in the core, on a worker.
-  void _frame(CameraImage image) {
+  void _frame(CameraImage image, int generation) {
     final now = DateTime.now();
-    if (_reading ||
+    if (!mounted ||
+        generation != _generation ||
+        image.planes.isEmpty ||
+        _reading ||
         _done ||
         now.difference(_lastFrame) < const Duration(milliseconds: 150)) {
       return;
@@ -118,17 +171,31 @@ class _QrScannerPageState extends State<QrScannerPage> {
             rowStride: luma.bytesPerRow,
             luma: luma.bytes,
           )
-          .then(_found)
-          .catchError((Object _) {})
-          .whenComplete(() => _reading = false),
+          .then((texts) async {
+            if (!mounted || generation != _generation) return;
+            _readFailures = 0;
+            await _found(texts, generation);
+          })
+          .catchError((Object _) {
+            if (!mounted || generation != _generation) return;
+            if (++_readFailures >= 3) {
+              _pause();
+              _notice = context.l10n.scanReadFailed;
+              _set(_CameraState.unavailable);
+            }
+          })
+          .whenComplete(() {
+            if (generation == _generation) _reading = false;
+          }),
     );
   }
 
-  Future<void> _found(List<String> texts) async {
+  Future<void> _found(List<String> texts, int generation) async {
     for (final text in texts) {
-      if (_done) return;
+      if (!mounted || _done || generation != _generation) return;
       try {
         final card = await widget.profile.readCard(text: text);
+        if (!mounted || generation != _generation) return;
         if (widget.accept(card)) {
           _done = true;
           if (mounted) Navigator.of(context).pop(text);
@@ -143,16 +210,11 @@ class _QrScannerPageState extends State<QrScannerPage> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
+    // Release without setting state while the widget is being disposed.
+    ++_generation;
     final camera = _camera;
-    _camera = null;
-    if (camera != null) {
-      unawaited(() async {
-        try {
-          if (camera.value.isStreamingImages) await camera.stopImageStream();
-        } catch (_) {}
-        await camera.dispose();
-      }());
-    }
+    if (camera != null) unawaited(_released.then((_) => _release(camera)));
     super.dispose();
   }
 
@@ -175,7 +237,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
               Text(
                 _state == _CameraState.denied
                     ? l10n.scanDenied
-                    : l10n.scanUnavailable,
+                    : (_notice ?? l10n.scanUnavailable),
                 key: const Key('scan-problem'),
                 textAlign: TextAlign.center,
               ),
@@ -187,24 +249,62 @@ class _QrScannerPageState extends State<QrScannerPage> {
             ],
           ),
         ),
-        _CameraState.ready => Stack(
-          fit: StackFit.expand,
-          children: [
-            if (camera != null) Center(child: CameraPreview(camera)),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
+        _CameraState.ready => SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (camera != null) Center(child: CameraPreview(camera)),
+                    Center(
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: DecoratedBox(
+                            key: const Key('scan-guide'),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: ArveilColors.dark.ink,
+                                width: 3,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
                 width: double.infinity,
                 color: ArveilColors.of(context).surface,
                 padding: const EdgeInsets.all(16),
-                child: Text(
-                  _notice ?? l10n.scanHint,
-                  key: const Key('scan-hint'),
-                  textAlign: TextAlign.center,
+                child: Column(
+                  children: [
+                    const LinearProgressIndicator(key: Key('scan-active')),
+                    const SizedBox(height: 12),
+                    Text(
+                      l10n.scanSearching,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _notice ?? l10n.scanHint,
+                      key: const Key('scan-hint'),
+                      textAlign: TextAlign.center,
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(l10n.scanPasteInstead),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       },
     );

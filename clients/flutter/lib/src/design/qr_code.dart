@@ -10,7 +10,7 @@ class QrCodeView extends StatefulWidget {
     required this.profile,
     required this.text,
     required this.label,
-    this.size = 260,
+    this.size = 360,
   });
   final Profile profile;
   final String text;
@@ -44,7 +44,12 @@ class _QrCodeViewState extends State<QrCodeView> {
       child: FutureBuilder<QrView?>(
         future: _code,
         builder: (context, snapshot) => switch (snapshot.data) {
-          final code? => CustomPaint(painter: QrPainter(code)),
+          final code? => CustomPaint(
+            painter: QrPainter(
+              code,
+              pixelRatio: MediaQuery.devicePixelRatioOf(context),
+            ),
+          ),
           null => const ColoredBox(color: Colors.white),
         },
       ),
@@ -53,8 +58,9 @@ class _QrCodeViewState extends State<QrCodeView> {
 }
 
 class QrPainter extends CustomPainter {
-  QrPainter(this.code);
+  QrPainter(this.code, {this.pixelRatio = 1});
   final QrView code;
+  final double pixelRatio;
 
   /// Modules of white around the code on every side.
   static const quiet = 4;
@@ -63,7 +69,15 @@ class QrPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
     final width = code.width;
-    final module = size.shortestSide / (width + 2 * quiet);
+    // Whole physical pixels keep dark and light modules equally wide.
+    // Widening every dark module makes dense codes harder to read.
+    final pixels = (size.shortestSide * pixelRatio / (width + 2 * quiet))
+        .floorToDouble();
+    if (pixels < 1) return;
+    final module = pixels / pixelRatio;
+    final side = (width + 2 * quiet) * pixels;
+    final left = ((size.width * pixelRatio - side) / 2).floor() / pixelRatio;
+    final top = ((size.height * pixelRatio - side) / 2).floor() / pixelRatio;
     final dark = Paint()
       ..color = Colors.black
       ..isAntiAlias = false;
@@ -72,10 +86,10 @@ class QrPainter extends CustomPainter {
         if (code.modules[y * width + x] == 1) {
           canvas.drawRect(
             Rect.fromLTWH(
-              (x + quiet) * module,
-              (y + quiet) * module,
-              module + 0.5,
-              module + 0.5,
+              left + (x + quiet) * module,
+              top + (y + quiet) * module,
+              module,
+              module,
             ),
             dark,
           );
@@ -85,5 +99,6 @@ class QrPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(QrPainter old) => old.code != code;
+  bool shouldRepaint(QrPainter old) =>
+      old.code != code || old.pixelRatio != pixelRatio;
 }

@@ -1964,7 +1964,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanTitle => 'Scan code';
 
   @override
-  String get scanHint => 'Point the camera at the code.';
+  String get scanHint =>
+      'Fit the whole code inside the frame. Move closer slowly and hold the phone steady until it is read.';
+
+  @override
+  String get scanSearching => 'Looking for the code…';
+
+  @override
+  String get scanReadFailed =>
+      'Could not read the camera image. Open the scanner again or paste the link.';
+
+  @override
+  String get pairingNewCode => 'Show a new code';
 
   @override
   String get scanDenied =>

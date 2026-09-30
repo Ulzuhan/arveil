@@ -260,6 +260,29 @@ repositorio. Son criterios de entrega, no una afirmación de que los paquetes
 o todas esas pruebas existan ya; véase la [fase 3b](PHASE3B.md).
 
 
+## Vincular un móvil Android a tu identidad
+
+En el dispositivo administrador, abre **Ajustes → Vincular otro dispositivo →
+Mostrar código**. En el móvil, elige **Vincular con mi otro dispositivo → Escanear
+el código**, encuadra el QR completo y mantén el móvil quieto. Compara los números
+y autoriza desde el administrador. Si pegas o abres el enlace desde otra app,
+también debes confirmar el número en el móvil. La vinculación conserva la
+identidad; no copia el historial anterior.
+
+El código usa el endpoint de cliente prioritario de la lista firmada y verificada
+del relay. Si el administrador se dio de alta por una red privada, el relay debe
+anunciar ahora una ruta accesible desde el móvil. Da la máxima prioridad a la
+ruta WSS pública si el móvil se conectará sin esa red privada. Actualiza la app
+del administrador para incorporar la selección de ruta corregida; actualizar
+solo el móvil no cambia un código que ya se generó.
+
+Un código caducado se sustituye con **Mostrar un código nuevo**. No reutilices
+el enlace anterior. El escáner muestra un marco y un indicador de actividad; si
+deniegas el permiso o la cámara no está disponible, puedes pegar el enlace.
+La aceptación con una cámara física sigue siendo necesaria aunque pasen las
+pruebas automatizadas de vinculación y ciclo de vida de la cámara. Actualiza
+sobre la instalación existente para conservar el perfil y su clave.
+
 ## Gestionar tus dispositivos (disponible desde `0.1.0+8`)
 
 Abre **Gestionar dispositivos** en **Ajustes**. Compara el identificador

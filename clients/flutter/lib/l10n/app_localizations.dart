@@ -3293,8 +3293,26 @@ abstract class AppLocalizations {
   /// No description provided for @scanHint.
   ///
   /// In es, this message translates to:
-  /// **'Apunta la cámara al código.'**
+  /// **'Coloca el código completo dentro del marco. Acerca el móvil despacio y mantenlo quieto hasta que se lea.'**
   String get scanHint;
+
+  /// No description provided for @scanSearching.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscando el código…'**
+  String get scanSearching;
+
+  /// No description provided for @scanReadFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo leer la imagen de la cámara. Vuelve a abrir el escáner o pega el enlace.'**
+  String get scanReadFailed;
+
+  /// No description provided for @pairingNewCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar un código nuevo'**
+  String get pairingNewCode;
 
   /// No description provided for @scanDenied.
   ///

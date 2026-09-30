@@ -132,14 +132,32 @@ fn administrator(config: &ProfileConfig) -> Result<(Client, StoredDevice, Bootst
         hex::encode(&realm.realm_id),
         hex::encode(realm.signing_public.as_bytes()),
         hex::encode(&realm.noise_public),
-        realm.bootstrap_url,
+        link_endpoint(&realm),
     ))?;
     Ok((client, device, bootstrap))
 }
 
+/// A bootstrap can be an old LAN or tailnet address. New devices need the
+/// realm's current preferred route, from the signature-verified endpoint
+/// list stored at enrollment/sync, just as normal client connections do.
+fn link_endpoint(realm: &arveil_core::client::StoredRealm) -> &str {
+    realm
+        .endpoint_list
+        .as_ref()
+        .and_then(|list| {
+            list.endpoints
+                .iter()
+                .filter(|endpoint| endpoint.kind != "admin")
+                .min_by_key(|endpoint| endpoint.priority)
+        })
+        .map_or(realm.bootstrap_url.as_str(), |endpoint| {
+            endpoint.url.as_str()
+        })
+}
+
 /// Open a rendezvous and describe it as a `link` card.
 pub async fn offer_link(config: &ProfileConfig) -> Result<LinkOffer, CliError> {
-    let (_client, admin, bootstrap) = administrator(config)?;
+    let (client, admin, mut bootstrap) = administrator(config)?;
     let mut connection = Connection::open(
         &bootstrap.url,
         &bootstrap.realm_id,
@@ -148,6 +166,23 @@ pub async fn offer_link(config: &ProfileConfig) -> Result<LinkOffer, CliError> {
         config.tls_ca(),
     )
     .await?;
+    // A member can still have the tailnet bootstrap it first enrolled with.
+    // Refresh the authenticated route list before putting a route in a card
+    // that must be usable on a different device/network.
+    match connection.request(Payload::EndpointListGet).await? {
+        Payload::EndpointList { signed } => {
+            client
+                .realm_accept_endpoint_list(&bootstrap.realm_id, &signed)
+                .map_err(client_error("link endpoints"))?;
+            let realm = client
+                .realm()
+                .map_err(client_error("realm"))?
+                .ok_or_else(|| CliError::Domain("no enrolled realm".into()))?;
+            bootstrap.url = link_endpoint(&realm).to_owned();
+            bootstrap.noise_public = realm.noise_public;
+        }
+        other => return Err(unexpected(other)),
+    }
     let (pair_id, capability, expires_at) = match connection.request(Payload::PairBegin).await? {
         Payload::PairStarted {
             pair_id,
@@ -737,6 +772,65 @@ pub async fn join_link(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn linking_uses_the_verified_current_route_instead_of_an_old_tailnet_bootstrap() {
+        use arveil_core::channel::endpoints::{self, Endpoint, RealmEndpointList};
+        use arveil_core::storage::SharedConn;
+        let signing = ed25519_dalek::SigningKey::from_bytes(&[9; 32]);
+        let realm_id = endpoints::realm_id(&signing.verifying_key());
+        let client = Client::open(SharedConn::open_in_memory().unwrap()).unwrap();
+        let private_url = "ws://192.0.2.1:8447/v1/channel";
+        let public_url = "wss://relay.example.org/v1/channel";
+        client
+            .realm_save(&realm_id, &signing.verifying_key(), &[8; 32], private_url)
+            .unwrap();
+        assert_eq!(
+            link_endpoint(&client.realm().unwrap().unwrap()),
+            private_url
+        );
+        let list = RealmEndpointList {
+            version: 1,
+            realm_id: realm_id.clone(),
+            sequence: 2,
+            realm_noise_public_key: vec![8; 32],
+            endpoints: vec![
+                Endpoint {
+                    kind: "tailnet".into(),
+                    url: private_url.into(),
+                    priority: 20,
+                },
+                Endpoint {
+                    kind: "admin".into(),
+                    url: "http://127.0.0.1/admin".into(),
+                    priority: 0,
+                },
+                Endpoint {
+                    kind: "public".into(),
+                    url: public_url.into(),
+                    priority: 1,
+                },
+            ],
+        };
+        let signed = arveil_core::signed::sign_value(endpoints::CONTEXT, &list, &signing).unwrap();
+        client
+            .realm_accept_endpoint_list(&realm_id, &signed)
+            .unwrap();
+        let realm = client.realm().unwrap().unwrap();
+        assert_eq!(realm.bootstrap_url, private_url, "enrollment is preserved");
+        assert_eq!(link_endpoint(&realm), public_url);
+        let mut hostile = list;
+        hostile.sequence = 3;
+        hostile.endpoints[2].url = "wss://untrusted.example.org".into();
+        let bad = arveil_core::signed::sign_value(
+            endpoints::CONTEXT,
+            &hostile,
+            &ed25519_dalek::SigningKey::from_bytes(&[10; 32]),
+        )
+        .unwrap();
+        assert!(client.realm_accept_endpoint_list(&realm_id, &bad).is_err());
+        assert_eq!(link_endpoint(&client.realm().unwrap().unwrap()), public_url);
+    }
 
     #[test]
     fn a_self_description_is_trimmed_bounded_and_printable() {

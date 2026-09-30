@@ -13,6 +13,9 @@ Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   const bootstrap = String.fromEnvironment('ARVEIL_TEST_BOOTSTRAP');
   const invitation = String.fromEnvironment('ARVEIL_TEST_INVITE');
+  const legacyBootstrap = String.fromEnvironment(
+    'ARVEIL_TEST_LEGACY_BOOTSTRAP',
+  );
   setUpAll(() async => ArveilRust.init());
 
   testWidgets(
@@ -67,7 +70,10 @@ Future<void> main() async {
       });
 
       final admin = await create();
-      await admin.enroll(bootstrap: bootstrap, invite: invitation);
+      await admin.enroll(
+        bootstrap: legacyBootstrap.isEmpty ? bootstrap : legacyBootstrap,
+        invite: invitation,
+      );
       final identity = (await admin.setup()).identityId;
       expect(identity, isNotNull);
       var linked = await create();
@@ -108,6 +114,14 @@ Future<void> main() async {
       // device, and nothing is signed before that.
       final phone = await create();
       final offer = await admin.offerLink();
+      // A profile enrolled through an older/private route must share the
+      // current route signed by the relay, not its enrollment address.
+      final card = await admin.readCard(text: offer.link);
+      expect(card, isA<CardView_Link>());
+      expect(
+        (card as CardView_Link).server,
+        bootstrap.split(':').skip(5).join(':'),
+      );
       final asking = admin.awaitLinkRequest(pairId: offer.pairId);
       final joining = phone.joinLink(
         text: offer.link,

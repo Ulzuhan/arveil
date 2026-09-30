@@ -249,6 +249,27 @@ repository. These are delivery requirements, not claims that the packages or
 all acceptance runs already exist; see [phase 3b](PHASE3B.md).
 
 
+## Link an Android phone to your existing identity
+
+On the administrator device, open **Settings → Link another device → Show code**.
+On the phone, choose **Link with my other device → Scan the code**, keep the whole
+QR inside the frame and hold steady. Compare the numbers and approve on the
+administrator device. A pasted or externally opened link also requires confirming
+the number on the phone. Linking preserves identity; it does not copy old history.
+
+The linking code uses the preferred non-admin endpoint from the relay's verified
+signed list. If the administrator originally enrolled through a private network,
+the relay must now advertise a route reachable by the phone. A public WSS route
+should have the highest priority when phones will connect without the private
+network. Update the administrator app to pick up the corrected route selection;
+updating only the phone cannot change an already generated code.
+
+Expired codes are replaced with **Show a new code**. Do not reuse an earlier link.
+The scanner shows a frame and activity indicator; if permission is refused or the
+camera is unavailable, paste the link instead. Physical-camera acceptance remains
+necessary even when automated linking and camera lifecycle tests pass. Update
+over the existing installation to preserve the profile and its key.
+
 ## Manage your devices (available since `0.1.0+8`)
 
 Open **Gestionar dispositivos** in **Ajustes**. Compare the full device ID
