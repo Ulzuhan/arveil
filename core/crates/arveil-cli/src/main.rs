@@ -76,15 +76,19 @@ fn main() -> ExitCode {
         Err(error) => Err(carrier::CliError::FileSystem(error.to_string())),
         Ok(_profile_guard) => match words.as_slice() {
             ["version"] => {
+                // CLI release tags are independent of the core crate version.
+                let version = option_env!("ARVEIL_RELEASE_VERSION")
+                    .filter(|version| !version.is_empty())
+                    .unwrap_or(arveil_core::version());
                 match arveil_core::revision() {
                     Some(rev) => println!(
                         "arveil {}+{rev} (protocol {})",
-                        arveil_core::version(),
+                        version,
                         arveil_core::PROTOCOL_VERSION
                     ),
                     None => println!(
                         "arveil {} (protocol {})",
-                        arveil_core::version(),
+                        version,
                         arveil_core::PROTOCOL_VERSION
                     ),
                 }

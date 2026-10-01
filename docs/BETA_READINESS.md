@@ -29,7 +29,7 @@ The Android APK installed successfully in the disposable Android 15/API 35 arm64
 
 ## Compatibility and integration
 
-Public relay/CLI binaries still stop at [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0). They predate contact credential lookup and personal invitations and must not be paired with beta 6. Use the recorded compatible relay source, or a later tested revision. The updated private deployment is not a new public relay/CLI release; #133 retains that distribution work.
+When beta 6 was published, the public relay/CLI release was [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0). Those binaries predate contact credential lookup and personal invitations and must not be paired with beta 6. Use the recorded compatible relay source, or a later tested release whose notes declare compatibility. [#133](https://github.com/Ulzuhan/arveil/issues/133) records subsequent public relay/CLI distribution and package compatibility evidence; updating the private deployment alone does not establish either.
 
 Relay schema 4→5 and profile schema 7→8 require consistent backups and a forward-compatible rollout. The prior-relay restoration drill passed with its matching earlier backup and preserved endpoint sequence. This is not an in-place schema downgrade or a client-profile rollback. Prefer a higher corrective build over replacing an immutable release.
 

@@ -28,6 +28,21 @@ the repository's `release` environment. For code newer than the published
 release, build the selected source as above. See [beta readiness](BETA_READINESS.md)
 for client/relay compatibility and upgrade order.
 
+**Release identity and verification.** Download relay/CLI binaries and
+`SHA256SUMS-cli-relay.txt` together from the selected [release](https://github.com/Ulzuhan/arveil/releases).
+Verify the checksums and `gh attestation verify <binary> --repo Ulzuhan/arveil`
+before installing. New release builds report their tag version and full source
+commit through `arveil-relay -version` and `arveil version`; the image reports the
+same identity. Local builds retain development versions. The original v0.1.0
+artifacts reported a development version; use their recorded commit to identify them.
+
+Choose a relay whose release notes explicitly cover the installed clients.
+Relay v0.1.0 predates beta 6 credential lookup and personal invitations.
+[The beta record](BETA_READINESS.md) and [#133](https://github.com/Ulzuhan/arveil/issues/133)
+track compatible distribution and the package upgrade evidence. Back up first,
+upgrade the relay before dependent clients, and retain the binary matching each
+backup. A schema migration does not support reopening data with an older binary.
+
 **systemd.** Copy [`relay/packaging/arveil-relay.service`](https://github.com/Ulzuhan/arveil/blob/main/relay/packaging/arveil-relay.service), which runs as its own user with a hardened service section and keeps its data in `/var/lib/arveil`.
 
 **By hand.** `arveil-relay -data-dir ./data -listen 127.0.0.1:8447`. The first line it prints is the bootstrap string; that is what a device needs to find and authenticate the realm.
@@ -124,9 +139,8 @@ Stop, replace the binary, start. The schema migrates on open. Take a backup firs
 
 ## Personal invitation rollout
 
-See [owner setup and rollout](INVITATIONS.md). This candidate migrates relay
+See [owner setup and rollout](INVITATIONS.md). The personal invitation implementation migrates relay
 schema 4→5 and client profiles 7→8. Back up consistently, rehearse restoration,
 deploy the compatible relay first, and promote the intended existing owner by
 full identity ID. Do not open newer databases with older binaries. The wider
-administration panel is not implemented. No production upgrade is implied by
-building this branch.
+administration panel is not implemented. Building a binary alone does not establish deployment or package acceptance.
