@@ -666,7 +666,13 @@ sistema.
 - **Mensajes.** Todas las cadenas visibles están en
   `clients/flutter/lib/l10n/app_es.arb` y `app_en.arb`. `gen-l10n` genera el
   código, que se incluye en el repositorio; el español es la plantilla. Los
-  recuentos usan plurales ICU y las fechas siguen el orden de cada idioma.
+  recuentos usan plurales ICU y las fechas siguen el orden de cada idioma:
+  «20/9/2026» en español y «Sep 20, 2026» en inglés, con el mes abreviado
+  porque los dígitos solos admiten dos lecturas. La hora sigue el ajuste de
+  24 o 12 horas del sistema («18:30», «6:30 p. m.», «6:30 PM»). Las cuentas
+  atrás de los códigos se muestran en minutos y segundos («Caduca en 9:59.»)
+  y el lector de pantalla las lee en minutos enteros, que cambian una vez por
+  minuto.
 - **Elección del idioma.** Solo se usa el inglés si el sistema lo prefiere.
   En cualquier otro caso, incluido un sistema en catalán, gallego o euskera,
   la interfaz aparece en español. D1 añadirá la elección manual.

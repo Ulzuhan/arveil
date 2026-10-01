@@ -1258,8 +1258,23 @@ class AppLocalizationsEn extends AppLocalizations {
       'The conversation was created, but a name could not be saved. Add it from the conversation details.';
 
   @override
-  String numericDate(String day, String month, String year) {
-    return '$month/$day/$year';
+  String clockTime12(String time, String period) {
+    return '$time $period';
+  }
+
+  @override
+  String get clockAm => 'AM';
+
+  @override
+  String get clockPm => 'PM';
+
+  @override
+  String get shortDateMonths =>
+      'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec';
+
+  @override
+  String shortDate(String day, String month, String year) {
+    return '$month $day, $year';
   }
 
   @override

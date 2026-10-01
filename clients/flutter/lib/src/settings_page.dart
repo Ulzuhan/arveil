@@ -131,7 +131,7 @@ class SettingsPage extends StatelessWidget {
     if (setup.kitSavedAt case final saved?) {
       if (setup.kitStale) return l10n.kitStateStale;
       final at = DateTime.fromMillisecondsSinceEpoch(saved * 1000);
-      return l10n.kitStateSaved(numericDate(l10n, at));
+      return l10n.kitStateSaved(shortDate(l10n, at));
     }
     return l10n.kitStateNever;
   }

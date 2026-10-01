@@ -612,7 +612,12 @@ language.
 - **Messages.** Every visible string lives in
   `clients/flutter/lib/l10n/app_es.arb` and `app_en.arb`. `gen-l10n`
   generates the code, which is committed; Spanish is the template. Counts
-  use ICU plurals and dates follow each language's order.
+  use ICU plurals and dates follow each language's order: "20/9/2026" in
+  Spanish and "Sep 20, 2026" in English, with the month abbreviated because
+  digits alone read two ways. The clock follows the system's 24- or 12-hour
+  setting ("18:30", "6:30 p. m.", "6:30 PM"). Code countdowns show minutes
+  and seconds ("Expires in 9:59.") and screen readers hear whole minutes,
+  which change once a minute.
 - **Choosing the language.** English is used only when the system prefers
   it. Otherwise, including a system set to Catalan, Galician or Basque, the
   interface is in Spanish. D1 will add a manual choice.

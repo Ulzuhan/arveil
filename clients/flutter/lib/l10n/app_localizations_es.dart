@@ -1268,7 +1268,21 @@ class AppLocalizationsEs extends AppLocalizations {
       'La conversación se creó, pero no se pudo guardar algún nombre. Pónselo desde los detalles de la conversación.';
 
   @override
-  String numericDate(String day, String month, String year) {
+  String clockTime12(String time, String period) {
+    return '$time $period';
+  }
+
+  @override
+  String get clockAm => 'a. m.';
+
+  @override
+  String get clockPm => 'p. m.';
+
+  @override
+  String get shortDateMonths => '1 2 3 4 5 6 7 8 9 10 11 12';
+
+  @override
+  String shortDate(String day, String month, String year) {
     return '$day/$month/$year';
   }
 
