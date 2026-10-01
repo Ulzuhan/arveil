@@ -10,6 +10,7 @@ End-to-end encrypted with MLS (RFC 9420) · one Go relay binary on SQLite · app
 
 [![CI](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml)
 [![Docs](https://github.com/Ulzuhan/arveil/actions/workflows/docs.yml/badge.svg)](https://ulzuhan.github.io/arveil/)
+[![Apps](https://img.shields.io/github/v/release/Ulzuhan/arveil?include_prereleases&filter=*beta*&display_name=release&label=apps)](https://github.com/Ulzuhan/arveil/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Status: experimental](https://img.shields.io/badge/status-experimental-orange.svg)](#project-status)
 
@@ -30,13 +31,18 @@ End-to-end encrypted with MLS (RFC 9420) · one Go relay binary on SQLite · app
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screens/desktop_conversation_dark.png">
-    <img src="docs/assets/screens/desktop_conversation_light.png" alt="The Arveil desktop app: chat list, a group conversation and its participants" width="860">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/en/desktop_dark.png">
+    <img src="docs/assets/readme/en/desktop_light.png" alt="The Arveil Mac app: chat list, a group conversation with a shared file, and the safety number to compare with a participant" width="860">
   </picture>
 </p>
-<p align="center"><sub>The macOS app in Spanish. It speaks English and Spanish, following the system or a choice in Settings.</sub></p>
+<p align="center"><sub>The Mac app. It speaks English and Spanish, following the system or a choice in Settings. People and messages in these pictures are invented.</sub></p>
 
 ## Why Arveil
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/en/tour_dark.gif">
+  <img align="right" src="docs/assets/readme/en/tour_light.gif" alt="A tour of the Android app: chats, a conversation with a shared file, contacts, the contact card, its QR code, and a contact link asking to start talking" width="250">
+</picture>
 
 Most people who want private family chat have two options. They can trust
 a hosted service they cannot run themselves, or self-host software that
@@ -75,19 +81,21 @@ understanding it.
 
 - 1:1 and group conversations, each an MLS group
 - Works offline: read history, write, and send once the relay is reachable
-- Encrypted attachments with resumable transfers
+- Encrypted attachments with resumable transfers; images open inside the app
 - Delivery states that never claim someone read your message
 - Search within a conversation, run on your device
-- Unread counts and conversation previews
+- Unread counts, previews and opt-in notifications that never show names or text (macOS; experimental on Android through a self-hosted ntfy)
 
 </td>
 <td valign="top" width="50%">
 
-**Identity and devices**
+**Identity and contacts**
 
 - Device-generated Ed25519 root identity
-- Link a new device by comparing a code, and revoke a lost one
-- Safety numbers to verify contacts in person or over another channel
+- Link a new device with a QR code: the device with the root signs it only after you confirm; revoke a lost one
+- A contact card to show as a QR code or share as a link; opening it sends a request, never a silent join
+- Personal invitations: one link or QR code enrolls someone on your relay and starts your first conversation
+- Talk first, verify later: compare safety numbers, or scan each other's code in person to verify both
 - A notice in the chat when a contact adds or removes a device
 - Identity kit: an encrypted recovery file with a separate secret
 - Encrypted history archives, kept apart from identity recovery
@@ -101,6 +109,8 @@ understanding it.
 
 - Flutter for macOS and Android over a shared Rust core
 - Profile encrypted at rest with SQLCipher; the key stays in the Keychain or Android Keystore
+- Links open the app on the right screen (Android App Links, `arveil:` on macOS)
+- Signed updates: Android verifies and installs them over the existing app; macOS announces them
 - Adaptive layouts from phone to desktop, with keyboard shortcuts
 - English and Spanish, light and dark themes, six accents, backgrounds and text size
 - Screen reader labels, 200% text and reduced motion
@@ -123,11 +133,10 @@ understanding it.
 </table>
 
 <p align="center">
-  <img src="docs/assets/screens/phone_chats_light.png" alt="Chat list on Android with unread counts and verification badges" width="240">
-  &nbsp;
-  <img src="docs/assets/screens/phone_conversation_dark.png" alt="A group conversation in dark mode, with a notice that a contact added a device" width="240">
-  &nbsp;
-  <img src="docs/assets/screens/phone_settings_light.png" alt="Settings with the identity, recovery and device sections" width="240">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/en/phones_dark.png">
+    <img src="docs/assets/readme/en/phones_light.png" alt="Three Android screens: the chat list with unread counts and verification badges, a group conversation with a shared file and a notice that a contact added a device, and the contact card's QR code" width="760">
+  </picture>
 </p>
 
 ## How it works
@@ -172,6 +181,9 @@ The relay, the Rust core and the CLI are implemented through Phase 4. Relay/CLI
 [beta 6 (0.1.0+27)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6)
 are public. The Flutter apps cover everyday flows; beta acceptance is still open.
 
+<details>
+<summary><b>Phases</b></summary>
+
 | Phase | Scope | Status |
 |---|---|---|
 | 0 · Viability | Rust core, two CLI clients, minimal relay; real MLS and atomic persistence | ✅ Done |
@@ -180,6 +192,8 @@ are public. The Flutter apps cover everyday flows; beta acceptance is still open
 | 3a · Ready to hand out | Pairing, contact verification, resumable transfers, push hint, signed builds | ✅ Done |
 | 4 · Operable | Packaging, per-address limits, health and metrics, TLS, backups | ✅ Done |
 | 3b · Apps | Flutter clients, signed updates, external security review | 🚧 In progress |
+
+</details>
 
 The main flows of M3b.0 to M3b.4 are implemented, with platform acceptance
 still pending. **M3b.5** needs physical-device checks and three external users
@@ -198,8 +212,8 @@ revision recorded with the release; v0.1.0 is too old. Follow the
 |---|---|
 | Relay on Linux x86-64 and ARM64 | Versioned container release workflow; see the operations guide |
 | Relay and CLI on Linux x86-64 and macOS arm64 | v0.1.0 published with checksums and build provenance |
-| macOS 12+ app (Apple silicon) | Public beta ZIP; earlier package upgrades verified; fresh-download acceptance pending |
-| Android 7.0+ app (arm64) | Public beta APK; emulator acceptance recorded; physical-device acceptance pending |
+| macOS 12+ app (Apple silicon) | Public beta ZIP and Homebrew cask; earlier package upgrades verified; fresh-download acceptance pending |
+| Android 7.0+ app (arm64) | Public beta APK and Google Play internal testing; emulator acceptance recorded; physical-device acceptance pending |
 | Windows and Linux desktop apps | Planned (M3b.6) |
 | iOS app | Planned (M3b.7) |
 
@@ -232,10 +246,21 @@ address in [Running a realm](docs/OPERATIONS.md), or follow the
 
 ### Get the apps
 
-Download the macOS ZIP or Android APK from
-[client beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
-Neither needs developer tools to install. Check its release notes and checksums;
-update over the existing app without uninstalling or clearing its data.
+- **Mac (Apple silicon):** download the ZIP from
+  [client beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6),
+  or install it with Homebrew:
+
+  ```sh
+  brew tap kaicorplabs/tap
+  brew trust kaicorplabs/tap
+  brew install --cask arveil
+  ```
+
+- **Android 7.0+ (arm64):** download the APK from the same release. Google
+  Play has the same build in internal testing, for invited testers only.
+
+Neither needs developer tools to install. Check the release notes and checksums,
+and update over the existing app without uninstalling or clearing its data.
 The [installation guide](docs/INSTALLATION.md) covers
 each route, what has been verified and what is still pending. For someone who
 was simply invited, the website has a shorter
@@ -289,10 +314,10 @@ Arveil to people who are not technical and explains how to install it.
 
 | Topic | Documents |
 |---|---|
-| Using and running it | [Installation](docs/INSTALLATION.md) · [Running a realm](docs/OPERATIONS.md) · [Rootless Podman](docs/PODMAN.md) · [Client packages](docs/CLIENT_RELEASES.md) |
+| Using and running it | [Installation](docs/INSTALLATION.md) · [Invitations](docs/INVITATIONS.md) · [Running a realm](docs/OPERATIONS.md) · [Rootless Podman](docs/PODMAN.md) · [Private tunnel](docs/TUNNEL.md) · [Signed updates](docs/CLIENT_UPDATES.md) · [Client packages](docs/CLIENT_RELEASES.md) · [Beta readiness](docs/BETA_READINESS.md) |
 | Design | [Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Protocol](docs/PROTOCOL.md) · [Domain model](docs/DOMAIN_MODEL.md) |
-| Decisions | [ADR-001 to ADR-013](docs/adr/): Go and Rust, MLS, zero-trust server, SQLite, identity, recovery, redundancy, transport, Flutter, distribution and updates, QR codes and links; proposed: chosen names and realm administration from the app |
-| Apps | [Client design](docs/CLIENT_DESIGN.md) · [Implementation record](docs/CLIENT_FOUNDATION.md) · [Phase 3b plan](docs/PHASE3B.md) · [Platform record](docs/PLATFORMS.md) |
+| Decisions | [ADR-001 to ADR-013](docs/adr/): Go and Rust, MLS, zero-trust server, SQLite, identity, recovery, redundancy, transport, Flutter, distribution and updates, QR codes and links; partly implemented: realm administration from the app (personal invitations); proposed: chosen names |
+| Apps | [Client design](docs/CLIENT_DESIGN.md) · [Implementation record](docs/CLIENT_FOUNDATION.md) · [Files and notifications](docs/CLIENT_FILES_NOTIFICATIONS.md) · [Phase 3b plan](docs/PHASE3B.md) · [Platform record](docs/PLATFORMS.md) |
 | History | Phase plans [0](docs/PHASE0.md) · [1](docs/PHASE1.md) · [2](docs/PHASE2.md) · [3](docs/PHASE3.md) · [4](docs/PHASE4.md) · [Viability review v0.3](docs/REVIEW-v0.3.md) |
 
 ## Security

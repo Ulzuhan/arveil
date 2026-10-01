@@ -1,0 +1,33 @@
+{
+  "script": "d537e30930ba6f931d8caa24a5b9e117b5c508526c70408b95e7bd77f188ace3",
+  "inputs": {
+    "en/desktop_conversation_dark.png": "b8bb5225339b152e7f15e953c917ef4a285b0f14eb08f1298b4d8ccd19524eed",
+    "en/desktop_conversation_light.png": "650d3d730c270301a2ac9c8fd8b6f22abb81f5a421ba522c8d8800c1ad9c0ab4",
+    "en/phone_card_code_dark.png": "f1d0258d0b7722d12f84dbcb5af15a0a614f3bc3120754d03b147f1681f92a9c",
+    "en/phone_card_code_light.png": "f62cf263e7c004c869fd35ed1f0de68a9f6af8b0c5d476827bae873397ce2c99",
+    "en/phone_card_dark.png": "d0b14893746e4286132527b0e70e538715a9737b9c754cf9731f6783ad9d4e5f",
+    "en/phone_card_light.png": "0d356da39aed0f74e42bd21e49de79ed2c0903a2083a07be730c090e59b7eb25",
+    "en/phone_card_link_dark.png": "979fa8b41e94fff80c9216dd293d76e2bb7a1f8e15eac70fec1f9f8c6e89ec88",
+    "en/phone_card_link_light.png": "4edf6449846b2661fb6f7c8dca368ee7a99bb63c467527b1adb9d886c88a99d3",
+    "en/phone_chats_dark.png": "36d5de2848bfb440a94d960cdab72d4eebf9a5f690efcc82f591e88457cc0d18",
+    "en/phone_chats_light.png": "f10d939cec6789fd48cb3011396f06d05e5142dfd2e9588c4fb2609a6ab800be",
+    "en/phone_contacts_dark.png": "60bb17dd3b13ed15a7600454d810bc66194662164ca6e9154c57dacc0c4b6e3b",
+    "en/phone_contacts_light.png": "243604245b70673d50f8ded3de774dc141bd9e9b4ad27ba85947dc15b0474a32",
+    "en/phone_conversation_dark.png": "f9abdeac6bafe974223fbebde0901eedad4fca255292f4a489ad8d68cd8becfc",
+    "en/phone_conversation_light.png": "f75b1f14325716dc1af377b4c8933046bfe4609d1cc371aaa04539c0b01615ee",
+    "es/desktop_conversation_dark.png": "6e242843b4606d055b500725c16556674f00973962d7f8a0ee024e1ae43efbce",
+    "es/desktop_conversation_light.png": "5bc8a021c8ae3314831e17b9f6481ffaaa2326074046364282346ff49f261a42",
+    "es/phone_card_code_dark.png": "b311818a98891077e28b3c631b37bf59195d75f7fca53545885d34a8be294c65",
+    "es/phone_card_code_light.png": "95f0470e61111c6a3aaa180b3b4fd9056337c01793a35d3a728a7346c03d87b4",
+    "es/phone_card_dark.png": "cc81ccac519eab50f5427470f92d012023e77917f1c6c9b3e4153bd98450bbaf",
+    "es/phone_card_light.png": "ca59fda521e5c8bcaaa394950ed6672ff9bafdee6e0eb77fe741b0f1516f9b03",
+    "es/phone_card_link_dark.png": "e65b3f59b46b2b65a1f3a6bff81698d1b473692b5b4ecfc3ae75337df8b0f3c7",
+    "es/phone_card_link_light.png": "cd5685587dc1768d22ccb2b9ef7137d5a19ea2d80f9138f1eff1b07bf349e442",
+    "es/phone_chats_dark.png": "4dfc8160915e3f83b35ff65064fbc608323d5f10ff49957ef0567c1a579f9921",
+    "es/phone_chats_light.png": "cb41f46c933f1ce40aea09cd4a4127b06ca13b1dcec8763e2dede2b3486951ef",
+    "es/phone_contacts_dark.png": "966f51c3df7643118195122bc3611875bc5bc7369d89fd567128419fb698a269",
+    "es/phone_contacts_light.png": "049c700a3f537a5ff7edf9287fa68092534d696a471e466c04f0bc887986a9f6",
+    "es/phone_conversation_dark.png": "2f02db8bda78f48e9e132816ef09fa9f6bdf32ce3f3816d2cff181457c6a6b14",
+    "es/phone_conversation_light.png": "10d89ce17e8dddaa8f6821c8520cae45e05fa5086bdd2bb6c3bb1780e4de0183"
+  }
+}

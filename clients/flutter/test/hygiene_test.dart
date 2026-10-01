@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Screens take colours from the design system and words from the ARB
@@ -51,15 +53,42 @@ void main() {
 
   test('the documentation shows the current screens', () {
     final docs = Directory('../../docs/assets/screens');
-    final shots = docs.listSync().whereType<File>().toList();
+    final shots = docs
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.png'))
+        .toList();
     expect(shots, isNotEmpty);
     for (final shot in shots) {
-      final name = shot.uri.pathSegments.last;
+      final name = shot.path.substring(docs.path.length + 1);
       final golden = File('test/goldens/screens/$name');
       expect(
         shot.readAsBytesSync(),
         golden.readAsBytesSync(),
         reason: '$name differs; run scripts/update_screenshots.sh',
+      );
+    }
+  });
+
+  test('the README pictures were framed from the current screens', () {
+    final manifest =
+        jsonDecode(
+              File('../../docs/assets/readme/sources.json').readAsStringSync(),
+            )
+            as Map<String, Object?>;
+    String hash(File file) => sha256.convert(file.readAsBytesSync()).toString();
+    expect(
+      manifest['script'],
+      hash(File('../../scripts/readme_media.py')),
+      reason: 'the framing changed; run scripts/update_screenshots.sh',
+    );
+    final inputs = (manifest['inputs']! as Map).cast<String, String>();
+    expect(inputs, isNotEmpty);
+    for (final MapEntry(key: name, value: digest) in inputs.entries) {
+      expect(
+        hash(File('test/goldens/screens/$name')),
+        digest,
+        reason: '$name changed; run scripts/update_screenshots.sh',
       );
     }
   });
