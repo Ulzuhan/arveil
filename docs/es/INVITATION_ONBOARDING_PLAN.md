@@ -285,7 +285,7 @@ Esta implementación no autoriza por sí sola un despliegue ni una promoción de
 | D1–D8 | Cerradas para esta candidata; contrato exacto en INVITATIONS.md |
 | P1–P5 | Implementadas y comprobadas automáticamente; faltan casos de aceptación completos |
 | P6 | Páginas y guías EN/ES preparadas localmente; despliegue y firma real pendientes |
-| P7 | Integración Go↔Rust, suites y compilación debug correctas; faltan fallos exhaustivos, restauración y candidata firmada |
+| P7 | Nueve escenarios Go↔Rust, 22 fallos de persistencia, backup/restauración compatible, reversión del relay con backup previo, dispositivo vinculado y aceptación nativa Mac/Android emulado correctos; falta candidata firmada |
 | P8 | Pendiente: instalación limpia, dispositivo físico y despliegue |
 | Owner real, servicios y publicación | No modificados por esta implementación |
 
@@ -293,7 +293,7 @@ Las etiquetas locales opcionales y el abandono de operaciones inciertas no está
 
 Cerrar el hito solo con A01–A18 resueltos o con un cambio explícito de alcance documentado. La evidencia identifica build, commit, sistema, dispositivo y resultado; no incluye invitaciones reales ni capturas con secretos. Una prueba de transporte aislada no sustituye a una persona nueva que llegue a la conversación desde una instalación limpia.
 
-Siguiente puerta de salida: revisión del cambio y cierre de los casos P7 pendientes, después candidata firmada y A01–A18 físicos que correspondan. B1 está resuelto en pruebas; la promoción real todavía requiere el paso operativo documentado. B3 tiene evidencia sintética, no lectura física; B5 no tiene todavía inyección exhaustiva en cada frontera.
+Siguiente puerta de salida: revisión del cambio y cierre de los casos P7 pendientes, después candidata firmada y A01–A18 físicos que correspondan. B1 está resuelto en pruebas; la promoción real todavía requiere el paso operativo documentado. B3 tiene evidencia sintética, no lectura física. B5 tiene 22 fronteras de persistencia con salida abrupta del proceso, recibos remotos ya confirmados y reapertura; no se atribuye cobertura de todas las pérdidas de paquetes. B13 tiene restauración completa compatible y retorno del relay con el binario y backup anteriores, preservando el contador de endpoints; no se afirma downgrade de esquemas ni de perfiles.
 
 ## Referencias externas verificadas el 1 de octubre de 2026
 

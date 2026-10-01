@@ -163,6 +163,39 @@ cleanup, not a promise to erase filesystem snapshots or all SQLite free pages.
   replacement, offline/reopened concurrent resume, offline revocation surviving refresh,
   and a pruned receipt leaving
   an ordinary request without blocking sync. CI runs these explicitly.
+- Two matrices cover 22 persistence failures across issue/enrollment intent,
+  redemption, mailbox/package replies, conversation transactions, publication,
+  completion, revocation and receipt. A SQL trigger aborts the selected write;
+  a child exits without closing the profile or running destructors. Removing
+  the trigger and restarting the relay allows encrypted reopen to preserve
+  identity, package, group and exact outbox bytes, without duplicate memberships,
+  mailboxes, envelopes or consumed packages. Failed transactions roll back.
+  This models replies received but not recorded; it does not simulate every
+  dropped network packet or a physical power failure.
+- A live relay backup restores into an empty directory with unchanged server
+  keys, owner role, used/pending/revoked invitations, package receipts and
+  unfetched envelopes. Restore refuses nonempty data. Pending chats finish
+  afterwards. This restores schema 5 with a compatible binary; it does not
+  downgrade that database to schema 4. A client which saw a newer endpoint
+  list refuses the backed-up one without losing its stored list. Preserving the
+  same realm's highest counter permits the next update; see the
+  [operator procedure](OPERATIONS.md#backups).
+- Separate relay rollback rehearsal: build the prior source
+  `f5dfd190b97f13de694c91a7cf4b5257ca59cc26`, back up live schema 4, migrate to
+  5, and verify that the old binary refuses it without rewriting the database.
+  Restoring the pre-upgrade backup with the prior binary, preserving keys and
+  counter, restores original invitations and working legacy issuance. Changes
+  after backup are deliberately discarded. Client profiles were not downgraded.
+- A linked owner device retains identity/permission, lists metadata without
+  secrets and can revoke, but never claims the first chat delivered to the
+  original issuing device on reopen. There are nine integration scenarios,
+  counting each fault matrix as one scenario.
+- Native macOS 26.6.2 and emulated Android 15/API 35 arm64 acceptance use
+  disposable profiles/relay and real screens:
+  creation and QR rendering, preview without identity/network effects, consent,
+  offline failure, encrypted close/reopen, resume without another paste, repeated
+  link without duplication, and duplex text. Both contacts remain unverified.
+  CI also runs this native journey.
 - Flutter analysis and 303 tests pass, including explicit consent, disabled
   double-submit, saved progress, permissions, localization/accessibility and
   updated contact-screen goldens. Android arm64 debug APK and macOS debug app
@@ -183,10 +216,18 @@ cd core
 ARVEIL_TEST_RELAY=/tmp/arveil-invitations-relay cargo test -p arveil-app --test invitations --locked -- --ignored
 ```
 
-Still open: kill/lost-response injection at every network/commit boundary,
-physical maximum-size QR and denied-camera journey, fresh installation from
-WhatsApp/Play/direct APK, Play-signing App Links, full backup **restoration**
-drill, another linked issuer device, and signed candidate acceptance. Issuer
+Reproduce native acceptance from the repository root:
+
+```sh
+python3 scripts/test_client_conversations.py --device macos --scenario invitations
+# With a running disposable emulator and adb on PATH:
+python3 scripts/test_client_conversations.py --device emulator-PORT --scenario invitations
+```
+
+Still open: physical maximum-size QR and denied-camera journey, fresh
+installation from WhatsApp/Play/direct APK, Play-signing App Links and signed
+candidate acceptance. Relay rollback uses a compatible earlier backup, never
+a schema downgrade; it does not establish client-profile 8→7 rollback safety. Issuer
 loss/revoked route or a resume beyond receipt retention needs explicit recovery;
 there is no automatic route transfer or safe abandonment button for an uncertain
 operation. Optional per-invitation local labels are not implemented. These gaps
@@ -197,7 +238,7 @@ keep P7/P8 open; local tests do not satisfy A01–A18 wholesale.
 1. Review the feature against its base `codex/files-notifications` (PR #141),
    which depends on `codex/android-qr-pairing` (PR #139). Publishing beta 5 did
    not merge those branches.
-2. Complete the remaining integration/physical gates and restoration drill.
+2. Complete the remaining physical gates.
    Back up the live realm consistently using the existing backup command, and
    preserve profile backups before first open by the new client.
 3. Deploy the compatible relay first; verify health, legacy admission and

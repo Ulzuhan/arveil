@@ -379,3 +379,6 @@ fn refreshing_after_offline_revocation_preserves_intent_and_hides_the_link() {
     assert!(revoked.link.is_none());
     owner.close();
 }
+
+#[path = "support/invitation_failures.rs"]
+mod failures;
