@@ -6,7 +6,7 @@ Estado: plan aprobado en dirección; la aceptación de los hitos sigue pendiente
 
 ## Prioridad actual de ejecución — 1 de octubre de 2026
 
-[Una invitación, desde la instalación hasta la primera conversación](INVITATION_ONBOARDING_PLAN.md) es la prioridad actual M3b.2/M3b.5. El [registro de implementación](INVITATIONS.md) documenta autorización owner, alta/contacto conjuntos, recuperación durable y UI EN/ES. Pasan pruebas automáticas y builds debug; quedan fallos exhaustivos, aceptación física/firmada y despliegue. Los criterios pendientes de la beta siguen abiertos.
+La beta 6 (0.1.0+27) está publicada. [Una invitación, desde la instalación hasta la primera conversación](INVITATION_ONBOARDING_PLAN.md) está implementada y distribuida; el [registro de implementación](INVITATIONS.md) distingue las pruebas automáticas y nativas de la aceptación física pendiente. Publicar no cierra M3b.5: siguen abiertos dispositivos físicos, notificaciones y tres usuarios externos. La [preparación de la beta](BETA_READINESS.md) registra paquetes, compatibilidad y tareas.
 
 ## Objetivo y alcance
 

@@ -7,46 +7,26 @@ para ti: [Instalar Arveil](https://arveil.kaicorplabs.com/es/instalar/).
 Esta página es la referencia completa, también para poner en marcha un relay
 y compilar desde el código.
 
-**Disponibilidad actual (25 de septiembre de 2026):** todavía no hay releases
-publicadas en GitHub. El [comando de empaquetado](CLIENT_RELEASES.md) prepara
-candidatos experimentales: ZIP para macOS y APK para Android. El código actual permite
-alta por invitación, emparejamiento y exportación/restauración del kit cifrado
-de identidad, creación verificada de conversaciones, historial paginado, texto
-sin conexión y sincronización, contactos guardados, adjuntos, revocación de
-dispositivos y exportación/importación cifrada del historial. Los candidatos
-`0.1.0+10` incluyen estas funciones y la corrección de la clave tras el selector
-nativo. El emulador Android conservó el perfil al actualizar y pasó guardado,
-apertura, importación repetida y reinicio; falta verificar la reapertura del
-perfil macOS en esta versión. Consulta el
-[registro de aceptación](PLATFORMS.md#aceptación-del-paquete-corregido-y-sus-selectores-25-de-septiembre-de-2026).
-Los candidatos anteriores `0.1.0+5` pasaron conversación Mac ↔ emulador Android.
-Los paquetes anteriores pueden incluir solo el alta: comprueba la revisión
-y sus notas. En esta fase, utiliza perfiles de prueba desechables.
+**Disponibilidad actual (1 de octubre de 2026):** [beta 6, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) ofrece ZIP macOS ARM64 y APK Android ARM64, sumas, metadatos y anuncio firmado (secuencia 8). Homebrew distribuye `0.1.0-beta.6,27`. Google Play ofrece la build 27 en pruebas internas, sin revisión de producción. Actualiza por el mismo canal, sin desinstalar ni borrar datos.
 
-## Candidata de invitación personal (1 de octubre de 2026)
+**Compatibilidad del servidor.** Los binarios públicos relay/CLI v0.1.0 son anteriores a `CredentialGet` y a las invitaciones personales. Para esta beta utiliza el relay de `e4011f3f2781aa48888d7da35114aa475d6ff71e` o una revisión posterior compatible y probada. El entorno de prueba ya está actualizado; la distribución versionada de relay/CLI y la matriz completa siguen en [#133](https://github.com/Ulzuhan/arveil/issues/133). Conserva copias consistentes antes de migrar. No abras bases de relay 5 o perfil 8 con binarios anteriores.
 
-La rama de revisión implementa **Invitar a alguien**: un enlace/QR privado reúne
-admisión al servidor y contacto del emisor. Instala un cliente compatible, abre
-un perfil protegido, vuelve al enlace (o escanea/pega), revisa y acepta. Tendrás
-identidad independiente y una conversación; si ya perteneces al mismo servidor,
-conservarás tu identidad. No se copia historial y la verificación sigue siendo
-separada. La entrada antigua de servidor/token se mantiene.
+## Invitaciones personales en beta 6
 
-Este flujo todavía no está en la beta publicada. Necesita relay actualizado y
-owner autorizado expresamente. [Invitaciones](INVITATIONS.md) detalla requisitos,
-permiso, límites de recuperación, migraciones y orden de despliegue. Conserva
-copias de perfil antes de actualizar; no bajes de versión un perfil migrado.
-Falta aceptación física/firmada. La invitación no da acceso al canal de Play;
-tras instalar desde cualquier vía compatible, vuelve al mismo enlace.
+**Invitar a alguien** reúne admisión y contacto en un enlace/QR privado. El emisor necesita permiso `owner`, concedido por el administrador del host a su identidad existente. El receptor instala la app, vuelve al enlace (o escanea/pega), revisa y acepta. Crea una identidad independiente y una conversación; un miembro del mismo servidor conserva su identidad. No se copia historial ni se verifica automáticamente al contacto. Sigue disponible el alta antigua por servidor/token.
+
+[Invitaciones](INVITATIONS.md) explica permiso, migraciones y recuperación. La primera conversación llega al dispositivo que emitió el enlace cuando vuelve a sincronizar. La invitación no concede acceso al canal interno de Play: la persona necesita también ser tester. Tras instalar, debe volver al enlace original.
+
+Los paquetes siguen siendo experimentales, sin auditoría independiente. La aceptación de cámara, instalación limpia y notificaciones en dispositivos reales sigue pendiente en [#134](https://github.com/Ulzuhan/arveil/issues/134) y [#140](https://github.com/Ulzuhan/arveil/issues/140). Consulta la [matriz de plataformas](PLATFORMS.md).
 
 ## Elige por dónde empezar
 
-| Quiero… | Ruta disponible | Qué falta para una versión descargable |
+| Quiero… | Ruta disponible | Aceptación pendiente |
 |---|---|---|
-| Desplegar un relay | Compilar con Docker Compose o usar el asistente de staging con Podman sin root | La primera versión etiquetada de las imágenes versionadas para Linux x86-64/ARM64 (el flujo ya existe; véase [operación](OPERATIONS.md)) y guía de instalación/actualización probada |
-| Probar la app en macOS | ZIP experimental del mantenedor o compilar desde el código | Release pública y aceptación de una instalación nueva descargada |
-| Probar la app en Android | APK experimental del mantenedor o compilar desde el código | Release pública y aceptación de instalación/actualización en teléfono físico |
-| Usar un iPhone | Hito posterior y separado | Aceptación nativa y una vía compatible de firma/distribución |
+| Desplegar un relay | Código compatible de beta 6 con Docker Compose/Podman | Registrar instalación y actualización en un host limpio compatible; el cliente de código actual necesita un relay actualizado |
+| Probar la app en macOS | ZIP beta 6 o Homebrew | Instalación limpia descargada en otro Mac y VoiceOver |
+| Probar la app en Android | APK beta 6 o Play interno (tester autorizado) | Instalación/actualización en teléfono físico, cámara, enlaces, TalkBack y Doze/reconexión |
+| Usar un iPhone | Hito posterior y separado | Aceptación nativa y firma/distribución compatible |
 
 ## Relay: primer arranque local con Docker Compose
 
@@ -104,8 +84,8 @@ del realm.
 Las releases del cliente usan tags `clients-v…` e incluyen `BUILD-macos.json`,
 `BUILD-android.json` y `SHA256SUMS-clients.txt`. Un candidato local de una sola
 plataforma incluye `BUILD.json` y `SHA256SUMS.txt`.
-Las descargas públicas aparecerán en
-[GitHub Releases](https://github.com/Ulzuhan/arveil/releases) cuando se publiquen.
+Descarga el ZIP o APK de la
+[beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
 Para instalar estos paquetes no necesitas Flutter, Rust, Xcode ni Android Studio.
 
 ### macOS: Apple silicon, macOS 12 o posterior

@@ -1,6 +1,6 @@
 # Personal invitations: implementation and rollout
 
-October 1, 2026 · implemented on `codex/invitation-onboarding`; **not published**.
+October 1, 2026 · **published in beta 6/build 27; physical acceptance pending**.
 [Español](es/INVITATIONS.md) · [Detailed plan and acceptance matrix](es/INVITATION_ONBOARDING_PLAN.md).
 
 ## The user journey
@@ -17,8 +17,8 @@ A fresh installation offers scanning/pasting before requiring server details.
 Older admission-only invitations retain a separate entry. After installing from
 a website or store, return to the original link or scan again: there is no
 cross-install attribution service. Play testing eligibility is separate from
-relay admission. The web companion changes are prepared in `kaicorplabs-web`
-(`/join`, `/install`, `/es/instalar`); deployment is still pending.
+relay admission. The companion pages in `kaicorplabs-web` (`/join`, `/install`,
+`/es/instalar`) are merged and deployed.
 
 The inviter may be offline during acceptance. Reopen **the device that issued
 the invitation** and synchronize to receive the contact. Other active devices
@@ -43,8 +43,9 @@ arveil-relay make-owner -data-dir /path/to/realm-data -identity FULL_64_HEX_ID
 This changes only that existing active membership and records an audit event.
 It neither replaces the person's identity nor grants a remote role-editing API.
 Reopen the invitations screen to refresh permission. The ordinary `invite` CLI
-remains available for legacy enrollment. **No live owner was promoted during
-implementation.**
+remains available for legacy enrollment. The beta 6 deployment explicitly promoted the intended existing
+administrator after checking the full identity ID. Every realm must authorize
+its own owner; there is no automatic promotion.
 
 ## Wire contract
 
@@ -225,19 +226,26 @@ python3 scripts/test_client_conversations.py --device emulator-PORT --scenario i
 ```
 
 Still open: physical maximum-size QR and denied-camera journey, fresh
-installation from WhatsApp/Play/direct APK, Play-signing App Links and signed
-candidate acceptance. Relay rollback uses a compatible earlier backup, never
+installation from WhatsApp/Play/direct APK, Play-signing App Links and physical acceptance of the published
+signed packages. Relay rollback uses a compatible earlier backup, never
 a schema downgrade; it does not establish client-profile 8→7 rollback safety. Issuer
 loss/revoked route or a resume beyond receipt retention needs explicit recovery;
 there is no automatic route transfer or safe abandonment button for an uncertain
 operation. Optional per-invitation local labels are not implemented. These gaps
 keep P7/P8 open; local tests do not satisfy A01–A18 wholesale.
 
+## Verified publication — October 1, 2026
+
+[Beta 6/build 27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6), source `e4011f3f2781aa48888d7da35114aa475d6ff71e`, is available on GitHub, Homebrew and Play internal testing. APK and AAB preserve their respective signing identities; the Mac ZIP is ad-hoc signed. Uploaded hashes, Homebrew download and signed announcement sequence 8 were verified. The ZIP opened showing build 27 and the APK installed in an emulator; neither is complete physical acceptance.
+
+The compatible relay was deployed with a consistent backup and unchanged realm identity; health and public Noise checks passed. Companion web guidance and downloads were merged, deployed and verified. Public Lighthouse passed home/install pages in both languages; `/join` retains `noindex` (98/100/100/66). The intended existing administrator was explicitly promoted after their full identity ID was checked; it is not published here.
+
+Experimental distribution was authorized to continue testing; it does not close P7/P8 or M3b.5. Physical QR, new installation from WhatsApp/Play and acceptance on another Mac remain in [#134](https://github.com/Ulzuhan/arveil/issues/134); three external users remain in [#135](https://github.com/Ulzuhan/arveil/issues/135). [Beta readiness](BETA_READINESS.md) records hashes and channels.
+
 ## Rollout and rollback
 
-1. Review the feature against its base `codex/files-notifications` (PR #141),
-   which depends on `codex/android-qr-pairing` (PR #139). Publishing beta 5 did
-   not merge those branches.
+1. Review the selected revision and dependencies. PRs #139, #141 and #142
+   record the beta 6 changes; preserve each package's immutable source reference.
 2. Complete the remaining physical gates.
    Back up the live realm consistently using the existing backup command, and
    preserve profile backups before first open by the new client.
@@ -250,5 +258,5 @@ keep P7/P8 open; local tests do not satisfy A01–A18 wholesale.
 
 Do not run an old binary on schema 5/8 databases. Prefer a forward fix; restoration
 requires matching binary/data and agreement about changes made after the backup.
-A lower feed version cannot downgrade an installed client. Live deployment,
-owner promotion and publication have not been performed by this feature change.
+A lower feed version cannot downgrade an installed client. The experimental beta 6 deployment is recorded above. Complete
+physical-device and external-user acceptance remains open.

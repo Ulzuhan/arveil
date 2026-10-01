@@ -2,14 +2,14 @@
 
 What is pinned, what was built, and what was actually run. [Versión española](es/PLATFORMS.md).
 
-A platform counts as **tested** only where the acceptance flow ran on that system. Compiling for a target proves the toolchain, not the product; distribution is a separate claim that nothing here makes yet.
+A platform counts as **tested** only where the acceptance flow ran on that system. Compiling for a target proves the toolchain, not the product; distribution is recorded separately from acceptance. Public beta packages do not establish physical-device acceptance.
 
 ## Pinned toolchain
 
 | Component | Version | Where it is pinned |
 |---|---|---|
 | Rust toolchain | 1.98.1 | `core/rust-toolchain.toml` |
-| Flutter SDK | 3.44.1 (stable channel) | this document, until CI pins it |
+| Flutter SDK | 3.44.1 (stable channel) | this document and the CI setup action |
 | Dart | 3.12.1 | bundled with the Flutter SDK |
 | flutter_rust_bridge | 2.13.0 (runtime and generator) | `core/crates/arveil-flutter/Cargo.toml` (`=2.13.0`) |
 | Android NDK | 28.2.13676358, minimum API 24 | Android SDK installation |
@@ -22,13 +22,15 @@ A platform counts as **tested** only where the acceptance flow ran on that syste
 
 | Platform | Rust target | Built | Tested | Distributed |
 |---|---|---|---|---|
-| macOS (Apple silicon) | `aarch64-apple-darwin` | yes | yes — acceptance run on the host | no |
-| Android | `aarch64-linux-android`, `x86_64-linux-android` | yes — application and bridge | emulator only — Android 15 (API 35), arm64; no physical device yet | no |
+| macOS (Apple silicon) | `aarch64-apple-darwin` | yes | yes — acceptance run on the host | beta 6 ZIP/Homebrew (0.1.0+27) |
+| Android | `aarch64-linux-android`, `x86_64-linux-android` | yes — application and bridge | Android 15/API 35 arm64 emulation; physical linking reported by the tester on build 24, full physical matrix pending | beta 6 ARM64 APK and internal Play (build 27) |
 | iOS | `aarch64-apple-ios` | core and application layer only | no | no |
 | Linux | — | no | no | no |
 | Windows | — | no | no | no |
 
 SQLCipher and its vendored OpenSSL cross-compile for Android without the fallback ADR-009 kept in reserve: the built objects are `elf64-littleaarch64` for both `libcrypto` and `sqlite3`.
+
+Public [beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) uses source `e4011f3f2781aa48888d7da35114aa475d6ff71e`. [Beta readiness](BETA_READINESS.md) records hashes, signatures and channels. Source/debug checks on other revisions do not automatically certify these packages.
 
 ## Protecting a profile, and what recovers what
 
@@ -689,3 +691,10 @@ and shows the configured channel. The public feed was not yet published
 This does not establish physical phones, installers modified by manufacturers,
 device policies or Play Protect, and the public feed host was not exercised.
 macOS updates are not implemented.
+
+
+## Beta 6 packages — October 1, 2026
+
+Clean source `e4011f3`, build 27. Extracted Mac ZIP: ad-hoc signature verified, app opened and displayed version 27. Direct APK: maintained certificate, successful installation in Android 15/API 35 arm64 emulation. AAB: upload key accepted and build available in internal Play. Homebrew: download and checksum verified. Compatible relay: backup, unchanged identity and public Noise probe passed.
+
+This does not establish physical camera, WhatsApp installation journey, Play App Links, Gatekeeper on another Mac or suspended notification delivery. Keep those criteria in #134/#135/#140. Invitations are published; complete physical acceptance remains open.

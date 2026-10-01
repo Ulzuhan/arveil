@@ -8,12 +8,9 @@ how it is designed and what has been verified.
 
 *Versión en español: [es/README.md](es/README.md)*
 
-**Status (September 26, 2026).** The relay, the Rust core and the CLI are
-complete through Phase 4. The apps implement milestones M3b.0 to M3b.4, and
-the next step is a limited macOS and Android beta (M3b.5). No release has been
-published and the project has not been independently audited. Each ADR
-declares its own status; "MUST" states a design requirement, and the
-[platform record](PLATFORMS.md) says which requirements have been tested.
+**Status (October 1, 2026).** [Beta 6, build 27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) is published on GitHub, Homebrew and Google Play internal testing. It includes personal invitations, QR codes, attachment opening and experimental notifications without Google. The compatible relay is deployed in the test environment; the public relay/CLI binaries remain at v0.1.0, with their distributable upgrade tracked in #133.
+
+M3b.5 physical-device and three-external-user acceptance remain open. The [beta record](BETA_READINESS.md) separates publication from acceptance. There is no independent security audit; the [platform record](PLATFORMS.md) preserves actual results and limits. Each ADR declares its own status.
 
 ## Where to start
 

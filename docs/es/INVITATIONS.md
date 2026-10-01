@@ -1,6 +1,6 @@
 # Invitaciones personales: implementación y despliegue
 
-1 de octubre de 2026 · implementado en `codex/invitation-onboarding`; **sin publicar**.
+1 de octubre de 2026 · **publicado en beta 6/build 27; aceptación física pendiente**.
 [English](../INVITATIONS.md) · [Plan detallado y matriz de aceptación](INVITATION_ONBOARDING_PLAN.md).
 
 ## Recorrido
@@ -18,8 +18,8 @@ La primera instalación permite escanear/pegar antes de pedir datos del servidor
 Las invitaciones antiguas de solo alta mantienen una entrada separada. Después
 de instalar se vuelve al enlace original o se escanea otra vez: no hay atribución
 a través de la instalación. Acceso al canal de pruebas de Play y admisión en
-el relay son controles distintos. La web complementaria está preparada en
-`kaicorplabs-web` (`/join`, `/install`, `/es/instalar`), pendiente de desplegar.
+el relay son controles distintos. La web complementaria de `kaicorplabs-web` (`/join`, `/install`,
+`/es/instalar`) está integrada y desplegada.
 
 El emisor puede estar desconectado durante la aceptación. Debe volver a abrir
 **el dispositivo que emitió** y sincronizar para recibir el contacto. Otro
@@ -44,7 +44,9 @@ arveil-relay make-owner -data-dir /ruta/datos-del-realm -identity ID_COMPLETO_64
 Promueve solo esa membresía activa existente y registra auditoría. No sustituye
 su identidad ni crea una API remota para cambiar roles. Volver a abrir
 Invitaciones actualiza el permiso. La CLI `invite` conserva el alta antigua.
-**No se ha promovido ninguna identidad real durante esta implementación.**
+El despliegue de beta 6 ya promovió la identidad existente prevista tras
+comprobar su identificador completo. Cada realm debe autorizar a su propio
+propietario; no hay ascenso automático.
 
 ## Contrato de protocolo
 
@@ -220,18 +222,26 @@ python3 scripts/test_client_conversations.py --device emulator-PORT --scenario i
 ```
 
 Pendientes: QR máximo físico, cámara denegada en dispositivo real, primera
-instalación desde WhatsApp/Play/APK, App Links con firma de Play y candidata
-firmada. La reversión del relay usa un backup anterior compatible, nunca
+instalación desde WhatsApp/Play/APK, App Links con firma de Play y aceptación física de los paquetes
+firmados publicados. La reversión del relay usa un backup anterior compatible, nunca
 un downgrade del esquema; tampoco acredita la reversión de perfiles 8 a 7. Pérdida del emisor,
 ruta revocada o reanudación fuera de retención requieren recuperación explícita;
 no hay traslado automático de ruta ni botón para abandonar una operación
 incierta. Las etiquetas locales opcionales por invitación tampoco están.
 Por tanto P7/P8 siguen abiertos: no se dan por aprobados A01–A18 en su conjunto.
 
+## Publicación comprobada — 1 de octubre de 2026
+
+[Beta 6/build 27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6), código `e4011f3f2781aa48888d7da35114aa475d6ff71e`, está disponible en GitHub, Homebrew y Play interno. APK y AAB conservan sus respectivas identidades de firma; el ZIP Mac usa firma ad hoc. Se verificaron sumas subidas, descarga Homebrew y anuncio firmado de secuencia 8. El ZIP abrió mostrando build 27 y el APK se instaló en emulador; no son pruebas físicas completas.
+
+El relay compatible se desplegó con backup consistente e identidad conservada; salud y prueba Noise pública correctas. La web complementaria se integró y desplegó, con guías EN/ES y descargas verificadas. Lighthouse público pasó en portadas y guías; `/join` conserva `noindex` (98/100/100/66). Se promovió la identidad existente del administrador tras comprobar su ID completo, sin publicarlo.
+
+La publicación experimental fue autorizada para continuar las pruebas; no cierra P7/P8 ni M3b.5. QR físico, instalación nueva desde WhatsApp/Play y aceptación del paquete en otro Mac siguen en [#134](https://github.com/Ulzuhan/arveil/issues/134); tres usuarios externos, en [#135](https://github.com/Ulzuhan/arveil/issues/135). [Registro de la beta](BETA_READINESS.md) recoge hashes y canales.
+
 ## Despliegue y reversión
 
-1. Revisar sobre `codex/files-notifications` (PR #141), dependiente de
-   `codex/android-qr-pairing` (PR #139). Publicar beta 5 no fusionó esas ramas.
+1. Revisar la revisión elegida y sus dependencias. PR #139, #141 y #142
+   registran los cambios de beta 6; conservar la referencia inmutable de cada paquete.
 2. Cerrar aceptación física pendiente. Hacer copia
    consistente del relay con su comando de backup y preservar perfiles antes
    de abrirlos con el cliente nuevo.
@@ -245,4 +255,5 @@ Por tanto P7/P8 siguen abiertos: no se dan por aprobados A01–A18 en su conjunt
 No abrir bases 5/8 con binarios anteriores. Preferir corrección hacia delante;
 restaurar exige datos/binario compatibles y acordar qué cambios posteriores al
 backup se pierden. Bajar la versión de un feed no baja la de una app instalada.
-Este cambio no ha desplegado servicios, promovido un owner real ni publicado.
+El despliegue experimental de beta 6 está registrado arriba. La secuencia de
+aceptación completa sigue pendiente para dispositivos físicos y usuarios externos.

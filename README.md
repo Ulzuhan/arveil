@@ -23,8 +23,8 @@ End-to-end encrypted with MLS (RFC 9420) · one Go relay binary on SQLite · app
 </div>
 
 > [!WARNING]
-> Arveil is experimental and has **not** been independently audited. No
-> release has been published yet. Use disposable test profiles, and read the
+> Arveil is experimental and has **not** been independently audited.
+> Public beta packages are available. Use disposable test profiles, and read the
 > [threat model](docs/THREAT_MODEL.md) before trusting it with anything that
 > matters.
 
@@ -167,8 +167,10 @@ its conditions, and the invariants (I-01 to I-13) the tests check.
 
 ## Project status
 
-The relay, the Rust core and the CLI are complete through Phase 4. The
-Flutter apps cover the everyday flows and are moving towards a limited beta.
+The relay, the Rust core and the CLI are implemented through Phase 4. Relay/CLI
+[v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) and client
+[beta 6 (0.1.0+27)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6)
+are public. The Flutter apps cover everyday flows; beta acceptance is still open.
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -179,11 +181,14 @@ Flutter apps cover the everyday flows and are moving towards a limited beta.
 | 4 · Operable | Packaging, per-address limits, health and metrics, TLS, backups | ✅ Done |
 | 3b · Apps | Flutter clients, signed updates, external security review | 🚧 In progress |
 
-Phase 3b milestones M3b.0 to M3b.4 are implemented: native build and bridge,
-application contract, enrollment and pairing, conversations and daily use.
-Next is **M3b.5**, a limited macOS and Android beta in which three external
-users complete the main flows. Production (M3b.8) additionally requires an
-external security review and signed updates. See the
+The main flows of M3b.0 to M3b.4 are implemented, with platform acceptance
+still pending. **M3b.5** needs physical-device checks and three external users
+completing the main flows. Signed update announcements are implemented;
+production (M3b.8) still requires external security review and final platform
+acceptance. Beta 6 includes QR codes, contact requests, personal invitations, attachment
+opening and experimental notifications. It requires the compatible relay
+revision recorded with the release; v0.1.0 is too old. Follow the
+[beta readiness record](docs/BETA_READINESS.md), the
 [Phase 3b plan](docs/PHASE3B.md) and the
 [client implementation record](docs/CLIENT_FOUNDATION.md).
 
@@ -191,10 +196,10 @@ external security review and signed updates. See the
 
 | Platform | Status |
 |---|---|
-| Relay on Linux x86-64 and ARM64 | Container images build in CI and publish on the first release tag |
-| Relay and CLI on Linux x86-64 and macOS arm64 | Release workflow ready, with checksums and build provenance |
-| macOS 12+ app (Apple silicon) | Experimental package; update from an earlier build verified |
-| Android 7.0+ app (arm64) | Experimental APK; verified on the emulator, physical devices pending |
+| Relay on Linux x86-64 and ARM64 | Versioned container release workflow; see the operations guide |
+| Relay and CLI on Linux x86-64 and macOS arm64 | v0.1.0 published with checksums and build provenance |
+| macOS 12+ app (Apple silicon) | Public beta ZIP; earlier package upgrades verified; fresh-download acceptance pending |
+| Android 7.0+ app (arm64) | Public beta APK; emulator acceptance recorded; physical-device acceptance pending |
 | Windows and Linux desktop apps | Planned (M3b.6) |
 | iOS app | Planned (M3b.7) |
 
@@ -227,10 +232,11 @@ address in [Running a realm](docs/OPERATIONS.md), or follow the
 
 ### Get the apps
 
-No app release is published yet. Build from source (below), or ask a
-maintainer for an experimental macOS ZIP or Android APK prepared with the
-[client packaging guide](docs/CLIENT_RELEASES.md). Neither needs developer
-tools to install. The [installation guide](docs/INSTALLATION.md) covers
+Download the macOS ZIP or Android APK from
+[client beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
+Neither needs developer tools to install. Check its release notes and checksums;
+update over the existing app without uninstalling or clearing its data.
+The [installation guide](docs/INSTALLATION.md) covers
 each route, what has been verified and what is still pending. For someone who
 was simply invited, the website has a shorter
 [step-by-step guide](https://arveil.kaicorplabs.com/install/).
@@ -279,13 +285,13 @@ The full documentation is published at
 **[ulzuhan.github.io/arveil](https://ulzuhan.github.io/arveil/)** and is
 available in English and [Spanish](docs/es/README.md). The project website,
 **[arveil.kaicorplabs.com](https://arveil.kaicorplabs.com)**, introduces
-Arveil to people who are not technical and will carry the download links.
+Arveil to people who are not technical and explains how to install it.
 
 | Topic | Documents |
 |---|---|
 | Using and running it | [Installation](docs/INSTALLATION.md) · [Running a realm](docs/OPERATIONS.md) · [Rootless Podman](docs/PODMAN.md) · [Client packages](docs/CLIENT_RELEASES.md) |
 | Design | [Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Protocol](docs/PROTOCOL.md) · [Domain model](docs/DOMAIN_MODEL.md) |
-| Decisions | [ADR-001 to ADR-013](docs/adr/): Go and Rust, MLS, zero-trust server, SQLite, identity, recovery, redundancy, transport, Flutter, distribution and updates; proposed: chosen names, QR codes and links, realm administration from the app |
+| Decisions | [ADR-001 to ADR-013](docs/adr/): Go and Rust, MLS, zero-trust server, SQLite, identity, recovery, redundancy, transport, Flutter, distribution and updates, QR codes and links; proposed: chosen names and realm administration from the app |
 | Apps | [Client design](docs/CLIENT_DESIGN.md) · [Implementation record](docs/CLIENT_FOUNDATION.md) · [Phase 3b plan](docs/PHASE3B.md) · [Platform record](docs/PLATFORMS.md) |
 | History | Phase plans [0](docs/PHASE0.md) · [1](docs/PHASE1.md) · [2](docs/PHASE2.md) · [3](docs/PHASE3.md) · [4](docs/PHASE4.md) · [Viability review v0.3](docs/REVIEW-v0.3.md) |
 
@@ -297,7 +303,7 @@ not a review. Please report vulnerabilities privately through
 [GitHub security advisories](https://github.com/Ulzuhan/arveil/security/advisories/new);
 see [SECURITY.md](SECURITY.md) for scope and what to include.
 
-Releases will ship `SHA256SUMS` files and signed build provenance
+Relay/CLI releases ship `SHA256SUMS` files and signed build provenance
 (`gh attestation verify <file> --repo Ulzuhan/arveil`). The builds are not
 notarized or code-signed per platform, so macOS and Windows will warn on
 first launch. Verify downloads with checksums and provenance instead.

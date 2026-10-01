@@ -17,16 +17,16 @@ docker build -f relay/Dockerfile -t arveil-relay .
 docker compose -f relay/compose.yaml up -d
 ```
 
-**Versioned images.** From the first `v*` release tagged after this workflow
-landed, `.github/workflows/relay-image.yml` publishes
+**Versioned images.** On `v*` release tags, `.github/workflows/relay-image.yml` publishes
 `ghcr.io/ulzuhan/arveil-relay:<version>` for Linux x86-64 and ARM64, also
 tagged with the full commit and with signed build provenance
 (`gh attestation verify oci://ghcr.io/ulzuhan/arveil-relay:<version> --owner
 Ulzuhan`). Each image's binary reports that commit with `-version`. Pull
 requests that touch the relay build both architectures without publishing.
 On a tag, nothing is built or pushed until a maintainer approves the run in
-the repository's `release` environment. Until a release is tagged, build the
-image yourself as above.
+the repository's `release` environment. For code newer than the published
+release, build the selected source as above. See [beta readiness](BETA_READINESS.md)
+for client/relay compatibility and upgrade order.
 
 **systemd.** Copy [`relay/packaging/arveil-relay.service`](https://github.com/Ulzuhan/arveil/blob/main/relay/packaging/arveil-relay.service), which runs as its own user with a hardened service section and keeps its data in `/var/lib/arveil`.
 

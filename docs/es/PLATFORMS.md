@@ -2,14 +2,14 @@
 
 Qué está fijado, qué se ha compilado y qué se ha ejecutado de verdad. [English version](../PLATFORMS.md).
 
-Una plataforma cuenta como **probada** solo donde el flujo de aceptación se ejecutó en ese sistema. Compilar para un target demuestra el toolchain, no el producto; la distribución es una afirmación distinta que aquí todavía no se hace.
+Una plataforma cuenta como **probada** solo donde el flujo de aceptación se ejecutó en ese sistema. Compilar para un target demuestra el toolchain, no el producto; la distribución se registra aparte de la aceptación. Los paquetes beta públicos no acreditan pruebas en dispositivos físicos.
 
 ## Toolchain fijado
 
 | Componente | Versión | Dónde se fija |
 |---|---|---|
 | Toolchain de Rust | 1.98.1 | `core/rust-toolchain.toml` |
-| SDK de Flutter | 3.44.1 (canal stable) | este documento, hasta que lo fije CI |
+| SDK de Flutter | 3.44.1 (canal stable) | este documento y la acción de instalación de CI |
 | Dart | 3.12.1 | incluido en el SDK de Flutter |
 | flutter_rust_bridge | 2.13.0 (runtime y generador) | `core/crates/arveil-flutter/Cargo.toml` (`=2.13.0`) |
 | NDK de Android | 28.2.13676358, API mínima 24 | instalación del SDK de Android |
@@ -22,13 +22,15 @@ Una plataforma cuenta como **probada** solo donde el flujo de aceptación se eje
 
 | Plataforma | Target de Rust | Compilado | Probado | Distribuido |
 |---|---|---|---|---|
-| macOS (Apple silicon) | `aarch64-apple-darwin` | sí | sí — aceptación ejecutada en el anfitrión | no |
-| Android | `aarch64-linux-android`, `x86_64-linux-android` | sí — aplicación y puente | solo emulador — Android 15 (API 35), arm64; falta dispositivo físico | no |
+| macOS (Apple silicon) | `aarch64-apple-darwin` | sí | sí — aceptación ejecutada en el anfitrión | ZIP/Homebrew beta 6 (0.1.0+27) |
+| Android | `aarch64-linux-android`, `x86_64-linux-android` | sí — aplicación y puente | Android 15/API 35 arm64 emulado; vinculación física comunicada por el tester en build 24, matriz física completa pendiente | APK ARM64 beta 6 y Play interno (build 27) |
 | iOS | `aarch64-apple-ios` | solo núcleo y capa de aplicación | no | no |
 | Linux | — | no | no | no |
 | Windows | — | no | no | no |
 
 SQLCipher y su OpenSSL vendorizado cruzan a Android sin recurrir a la alternativa que ADR-009 dejó en reserva: los objetos resultantes son `elf64-littleaarch64` tanto para `libcrypto` como para `sqlite3`.
+
+La [beta 6 pública](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) usa código `e4011f3f2781aa48888d7da35114aa475d6ff71e`. El [registro de la beta](BETA_READINESS.md) contiene hashes, firmas y canales. Las pruebas de código/debug de otros commits no certifican automáticamente estos paquetes.
 
 ## Protección del perfil, y qué recupera cada cosa
 
@@ -722,3 +724,10 @@ Esto no demuestra el comportamiento en teléfonos físicos, instaladores
 modificados por fabricantes, políticas de dispositivo ni Play Protect, y no se
 usó el host público del canal. Las actualizaciones de macOS no están
 implementadas.
+
+
+## Paquetes beta 6 — 1 de octubre de 2026
+
+Código limpio `e4011f3`, build 27. ZIP Mac extraído: firma ad hoc comprobada, apertura y versión 27 visibles. APK directo: certificado conservado, instalación correcta en Android 15/API 35 arm64 emulado. AAB: clave de subida aceptada y build disponible en Play interno. Homebrew: descarga y suma verificadas. Relay compatible: backup, identidad conservada y prueba Noise pública correctos.
+
+Esto no acredita cámara física, recorrido de instalación desde WhatsApp, App Links de Play, Gatekeeper en otro Mac ni notificaciones suspendidas. Conserva esos criterios en #134/#135/#140. Las invitaciones están publicadas; su aceptación física completa sigue pendiente.

@@ -54,6 +54,7 @@ markdown_extensions:
 nav:
   - Overview: README.md
   - Install and try: INSTALLATION.md
+  - Beta readiness: BETA_READINESS.md
   - Build client packages: CLIENT_RELEASES.md
   - Signed Android updates: CLIENT_UPDATES.md
   - Architecture: ARCHITECTURE.md
@@ -101,6 +102,7 @@ nav:
   - Español:
       - Índice: es/README.md
       - Instalar y probar: es/INSTALLATION.md
+      - Preparación de la beta: es/BETA_READINESS.md
       - Crear paquetes del cliente: es/CLIENT_RELEASES.md
       - Actualizaciones Android firmadas: es/CLIENT_UPDATES.md
       - Acceso mediante túnel: es/TUNNEL.md

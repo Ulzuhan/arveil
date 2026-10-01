@@ -1,6 +1,6 @@
 # Plan: una invitación, desde la instalación hasta la primera conversación
 
-Fecha: 1 de octubre de 2026. **Prioridad actual de producto, dentro de M3b.2 y M3b.5. Estado: implementación preparada para revisión; aceptación de integración y publicación pendientes.**
+Fecha: 1 de octubre de 2026. **Prioridad actual de producto, dentro de M3b.2 y M3b.5. Estado: implementado y publicado en beta 6/build 27; aceptación física y externa pendientes.**
 
 [English summary](../INVITATION_ONBOARDING_PLAN.md). Este documento es la fuente normativa del plan y de sus criterios de aceptación. El [registro de implementación](INVITATIONS.md) cierra D1–D8, concreta el protocolo y enumera pruebas y límites. Los requisitos siguientes describen el hito completo; no afirman que toda la aceptación esté superada.
 
@@ -284,16 +284,16 @@ Esta implementación no autoriza por sí sola un despliegue ni una promoción de
 | Prioridad y recorrido | Acordados; prioridad actual |
 | D1–D8 | Cerradas para esta candidata; contrato exacto en INVITATIONS.md |
 | P1–P5 | Implementadas y comprobadas automáticamente; faltan casos de aceptación completos |
-| P6 | Páginas y guías EN/ES preparadas localmente; despliegue y firma real pendientes |
-| P7 | Nueve escenarios Go↔Rust, 22 fallos de persistencia, backup/restauración compatible, reversión del relay con backup previo, dispositivo vinculado y aceptación nativa Mac/Android emulado correctos; falta candidata firmada |
-| P8 | Pendiente: instalación limpia, dispositivo físico y despliegue |
-| Owner real, servicios y publicación | No modificados por esta implementación |
+| P6 | Páginas y guías EN/ES integradas, desplegadas y verificadas; certificados establecidos conservados |
+| P7 | Nueve escenarios Go↔Rust, 22 fallos de persistencia, backup/restauración compatible, reversión del relay con backup previo, dispositivo vinculado y aceptación nativa Mac/Android emulado correctos; paquetes firmados publicados y verificados, aceptación física pendiente |
+| P8 | Despliegue y distribución experimental completados; pendientes instalación limpia y dispositivo físico |
+| Owner real, servicios y publicación | Relay/web desplegados, identidad prevista promovida y beta 6 publicada con autorización explícita; identificadores/secretos fuera del repositorio |
 
 Las etiquetas locales opcionales y el abandono de operaciones inciertas no están implementados. La app conserva el progreso para reanudar. La ruta perdida o revocada requiere recuperación explícita. Estos límites y la evidencia se detallan en [INVITATIONS.md](INVITATIONS.md).
 
 Cerrar el hito solo con A01–A18 resueltos o con un cambio explícito de alcance documentado. La evidencia identifica build, commit, sistema, dispositivo y resultado; no incluye invitaciones reales ni capturas con secretos. Una prueba de transporte aislada no sustituye a una persona nueva que llegue a la conversación desde una instalación limpia.
 
-Siguiente puerta de salida: revisión del cambio y cierre de los casos P7 pendientes, después candidata firmada y A01–A18 físicos que correspondan. B1 está resuelto en pruebas; la promoción real todavía requiere el paso operativo documentado. B3 tiene evidencia sintética, no lectura física. B5 tiene 22 fronteras de persistencia con salida abrupta del proceso, recibos remotos ya confirmados y reapertura; no se atribuye cobertura de todas las pérdidas de paquetes. B13 tiene restauración completa compatible y retorno del relay con el binario y backup anteriores, preservando el contador de endpoints; no se afirma downgrade de esquemas ni de perfiles.
+Siguiente puerta de salida: A01–A18 físicos que correspondan sobre beta 6/build 27 y cierre de P7/P8 con evidencia. La publicación experimental autorizada no sustituye esos criterios. B1 está resuelto en pruebas y el despliegue ya realizó la promoción prevista mediante el paso operativo documentado. B3 tiene evidencia sintética, no lectura física. B5 tiene 22 fronteras de persistencia con salida abrupta del proceso, recibos remotos ya confirmados y reapertura; no se atribuye cobertura de todas las pérdidas de paquetes. B13 tiene restauración completa compatible y retorno del relay con el binario y backup anteriores, preservando el contador de endpoints; no se afirma downgrade de esquemas ni de perfiles.
 
 ## Referencias externas verificadas el 1 de octubre de 2026
 

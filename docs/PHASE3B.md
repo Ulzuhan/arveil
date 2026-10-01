@@ -6,7 +6,7 @@ The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria
 
 ## Current execution priority — October 1, 2026
 
-[One invitation, from installation to the first conversation](INVITATION_ONBOARDING_PLAN.md) is the current M3b.2/M3b.5 priority. [Implementation and acceptance record](INVITATIONS.md) documents owner authorization, combined enrollment/contact, durable recovery and EN/ES UI. Automated tests and debug builds pass; full fault injection, signed/physical acceptance and deployment remain open. Outstanding beta acceptance is unchanged.
+Beta 6 (0.1.0+27) is published. [One invitation, from installation to the first conversation](INVITATION_ONBOARDING_PLAN.md) is implemented and distributed; the [implementation record](INVITATIONS.md) separates automated/native checks from pending physical acceptance. Publication does not close M3b.5: physical devices, notifications and three external users remain open. [Beta readiness](BETA_READINESS.md) records packages, compatibility and tracked tasks.
 
 ## Scope and structure
 
