@@ -126,6 +126,13 @@ jobs:
         run: flutter test test
       - name: Native conversations and unread-state acceptance
         run: python3 scripts/test_client_conversations.py --device macos
+      - name: Native personal invitation acceptance
+        run: python3 scripts/test_client_conversations.py --device macos --scenario invitations
+      - name: Personal invitations against a disposable relay
+        run: |
+          go -C relay build -o "$RUNNER_TEMP/arveil-invitations-relay" ./cmd/arveil-relay
+          cd core
+          ARVEIL_TEST_RELAY="$RUNNER_TEMP/arveil-invitations-relay" cargo test -p arveil-app --test invitations -- --ignored
       - name: Package privacy regression checks
         run: python3 -m unittest discover -s scripts -p 'test_package_clients.py'
       # Build the same ad-hoc package a maintainer produces. This also checks

@@ -77,10 +77,10 @@ pub fn status(config: &ProfileConfig) -> Result<super::OnboardingStatus, CliErro
     let bootstrap = realm.map(|realm| {
         format!(
             "arveil-bootstrap:v0:{}:{}:{}:{}",
-            hex::encode(realm.realm_id),
+            hex::encode(&realm.realm_id),
             hex::encode(realm.signing_public.as_bytes()),
-            hex::encode(realm.noise_public),
-            realm.bootstrap_url,
+            hex::encode(&realm.noise_public),
+            realm.preferred_endpoint_url(),
         )
     });
     Ok(super::OnboardingStatus {

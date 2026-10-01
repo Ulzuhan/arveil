@@ -240,6 +240,12 @@ pub enum ProfileError {
 /// What an Arveil link, QR code or pasted payload carries (ADR-012).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CardView {
+    /// One-use admission and a contact, handled as one durable operation.
+    Invitation {
+        name: Option<String>,
+        server: String,
+        expires_at: u64,
+    },
     /// Server details and a single-use invitation, as the enrollment form
     /// already takes them.
     Join {
@@ -295,6 +301,35 @@ pub struct QrView {
 }
 
 /// Why a command failed, in the category the application layer assigned.
+/// A shareable link is exposed only for an acknowledged pending invitation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InvitationView {
+    pub id: Vec<u8>,
+    pub state: String,
+    pub created_at: i64,
+    pub expires_at: i64,
+    pub link: Option<String>,
+    pub group_id: String,
+    pub checked_at: i64,
+    pub name: Option<String>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InvitationProblem {
+    Offline,
+    Storage,
+    Busy,
+    NotAllowed,
+    Unavailable,
+    AlreadyUsed,
+    OtherServer,
+    OwnInvitation,
+    PendingOperation,
+    OldServer,
+    NoKeys,
+    Invalid,
+    Failed,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandError {
     /// The profile already has as much work of this kind as it will hold.
@@ -814,6 +849,14 @@ impl Profile {
             .map_err(command_error)
     }
 
+    /// Register or remove the generic wake hint, using this profile's executor.
+    pub fn set_notification_hint(&self, endpoint: String) -> Result<(), CommandError> {
+        self.inner
+            .set_notification_hint(&endpoint)
+            .map(|_| ())
+            .map_err(command_error)
+    }
+
     pub fn replenish_key_packages(&self) -> Result<KeyPackageSupplyView, CommandError> {
         self.inner
             .replenish_key_packages()
@@ -919,6 +962,66 @@ impl Profile {
     pub fn resume_recovery(&self) -> Result<(), CommandError> {
         self.inner.resume_recovery().map_err(command_error)?;
         Ok(())
+    }
+
+    pub fn invitation_policy(&self) -> Result<bool, InvitationProblem> {
+        match self
+            .inner
+            .invitations(arveil_app::InvitationAction::Policy)
+            .map_err(invitation_error)?
+        {
+            arveil_app::InvitationOutput::Policy(p) => Ok(p.can_invite),
+            _ => Err(InvitationProblem::Failed),
+        }
+    }
+    pub fn create_invitation(
+        &self,
+        id: Option<Vec<u8>>,
+    ) -> Result<InvitationView, InvitationProblem> {
+        let action = id
+            .map(|id| arveil_app::InvitationAction::RetryIssue { id })
+            .unwrap_or(arveil_app::InvitationAction::Create);
+        invitation_item(self.inner.invitations(action).map_err(invitation_error)?)
+    }
+    pub fn invitations(&self, refresh: bool) -> Result<Vec<InvitationView>, InvitationProblem> {
+        match self
+            .inner
+            .invitations(arveil_app::InvitationAction::List { refresh })
+            .map_err(invitation_error)?
+        {
+            arveil_app::InvitationOutput::Items(rows) => {
+                Ok(rows.into_iter().map(invitation_view).collect())
+            }
+            _ => Err(InvitationProblem::Failed),
+        }
+    }
+    pub fn revoke_invitation(&self, id: Vec<u8>) -> Result<InvitationView, InvitationProblem> {
+        invitation_item(
+            self.inner
+                .invitations(arveil_app::InvitationAction::Revoke { id })
+                .map_err(invitation_error)?,
+        )
+    }
+    pub fn accept_invitation(
+        &self,
+        text: Option<String>,
+        name: Option<String>,
+    ) -> Result<InvitationView, InvitationProblem> {
+        invitation_item(
+            self.inner
+                .invitations(arveil_app::InvitationAction::Accept { text, name })
+                .map_err(invitation_error)?,
+        )
+    }
+    pub fn pending_invitation(&self) -> Result<Option<InvitationView>, InvitationProblem> {
+        match self
+            .inner
+            .invitations(arveil_app::InvitationAction::Pending)
+            .map_err(invitation_error)?
+        {
+            arveil_app::InvitationOutput::Pending(row) => Ok(row.map(invitation_view)),
+            _ => Err(InvitationProblem::Failed),
+        }
     }
 
     pub fn contacts(&self) -> Result<Vec<ContactView>, CommandError> {
@@ -1736,6 +1839,7 @@ fn command_error(error: ApplicationError) -> CommandError {
 /// display text, which stays free to change.
 fn operation_name(operation: Operation) -> &'static str {
     match operation {
+        Operation::Invitations => "invitations",
         Operation::CreateIdentity => "create-identity",
         Operation::Enroll => "enroll",
         Operation::CreateLinkRequest => "create-link-request",
@@ -1763,6 +1867,7 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::QueryKeyPackageSupply => "query-key-package-supply",
         Operation::CheckKeyPackages => "check-key-packages",
         Operation::ReplenishKeyPackages => "replenish-key-packages",
+        Operation::SetNotificationHint => "set-notification-hint",
         Operation::ExportArchive => "export-archive",
         Operation::ImportArchive => "import-archive",
         Operation::QueryArchivePage => "query-archive-page",
@@ -1804,6 +1909,16 @@ fn operation_name(operation: Operation) -> &'static str {
 fn read_card(text: &str) -> Result<CardView, CardProblem> {
     use arveil_app::links::{Card, LinkError};
     match Card::find(text) {
+        Ok(Card::Invitation {
+            realm,
+            name,
+            expires_at,
+            ..
+        }) => Ok(CardView::Invitation {
+            name,
+            server: realm.url,
+            expires_at,
+        }),
         Ok(Card::Join { realm, invitation }) => Ok(CardView::Join {
             bootstrap: realm.bootstrap(),
             invitation: hex(&invitation),
@@ -1821,6 +1936,68 @@ fn read_card(text: &str) -> Result<CardView, CardProblem> {
         Err(LinkError::NewerVersion) => Err(CardProblem::NewerVersion),
         Err(LinkError::KindMismatch { .. }) => Err(CardProblem::WrongKind),
         Err(LinkError::Ambiguous) => Err(CardProblem::Ambiguous),
+    }
+}
+
+fn invitation_view(v: arveil_app::InvitationView) -> InvitationView {
+    InvitationView {
+        id: v.id,
+        state: v.state,
+        created_at: v.created_at,
+        expires_at: v.expires_at,
+        link: v.link,
+        group_id: hex(&v.group_id),
+        checked_at: v.checked_at,
+        name: v.name,
+    }
+}
+fn invitation_item(
+    output: arveil_app::InvitationOutput,
+) -> Result<InvitationView, InvitationProblem> {
+    match output {
+        arveil_app::InvitationOutput::Item(v) => Ok(invitation_view(v)),
+        _ => Err(InvitationProblem::Failed),
+    }
+}
+fn invitation_error(error: ApplicationError) -> InvitationProblem {
+    use arveil_app::carrier::CliError;
+    match error {
+        ApplicationError::Transport { .. } => InvitationProblem::Offline,
+        ApplicationError::Storage { .. } => InvitationProblem::Storage,
+        ApplicationError::Busy { .. } | ApplicationError::Quota { .. } => InvitationProblem::Busy,
+        ApplicationError::Domain { source, .. } | ApplicationError::Protocol { source, .. } => {
+            match source {
+                CliError::Relay { code: 403, .. } => InvitationProblem::NotAllowed,
+                CliError::Relay { code: 409, .. } => InvitationProblem::AlreadyUsed,
+                CliError::Relay { code: 410, message } if message == "no key package available" => {
+                    InvitationProblem::NoKeys
+                }
+                CliError::Relay { code: 410, .. } => InvitationProblem::Unavailable,
+                CliError::Domain(ref message) if message == "invitation: different server" => {
+                    InvitationProblem::OtherServer
+                }
+                CliError::Domain(ref message) if message == "invitation: own invitation" => {
+                    InvitationProblem::OwnInvitation
+                }
+                CliError::Domain(ref message)
+                    if message == "invitation: another invitation is in progress" =>
+                {
+                    InvitationProblem::PendingOperation
+                }
+                CliError::Domain(ref message)
+                    if message == "invitation: server update required" =>
+                {
+                    InvitationProblem::OldServer
+                }
+                CliError::Domain(ref message)
+                    if message == "invitation: owner permission required" =>
+                {
+                    InvitationProblem::NotAllowed
+                }
+                _ => InvitationProblem::Invalid,
+            }
+        }
+        _ => InvitationProblem::Failed,
     }
 }
 

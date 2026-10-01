@@ -12,6 +12,71 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'Arveil';
 
   @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsExplanation =>
+      'Receive generic alerts for new messages while your profile is open. Names and message content are not shown in notifications.';
+
+  @override
+  String get notificationsEnable => 'Show notifications on this Mac';
+
+  @override
+  String get notificationsBackground => 'Keep Arveil running in the background';
+
+  @override
+  String get notificationsBackgroundDetail =>
+      'Closing the window keeps your profile open and syncs every ten seconds. Reopen Arveil or quit from the menu bar.';
+
+  @override
+  String get notificationsLimits =>
+      'Quitting Arveil, closing your profile or putting the Mac to sleep stops these alerts. Messages sync again when you return. Focus and your system settings can silence alerts.';
+
+  @override
+  String get notificationsDenied =>
+      'Notifications are not allowed. Enable Arveil in System Settings → Notifications, then turn this option on again.';
+
+  @override
+  String get notificationsUnavailable =>
+      'Notifications could not be prepared. Check system permissions and Keychain access, then try again. Your messages remain in Arveil.';
+
+  @override
+  String get notificationsNewActivity =>
+      'You have new messages. Open Arveil to read them.';
+
+  @override
+  String get notificationsOpenApp => 'Open Arveil';
+
+  @override
+  String get notificationsQuitApp => 'Quit Arveil';
+
+  @override
+  String get attachmentOpen => 'Open';
+
+  @override
+  String get attachmentOpenExternal => 'Open with…';
+
+  @override
+  String get attachmentOpenWarning =>
+      'The selected app will receive a decrypted copy and may keep or back it up. Arveil keeps its temporary copy for about one hour while running and cleans expired copies on the next launch.';
+
+  @override
+  String get attachmentNoViewer =>
+      'No compatible app could open this file. You can save a copy instead.';
+
+  @override
+  String get attachmentOpenFailed =>
+      'The file could not be opened. Check that it has finished downloading and try again.';
+
+  @override
+  String get attachmentPreviewFailed =>
+      'This image could not be previewed or exceeds the preview size limit.';
+
+  @override
+  String get attachmentExternalPreview =>
+      'Open this file in a compatible app, without looking for it in Downloads.';
+
+  @override
   String get navChats => 'Chats';
 
   @override
@@ -686,7 +751,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachmentResumeDownload => 'Resume download';
 
   @override
-  String get attachmentDownload => 'Download';
+  String get attachmentDownload => 'Download and open';
 
   @override
   String get attachmentCancel => 'Cancel transfer';
@@ -1964,7 +2029,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanTitle => 'Scan code';
 
   @override
-  String get scanHint => 'Point the camera at the code.';
+  String get scanHint =>
+      'Fit the whole code inside the frame. Move closer slowly and hold the phone steady until it is read.';
+
+  @override
+  String get scanSearching => 'Looking for the code…';
+
+  @override
+  String get scanReadFailed =>
+      'Could not read the camera image. Open the scanner again or paste the link.';
+
+  @override
+  String get pairingNewCode => 'Show a new code';
 
   @override
   String get scanDenied =>
@@ -2163,4 +2239,247 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get linkLinkHasIdentity =>
       'This device already has an identity. Open that code on the new device.';
+
+  @override
+  String get pushExplanation =>
+      'Experimental notifications without Google. Configure ntfy with your own server first. The receiver only shows generic activity and never opens your profile or reads messages.';
+
+  @override
+  String get pushInstall =>
+      'Install ntfy from F-Droid and configure your own HTTPS server. The public ntfy.sh server is not accepted in this mode.';
+
+  @override
+  String get pushServer => 'Your notification server';
+
+  @override
+  String get pushEnable => 'Receive activity notifications';
+
+  @override
+  String get pushWaiting =>
+      'Waiting for ntfy. Check that it uses the same server, then retry.';
+
+  @override
+  String get pushReady =>
+      'Connected. Notices are generic; messages are checked when Arveil opens.';
+
+  @override
+  String get pushPermission =>
+      'Allow Arveil notifications in Android settings, then retry.';
+
+  @override
+  String get pushEndpointMismatch =>
+      'ntfy returned a different or unsupported server. Check its server setting and the address entered here.';
+
+  @override
+  String get pushRegistrationFailed =>
+      'ntfy could not register this device. Open ntfy, check its connection, then retry.';
+
+  @override
+  String get pushUnavailable =>
+      'Notification settings could not be updated. Check ntfy, the server address and Android permissions.';
+
+  @override
+  String get pushRelayPending =>
+      'The change is saved on this device but is still pending on the relay. Keep Arveil open with a connection and retry. Disabled notices remain disabled locally.';
+
+  @override
+  String get pushLimits =>
+      'ntfy must be allowed to run in the background. Battery restrictions can delay notices. Force stop prevents delivery until reopening. Generic notices may arrive while the profile is closed; disable this option to stop them.';
+
+  @override
+  String get pushRetry => 'Retry connection';
+
+  @override
+  String get pushServerHint => 'https://notify.example.org';
+
+  @override
+  String get inviteTitle => 'Invite someone';
+
+  @override
+  String get inviteHelp =>
+      'One invitation connects a person to your server and opens a chat with you. They can install Arveil from the same link and reopen it afterwards. Your device can be offline when they accept.';
+
+  @override
+  String get inviteCreate => 'Create personal invitation';
+
+  @override
+  String get inviteShareApp => 'Share the Arveil download only';
+
+  @override
+  String get inviteListTitle => 'Your invitations';
+
+  @override
+  String get inviteLocalList =>
+      'Statuses reflect the last check. Refresh to check whether someone has accepted.';
+
+  @override
+  String get inviteEmpty => 'You have not created any invitations yet.';
+
+  @override
+  String get inviteShow => 'Show code or share';
+
+  @override
+  String get inviteShare => 'Share invitation';
+
+  @override
+  String get inviteShareMessage =>
+      'Join me on Arveil to talk privately. Open this link; if you need to install the app, reopen the same link afterwards. This is a personal, single-use invitation.';
+
+  @override
+  String get invitePrivate =>
+      'Send this link only to the person you want to invite. Whoever accepts it first can join your server and open a chat with you. It lasts seven days and can be revoked before use.';
+
+  @override
+  String get inviteWaiting => 'Waiting for acceptance';
+
+  @override
+  String get inviteUsed => 'Accepted · waiting for contact';
+
+  @override
+  String get inviteConnected => 'Contact connected';
+
+  @override
+  String get inviteExpired => 'Invitation expired';
+
+  @override
+  String get inviteRevoked => 'Invitation revoked';
+
+  @override
+  String get inviteRevoking => 'Revocation awaiting confirmation';
+
+  @override
+  String get inviteIssuing => 'Creation awaiting confirmation';
+
+  @override
+  String get inviteConnecting => 'Account connected · finishing the chat';
+
+  @override
+  String get inviteAccepting => 'Acceptance in progress';
+
+  @override
+  String get inviteOtherDevice =>
+      'This invitation was created on another of your devices. You can revoke it here; to share it, open the device that created it.';
+
+  @override
+  String get inviteAcceptTitle => 'Accept invitation';
+
+  @override
+  String get inviteUnnamed => 'You have received an Arveil invitation';
+
+  @override
+  String get inviteConsent =>
+      'Accepting uses this server and adds the inviter as a contact. If this is your first time, Arveil creates your own identity. It does not copy anyone else’s identity or messages.';
+
+  @override
+  String get inviteUnverified =>
+      'The name was chosen by the person sharing the link. Scanning does not verify who they are: you can compare the contact’s safety number afterwards.';
+
+  @override
+  String get inviteNameHelp =>
+      'Optional. This name is sent to the inviter when the chat opens.';
+
+  @override
+  String get inviteAccept => 'Accept and connect';
+
+  @override
+  String get inviteResume => 'Continue invitation';
+
+  @override
+  String get inviteResumeHelp =>
+      'Progress is saved in this profile. You can continue without asking for another link.';
+
+  @override
+  String get inviteInputHelp =>
+      'Ask a contact to open “Invite someone” in Arveil. Scan their code or paste the link they send.';
+
+  @override
+  String get inviteScan => 'Scan invitation';
+
+  @override
+  String get inviteLinkLabel => 'Invitation link';
+
+  @override
+  String get inviteOpen => 'Review invitation';
+
+  @override
+  String get inviteLegacy => 'I have details from an older invitation';
+
+  @override
+  String get inviteWrongCode =>
+      'This code is not an invitation to join Arveil.';
+
+  @override
+  String get inviteOffline =>
+      'Could not connect to the server. Check your connection and try again; confirmed progress is kept.';
+
+  @override
+  String get inviteNotAllowed =>
+      'Your account cannot invite people to this server. Ask its administrator for an invitation. Sharing the download alone does not grant access.';
+
+  @override
+  String get inviteUnavailable =>
+      'This invitation has expired or was revoked. Ask the inviter for a new one.';
+
+  @override
+  String get inviteAlreadyUsed =>
+      'This invitation was already accepted on another profile or device. Continue there or ask for a new one.';
+
+  @override
+  String get inviteOtherServer =>
+      'This invitation belongs to another server. Your current profile is kept; ask for a link from the same server.';
+
+  @override
+  String get inviteOwn =>
+      'This is your own invitation. Share it with the person you want to add.';
+
+  @override
+  String get inviteAnotherPending =>
+      'Another invitation is already in progress. Continue it before opening a different one.';
+
+  @override
+  String get inviteOldServer =>
+      'The server needs an update to use personal invitations. Ask its administrator to update it.';
+
+  @override
+  String get inviteNoKeys =>
+      'Your account is connected, but the chat cannot open yet. Ask the inviter to open Arveil and sync, then continue.';
+
+  @override
+  String get inviteBusy =>
+      'A temporary limit was reached. Wait a little and try again.';
+
+  @override
+  String get inviteStorage =>
+      'Progress could not be saved. Check available storage and reopen the profile; keep Arveil’s data.';
+
+  @override
+  String get inviteFailed =>
+      'The invitation could not be completed. Check that the link is complete and both apps are up to date.';
+
+  @override
+  String inviteExpires(String date) {
+    return 'Expires: $date';
+  }
+
+  @override
+  String inviteChecked(String date) {
+    return 'Last checked: $date';
+  }
+
+  @override
+  String inviteFrom(String name) {
+    return '$name invites you to Arveil';
+  }
+
+  @override
+  String inviteServer(String server) {
+    return 'Server: $server';
+  }
+
+  @override
+  String get invitePermissionDetails => 'Invitation permission details';
+
+  @override
+  String get invitePermissionHelp =>
+      'If you administer this server, verify this full identity identifier before granting it owner permission on the server. This keeps your current account.';
 }

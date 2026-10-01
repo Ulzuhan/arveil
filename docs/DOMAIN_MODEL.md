@@ -142,3 +142,13 @@ MLS secret forks are not merged with "last write wins" rules. Old history can re
 8. The UI derives its states from local facts, relay acceptance and authenticated receipts separately.
 
 References and review scope: [README](README.md#references-and-traceability).
+
+## Personal invitation persistence (implemented)
+
+Relay schema 5 adds `issued_invitations`, `invitation_audit` and
+`key_package_claim_receipts`; role `owner` now authorizes invitation operations
+and is assigned explicitly on the host. Profile schema 8 adds
+`invitation_operations` and `invitation_hellos`. Pending link/token/contact
+secrets live in that encrypted profile, not in Flutter preferences. MLS,
+conversation, outbox and invitation→group mapping share one transaction.
+See [lifecycle, exports and retention](INVITATIONS.md#durability-privacy-and-retention).

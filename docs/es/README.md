@@ -9,15 +9,9 @@ marcha, cómo está diseñado y qué se ha verificado.
 
 *English version: [../README.md](../README.md)*
 
-**Estado (30 de septiembre de 2026).** El relay/CLI v0.1.0 y el cliente
-beta 3 (0.1.0+21) están [publicados](https://github.com/Ulzuhan/arveil/releases).
-Los flujos principales de M3b.0–M3b.4 están implementados; sigue abierta la
-aceptación por plataforma y con usuarios externos de M3b.5. Los QR, enlaces
-y solicitudes de contacto están implementados después de beta 3 y necesitan
-un relay actualizado. La [preparación de la beta](BETA_READINESS.md) recoge
-compatibilidad y tareas. El proyecto no ha pasado una auditoría independiente.
-Cada ADR declara su estado; «DEBE» es un requisito de diseño, y la
-[matriz de plataformas](PLATFORMS.md) indica lo que se ha probado.
+**Estado (1 de octubre de 2026).** La [beta 6, build 27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) está publicada en GitHub, Homebrew y pruebas internas de Google Play. Incluye invitaciones personales, QR, apertura de archivos y notificaciones experimentales sin Google. El relay compatible está desplegado en el entorno de prueba; los binarios públicos del relay/CLI siguen en v0.1.0 y su actualización distribuible se sigue en #133.
+
+La aceptación física y con tres usuarios externos de M3b.5 sigue abierta. El [registro de la beta](BETA_READINESS.md) distingue lo publicado de lo probado. El proyecto no tiene una auditoría independiente; la [matriz de plataformas](PLATFORMS.md) conserva los resultados y límites reales. Cada ADR declara su propio estado.
 
 ## Por dónde empezar
 
@@ -43,6 +37,7 @@ Cada ADR declara su estado; «DEBE» es un requisito de diseño, y la
 | [Cloudflare Tunnel](TUNNEL.md) | Abrir ese relay privado a Internet con un túnel y un proxy local que verifica las direcciones de los clientes |
 | [Paquetes del cliente](CLIENT_RELEASES.md) | Compilar, auditar y publicar el ZIP de macOS y el APK de Android |
 | [Actualizaciones Android firmadas](CLIENT_UPDATES.md) | La búsqueda opcional de actualizaciones de la app Android: clave de firma, canal firmado, publicación y qué verifica la app |
+| [Invitaciones personales](INVITATIONS.md) | Recorrido, permiso owner, contrato, evidencia y puertas de despliegue |
 
 ### Diseño
 
@@ -78,6 +73,8 @@ Cada ADR declara su estado; «DEBE» es un requisito de diseño, y la
 | [Plan de la fase 3b](PHASE3B.md) | Hitos M3b.0 a M3b.8 y sus criterios de aceptación (texto normativo) |
 | [Registro de implementación](CLIENT_FOUNDATION.md) | Qué implementó cada cambio, su evidencia y sus límites |
 | [Diseño del cliente](CLIENT_DESIGN.md) | Sistema visual, personalización y plan del rediseño |
+| [Plan de invitación y alta](INVITATION_ONBOARDING_PLAN.md) | Prioridad actual: una invitación desde la instalación hasta la primera conversación; dependencias, bloqueos y aceptación |
+| [Adjuntos y notificaciones](CLIENT_FILES_NOTIFICATIONS.md) | Visor de archivos, avisos locales Mac y experimento Android sin Google |
 | [Matriz de plataformas](PLATFORMS.md) | Pruebas de aceptación fechadas: dispositivo, sistema, commit y resultado |
 
 ### Planes, revisiones y evidencias

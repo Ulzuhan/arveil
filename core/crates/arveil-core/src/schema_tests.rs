@@ -184,14 +184,20 @@ fn a_newer_profile_is_refused_without_writes() {
     {
         let newer = Connection::open(&path).unwrap();
         newer
-            .execute_batch("CREATE TABLE future (v BLOB); PRAGMA user_version = 8;")
+            .execute_batch(&format!(
+                "CREATE TABLE future (v BLOB); PRAGMA user_version = {};",
+                PROFILE_SCHEMA_VERSION + 1
+            ))
             .unwrap();
     }
     let before = std::fs::read(&path).unwrap();
 
     match SharedConn::open_file(&path) {
         Err(StorageError::SchemaTooNew { found, supported }) => {
-            assert_eq!((found, supported), (8, PROFILE_SCHEMA_VERSION));
+            assert_eq!(
+                (found, supported),
+                (PROFILE_SCHEMA_VERSION + 1, PROFILE_SCHEMA_VERSION)
+            );
         }
         other => panic!("expected a newer schema, got {other:?}"),
     }
@@ -384,21 +390,14 @@ fn version_three_marks_existing_conversations_read() {
 fn version_seven_keeps_every_earlier_contact_chosen() {
     let path = scratch("cards");
     {
-        let v6 = SharedConn::open_file(&path).unwrap();
-        let conn = v6.lock();
+        let conn = Connection::open(&path).unwrap();
+        for migration in MIGRATIONS.iter().filter(|m| m.version <= 6) {
+            (migration.apply)(&conn).unwrap();
+        }
         conn.execute_batch(
             "INSERT INTO contacts (identity_id, root_public, verified) VALUES (x'01', x'aa', 1);
              INSERT INTO contacts (identity_id, root_public, verified) VALUES (x'02', x'bb', 0);
              INSERT INTO conversations (group_id) VALUES (x'c1');
-             ALTER TABLE contacts DROP COLUMN accepted;
-             ALTER TABLE contacts DROP COLUMN verified_how;
-             ALTER TABLE conversations DROP COLUMN request;
-             ALTER TABLE conversations DROP COLUMN request_from;
-             ALTER TABLE conversations DROP COLUMN request_card;
-             ALTER TABLE conversations DROP COLUMN request_card_at;
-             ALTER TABLE conversations DROP COLUMN request_name;
-             DROP TABLE contact_cards;
-             DROP TABLE own_card;
              PRAGMA user_version = 6;",
         )
         .unwrap();
@@ -422,6 +421,24 @@ fn version_seven_keeps_every_earlier_contact_chosen() {
         .unwrap();
     assert_eq!(request, None, "an existing conversation is not a request");
     drop(guard);
+    drop(conn);
+    cleanup(&path);
+}
+
+#[test]
+fn version_eight_migrates_a_version_seven_profile_without_changing_contacts() {
+    let path = scratch("invitations-v8");
+    {
+        let conn = Connection::open(&path).unwrap();
+        for m in MIGRATIONS.iter().filter(|m| m.version <= 7) {
+            (m.apply)(&conn).unwrap();
+        }
+        conn.execute_batch("INSERT INTO contacts(identity_id,root_public,name,accepted) VALUES(x'01',x'02','Ana',1); PRAGMA user_version=7;").unwrap();
+    }
+    let conn = SharedConn::open_file(&path).unwrap();
+    assert_eq!(version_of(&conn.lock()), PROFILE_SCHEMA_VERSION);
+    assert_eq!(count(&conn.lock(), "contacts"), 1);
+    assert_eq!(count(&conn.lock(), "invitation_operations"), 0);
     drop(conn);
     cleanup(&path);
 }

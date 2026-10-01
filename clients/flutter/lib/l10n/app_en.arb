@@ -1,6 +1,24 @@
 {
   "@@locale": "en",
   "appTitle": "Arveil",
+  "notificationsTitle": "Notifications",
+  "notificationsExplanation": "Receive generic alerts for new messages while your profile is open. Names and message content are not shown in notifications.",
+  "notificationsEnable": "Show notifications on this Mac",
+  "notificationsBackground": "Keep Arveil running in the background",
+  "notificationsBackgroundDetail": "Closing the window keeps your profile open and syncs every ten seconds. Reopen Arveil or quit from the menu bar.",
+  "notificationsLimits": "Quitting Arveil, closing your profile or putting the Mac to sleep stops these alerts. Messages sync again when you return. Focus and your system settings can silence alerts.",
+  "notificationsDenied": "Notifications are not allowed. Enable Arveil in System Settings → Notifications, then turn this option on again.",
+  "notificationsUnavailable": "Notifications could not be prepared. Check system permissions and Keychain access, then try again. Your messages remain in Arveil.",
+  "notificationsNewActivity": "You have new messages. Open Arveil to read them.",
+  "notificationsOpenApp": "Open Arveil",
+  "notificationsQuitApp": "Quit Arveil",
+  "attachmentOpen": "Open",
+  "attachmentOpenExternal": "Open with…",
+  "attachmentOpenWarning": "The selected app will receive a decrypted copy and may keep or back it up. Arveil keeps its temporary copy for about one hour while running and cleans expired copies on the next launch.",
+  "attachmentNoViewer": "No compatible app could open this file. You can save a copy instead.",
+  "attachmentOpenFailed": "The file could not be opened. Check that it has finished downloading and try again.",
+  "attachmentPreviewFailed": "This image could not be previewed or exceeds the preview size limit.",
+  "attachmentExternalPreview": "Open this file in a compatible app, without looking for it in Downloads.",
   "navChats": "Chats",
   "navContacts": "Contacts",
   "navSettings": "Settings",
@@ -189,7 +207,7 @@
   "attachmentLegacy": "Attachment from an earlier version; it is not available on this screen.",
   "attachmentSendResume": "Send / resume",
   "attachmentResumeDownload": "Resume download",
-  "attachmentDownload": "Download",
+  "attachmentDownload": "Download and open",
   "attachmentCancel": "Cancel transfer",
   "attachmentSaveCopy": "Save a copy…",
   "devicesOperationFailed": "The operation could not be completed. Check the saved state and sync again.",
@@ -539,7 +557,10 @@
   "pairingDone": "Done",
   "pairingOlderDeviceAdmin": "The new device shows a code (older version)",
   "scanTitle": "Scan code",
-  "scanHint": "Point the camera at the code.",
+  "scanHint": "Fit the whole code inside the frame. Move closer slowly and hold the phone steady until it is read.",
+  "scanSearching": "Looking for the code…",
+  "scanReadFailed": "Could not read the camera image. Open the scanner again or paste the link.",
+  "pairingNewCode": "Show a new code",
   "scanDenied": "Arveil may not use the camera. Paste the link instead, or allow it in the system settings.",
   "scanUnavailable": "No camera is available. Paste the link instead.",
   "scanPasteInstead": "Paste the link",
@@ -601,5 +622,102 @@
   "requestFailed": "The request could not be answered.",
   "verifiedInPerson": "Verified in person",
   "linkJoinHasIdentity": "This device already has an identity. The invitation is for a new person.",
-  "linkLinkHasIdentity": "This device already has an identity. Open that code on the new device."
+  "linkLinkHasIdentity": "This device already has an identity. Open that code on the new device.",
+  "pushExplanation": "Experimental notifications without Google. Configure ntfy with your own server first. The receiver only shows generic activity and never opens your profile or reads messages.",
+  "pushInstall": "Install ntfy from F-Droid and configure your own HTTPS server. The public ntfy.sh server is not accepted in this mode.",
+  "pushServer": "Your notification server",
+  "pushEnable": "Receive activity notifications",
+  "pushWaiting": "Waiting for ntfy. Check that it uses the same server, then retry.",
+  "pushReady": "Connected. Notices are generic; messages are checked when Arveil opens.",
+  "pushPermission": "Allow Arveil notifications in Android settings, then retry.",
+  "pushEndpointMismatch": "ntfy returned a different or unsupported server. Check its server setting and the address entered here.",
+  "pushRegistrationFailed": "ntfy could not register this device. Open ntfy, check its connection, then retry.",
+  "pushUnavailable": "Notification settings could not be updated. Check ntfy, the server address and Android permissions.",
+  "pushRelayPending": "The change is saved on this device but is still pending on the relay. Keep Arveil open with a connection and retry. Disabled notices remain disabled locally.",
+  "pushLimits": "ntfy must be allowed to run in the background. Battery restrictions can delay notices. Force stop prevents delivery until reopening. Generic notices may arrive while the profile is closed; disable this option to stop them.",
+  "pushRetry": "Retry connection",
+  "pushServerHint": "https://notify.example.org",
+  "inviteTitle": "Invite someone",
+  "inviteHelp": "One invitation connects a person to your server and opens a chat with you. They can install Arveil from the same link and reopen it afterwards. Your device can be offline when they accept.",
+  "inviteCreate": "Create personal invitation",
+  "inviteShareApp": "Share the Arveil download only",
+  "inviteListTitle": "Your invitations",
+  "inviteLocalList": "Statuses reflect the last check. Refresh to check whether someone has accepted.",
+  "inviteEmpty": "You have not created any invitations yet.",
+  "inviteShow": "Show code or share",
+  "inviteShare": "Share invitation",
+  "inviteShareMessage": "Join me on Arveil to talk privately. Open this link; if you need to install the app, reopen the same link afterwards. This is a personal, single-use invitation.",
+  "invitePrivate": "Send this link only to the person you want to invite. Whoever accepts it first can join your server and open a chat with you. It lasts seven days and can be revoked before use.",
+  "inviteWaiting": "Waiting for acceptance",
+  "inviteUsed": "Accepted · waiting for contact",
+  "inviteConnected": "Contact connected",
+  "inviteExpired": "Invitation expired",
+  "inviteRevoked": "Invitation revoked",
+  "inviteRevoking": "Revocation awaiting confirmation",
+  "inviteIssuing": "Creation awaiting confirmation",
+  "inviteConnecting": "Account connected · finishing the chat",
+  "inviteAccepting": "Acceptance in progress",
+  "inviteOtherDevice": "This invitation was created on another of your devices. You can revoke it here; to share it, open the device that created it.",
+  "inviteAcceptTitle": "Accept invitation",
+  "inviteUnnamed": "You have received an Arveil invitation",
+  "inviteConsent": "Accepting uses this server and adds the inviter as a contact. If this is your first time, Arveil creates your own identity. It does not copy anyone else’s identity or messages.",
+  "inviteUnverified": "The name was chosen by the person sharing the link. Scanning does not verify who they are: you can compare the contact’s safety number afterwards.",
+  "inviteNameHelp": "Optional. This name is sent to the inviter when the chat opens.",
+  "inviteAccept": "Accept and connect",
+  "inviteResume": "Continue invitation",
+  "inviteResumeHelp": "Progress is saved in this profile. You can continue without asking for another link.",
+  "inviteInputHelp": "Ask a contact to open “Invite someone” in Arveil. Scan their code or paste the link they send.",
+  "inviteScan": "Scan invitation",
+  "inviteLinkLabel": "Invitation link",
+  "inviteOpen": "Review invitation",
+  "inviteLegacy": "I have details from an older invitation",
+  "inviteWrongCode": "This code is not an invitation to join Arveil.",
+  "inviteOffline": "Could not connect to the server. Check your connection and try again; confirmed progress is kept.",
+  "inviteNotAllowed": "Your account cannot invite people to this server. Ask its administrator for an invitation. Sharing the download alone does not grant access.",
+  "inviteUnavailable": "This invitation has expired or was revoked. Ask the inviter for a new one.",
+  "inviteAlreadyUsed": "This invitation was already accepted on another profile or device. Continue there or ask for a new one.",
+  "inviteOtherServer": "This invitation belongs to another server. Your current profile is kept; ask for a link from the same server.",
+  "inviteOwn": "This is your own invitation. Share it with the person you want to add.",
+  "inviteAnotherPending": "Another invitation is already in progress. Continue it before opening a different one.",
+  "inviteOldServer": "The server needs an update to use personal invitations. Ask its administrator to update it.",
+  "inviteNoKeys": "Your account is connected, but the chat cannot open yet. Ask the inviter to open Arveil and sync, then continue.",
+  "inviteBusy": "A temporary limit was reached. Wait a little and try again.",
+  "inviteStorage": "Progress could not be saved. Check available storage and reopen the profile; keep Arveil’s data.",
+  "inviteFailed": "The invitation could not be completed. Check that the link is complete and both apps are up to date.",
+  "inviteExpires": "Expires: {date}",
+  "@inviteExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteChecked": "Last checked: {date}",
+  "@inviteChecked": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteFrom": "{name} invites you to Arveil",
+  "@inviteFrom": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteServer": "Server: {server}",
+  "@inviteServer": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      }
+    }
+  },
+
+  "invitePermissionDetails": "Invitation permission details",
+  "invitePermissionHelp": "If you administer this server, verify this full identity identifier before granting it owner permission on the server. This keeps your current account."
+
 }

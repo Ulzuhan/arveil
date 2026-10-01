@@ -50,6 +50,7 @@ class ProfileSession extends ChangeNotifier {
   bool cancellingPairing = false;
   bool _cancelledWait = false;
   KeyPackageSupplyView? keyPackages;
+  InvitationView? pendingInvitation;
 
   /// Linking from the device that holds the root (ADR-012 §3): the code it
   /// shows, the device that answered and waits for a yes, and how it ended.
@@ -149,7 +150,14 @@ class ProfileSession extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadInvitation() async {
+    try {
+      pendingInvitation = await _profile?.pendingInvitation();
+    } catch (_) {}
+  }
+
   Future<void> _loadKeyPackages() async {
+    await _loadInvitation();
     if (setup?.stage != SetupStage.ready || _profile == null) {
       keyPackages = null;
       return;
@@ -384,6 +392,7 @@ class ProfileSession extends ChangeNotifier {
   Future<bool> refresh() => _run(() async {
     _cancelledWait = false;
     setup = await _profile!.setup();
+    await _loadInvitation();
     if (setup!.stage == SetupStage.ready) {
       conversations = await _profile!.conversations();
     }
@@ -395,6 +404,7 @@ class ProfileSession extends ChangeNotifier {
     setup = null;
     conversations = null;
     keyPackages = null;
+    pendingInvitation = null;
     keyPackagesUnavailable = false;
     linkOffer = null;
     linkRequest = null;

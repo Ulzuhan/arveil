@@ -53,6 +53,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         if (targetAbis != null) {
             ndk {
                 abiFilters.clear()
@@ -60,6 +61,8 @@ android {
             }
         }
     }
+
+    buildFeatures { buildConfig = true }
 
     signingConfigs {
         if (releaseStore.isPresent) {
@@ -106,5 +109,17 @@ flutter {
 }
 
 dependencies {
+    // Connector only: no embedded FCM distributor or Google Play Services.
+    implementation("org.unifiedpush.android:connector:3.0.10") {
+        // flutter_secure_storage already uses the Android flavor. Both
+        // artifacts contain the same classes; keep one implementation.
+        exclude(group = "com.google.crypto.tink", module = "tink")
+    }
+    implementation("com.google.crypto.tink:tink-android:1.23.0")
     testImplementation("junit:junit:4.13.2")
+    // Flutter integration_test contributes the runner to the debug APK;
+    // AGP requires the app and instrumentation configurations to agree.
+    debugImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

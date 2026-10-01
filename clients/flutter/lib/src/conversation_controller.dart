@@ -61,6 +61,29 @@ class ConversationController extends ChangeNotifier {
   bool _disposed = false;
   // Null means no lifecycle state has arrived during the initial local read.
   bool? _active;
+  bool _backgroundSync = false;
+  bool _pageVisible = true;
+  bool _windowVisible = true;
+  bool get _canSync => (_active == true && _windowVisible) || _backgroundSync;
+  String? get visibleGroup =>
+      _active == true && _windowVisible && _pageVisible ? selected : null;
+  void setWindowVisible(bool value) {
+    if (_disposed || _windowVisible == value) return;
+    _windowVisible = value;
+    _scheduleSync();
+  }
+
+  void setPageVisible(bool value) {
+    _pageVisible = value;
+  }
+
+  void setBackgroundSync(bool value) {
+    if (_disposed || _backgroundSync == value) return;
+    _backgroundSync = value;
+    _scheduleSync();
+  }
+
+  void Function(List<ConversationView>)? onSnapshot;
   bool _syncAgain = false;
   Future<void>? _refreshWork;
   Future<void>? _syncWork;
@@ -85,7 +108,7 @@ class ConversationController extends ChangeNotifier {
         .watch(generation: generation)
         .listen(
           (_) {
-            if (_disposed || _active != true) return;
+            if (_disposed || !_canSync) return;
             _debounce ??= Timer(const Duration(milliseconds: 150), () {
               _debounce = null;
               unawaited(refresh());
@@ -102,8 +125,12 @@ class ConversationController extends ChangeNotifier {
   void setActive(bool active) {
     if (_disposed || _active == active) return;
     _active = active;
+    _scheduleSync();
+  }
+
+  void _scheduleSync() {
     _timer?.cancel();
-    if (active) {
+    if (_canSync) {
       unawaited(sync());
       _timer = Timer.periodic(const Duration(seconds: 10), (_) {
         if (!syncing) unawaited(sync());
@@ -155,6 +182,7 @@ class ConversationController extends ChangeNotifier {
           for (final row in rows)
             if (row.request != null) row,
         ];
+        onSnapshot?.call(rows);
         await _readSelected();
         _changed();
       } while (_refreshAgain && !_disposed);
@@ -225,7 +253,12 @@ class ConversationController extends ChangeNotifier {
   /// not imply that the user saw anything. Use the cursor from that frame,
   /// since a newer message may already have arrived by the time it finishes.
   Future<void> markVisible(String group, int cursor) async {
-    if (_disposed || _active == false || selected != group || events.isEmpty) {
+    if (_disposed ||
+        _active == false ||
+        !_windowVisible ||
+        !_pageVisible ||
+        selected != group ||
+        events.isEmpty) {
       return;
     }
     if ((_marked[group] ?? 0) >= cursor) return;

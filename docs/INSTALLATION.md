@@ -7,29 +7,25 @@ written for you: [Install Arveil](https://arveil.kaicorplabs.com/install/).
 This page is the complete reference, including running a relay and building
 from source.
 
-**Current availability (September 30, 2026):** relay/CLI
-[v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) and client
-[beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3)
-are public. The client release includes a macOS Apple silicon ZIP and Android
-ARM64 APK, checksums, build metadata and a signed update announcement.
-The project is experimental and has not had an independent security review.
-Use disposable test profiles; published packages do not close physical-device
-or external-user acceptance. See the [platform record](PLATFORMS.md).
+**Current availability (October 1, 2026):** [beta 6, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) provides macOS ARM64 ZIP and Android ARM64 APK, checksums, metadata and signed announcement sequence 8. Homebrew distributes `0.1.0-beta.6,27`. Google Play provides build 27 in internal testing, without production review. Update through the same channel without uninstalling or clearing data.
 
-**Source versus download.** QR codes, links and contact requests described in
-this guide are implemented on `main` after beta 3. Beta 3 works with relay
-v0.1.0 using server details and invitation codes. The newer client requires a
-relay with `CredentialGet` (introduced in `d26b5c5`); v0.1.0 cannot validate its
-contact routes. Upgrade the relay before distributing the newer client. The
-[beta readiness record](BETA_READINESS.md) tracks the coordinated release.
+**Server compatibility.** Public relay/CLI v0.1.0 binaries predate `CredentialGet` and personal invitations. This beta needs relay revision `e4011f3f2781aa48888d7da35114aa475d6ff71e` or a later compatible, tested revision. The test deployment is already updated; versioned relay/CLI distribution and the complete compatibility matrix remain in [#133](https://github.com/Ulzuhan/arveil/issues/133). Take consistent backups before migration. Do not open relay schema 5 or profile schema 8 with older binaries.
+
+## Personal invitations in beta 6
+
+**Invite someone** combines admission and contact in one private link/QR. The issuer needs the `owner` role, granted by the host operator to their existing identity. The recipient installs the app, returns to the link (or scans/pastes), reviews and accepts. This creates an independent identity and conversation; existing same-server members retain their identity. No history is copied and no contact is automatically verified. Legacy server/token enrollment remains available.
+
+[Invitations](INVITATIONS.md) explains permission, migrations and recovery. The first chat reaches the issuing device when it synchronizes again. An invitation does not grant access to Play internal testing: the recipient must also be a tester. Return to the original link after installation.
+
+Packages remain experimental, without an independent audit. Camera, clean-installation and notification acceptance on real devices remain in [#134](https://github.com/Ulzuhan/arveil/issues/134) and [#140](https://github.com/Ulzuhan/arveil/issues/140). See the [platform record](PLATFORMS.md).
 
 ## Choose your starting point
 
 | I want to… | Available path | Remaining acceptance |
 |---|---|---|
-| Run a relay | Published v0.1.0 binaries, or build current source with Docker Compose/Podman | Record installation and upgrade on a clean supported host; a source client needs a matching newer relay |
-| Try the macOS app | Download the beta 3 ZIP | Fresh downloaded installation on another Mac and VoiceOver |
-| Try the Android app | Download the beta 3 APK | Physical-phone installation/update, camera, links, TalkBack and Doze/reconnect |
+| Run a relay | Build compatible beta 6 source with Docker Compose/Podman | Record installation and upgrade on a clean supported host; a source client needs a matching newer relay |
+| Try the macOS app | Beta 6 ZIP or Homebrew | Fresh downloaded installation on another Mac and VoiceOver |
+| Try the Android app | Beta 6 APK or internal Play (authorized tester) | Physical-phone installation/update, camera, links, TalkBack and Doze/reconnect |
 | Use an iPhone | Separate, later milestone | Native acceptance and supported signing/distribution |
 
 ## Relay: first local start with Docker Compose
@@ -89,7 +85,7 @@ Client releases use tags named `clients-v…` and include `BUILD-macos.json`,
 `BUILD-android.json` and `SHA256SUMS-clients.txt`. A single-platform local
 candidate instead includes `BUILD.json` and `SHA256SUMS.txt`.
 Download the ZIP or APK from
-[beta 3](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3).
+[beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
 Installing these packages does not require Flutter, Rust, Xcode or Android Studio.
 
 ### macOS: Apple silicon, macOS 12 or newer
@@ -180,8 +176,9 @@ current source or a package containing it:
 5. Open the conversation and send text. Offline messages remain saved locally;
    **Sincronizar** retries publication. Relay acceptance does not confirm reading.
 
-Automatic sync runs while the conversation screen is in the foreground. Push,
-background receipt and general group membership controls are still pending.
+Automatic sync runs while Arveil is in the foreground. The source increment
+described below adds opt-in Mac background sync; Android push and general group
+membership controls are still pending.
 The existing experimental packages may precede these source changes; check their
 recorded revision before expecting these screens.
 
@@ -196,6 +193,41 @@ That exported copy is outside Arveil's encrypted profile and may be backed up
 by its destination. Cancelling an unfinished transfer discards its local data;
 it does not recall a sent message. Request another copy if the relay reports
 expiry.
+
+### File viewing and notifications (source increment, not in build 25)
+
+In a client built with this increment, choose **Download and open** for an
+incoming attachment or **Open** for a local file. PNG/JPEG/WebP images display
+inside Arveil with zoom, including offline after reopening the profile.
+PDF and other files offer **Open with…**: confirm the temporary decrypted copy
+shared with the selected application. No manual visit to Downloads is needed.
+**Save copy…** remains a separate export. An external viewer may retain copies;
+Arveil cleans its expired temporary copies while running or on the next launch.
+
+On Mac, **Settings → Notifications** offers generic alerts and an independent
+**Keep Arveil running in the background** option. Enabling alerts requests system
+permission; a denial does not affect messaging. The background option keeps the
+profile unlocked, hides the window when closed, and provides menu-bar actions
+to reopen or quit. Quit, profile closure and Mac sleep stop local alerts.
+If permission is denied, enable Arveil in macOS notification settings and retry.
+
+Android adds an experimental **Settings → Notifications** page. It requires
+ntfy's F-Droid app configured with your own HTTPS server; enter the same base
+address in Arveil and grant notification permission. The public ntfy.sh server
+is rejected. Notices are generic and can arrive with the profile closed; they
+never unlock it. Disable the option to stop them. Keep Arveil open online to
+finish pending registration/removal. Force-stop and battery restrictions can
+prevent or delay delivery.
+
+Debug builds, native Android receiver instrumentation and disposable Mac
+attachment acceptance have run. Mac debug notification-center delivery and removal
+also passed with system permission enabled. The official ntfy F-Droid Android app
+passes a separate emulator delivery test against a disposable local server.
+Full relay-to-phone acceptance, packaged Mac banners and physical Android behavior remain release gates;
+see [scope and evidence](CLIENT_FILES_NOTIFICATIONS.md). No permanent notification
+server is deployed by these tests.
+No profile migration or reinstall is required by these changes. Keep the
+existing profile and Keychain when upgrading through the normal release path.
 
 ## Build from source
 
@@ -250,6 +282,35 @@ CI must verify what it packages. Private configuration stays outside the
 repository. These are delivery requirements, not claims that the packages or
 all acceptance runs already exist; see [phase 3b](PHASE3B.md).
 
+
+## Link an Android phone to your existing identity
+
+On the administrator device, open **Settings → Link another device → Show code**.
+On the phone, choose **Link with my other device → Scan the code**, keep the whole
+QR inside the frame and hold steady. Compare the numbers and approve on the
+administrator device. A pasted or externally opened link also requires confirming
+the number on the phone. Linking preserves identity; it does not copy old history.
+
+Contact QR codes, shared contact links and restored server details also use the
+preferred non-admin endpoint from the stored signature-verified list. Sync before
+creating a contact card after the operator changes the relay's addresses; cards
+can still be created offline from the last verified list. Existing shared links
+keep their original payload, so create and share a new link after such a change.
+Private-only realms remain supported: a public route must be configured and
+preferred by the operator before a code works outside its private network.
+
+The linking code uses the preferred non-admin endpoint from the relay's verified
+signed list. If the administrator originally enrolled through a private network,
+the relay must now advertise a route reachable by the phone. A public WSS route
+should have the highest priority when phones will connect without the private
+network. Update the administrator app to pick up the corrected route selection;
+updating only the phone cannot change an already generated code.
+
+Expired codes are replaced with **Show a new code**. Do not reuse an earlier link.
+The scanner shows a frame and activity indicator; if permission is refused or the
+camera is unavailable, paste the link instead. Physical-camera acceptance remains
+necessary even when automated linking and camera lifecycle tests pass. Update
+over the existing installation to preserve the profile and its key.
 
 ## Manage your devices (available since `0.1.0+8`)
 

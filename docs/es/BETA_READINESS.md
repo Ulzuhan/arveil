@@ -2,109 +2,52 @@
 
 [English](../BETA_READINESS.md).
 
-Estado comprobado el 30 de septiembre de 2026. Este es el registro actual de
-publicación y aceptación; el [plan de fase 3b](PHASE3B.md) conserva los criterios
-de los hitos. Publicar un paquete experimental no cierra un hito ni acredita
-preparación para producción.
+Estado comprobado el 1 de octubre de 2026. Publicación y aceptación son estados separados. El [plan de fase 3b](PHASE3B.md) conserva los criterios normativos de los hitos.
 
-## Disponible y preparado
+## Beta 6 publicada
 
-| Entrega | Código | Estado |
-|---|---|---|
-| [Relay/CLI v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) | `dc03eef` | Binarios y sumas públicos |
-| [Cliente beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3) | `9489ce6` | ZIP macOS ARM64, APK Android ARM64 y anuncio de actualización firmado públicos |
-| Candidato beta 4, 0.1.0+23 | `cf7073823c4695c6246684061fedf47773107613` | Borrador de GitHub con ZIP, APK y anuncio firmado (secuencia 6); sumas de archivos subidos verificadas; sin publicación pública |
-| Google Play beta 4, versionCode 25 | `edbf30a0bd3798f9e5a97a1cde44946b6710ab71` | Sustituye al código 24 en pruebas internas desde el 30 de septiembre; Play Console confirma disponibilidad para testers internos, con estado Sin revisar |
-| macOS beta 4 local, 0.1.0+25 | `edbf30a0bd3798f9e5a97a1cde44946b6710ab71` | Instalada sobre la build 24 con copia cifrada verificada; perfil existente abierto y sincronizado; QR de contacto generado y decodificado localmente, comprobada la ruta WSS pública |
-| Relay para acompañar la beta | `cf7073823c4695c6246684061fedf47773107613` | Código candidato; faltan compilación/publicación de release y aceptación del despliegue |
+La [beta 6 del cliente, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) usa código limpio `e4011f3f2781aa48888d7da35114aa475d6ff71e`. Tags y artefactos conservan su contenido inmutable al integrar las PR por squash.
 
-El candidato añade QR, enlaces, tarjetas de contacto y solicitudes
-([ADR-012](adr/ADR-012-qr-codes-and-links.md)), la pantalla Acerca de y empaquetado
-AAB. El AAB es un artefacto separado para la tienda, con certificado de subida
-y sin actualizador propio. Compilarlo no acredita aprobación, acceso de testers
-ni disponibilidad en Google Play.
-
-## Compatibilidad y orden de despliegue
-
-Beta 3 funciona con relay v0.1.0. El cliente nuevo usa `CredentialGet`, introducido
-en `d26b5c5`, para comprobar la ruta de un contacto contra la credencial de
-dispositivo firmada por su raíz. Relay v0.1.0 no tiene esa trama. El cliente
-rechaza el servidor no compatible en vez de saltarse la verificación. Prueba
-la pareja completa de versiones en el commit elegido, no solo el mínimo que
-introdujo esa trama.
-
-1. Compilar relay/CLI e imágenes desde el commit elegido y probado; registrar
-   versión, commit, sumas y procedencia de compilación.
-2. Hacer copia del realm, actualizar su relay y verificar salud, alta, mensajes
-   y reconexión con un cliente anterior. Registrar copia y procedimiento de vuelta.
-3. Verificar el cliente candidato contra ese relay: alta, vinculación/rechazo,
-   solicitudes, mensajes, adjuntos, desconexión/reconexión y conservación del perfil
-   al actualizar desde beta 3. Confirmar el rechazo claro del relay antiguo.
-4. Revisar el anuncio firmado y las notas; verificar que beta 3 ve la
-   actualización. Publicar el relay compatible antes de anunciar el cliente que
-   depende de él; después verificar descargas, feed y vías de actualización.
-5. Registrar Google Play aparte: canal, versionCode, estado de revisión y acceso
-   de testers. No asumir que las builds instaladas por APK y Play se reemplazan
-   entre sí: comparar primero sus certificados de firma de la app.
-
-El candidato existente se preparó con el asistente:
-
-```sh
-python3 scripts/release_clients.py prepare \
-  --tag clients-v0.1.0-beta.4 --build 23 \
-  --revision cf7073823c4695c6246684061fedf47773107613
-```
-
-`prepare` no publica. El anuncio se firmó y verificó el 30 de septiembre
-(secuencia 6). Los seis archivos del borrador coinciden con las sumas SHA-256
-locales. Las notas indican la dependencia del relay y la aceptación pendiente. Los workflows
-del relay requieren aprobación del entorno `release` del repositorio; un
-borrador o paquete local no demuestra que se hayan ejecutado esas compilaciones.
-
-## Trabajo registrado
-
-| Trabajo | Evidencia para cerrarlo |
+| Canal | Estado verificado |
 |---|---|
-| [Publicación coordinada beta/relay #133](https://github.com/Ulzuhan/arveil/issues/133) | Pareja compatible, actualización probada, anuncio firmado y distribución verificada |
-| [Android físico y macOS limpio #134](https://github.com/Ulzuhan/arveil/issues/134) | Dispositivo/SO y sumas de paquetes; cámara, enlaces, ciclo de vida, claves y accesibilidad |
-| [Prueba externa con tres personas #135](https://github.com/Ulzuhan/arveil/issues/135) | Resultados anónimos A/B/C, restauración del kit antes de conservar identidad y bloqueantes corregidos y verificados |
-| [Revisión externa de seguridad #136](https://github.com/Ulzuhan/arveil/issues/136) | Alcance y commit inmutable, hallazgos bloqueantes corregidos/verificados y riesgos residuales antes de producción |
-| [Recuperación MLS activa #137](https://github.com/Ulzuhan/arveil/issues/137) | Diseño revisado de recuperación/reincorporación y comportamiento verificado sin restaurar estado antiguo de envío |
+| GitHub | Prerelease pública: ZIP macOS ARM64 y APK Android ARM64; sumas subidas y metadatos comprobados |
+| Google Play | Build 27 en pruebas internas, disponible el 1 de octubre; Sin revisar, no distribución de producción |
+| Homebrew | Cask `0.1.0-beta.6,27`; estilo y descarga/suma reales correctos |
+| Anuncio firmado | Canal beta, secuencia 8; firma, feed público y redirecciones de descarga verificados |
+| Relay compatible | `e4011f3f2781aa48888d7da35114aa475d6ff71e` desplegado en el entorno de prueba; copia consistente, identidad conservada, servicios activos y prueba Noise pública correctos |
+| Web complementaria | PR [#3](https://github.com/Ulzuhan/kaicorplabs-web/pull/3) integrada y desplegada; guías y descargas firmadas en `8cc3d8b`; Lighthouse correcto en ambos idiomas |
 
-Los [nombres elegidos compartidos (ADR-011)](adr/ADR-011-shared-display-names.md)
-y la [administración desde la app (ADR-013)](adr/ADR-013-realm-administration-from-the-app.md)
-siguen como propuestas. Windows/Linux e iOS siguen en M3b.6/M3b.7.
+El APK directo conserva su certificado. El AAB usa la clave de subida establecida; Google Play firma la distribución con su propio certificado de app. macOS conserva firma ad hoc, sin notarización de Apple. Actualiza por el mismo canal sin desinstalar ni borrar datos del perfil.
 
-## Evidencia y límites
+| Artefacto | SHA-256 |
+|---|---|
+| macOS ZIP | `b4eaa65d56e3d149d5a8dcec85ac5695cfa1670e4ceffd3d5966bf2b065b4fe4` |
+| Android APK | `effaa5a496fd817b4338a24b627e184f4375b80c75a988c070378332a2e0864f` |
+| Play AAB | `d0d90c2d5250e867db41952d385a1f96c529bdf724340d357369b7ff1e6d3ac3` |
 
-El 30 de septiembre, el tester confirmó que el escaneo y la vinculación de la
-identidad del Mac con un Android físico funcionaron tras actualizar a la build 24.
-Es un resultado comunicado por el usuario; faltan el modelo/SO exactos del móvil
-y la aceptación completa en hardware. Los 16 trabajos de CI de `eae5ff7` pasaron.
+El APK se instaló correctamente en el emulador desechable Android 15/API 35 arm64. El paquete Mac extraído abrió y mostró build 27. Estas comprobaciones no sustituyen una instalación limpia en un teléfono físico u otro Mac.
 
-La revisión posterior encontró que los QR/enlaces de contacto y los datos del
-servidor al reabrir aún copiaban la dirección original de alta. La corrección y
-sus pruebas de [PR #139](https://github.com/Ulzuhan/arveil/pull/139) ya están en
-la build 25. El AAB mantiene el certificado de subida de la build 24; las sumas
-y los metadatos de código limpio de ambos paquetes están verificados. Pasaron
-158 pruebas Rust, 284 Flutter, el análisis Flutter y la aceptación nativa de
-vinculación/recuperación. La siguiente aceptación debe cubrir
-contactos, mensajes, adjuntos y uso sin conexión/al reabrir en el móvil físico;
-después, restauración del kit en un perfil aislado y prueba con tres personas.
+## Compatibilidad e integración
 
-En `cf70738`, [CI](https://github.com/Ulzuhan/arveil/actions/runs/36316913022)
-completó sus 15 trabajos, incluidos los puentes nativos y aceptación de fases.
-La revisión local del 29 de septiembre pasó las pruebas Go, 169 pruebas Rust
-(una utilidad de vectores ignorada), 280 pruebas Flutter y el análisis Flutter.
-La comprobación de paquetes del 30 de septiembre revisó los archivos candidatos
-sin recompilarlos ni modificarlos.
+Los binarios públicos de relay/CLI siguen en [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0). Son anteriores a la consulta de credenciales de contactos y a las invitaciones personales; no deben usarse con beta 6. Usa la revisión compatible registrada u otra posterior probada. Actualizar el despliegue privado no publica una nueva release del relay/CLI; #133 conserva ese trabajo.
 
-Esto no acredita la aceptación completa en Android físico, macOS descargado en limpio, VoiceOver,
-TalkBack en hardware, Doze ni la prueba externa de tres personas. Registra cada
-resultado con suma del paquete, SO/dispositivo y commit en la
-[matriz de plataformas](PLATFORMS.md). No publiques endpoints reales,
-invitaciones, material de recuperación ni datos de participantes.
+Relay 4→5 y perfil 7→8 requieren copias consistentes y un despliegue compatible. Se ensayó restaurar el relay anterior con su backup compatible y contador de endpoints conservado. No es un downgrade in situ de esquema ni reversión del perfil del cliente. Prefiere una build correctiva superior a reemplazar una release inmutable.
 
-La beta garantiza sincronización en primer plano/al reabrir. El kit recupera
-identidad; el archivo de historial recupera mensajes de solo lectura. Ninguno
-restaura sesiones MLS activas. No ha habido revisión independiente de seguridad.
+Las PR #139 (QR), #141 (archivos/notificaciones) y #142 (invitaciones) contienen los cambios de la beta. #138 concilia su registro de publicación. Se promovió explícitamente la identidad existente del administrador mediante la CLI del host; no se publican identificadores ni secretos del despliegue. La administración completa desde la app (ADR-013) y los nombres compartidos (ADR-011) siguen siendo propuestas más amplias.
+
+## Aceptación pendiente
+
+| Issue | Evidencia restante para cerrarla |
+|---|---|
+| [#133](https://github.com/Ulzuhan/arveil/issues/133) | Distribución pública versionada de relay/CLI y matriz completa de compatibilidad y actualización entre paquetes antiguos/nuevos |
+| [#134](https://github.com/Ulzuhan/arveil/issues/134) | Android físico y Mac descargado en limpio: instalación/actualización, QR, enlaces, contactos, adjuntos, recuperación y accesibilidad |
+| [#135](https://github.com/Ulzuhan/arveil/issues/135) | Tres personas externas completan el recorrido principal, con resultados anónimos A/B/C |
+| [#136](https://github.com/Ulzuhan/arveil/issues/136) | Auditoría independiente y corrección verificada de bloqueantes antes de producción |
+| [#137](https://github.com/Ulzuhan/arveil/issues/137) | Diseño revisado e implementación de recuperación/reincorporación MLS activa; restaurar identidad/historial no restaura sesiones activas |
+| [#140](https://github.com/Ulzuhan/arveil/issues/140) | Avisos/pulsación/suspensión de Mac empaquetado; abrir archivos en Android físico y recorrido relay→móvil, Doze, muerte de proceso, red y batería |
+
+Todos los checks requeridos pasaron en el código publicado ([ejecución](https://github.com/Ulzuhan/arveil/actions/runs/36853095121)). Nueve escenarios Go↔Rust cubren 22 fronteras de fallo de persistencia, backup/restauración compatible y emisor vinculado. Mac nativo y Android emulado cubren creación, consentimiento, cierre/reapertura/reanudación sin red y chat en ambos sentidos. No cierran A01–A18 físicos del [plan de invitaciones](INVITATION_ONBOARDING_PLAN.md).
+
+El tester confirmó vinculación con Android físico tras build 24; siguen sin registrarse hardware/SO exactos y la matriz completa. El antiguo borrador GitHub beta 4 (build 23, secuencia 6) nunca se publicó y está superado por beta 5/6; no debe publicarse después con descargas antiguas. Windows/Linux e iOS siguen en M3b.6/M3b.7.
+
+Las notificaciones son experimentales y sin garantía de entrega; sincronizar en primer plano/al reabrir es la base. Registra cada resultado con suma del paquete, dispositivo/SO y revisión en la [matriz de plataformas](PLATFORMS.md). No ha habido auditoría independiente ni prueba externa completa.

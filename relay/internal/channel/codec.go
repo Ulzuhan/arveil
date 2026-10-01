@@ -97,6 +97,14 @@ type Frame struct {
 
 // Payload holds the kind and the variant fields that apply to it.
 type Payload struct {
+	CanInvite    bool
+	ServerTime   uint64
+	TTL          uint64
+	TokenHash    []byte
+	InvitationID []byte
+	Invitation   InvitationRecord
+	Invitations  []InvitationRecord
+
 	Kind string
 	// EndpointList
 	Signed []byte
@@ -449,7 +457,11 @@ func Encode(f Frame) ([]byte, error) {
 	case KindError:
 		payload = map[string]errorBody{KindError: {Code: f.Payload.Code, Message: f.Payload.Message}}
 	default:
-		return nil, fmt.Errorf("codec: unknown frame kind %q", f.Payload.Kind)
+		var ok bool
+		payload, ok = encodeInvitationPayload(f.Payload)
+		if !ok {
+			return nil, fmt.Errorf("codec: unknown frame kind %q", f.Payload.Kind)
+		}
 	}
 	raw, err := encMode.Marshal(payload)
 	if err != nil {
@@ -480,7 +492,7 @@ func Decode(b []byte) (Frame, error) {
 	var kind string
 	if err := cbor.Unmarshal(w.Payload, &kind); err == nil {
 		switch kind {
-		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin, KindKeyPackagesStatus:
+		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin, KindKeyPackagesStatus, KindInvitePolicyGet:
 			f.Payload.Kind = kind
 			return f, nil
 		}
@@ -719,7 +731,14 @@ func Decode(b []byte) (Frame, error) {
 			}
 			f.Payload = Payload{Kind: name, MailboxID: v.MailboxID, ReadCapability: v.ReadCapability, DeliveryIDs: v.DeliveryIDs}
 		default:
-			return Frame{}, fmt.Errorf("codec: unknown variant %q", name)
+			p, ok, err := decodeInvitationPayload(name, body)
+			if err != nil {
+				return Frame{}, err
+			}
+			if !ok {
+				return Frame{}, fmt.Errorf("codec: unknown variant %q", name)
+			}
+			f.Payload = p
 		}
 	}
 	return f, nil

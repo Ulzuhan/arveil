@@ -204,7 +204,7 @@ pub async fn resume(config: &ProfileConfig) -> Result<RecoveryResult, CliError> 
         .map_err(client_error("device"))?
         .ok_or_else(|| CliError::Domain("recovery has no device".into()))?;
     let mut connection = Connection::open(
-        &realm.bootstrap_url,
+        realm.preferred_endpoint_url(),
         &realm.realm_id,
         &realm.noise_public,
         &device.keys.transport_noise,
@@ -241,7 +241,7 @@ pub async fn resume(config: &ProfileConfig) -> Result<RecoveryResult, CliError> 
         realm_id: realm.realm_id.clone(),
         signing_key: realm.signing_public,
         noise_public: realm.noise_public.clone(),
-        url: realm.bootstrap_url.clone(),
+        url: realm.preferred_endpoint_url().to_owned(),
     };
     accept_endpoint_list(&client, &bootstrap, &mut connection).await?;
     client

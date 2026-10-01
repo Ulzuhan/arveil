@@ -4,7 +4,9 @@ Status: implementation direction accepted; milestone acceptance remains pending,
 
 The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria. This condensed English translation must be updated in the same review; the Spanish text prevails if they diverge.
 
-Client beta 3 (0.1.0+21) is public. Publication does not close M3b.5: physical-device and three-external-user acceptance remain open. [Beta readiness](BETA_READINESS.md) tracks the next release, relay compatibility and acceptance tasks.
+## Current execution priority — October 1, 2026
+
+Beta 6 (0.1.0+27) is published. [One invitation, from installation to the first conversation](INVITATION_ONBOARDING_PLAN.md) is implemented and distributed; the [implementation record](INVITATIONS.md) separates automated/native checks from pending physical acceptance. Publication does not close M3b.5: physical devices, notifications and three external users remain open. [Beta readiness](BETA_READINESS.md) records packages, compatibility and tracked tasks.
 
 ## Scope and structure
 

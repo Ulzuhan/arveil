@@ -45,6 +45,12 @@ class IncomingLinks extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Once its preview is closed, explicitly opening the same link again is
+  /// useful. Duplicate platform callbacks during that preview still coalesce.
+  void finished(String link) {
+    if (_last == link && _pending == null) _last = null;
+  }
+
   /// Take the pending link: the screen that takes it handles it.
   String? take() {
     final link = _pending;

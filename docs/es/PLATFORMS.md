@@ -22,19 +22,15 @@ Una plataforma cuenta como **probada** solo donde el flujo de aceptación se eje
 
 | Plataforma | Target de Rust | Compilado | Probado | Distribuido |
 |---|---|---|---|---|
-| macOS (Apple silicon) | `aarch64-apple-darwin` | sí | sí — aceptación ejecutada en el anfitrión | ZIP beta 3 (0.1.0+21) |
-| Android | `aarch64-linux-android`, `x86_64-linux-android` | sí — aplicación y puente | solo emulador — Android 15 (API 35), arm64; falta dispositivo físico | APK ARM64 beta 3 (0.1.0+21) |
+| macOS (Apple silicon) | `aarch64-apple-darwin` | sí | sí — aceptación ejecutada en el anfitrión | ZIP/Homebrew beta 6 (0.1.0+27) |
+| Android | `aarch64-linux-android`, `x86_64-linux-android` | sí — aplicación y puente | Android 15/API 35 arm64 emulado; vinculación física comunicada por el tester en build 24, matriz física completa pendiente | APK ARM64 beta 6 y Play interno (build 27) |
 | iOS | `aarch64-apple-ios` | solo núcleo y capa de aplicación | no | no |
 | Linux | — | no | no | no |
 | Windows | — | no | no | no |
 
 SQLCipher y su OpenSSL vendorizado cruzan a Android sin recurrir a la alternativa que ADR-009 dejó en reserva: los objetos resultantes son `elf64-littleaarch64` tanto para `libcrypto` como para `sqlite3`.
 
-La [beta 3 pública](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3)
-usa el código `9489ce6`. Los registros posteriores y pruebas del código de abajo
-no certifican esos paquetes concretos. Consulta la
-[preparación de la beta](BETA_READINESS.md) para la siguiente versión y su
-aceptación pendiente.
+La [beta 6 pública](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) usa código `e4011f3f2781aa48888d7da35114aa475d6ff71e`. El [registro de la beta](BETA_READINESS.md) contiene hashes, firmas y canales. Las pruebas de código/debug de otros commits no certifican automáticamente estos paquetes.
 
 ## Protección del perfil, y qué recupera cada cosa
 
@@ -728,3 +724,10 @@ Esto no demuestra el comportamiento en teléfonos físicos, instaladores
 modificados por fabricantes, políticas de dispositivo ni Play Protect, y no se
 usó el host público del canal. Las actualizaciones de macOS no están
 implementadas.
+
+
+## Paquetes beta 6 — 1 de octubre de 2026
+
+Código limpio `e4011f3`, build 27. ZIP Mac extraído: firma ad hoc comprobada, apertura y versión 27 visibles. APK directo: certificado conservado, instalación correcta en Android 15/API 35 arm64 emulado. AAB: clave de subida aceptada y build disponible en Play interno. Homebrew: descarga y suma verificadas. Relay compatible: backup, identidad conservada y prueba Noise pública correctos.
+
+Esto no acredita cámara física, recorrido de instalación desde WhatsApp, App Links de Play, Gatekeeper en otro Mac ni notificaciones suspendidas. Conserva esos criterios en #134/#135/#140. Las invitaciones están publicadas; su aceptación física completa sigue pendiente.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
@@ -5,6 +6,7 @@ import 'about_page.dart';
 import 'design/design.dart';
 import 'home_shell.dart';
 import 'incoming_links.dart';
+import 'invitations_page.dart';
 import 'kit_files.dart';
 import 'pairing_panel.dart';
 import 'profile_session.dart';
@@ -56,6 +58,8 @@ class _ProfilePageState extends State<ProfilePage> {
   final _bootstrap = TextEditingController();
   final _invite = TextEditingController();
   Entry? _entry;
+  bool _legacyInvitation = false;
+  bool _openingInvitation = false;
 
   /// Second step of the invitation: the server details are in.
   bool _serverDone = false;
@@ -90,7 +94,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final link = incomingLinks.pending;
     final profile = _session.profile;
     final setup = _session.setup;
-    if (link == null ||
+    if (_openingInvitation ||
+        link == null ||
         profile == null ||
         setup == null ||
         setup.stage == SetupStage.ready) {
@@ -105,12 +110,16 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     if (!mounted || incomingLinks.pending != link) return;
     switch (card) {
+      case CardView_Invitation():
+        incomingLinks.take();
+        await _openInvitation(link);
       case CardView_Join():
         incomingLinks.take();
         _invite.clear();
         _bootstrap.text = link;
         setState(() {
           _entry = Entry.invitation;
+          _legacyInvitation = true;
           _serverDone = false;
           _inviteFound = false;
         });
@@ -122,6 +131,53 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       case CardView_Contact() || CardView_Other():
         break;
+    }
+  }
+
+  Future<void> _openInvitation(String? text) async {
+    if (_openingInvitation || _session.profile == null) return;
+    _openingInvitation = true;
+    try {
+      await openPersonalInvitation(
+        context,
+        profile: _session.profile!,
+        text: text,
+        onChanged: () async {
+          await _session.refresh();
+        },
+      );
+    } finally {
+      _openingInvitation = false;
+      if (text != null) incomingLinks.finished(text);
+      if (mounted && incomingLinks.pending != null) unawaited(_onLink());
+    }
+  }
+
+  Future<void> _readInvitation(String text) async {
+    try {
+      final card = await _session.profile!.readCard(text: text);
+      if (!mounted) return;
+      if (card is CardView_Join) {
+        setState(() {
+          _legacyInvitation = true;
+          _bootstrap.text = card.bootstrap;
+          _invite.text = card.invitation;
+          _serverDone = true;
+          _inviteFound = true;
+        });
+      } else if (card is CardView_Invitation) {
+        await _openInvitation(text);
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.inviteWrongCode)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.inviteFailed)));
+      }
     }
   }
 
@@ -163,6 +219,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _invite.clear();
     setState(() {
       _entry = entry;
+      _legacyInvitation = false;
       _serverDone = false;
       _inviteFound = false;
     });
@@ -186,6 +243,9 @@ class _ProfilePageState extends State<ProfilePage> {
               _invite.text = invitation;
               _inviteFound = true;
             }
+            return;
+          case CardView_Invitation():
+            await _openInvitation(text);
             return;
           case CardView_Link() || CardView_Contact() || CardView_Other():
             _otherCard = true;
@@ -327,6 +387,18 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ];
     }
+    if (_session.pendingInvitation != null) {
+      return [
+        _title(context, l10n.inviteAcceptTitle),
+        Text(l10n.inviteResumeHelp),
+        const SizedBox(height: 16),
+        FilledButton(
+          key: const Key('invite-resume'),
+          onPressed: _session.busy ? null : () => _openInvitation(null),
+          child: Text(l10n.inviteResume),
+        ),
+      ];
+    }
     final fresh = setup.stage == SetupStage.new_;
     if (setup.stage == SetupStage.recovering) {
       return [RecoveryResumePanel(session: _session)];
@@ -354,6 +426,17 @@ class _ProfilePageState extends State<ProfilePage> {
       ];
     }
     if (fresh && _entry == null) return _choices(context);
+    if (!_legacyInvitation) {
+      return [
+        _back(context),
+        _title(context, l10n.entryInvitation),
+        InvitationInput(
+          profile: _session.profile!,
+          onOpen: _readInvitation,
+          onLegacy: () => setState(() => _legacyInvitation = true),
+        ),
+      ];
+    }
     return _invitation(context, setup);
   }
 

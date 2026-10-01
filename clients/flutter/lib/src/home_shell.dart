@@ -6,12 +6,15 @@ import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 import 'attachment_files.dart';
+import 'android_notifications.dart';
 import 'contact_cards.dart';
 import 'contacts_page.dart';
 import 'conversation_controller.dart';
 import 'conversations_page.dart';
 import 'design/design.dart';
+import 'desktop_notifications.dart';
 import 'incoming_links.dart';
+import 'invitations_page.dart';
 import 'kit_files.dart';
 import 'profile_session.dart';
 import 'rust/api/profile.dart';
@@ -88,25 +91,57 @@ class _HomeShellState extends State<HomeShell> {
     widget.session.setup!.bootstrap!,
   );
   final _chats = GlobalKey<ConversationsPageState>();
+  final _notifications = DesktopNotifications();
+  late final _androidNotifications = AndroidNotifications(
+    profile: _chat.profile,
+    sync: () async {
+      await _chat.sync();
+      return _chat.syncState == SyncState.synced;
+    },
+  );
 
   /// Keeps the destinations' state when the window crosses a size class
   /// and the layout around them changes.
   final _pagesKey = GlobalKey();
   var _destination = HomeDestination.chats;
+  bool _handlingLink = false;
   final _visited = {HomeDestination.chats};
 
   @override
   void initState() {
     super.initState();
     incomingLinks.addListener(_onLink);
+    _notifications.visibleGroup = () => _chat.visibleGroup;
+    _notifications.onWindowVisibility = _chat.setWindowVisible;
+    _notifications.onOpen = (group) {
+      // A notice tap explicitly returns to the inbox even when a settings
+      // page or file viewer currently covers the shell.
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      _inChats((page) => unawaited(page.openNotifiedConversation(group)));
+    };
+    _notifications.addListener(_notificationSettingsChanged);
+    _chat.onSnapshot = (rows) => unawaited(_notifications.observe(rows));
+    unawaited(_notifications.initialize());
+    _androidNotifications.onOpen = () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      _inChats((page) => unawaited(page.openNotifiedConversation(null)));
+    };
+    unawaited(_androidNotifications.initialize());
     WidgetsBinding.instance.addPostFrameCallback((_) => _onLink());
   }
 
   @override
   void dispose() {
     incomingLinks.removeListener(_onLink);
+    _chat.onSnapshot = null;
+    _notifications.removeListener(_notificationSettingsChanged);
+    _notifications.dispose();
+    _androidNotifications.dispose();
     super.dispose();
   }
+
+  void _notificationSettingsChanged() =>
+      _chat.setBackgroundSync(_notifications.background);
 
   /// A contact card opened from outside (ADR-012 §5): who it names, then the
   /// person decides. Codes meant for a device without an identity say so.
@@ -114,41 +149,71 @@ class _HomeShellState extends State<HomeShell> {
     final link = incomingLinks.pending;
     final profile = widget.session.profile;
     final bootstrap = widget.session.setup?.bootstrap;
-    if (link == null || profile == null || bootstrap == null) return;
-    incomingLinks.take();
-    final CardView card;
-    try {
-      card = await profile.readCard(text: link);
-    } catch (_) {
+    if (_handlingLink || link == null || profile == null || bootstrap == null) {
       return;
     }
-    if (!mounted) return;
-    switch (card) {
-      case CardView_Contact():
-        final group = await openContactCard(
-          context,
-          profile: profile,
-          bootstrap: bootstrap,
-          text: link,
-          scanned: false,
-        );
-        if (group != null) await _chat.refresh();
-      case CardView_Join():
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(context.l10n.linkJoinHasIdentity)),
-        );
-      case CardView_Link():
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(context.l10n.linkLinkHasIdentity)),
-        );
-      case CardView_Other():
-        break;
+    _handlingLink = true;
+    try {
+      incomingLinks.take();
+      final CardView card;
+      try {
+        card = await profile.readCard(text: link);
+      } catch (_) {
+        return;
+      }
+      if (!mounted) return;
+      switch (card) {
+        case CardView_Invitation():
+          await _openInvitation(link);
+        case CardView_Contact():
+          final group = await openContactCard(
+            context,
+            profile: profile,
+            bootstrap: bootstrap,
+            text: link,
+            scanned: false,
+          );
+          if (group != null) await _chat.refresh();
+        case CardView_Join():
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(content: Text(context.l10n.linkJoinHasIdentity)),
+          );
+        case CardView_Link():
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(content: Text(context.l10n.linkLinkHasIdentity)),
+          );
+        case CardView_Other():
+          break;
+      }
+    } finally {
+      incomingLinks.finished(link);
+      _handlingLink = false;
+      if (mounted && incomingLinks.pending != null) unawaited(_onLink());
+    }
+  }
+
+  Future<void> _openInvitation(String? text) async {
+    final group = await openPersonalInvitation(
+      context,
+      profile: widget.session.profile!,
+      text: text,
+      onChanged: () async {
+        await widget.session.refresh();
+        if (mounted) setState(() {});
+      },
+    );
+    if (group != null) {
+      await _chat.refresh();
+      if (mounted) {
+        _inChats((page) => unawaited(page.openNotifiedConversation(group)));
+      }
     }
   }
 
   void _go(HomeDestination destination) {
     if (destination == _destination) return;
     final from = _destination;
+    _chat.setPageVisible(false);
     setState(() {
       _destination = destination;
       _visited.add(destination);
@@ -192,6 +257,19 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   List<Widget> _notices(BuildContext context) => [
+    if (widget.session.pendingInvitation != null)
+      StatusBanner(
+        title: context.l10n.inviteResume,
+        body: context.l10n.inviteResumeHelp,
+        icon: Icons.person_add_outlined,
+        actions: [
+          TextButton(
+            key: const Key('invite-resume'),
+            onPressed: () => _openInvitation(null),
+            child: Text(context.l10n.inviteResume),
+          ),
+        ],
+      ),
     if (_kitReminder(context.l10n) case (final title, final body))
       StatusBanner(
         key: const Key('kit-reminder'),
@@ -233,6 +311,8 @@ class _HomeShellState extends State<HomeShell> {
           session: widget.session,
           kitFiles: widget.kitFiles,
           onClose: widget.onClose,
+          notifications: _notifications,
+          androidNotifications: _androidNotifications,
         ),
       };
 

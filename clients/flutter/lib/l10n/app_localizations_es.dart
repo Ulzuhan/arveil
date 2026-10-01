@@ -12,6 +12,71 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appTitle => 'Arveil';
 
   @override
+  String get notificationsTitle => 'Notificaciones';
+
+  @override
+  String get notificationsExplanation =>
+      'Recibe avisos genéricos de mensajes nuevos mientras tu perfil esté abierto. Las notificaciones no muestran nombres ni contenido de los mensajes.';
+
+  @override
+  String get notificationsEnable => 'Mostrar notificaciones en este Mac';
+
+  @override
+  String get notificationsBackground => 'Mantener Arveil en segundo plano';
+
+  @override
+  String get notificationsBackgroundDetail =>
+      'Cerrar la ventana mantiene tu perfil abierto y sincroniza cada diez segundos. Puedes reabrir Arveil o salir desde la barra de menús.';
+
+  @override
+  String get notificationsLimits =>
+      'Salir de Arveil, cerrar el perfil o poner el Mac en reposo detiene estos avisos. Los mensajes vuelven a sincronizarse al regresar. Los modos de concentración y ajustes del sistema pueden silenciar los avisos.';
+
+  @override
+  String get notificationsDenied =>
+      'Las notificaciones no están permitidas. Activa Arveil en Ajustes del Sistema → Notificaciones y vuelve a activar esta opción.';
+
+  @override
+  String get notificationsUnavailable =>
+      'No se pudieron preparar las notificaciones. Revisa los permisos del sistema y el acceso al Llavero, y vuelve a intentarlo. Tus mensajes siguen en Arveil.';
+
+  @override
+  String get notificationsNewActivity =>
+      'Tienes mensajes nuevos. Abre Arveil para leerlos.';
+
+  @override
+  String get notificationsOpenApp => 'Abrir Arveil';
+
+  @override
+  String get notificationsQuitApp => 'Salir de Arveil';
+
+  @override
+  String get attachmentOpen => 'Abrir';
+
+  @override
+  String get attachmentOpenExternal => 'Abrir con…';
+
+  @override
+  String get attachmentOpenWarning =>
+      'La aplicación elegida recibirá una copia descifrada y puede conservarla o incluirla en sus copias de seguridad. Arveil conserva su copia temporal aproximadamente una hora mientras está en ejecución y limpia las copias caducadas al volver a abrirse.';
+
+  @override
+  String get attachmentNoViewer =>
+      'Ninguna aplicación compatible pudo abrir este archivo. Puedes guardar una copia.';
+
+  @override
+  String get attachmentOpenFailed =>
+      'No se pudo abrir el archivo. Comprueba que haya terminado de descargarse y vuelve a intentarlo.';
+
+  @override
+  String get attachmentPreviewFailed =>
+      'No se pudo previsualizar la imagen o supera el límite de tamaño del visor.';
+
+  @override
+  String get attachmentExternalPreview =>
+      'Abre este archivo con una aplicación compatible, sin tener que buscarlo en Descargas.';
+
+  @override
   String get navChats => 'Chats';
 
   @override
@@ -693,7 +758,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get attachmentResumeDownload => 'Reanudar descarga';
 
   @override
-  String get attachmentDownload => 'Descargar';
+  String get attachmentDownload => 'Descargar y abrir';
 
   @override
   String get attachmentCancel => 'Cancelar transferencia';
@@ -1978,7 +2043,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get scanTitle => 'Escanear código';
 
   @override
-  String get scanHint => 'Apunta la cámara al código.';
+  String get scanHint =>
+      'Coloca el código completo dentro del marco. Acerca el móvil despacio y mantenlo quieto hasta que se lea.';
+
+  @override
+  String get scanSearching => 'Buscando el código…';
+
+  @override
+  String get scanReadFailed =>
+      'No se pudo leer la imagen de la cámara. Vuelve a abrir el escáner o pega el enlace.';
+
+  @override
+  String get pairingNewCode => 'Mostrar un código nuevo';
 
   @override
   String get scanDenied =>
@@ -2178,4 +2254,247 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get linkLinkHasIdentity =>
       'Este dispositivo ya tiene una identidad. Abre ese código en el dispositivo nuevo.';
+
+  @override
+  String get pushExplanation =>
+      'Notificaciones experimentales sin Google. Configura primero ntfy con tu servidor propio. El receptor solo muestra actividad genérica y nunca abre tu perfil ni lee mensajes.';
+
+  @override
+  String get pushInstall =>
+      'Instala ntfy desde F-Droid y configura tu servidor HTTPS propio. El servidor público ntfy.sh no se admite en este modo.';
+
+  @override
+  String get pushServer => 'Tu servidor de notificaciones';
+
+  @override
+  String get pushEnable => 'Recibir avisos de actividad';
+
+  @override
+  String get pushWaiting =>
+      'Esperando a ntfy. Comprueba que use el mismo servidor y reintenta.';
+
+  @override
+  String get pushReady =>
+      'Conectado. Los avisos son genéricos; Arveil consulta los mensajes al abrirse.';
+
+  @override
+  String get pushPermission =>
+      'Permite las notificaciones de Arveil en los ajustes de Android y reintenta.';
+
+  @override
+  String get pushEndpointMismatch =>
+      'ntfy ha devuelto otro servidor o uno no compatible. Comprueba su configuración y la dirección introducida aquí.';
+
+  @override
+  String get pushRegistrationFailed =>
+      'ntfy no pudo registrar este dispositivo. Abre ntfy, comprueba su conexión y reintenta.';
+
+  @override
+  String get pushUnavailable =>
+      'No se pudo actualizar la configuración. Revisa ntfy, la dirección del servidor y los permisos de Android.';
+
+  @override
+  String get pushRelayPending =>
+      'El cambio está guardado en este móvil pero sigue pendiente en el relay. Mantén Arveil abierto con conexión y reintenta. Los avisos desactivados siguen desactivados en el móvil.';
+
+  @override
+  String get pushLimits =>
+      'ntfy necesita funcionar en segundo plano. Las restricciones de batería pueden retrasar avisos. Forzar el cierre impide recibirlos hasta reabrir la app. Pueden llegar avisos genéricos con el perfil cerrado; desactiva esta opción para detenerlos.';
+
+  @override
+  String get pushRetry => 'Reintentar conexión';
+
+  @override
+  String get pushServerHint => 'https://notify.example.org';
+
+  @override
+  String get inviteTitle => 'Invitar a alguien';
+
+  @override
+  String get inviteHelp =>
+      'Una invitación conecta a una persona con tu servidor y abre un chat contigo. Puede instalar Arveil desde el mismo enlace y volver a abrirlo después. Tu dispositivo puede estar desconectado cuando la acepte.';
+
+  @override
+  String get inviteCreate => 'Crear invitación personal';
+
+  @override
+  String get inviteShareApp => 'Compartir solo la descarga de Arveil';
+
+  @override
+  String get inviteListTitle => 'Tus invitaciones';
+
+  @override
+  String get inviteLocalList =>
+      'Los estados muestran la última consulta. Actualiza para comprobar si alguien ha aceptado.';
+
+  @override
+  String get inviteEmpty => 'Todavía no has creado invitaciones.';
+
+  @override
+  String get inviteShow => 'Mostrar código o compartir';
+
+  @override
+  String get inviteShare => 'Compartir invitación';
+
+  @override
+  String get inviteShareMessage =>
+      'Te invito a Arveil para hablar de forma privada. Abre este enlace; si necesitas instalar la app, vuelve a abrir el mismo enlace después. La invitación es personal y de un solo uso.';
+
+  @override
+  String get invitePrivate =>
+      'Envía este enlace solo a la persona que quieres invitar. Quien lo acepte primero podrá entrar en tu servidor y abrir un chat contigo. Dura siete días y puedes revocarlo mientras no se haya usado.';
+
+  @override
+  String get inviteWaiting => 'Pendiente de aceptar';
+
+  @override
+  String get inviteUsed => 'Aceptada · esperando el contacto';
+
+  @override
+  String get inviteConnected => 'Contacto conectado';
+
+  @override
+  String get inviteExpired => 'Invitación caducada';
+
+  @override
+  String get inviteRevoked => 'Invitación revocada';
+
+  @override
+  String get inviteRevoking => 'Revocación pendiente de confirmar';
+
+  @override
+  String get inviteIssuing => 'Creación pendiente de confirmar';
+
+  @override
+  String get inviteConnecting => 'Cuenta conectada · terminando el chat';
+
+  @override
+  String get inviteAccepting => 'Aceptación en curso';
+
+  @override
+  String get inviteOtherDevice =>
+      'Esta invitación se creó en otro dispositivo tuyo. Desde aquí puedes revocarla; para compartirla, abre el dispositivo que la creó.';
+
+  @override
+  String get inviteAcceptTitle => 'Aceptar invitación';
+
+  @override
+  String get inviteUnnamed => 'Has recibido una invitación a Arveil';
+
+  @override
+  String get inviteConsent =>
+      'Al aceptar, usarás este servidor y añadirás a quien te invita como contacto. Si es tu primera vez, Arveil creará tu propia identidad. No copiará la identidad ni los mensajes de otra persona.';
+
+  @override
+  String get inviteUnverified =>
+      'El nombre lo ha escrito quien comparte el enlace. Escanearlo no verifica quién es: puedes comprobar el código de seguridad del contacto después.';
+
+  @override
+  String get inviteNameHelp =>
+      'Opcional. Este nombre se enviará a quien te invita al abrir el chat.';
+
+  @override
+  String get inviteAccept => 'Aceptar y conectar';
+
+  @override
+  String get inviteResume => 'Continuar invitación';
+
+  @override
+  String get inviteResumeHelp =>
+      'El progreso está guardado en este perfil. Puedes continuar sin volver a pedir un enlace.';
+
+  @override
+  String get inviteInputHelp =>
+      'Pide a un contacto que abra «Invitar a alguien» en Arveil. Escanea su código o pega el enlace que te envíe.';
+
+  @override
+  String get inviteScan => 'Escanear invitación';
+
+  @override
+  String get inviteLinkLabel => 'Enlace de invitación';
+
+  @override
+  String get inviteOpen => 'Revisar invitación';
+
+  @override
+  String get inviteLegacy => 'Tengo los datos de una invitación anterior';
+
+  @override
+  String get inviteWrongCode =>
+      'Este código no es una invitación para entrar en Arveil.';
+
+  @override
+  String get inviteOffline =>
+      'No se pudo conectar con el servidor. Comprueba la conexión y vuelve a intentarlo; el progreso confirmado se conserva.';
+
+  @override
+  String get inviteNotAllowed =>
+      'Tu cuenta no tiene permiso para invitar a este servidor. Pide una invitación a quien lo administra. Compartir la descarga por sí sola no da acceso.';
+
+  @override
+  String get inviteUnavailable =>
+      'Esta invitación ha caducado o se ha revocado. Pide una nueva a quien te invita.';
+
+  @override
+  String get inviteAlreadyUsed =>
+      'La invitación ya se aceptó desde otro perfil o dispositivo. Continúa allí o pide una nueva.';
+
+  @override
+  String get inviteOtherServer =>
+      'Esta invitación pertenece a otro servidor. Tu perfil actual se conserva; pide un enlace de tu mismo servidor.';
+
+  @override
+  String get inviteOwn =>
+      'Esta invitación es tuya. Compártela con la persona que quieras añadir.';
+
+  @override
+  String get inviteAnotherPending =>
+      'Ya hay otra invitación en curso. Continúala antes de abrir una diferente.';
+
+  @override
+  String get inviteOldServer =>
+      'El servidor necesita una actualización para usar invitaciones personales. Pide a quien lo administra que lo actualice.';
+
+  @override
+  String get inviteNoKeys =>
+      'Tu cuenta ya está conectada, pero faltan datos para abrir el chat. Pide a quien te invita que abra Arveil y sincronice; después pulsa continuar.';
+
+  @override
+  String get inviteBusy =>
+      'Se ha alcanzado un límite temporal. Espera un poco y vuelve a intentarlo.';
+
+  @override
+  String get inviteStorage =>
+      'No se pudo guardar el progreso. Comprueba el espacio disponible y vuelve a abrir el perfil; conserva los datos de Arveil.';
+
+  @override
+  String get inviteFailed =>
+      'No se pudo completar la invitación. Revisa que el enlace esté completo y que ambas apps estén actualizadas.';
+
+  @override
+  String inviteExpires(String date) {
+    return 'Caduca: $date';
+  }
+
+  @override
+  String inviteChecked(String date) {
+    return 'Última consulta: $date';
+  }
+
+  @override
+  String inviteFrom(String name) {
+    return '$name te invita a Arveil';
+  }
+
+  @override
+  String inviteServer(String server) {
+    return 'Servidor: $server';
+  }
+
+  @override
+  String get invitePermissionDetails => 'Detalles del permiso para invitar';
+
+  @override
+  String get invitePermissionHelp =>
+      'Si administras este servidor, comprueba este identificador completo de tu identidad antes de concederle el permiso de propietario desde el servidor. Esto conserva tu cuenta actual.';
 }

@@ -169,7 +169,7 @@ its conditions, and the invariants (I-01 to I-13) the tests check.
 
 The relay, the Rust core and the CLI are implemented through Phase 4. Relay/CLI
 [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) and client
-[beta 3 (0.1.0+21)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3)
+[beta 6 (0.1.0+27)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6)
 are public. The Flutter apps cover everyday flows; beta acceptance is still open.
 
 | Phase | Scope | Status |
@@ -185,8 +185,9 @@ The main flows of M3b.0 to M3b.4 are implemented, with platform acceptance
 still pending. **M3b.5** needs physical-device checks and three external users
 completing the main flows. Signed update announcements are implemented;
 production (M3b.8) still requires external security review and final platform
-acceptance. QR codes, links and contact requests are on `main`, after beta 3,
-and require a newer relay than v0.1.0. Follow the
+acceptance. Beta 6 includes QR codes, contact requests, personal invitations, attachment
+opening and experimental notifications. It requires the compatible relay
+revision recorded with the release; v0.1.0 is too old. Follow the
 [beta readiness record](docs/BETA_READINESS.md), the
 [Phase 3b plan](docs/PHASE3B.md) and the
 [client implementation record](docs/CLIENT_FOUNDATION.md).
@@ -232,7 +233,7 @@ address in [Running a realm](docs/OPERATIONS.md), or follow the
 ### Get the apps
 
 Download the macOS ZIP or Android APK from
-[client beta 3](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3).
+[client beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
 Neither needs developer tools to install. Check its release notes and checksums;
 update over the existing app without uninstalling or clearing its data.
 The [installation guide](docs/INSTALLATION.md) covers

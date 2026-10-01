@@ -501,6 +501,23 @@ class _PairingPanelState extends State<PairingPanel> {
     final l10n = context.l10n;
     final remaining = offer.expiresAt.toInt() - _now;
     final profile = session.profile;
+    if (remaining <= 0) {
+      return [
+        Text(l10n.errorLinkExpired, key: const Key('link-expired')),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          key: const Key('link-renew'),
+          onPressed: session.busy
+              ? null
+              : () async {
+                  await session.closeLink();
+                  if (mounted) await _offer();
+                },
+          icon: const Icon(Icons.qr_code_2),
+          label: Text(l10n.pairingNewCode),
+        ),
+      ];
+    }
     return [
       Text(l10n.pairingOfferHelp),
       const SizedBox(height: 16),

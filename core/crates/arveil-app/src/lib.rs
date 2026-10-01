@@ -20,11 +20,13 @@ pub use archives::{
 };
 mod attachment_ui;
 pub mod carrier;
+mod invitations;
 pub mod links;
 pub mod qr;
 mod requests;
 pub use arveil_core::client::{CardUse, VerifiedHow};
 pub use attachment_ui::{AttachmentState, AttachmentSummary, MAX_ATTACHMENT_BYTES};
+pub use invitations::{InvitationAction, InvitationOutput, InvitationPolicy, InvitationView};
 pub use requests::{CardOffer, CardPreview, Hello, RequestSummary};
 mod contacts;
 #[cfg(test)]
@@ -37,6 +39,7 @@ mod conversation_ui;
 pub use contacts::{ContactDevice, ContactSummary, SavedRecipient};
 pub use conversation_ui::{ConversationRoute, RoutePreview};
 mod key_packages;
+mod notifications;
 mod onboarding;
 mod recovery;
 pub mod updates;
@@ -95,6 +98,7 @@ fn filesystem_error<E: std::fmt::Display>(context: &str) -> impl FnOnce(E) -> Cl
 /// A business operation exposed to every Arveil front end.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Operation {
+    Invitations,
     CreateIdentity,
     Enroll,
     CreateLinkRequest,
@@ -130,6 +134,7 @@ pub enum Operation {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    SetNotificationHint,
     QueryDevices,
     QueryContacts,
     SaveContact,
@@ -162,6 +167,9 @@ pub enum Operation {
 /// A command accepted by the serial executor for one client profile.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClientCommand {
+    Invitations {
+        action: InvitationAction,
+    },
     QueueAttachment {
         group: Vec<u8>,
         name: String,
@@ -272,6 +280,9 @@ pub enum ClientCommand {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    SetNotificationHint {
+        endpoint: String,
+    },
     QueryDevices,
     QueryContacts,
     SaveContact {
@@ -365,6 +376,7 @@ pub enum ClientCommand {
 impl ClientCommand {
     fn operation(&self) -> Operation {
         match self {
+            Self::Invitations { .. } => Operation::Invitations,
             Self::CreateIdentity => Operation::CreateIdentity,
             Self::Enroll { .. } => Operation::Enroll,
             Self::CreateLinkRequest => Operation::CreateLinkRequest,
@@ -392,6 +404,7 @@ impl ClientCommand {
             Self::QueryKeyPackageSupply => Operation::QueryKeyPackageSupply,
             Self::CheckKeyPackages => Operation::CheckKeyPackages,
             Self::ReplenishKeyPackages => Operation::ReplenishKeyPackages,
+            Self::SetNotificationHint { .. } => Operation::SetNotificationHint,
             Self::QueueAttachment { .. } => Operation::QueueAttachment,
             Self::ResumeAttachment { .. } => Operation::ResumeAttachment,
             Self::CancelAttachment { .. } => Operation::CancelAttachment,
@@ -1369,6 +1382,7 @@ pub enum OnboardingOutput {
 /// The typed output produced by a client command.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandOutput {
+    Invitations(InvitationOutput),
     AttachmentQueued(Vec<u8>),
     AttachmentBytes(Vec<u8>),
     Operation(OperationResult),
@@ -1562,6 +1576,9 @@ enum Admission {
 impl ClientCommand {
     fn admission(&self) -> Admission {
         match self {
+            Self::Invitations {
+                action: InvitationAction::Pending | InvitationAction::List { refresh: false },
+            } => Admission::Query,
             Self::Sync { .. } => Admission::Sync,
             Self::QueryConversations
             | Self::QueryPeers { .. }
@@ -1879,12 +1896,20 @@ fn command_future(
             return;
         }
         let watched = WATCHERS.scope((operation, watchers), async move {
-            if matches!(
+            if matches!(&command, ClientCommand::Invitations { action } if !matches!(action, InvitationAction::Pending | InvitationAction::List { refresh: false })) {
+                // Prevent simultaneous taps/reopens from claiming another key
+                // package or building two groups. Serialize with enrollment and
+                // sync as well: both touch this operation's durable progress.
+                let _enrollment = exclusions.enrollment.lock().await;
+                let _sync = exclusions.sync.lock().await;
+                Box::pin(run_command(&config, command)).await
+            } else if matches!(
                 &command,
                 ClientCommand::Sync { .. }
                     | ClientCommand::RevokeDevice { .. }
                     | ClientCommand::CheckKeyPackages
                     | ClientCommand::ReplenishKeyPackages
+                    | ClientCommand::SetNotificationHint { .. }
             ) {
                 // A second sync waits cooperatively here: network waits from the
                 // active sync still yield to queries and non-sync commands.
@@ -2158,6 +2183,20 @@ impl Application {
         match self.execute(ClientCommand::ReplenishKeyPackages)? {
             CommandOutput::KeyPackageSupply(value) => Ok(value),
             _ => unreachable!("key package output"),
+        }
+    }
+
+    /// Idempotent relay registration through the existing profile executor.
+    /// Empty means remove. The platform retains its desired endpoint until ACK.
+    pub fn set_notification_hint(
+        &self,
+        endpoint: &str,
+    ) -> Result<OperationResult, ApplicationError> {
+        match self.execute(ClientCommand::SetNotificationHint {
+            endpoint: endpoint.to_owned(),
+        })? {
+            CommandOutput::Operation(value) => Ok(value),
+            _ => unreachable!("notification hint output"),
         }
     }
 
@@ -2440,6 +2479,16 @@ impl Application {
                 _ => unreachable!("link join returned another output type"),
             },
         )
+    }
+
+    pub fn invitations(
+        &self,
+        action: InvitationAction,
+    ) -> Result<InvitationOutput, ApplicationError> {
+        match self.execute(ClientCommand::Invitations { action })? {
+            CommandOutput::Invitations(value) => Ok(value),
+            _ => unreachable!("invitation output"),
+        }
     }
 
     /// A card of this device: a code to show in person, or a link to share.
@@ -2927,6 +2976,12 @@ async fn run_command(
                 .map(CommandOutput::AttachmentBytes)
                 .map_err(|e| application_error(Operation::ExportAttachment, e))
         }
+        ClientCommand::Invitations { action } => Box::pin(run_operation_with_value(
+            Operation::Invitations,
+            invitations::execute(config, action),
+        ))
+        .await
+        .map(|(value, _)| CommandOutput::Invitations(value)),
         ClientCommand::QueryDevices => devices::inventory(config)
             .map(CommandOutput::Devices)
             .map_err(|e| application_error(Operation::QueryDevices, e)),
@@ -3070,6 +3125,12 @@ async fn run_command(
             .await
             .map(|(value, _)| CommandOutput::KeyPackageSupply(value))
         }
+        ClientCommand::SetNotificationHint { endpoint } => run_operation(
+            Operation::SetNotificationHint,
+            notifications::set(config, &endpoint),
+        )
+        .await
+        .map(CommandOutput::Operation),
         ClientCommand::ExportArchive => archives::export(config)
             .map(CommandOutput::Archive)
             .map_err(|e| application_error(Operation::ExportArchive, e)),
@@ -4572,6 +4633,23 @@ async fn start_with(
     peer_routes: &[&str],
     hello: Option<requests::Hello>,
 ) -> Result<(), CliError> {
+    Box::pin(start_with_operation(
+        config,
+        bootstrap,
+        peer_routes,
+        hello,
+        None,
+    ))
+    .await
+}
+
+async fn start_with_operation(
+    config: &ProfileConfig,
+    bootstrap: &str,
+    peer_routes: &[&str],
+    hello: Option<requests::Hello>,
+    mut invitation: Option<arveil_core::client::InvitationOperation>,
+) -> Result<(), CliError> {
     let b = Bootstrap::parse(bootstrap)?;
     let peers: Vec<Route> = peer_routes
         .iter()
@@ -4585,9 +4663,49 @@ async fn start_with(
     let (s, engine) = session(config)?;
 
     let mut conn = connect(config, &s, &b).await?;
+    if invitation
+        .as_ref()
+        .is_some_and(|op| !op.group_id.is_empty())
+    {
+        let n = publish_pending(config, &s, &mut conn).await?;
+        record_change(StateChange::EnvelopesPublished {
+            count: n,
+            pending: false,
+        });
+        conn.close().await;
+        return Ok(());
+    }
     let mut kps = Vec::new();
     for p in &peers {
-        kps.push(claim_key_package(&mut conn, p).await?);
+        let kp = if let Some(op) = &mut invitation {
+            let credential = verified_route_credential(&mut conn, p).await?;
+            if op.key_package.is_empty() {
+                let reply = conn
+                    .request(Payload::KeyPackagesClaimOnce {
+                        request_key: op.claim_key.clone(),
+                        identity_id: p.identity_id.clone(),
+                        device_id: p.device_id.clone(),
+                    })
+                    .await?;
+                let Payload::KeyPackageClaimed { key_package } = reply else {
+                    return Err(CliError::Protocol("invalid key package reply".into()));
+                };
+                let kp =
+                    MlsMessage::from_bytes(&key_package).map_err(protocol_error("key package"))?;
+                check_key_package_binding(&kp, &credential)?;
+                op.key_package = key_package;
+                s.client
+                    .invitation_operation_save(op)
+                    .map_err(storage_error("invitation"))?;
+            }
+            let kp =
+                MlsMessage::from_bytes(&op.key_package).map_err(protocol_error("key package"))?;
+            check_key_package_binding(&kp, &credential)?;
+            kp
+        } else {
+            claim_key_package(&mut conn, p).await?
+        };
+        kps.push(kp);
     }
 
     let mut group = engine.create_group().map_err(protocol_error("mls"))?;
@@ -4629,10 +4747,20 @@ async fn start_with(
             s.client
                 .conversation_save(&conv)
                 .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            enqueue_for_all(&s, &conv.peers, None, &welcome)?;
-            enqueue_for_all(&s, &conv.peers, None, &roster)?;
+            let invitation_event = invitation.as_ref().map(|o| o.id.as_slice());
+            enqueue_for_all(&s, &conv.peers, invitation_event, &welcome)?;
+            enqueue_for_all(&s, &conv.peers, invitation_event, &roster)?;
             if let Some(hello) = &hello {
-                enqueue_for_all(&s, &conv.peers, None, hello)?;
+                enqueue_for_all(&s, &conv.peers, invitation_event, hello)?;
+            }
+            if let Some(op) = &mut invitation {
+                op.group_id = conv.group_id.clone();
+                op.state = "prepared".into();
+                // The mapping, MLS state, and immutable encrypted outbox are a
+                // single commit. A retry can only publish these same bytes.
+                s.client
+                    .invitation_operation_save(op)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?;
             }
             Ok::<_, rusqlite::Error>(())
         })
@@ -5238,6 +5366,7 @@ async fn sync(config: &ProfileConfig, bootstrap: &str) -> Result<(), CliError> {
     // An in-person code is believed once its sender binds to a signed
     // credential; a network failure here waits for the next sync.
     let _ = requests::settle_in_person(&s, &engine, &mut conn).await;
+    let _ = invitations::settle(&s, &engine, &mut conn).await;
     if !config.manual_attachments {
         download_pending(&s, &mut conn, config).await?;
     }

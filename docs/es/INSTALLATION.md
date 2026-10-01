@@ -7,31 +7,25 @@ para ti: [Instalar Arveil](https://arveil.kaicorplabs.com/es/instalar/).
 Esta página es la referencia completa, también para poner en marcha un relay
 y compilar desde el código.
 
-**Disponibilidad actual (30 de septiembre de 2026):** son públicos el relay/CLI
-[v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) y el cliente
-[beta 3, 0.1.0+21](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3).
-La release incluye ZIP para macOS Apple silicon y APK para Android ARM64,
-sumas, metadatos de compilación y un anuncio de actualización firmado.
-El proyecto es experimental y no ha pasado una revisión independiente de
-seguridad. Usa perfiles de prueba desechables; publicar paquetes no cierra
-la aceptación en dispositivos físicos ni con usuarios externos. Consulta la
-[matriz de plataformas](PLATFORMS.md).
+**Disponibilidad actual (1 de octubre de 2026):** [beta 6, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) ofrece ZIP macOS ARM64 y APK Android ARM64, sumas, metadatos y anuncio firmado (secuencia 8). Homebrew distribuye `0.1.0-beta.6,27`. Google Play ofrece la build 27 en pruebas internas, sin revisión de producción. Actualiza por el mismo canal, sin desinstalar ni borrar datos.
 
-**Código frente a descarga.** Los QR, enlaces y solicitudes de contacto de esta
-guía están implementados en `main` después de beta 3. Beta 3 funciona con relay
-v0.1.0 mediante datos del servidor y códigos de invitación. El cliente nuevo
-requiere un relay con `CredentialGet` (introducido en `d26b5c5`); v0.1.0 no puede
-validar sus rutas de contacto. Actualiza el relay antes de distribuir el nuevo
-cliente. El [registro de preparación de la beta](BETA_READINESS.md) sigue la
-publicación coordinada.
+**Compatibilidad del servidor.** Los binarios públicos relay/CLI v0.1.0 son anteriores a `CredentialGet` y a las invitaciones personales. Para esta beta utiliza el relay de `e4011f3f2781aa48888d7da35114aa475d6ff71e` o una revisión posterior compatible y probada. El entorno de prueba ya está actualizado; la distribución versionada de relay/CLI y la matriz completa siguen en [#133](https://github.com/Ulzuhan/arveil/issues/133). Conserva copias consistentes antes de migrar. No abras bases de relay 5 o perfil 8 con binarios anteriores.
+
+## Invitaciones personales en beta 6
+
+**Invitar a alguien** reúne admisión y contacto en un enlace/QR privado. El emisor necesita permiso `owner`, concedido por el administrador del host a su identidad existente. El receptor instala la app, vuelve al enlace (o escanea/pega), revisa y acepta. Crea una identidad independiente y una conversación; un miembro del mismo servidor conserva su identidad. No se copia historial ni se verifica automáticamente al contacto. Sigue disponible el alta antigua por servidor/token.
+
+[Invitaciones](INVITATIONS.md) explica permiso, migraciones y recuperación. La primera conversación llega al dispositivo que emitió el enlace cuando vuelve a sincronizar. La invitación no concede acceso al canal interno de Play: la persona necesita también ser tester. Tras instalar, debe volver al enlace original.
+
+Los paquetes siguen siendo experimentales, sin auditoría independiente. La aceptación de cámara, instalación limpia y notificaciones en dispositivos reales sigue pendiente en [#134](https://github.com/Ulzuhan/arveil/issues/134) y [#140](https://github.com/Ulzuhan/arveil/issues/140). Consulta la [matriz de plataformas](PLATFORMS.md).
 
 ## Elige por dónde empezar
 
 | Quiero… | Ruta disponible | Aceptación pendiente |
 |---|---|---|
-| Desplegar un relay | Binarios publicados v0.1.0, o código actual con Docker Compose/Podman | Registrar instalación y actualización en un host limpio compatible; el cliente de código actual necesita un relay actualizado |
-| Probar la app en macOS | Descargar el ZIP de beta 3 | Instalación limpia descargada en otro Mac y VoiceOver |
-| Probar la app en Android | Descargar el APK de beta 3 | Instalación/actualización en teléfono físico, cámara, enlaces, TalkBack y Doze/reconexión |
+| Desplegar un relay | Código compatible de beta 6 con Docker Compose/Podman | Registrar instalación y actualización en un host limpio compatible; el cliente de código actual necesita un relay actualizado |
+| Probar la app en macOS | ZIP beta 6 o Homebrew | Instalación limpia descargada en otro Mac y VoiceOver |
+| Probar la app en Android | APK beta 6 o Play interno (tester autorizado) | Instalación/actualización en teléfono físico, cámara, enlaces, TalkBack y Doze/reconexión |
 | Usar un iPhone | Hito posterior y separado | Aceptación nativa y firma/distribución compatible |
 
 ## Relay: primer arranque local con Docker Compose
@@ -91,7 +85,7 @@ Las releases del cliente usan tags `clients-v…` e incluyen `BUILD-macos.json`,
 `BUILD-android.json` y `SHA256SUMS-clients.txt`. Un candidato local de una sola
 plataforma incluye `BUILD.json` y `SHA256SUMS.txt`.
 Descarga el ZIP o APK de la
-[beta 3](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.3).
+[beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
 Para instalar estos paquetes no necesitas Flutter, Rust, Xcode ni Android Studio.
 
 ### macOS: Apple silicon, macOS 12 o posterior
@@ -186,8 +180,9 @@ el código actual o un paquete que lo incluya:
 5. Abre la conversación y envía texto. Sin conexión queda guardado localmente;
    **Sincronizar** reintenta su publicación. Aceptación del relay no confirma lectura.
 
-La sincronización automática funciona con la pantalla de conversaciones en primer
-plano. Faltan push, recepción en segundo plano y gestión general de miembros.
+La sincronización automática funciona con Arveil en primer plano. El incremento
+de código descrito abajo añade segundo plano opcional en Mac; siguen pendientes
+push Android y la gestión general de miembros.
 Los paquetes experimentales anteriores pueden preceder estos cambios:
 comprueba su revisión antes de esperar estas pantallas.
 
@@ -202,6 +197,43 @@ destino externo. Esa copia queda fuera del perfil cifrado de Arveil y puede
 entrar en las copias de seguridad del destino. Cancelar una transferencia
 incompleta elimina sus datos locales; no retira un mensaje enviado. Pide otra
 copia si el relay indica caducidad.
+
+### Visor y notificaciones (incremento en código, no incluido en build 25)
+
+En un cliente compilado con este incremento, pulsa **Descargar y abrir** para
+un adjunto recibido o **Abrir** si ya está disponible. Las imágenes PNG/JPEG/WebP
+se ven dentro de Arveil con zoom, también sin red tras reabrir el perfil.
+PDF y otros archivos ofrecen **Abrir con…**: confirma que la aplicación elegida
+recibirá una copia temporal descifrada. No hace falta buscarla en Downloads.
+**Guardar copia…** sigue siendo una exportación independiente. El visor externo
+puede conservar copias; Arveil limpia sus temporales caducados durante la
+ejecución o al siguiente arranque.
+
+En Mac, **Ajustes → Notificaciones** ofrece avisos genéricos y la opción
+independiente **Mantener Arveil en segundo plano**. Activar avisos solicita
+permiso al sistema; denegarlo no impide enviar mensajes. El segundo plano
+mantiene el perfil desbloqueado, oculta la ventana al cerrarla y ofrece abrir
+o salir desde la barra de menús. Salir, cerrar el perfil o suspender el Mac
+detiene los avisos locales. Si se deniega el permiso, habilita Arveil en los
+ajustes de notificaciones de macOS y vuelve a activar la opción.
+
+Android añade **Ajustes → Notificaciones** experimental. Requiere ntfy de
+F-Droid con tu servidor HTTPS propio; introduce la misma dirección base en
+Arveil y concede permiso para avisar. Se rechaza ntfy.sh. Los avisos son genéricos
+y pueden llegar con el perfil cerrado, sin desbloquearlo. Desactiva la opción
+para detenerlos. Mantén Arveil abierto con conexión para completar altas/bajas
+pendientes. El cierre forzado y las restricciones de batería pueden impedir o
+retrasar la entrega.
+
+Se han ejecutado builds debug, instrumentación del receptor Android y aceptación
+de adjuntos Mac con perfiles desechables. También pasan la entrega y retirada del
+aviso en el centro de notificaciones Mac debug con el permiso activado. La app
+oficial ntfy F-Droid pasa la entrega en emulador con un servidor local desechable.
+Quedan el recorrido completo relay-móvil, avisos Mac empaquetados y Android físico antes de publicar; consulta
+[alcance y evidencia](CLIENT_FILES_NOTIFICATIONS.md). Estas pruebas no despliegan
+un servidor de notificaciones permanente.
+Los cambios no requieren migrar ni reinstalar el perfil: conserva el perfil
+y su llavero al actualizar mediante el procedimiento habitual.
 
 ## Compilar desde el código
 
@@ -261,6 +293,38 @@ verificar lo que empaqueta. La configuración privada queda fuera del
 repositorio. Son criterios de entrega, no una afirmación de que los paquetes
 o todas esas pruebas existan ya; véase la [fase 3b](PHASE3B.md).
 
+
+## Vincular un móvil Android a tu identidad
+
+En el dispositivo administrador, abre **Ajustes → Vincular otro dispositivo →
+Mostrar código**. En el móvil, elige **Vincular con mi otro dispositivo → Escanear
+el código**, encuadra el QR completo y mantén el móvil quieto. Compara los números
+y autoriza desde el administrador. Si pegas o abres el enlace desde otra app,
+también debes confirmar el número en el móvil. La vinculación conserva la
+identidad; no copia el historial anterior.
+
+Los QR de contacto, los enlaces de contacto compartidos y los datos del servidor
+recuperados también usan el endpoint no administrativo preferido de la lista
+guardada y verificada por firma. Sincroniza antes de generar una tarjeta si el
+operador ha cambiado las direcciones; sin conexión se usa la última lista
+verificada. Los enlaces ya compartidos conservan su contenido original: genera
+y comparte uno nuevo después del cambio. Los servidores exclusivamente privados
+siguen admitidos; el operador debe configurar y dar prioridad a una ruta pública
+para que el código funcione fuera de su red privada.
+
+El código usa el endpoint de cliente prioritario de la lista firmada y verificada
+del relay. Si el administrador se dio de alta por una red privada, el relay debe
+anunciar ahora una ruta accesible desde el móvil. Da la máxima prioridad a la
+ruta WSS pública si el móvil se conectará sin esa red privada. Actualiza la app
+del administrador para incorporar la selección de ruta corregida; actualizar
+solo el móvil no cambia un código que ya se generó.
+
+Un código caducado se sustituye con **Mostrar un código nuevo**. No reutilices
+el enlace anterior. El escáner muestra un marco y un indicador de actividad; si
+deniegas el permiso o la cámara no está disponible, puedes pegar el enlace.
+La aceptación con una cámara física sigue siendo necesaria aunque pasen las
+pruebas automatizadas de vinculación y ciclo de vida de la cámara. Actualiza
+sobre la instalación existente para conservar el perfil y su clave.
 
 ## Gestionar tus dispositivos (disponible desde `0.1.0+8`)
 

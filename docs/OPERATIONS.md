@@ -94,7 +94,26 @@ Restoring goes into a new directory and never over a live one, because mixing tw
 
 ```
 arveil-relay restore -in /backups/arveil-2026-09-04.tar.gz -data-dir /var/lib/arveil.new
-systemctl stop arveil-relay && mv /var/lib/arveil /var/lib/arveil.old && mv /var/lib/arveil.new /var/lib/arveil && systemctl start arveil-relay
+systemctl stop arveil-relay
+```
+
+Before replacing the directory, compare both directories' keys at
+`server-secrets/realm-signing.key` and `realm-noise.key` without printing their
+contents. They must belong to the same realm. Preserve the **highest known
+counter** from `server-secrets/endpoint-sequence` (a decimal integer) in the
+restored directory, including starts after the backup. Retain ownership and
+mode 0600. Do not lower the counter or clear clients' stored keys/lists. The
+next startup increments it and signs a new list. If post-backup state was lost,
+recover that known maximum before claiming endpoint refresh works; do not guess.
+
+Otherwise a client retains its newest list and rejects the older one: it may
+still connect through its known route, but does not accept the restored update.
+After preserving the counter, swap directories and start the binary compatible
+with the backup's schema:
+
+```
+mv /var/lib/arveil /var/lib/arveil.old && mv /var/lib/arveil.new /var/lib/arveil
+systemctl start arveil-relay
 ```
 
 Restoring an old snapshot is visible to clients rather than silent: a device recovering from its identity kit reports that the realm holds an older manifest than it does (invariant I-08), and members refresh manifests on every sync. That is detection, not prevention.
@@ -102,3 +121,12 @@ Restoring an old snapshot is visible to clients rather than silent: a device rec
 ## Upgrading
 
 Stop, replace the binary, start. The schema migrates on open. Take a backup first, and keep the previous binary until the family has used the new one, because there is no downgrade path for the database.
+
+## Personal invitation rollout
+
+See [owner setup and rollout](INVITATIONS.md). This candidate migrates relay
+schema 4→5 and client profiles 7→8. Back up consistently, rehearse restoration,
+deploy the compatible relay first, and promote the intended existing owner by
+full identity ID. Do not open newer databases with older binaries. The wider
+administration panel is not implemented. No production upgrade is implied by
+building this branch.

@@ -26,6 +26,8 @@ use crate::links::{Card, CardRoute, DEFAULT_LINK_BASE, Realm, clean_name};
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Hello {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invitation: Option<serde_bytes::ByteBuf>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secret: Option<serde_bytes::ByteBuf>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -85,6 +87,7 @@ pub(crate) fn plain_hello(client: &Client) -> Result<Option<Hello>, CliError> {
         .card_name()
         .map_err(storage_error("card name"))?
         .map(|name| Hello {
+            invitation: None,
             secret: None,
             name: Some(name),
         }))
@@ -139,6 +142,7 @@ pub(crate) fn receive_hello(
             description: "own hello".into(),
         });
     }
+    invitations::remember_hello(s, gid, sender, &hello)?;
     let now = unix_now();
     let card = match &hello.secret {
         Some(secret) => match s
@@ -331,7 +335,7 @@ pub(crate) fn offer_card(config: &ProfileConfig, in_person: bool) -> Result<Card
         realm: Realm {
             signing_key: realm.signing_public,
             noise_public: realm.noise_public.clone(),
-            url: realm.bootstrap_url.clone(),
+            url: realm.preferred_endpoint_url().to_owned(),
         },
         route: CardRoute::from_route(&route),
         secret: card.secret.clone(),
@@ -416,6 +420,7 @@ pub(crate) async fn start_from_card(
         .card_name()
         .map_err(storage_error("card name"))?;
     let hello = Hello {
+        invitation: None,
         secret: Some(serde_bytes::ByteBuf::from(secret)),
         name: own_name,
     };
@@ -459,4 +464,87 @@ pub(crate) fn declined(s: &Session, gid: &[u8]) -> Result<bool, CliError> {
         .request(gid)
         .map_err(storage_error("request"))?
         .is_some_and(|r| r.status == RequestStatus::Declined))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arveil_core::channel::endpoints::{self, Endpoint, RealmEndpointList};
+
+    #[test]
+    fn contact_codes_shared_links_and_reopened_server_details_use_the_current_route() {
+        let mut nonce = [0; 12];
+        getrandom::fill(&mut nonce).unwrap();
+        let dir = std::env::temp_dir().join(format!("arveil-card-route-{}", hex::encode(nonce)));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = ProfileConfig::unencrypted(&dir);
+        let signing = ed25519_dalek::SigningKey::from_bytes(&[9; 32]);
+        let realm_id = endpoints::realm_id(&signing.verifying_key());
+        let original = "ws://192.0.2.1:8447/v1/channel";
+        let public = "wss://relay.example.org/v1/channel";
+        let client = open_client(&config).unwrap();
+        client.identity_new().unwrap();
+        client.device_new(1_800_000_000).unwrap();
+        client
+            .realm_save(&realm_id, &signing.verifying_key(), &[8; 32], original)
+            .unwrap();
+        client.realm_mark_enrolled(&realm_id).unwrap();
+        client
+            .mailbox_save(&OwnMailbox {
+                mailbox_id: vec![1; 16],
+                read_capability: vec![2; 32],
+                write_capability: vec![3; 32],
+            })
+            .unwrap();
+        let endpoints = RealmEndpointList {
+            version: 1,
+            realm_id: realm_id.clone(),
+            sequence: 2,
+            realm_noise_public_key: vec![7; 32],
+            endpoints: vec![
+                Endpoint {
+                    kind: "tailnet".into(),
+                    url: original.into(),
+                    priority: 20,
+                },
+                Endpoint {
+                    kind: "admin".into(),
+                    url: "http://127.0.0.1/admin".into(),
+                    priority: 0,
+                },
+                Endpoint {
+                    kind: "public".into(),
+                    url: public.into(),
+                    priority: 1,
+                },
+            ],
+        };
+        client
+            .realm_accept_endpoint_list(
+                &realm_id,
+                &arveil_core::signed::sign_value(endpoints::CONTEXT, &endpoints, &signing).unwrap(),
+            )
+            .unwrap();
+        drop(client);
+
+        // No network is available: both card forms must work from the
+        // persisted verified list after reopening, including its current key.
+        for in_person in [true, false] {
+            let offer = offer_card(&config, in_person).unwrap();
+            let Card::Contact { realm, route, .. } = Card::parse(&offer.link).unwrap() else {
+                panic!("expected a contact card")
+            };
+            assert_eq!(realm.url, public);
+            assert_eq!(realm.noise_public, vec![7; 32]);
+            assert_eq!(realm.signing_key, signing.verifying_key());
+            let (client, device, _) = enrolled(&config).unwrap();
+            assert_eq!(route.device_id, device.keys.device_id);
+            assert_eq!(client.realm().unwrap().unwrap().bootstrap_url, original);
+        }
+        let status = crate::onboarding::status(&config).unwrap();
+        let bootstrap = Bootstrap::parse(&status.bootstrap.unwrap()).unwrap();
+        assert_eq!(bootstrap.url, public);
+        assert_eq!(bootstrap.noise_public, vec![7; 32]);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

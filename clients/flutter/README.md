@@ -272,6 +272,63 @@ The Rust suite separately injects lost upload acknowledgements, interrupted
 downloads and cancellation during a network request. Private fixture cleanup
 and the Android tool settings above apply to both scenarios.
 
+### Native notification and external-viewer acceptance
+
+The Android receiver uses the official UnifiedPush connector with a disposable
+test distributor. This exercises the real Keystore, service and notification
+manager; it does not establish delivery through the real ntfy Android app.
+Start a disposable emulator and run from `clients/flutter/android` with the
+same JDK used by Flutter:
+
+```sh
+./gradlew :app:testDebugUnitTest :app:connectedDebugAndroidTest -Ptarget-platform=android-arm64
+```
+
+`PushVisibilityTest` also verifies that a hint received in the foreground is
+presented once when leaving before sync completes, without needing another push.
+For the optional `NtfyDeliveryTest`, install the official ntfy F-Droid APK in the
+disposable emulator and configure its default server to a disposable ntfy server
+forwarded with `adb reverse`. Supply the same loopback URL as the `ntfyServer`
+instrumentation argument. The test is skipped by default and uses no real profile:
+
+```sh
+./gradlew :app:connectedDebugAndroidTest -Ptarget-platform=android-arm64 \
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.ulzuhan.arveil.NtfyDeliveryTest \
+  -Pandroid.testInstrumentationRunnerArguments.ntfyServer=http://127.0.0.1:2586
+```
+
+This passed with the official ntfy v1.25.2 F-Droid release APK and ntfy v2.28.0
+on an Android 15 ARM64 emulator. It checks real distributor registration, marker
+delivery, foreground/background coalescing, local token removal and silence after
+disable/unregister. Debug network policy allows HTTP only for `127.0.0.1`; this
+configuration is absent from release builds. The marker is posted directly to
+ntfy, so this does not establish relay-to-phone delivery, Doze or physical-phone
+behavior. Remove the temporary server/forward and restore ntfy settings afterwards.
+
+The existing helper verifies profile hint registration/rotation/removal against
+a disposable relay and reopens the encrypted profile:
+
+```sh
+python3 scripts/test_client_conversations.py --device macos --scenario notifications
+```
+
+From `clients/flutter`, Mac window hiding/reopening and external-viewer staging,
+permissions and expiry cleanup can be checked without opening a profile:
+
+```sh
+flutter test integration_test/mac_notifications_test.dart -d macos \
+  --dart-define ARVEIL_TEST_MAC_NATIVE=true
+```
+
+This opens harmless text fixtures in the system viewer. Add
+`--dart-define ARVEIL_TEST_MAC_NOTIFICATIONS=true` to request system notification
+permission and check retention/removal in the notification center. That part is
+interactive and passed after enabling Arveil in macOS notification settings.
+It does not prove banner visibility, clicks or sleep/wake behavior.
+Debug-only inspection hooks are absent from release builds.
+See [scope and limits](../../docs/CLIENT_FILES_NOTIFICATIONS.md) for installation,
+locked-profile behavior and physical-device release gates.
+
 ### Android native attachment dialogs (interactive)
 
 On a disposable emulator, put `arveil-picker-fixture.txt` in Downloads with

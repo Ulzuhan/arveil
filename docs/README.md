@@ -8,15 +8,9 @@ how it is designed and what has been verified.
 
 *Versión en español: [es/README.md](es/README.md)*
 
-**Status (September 30, 2026).** Relay/CLI v0.1.0 and client beta 3
-(0.1.0+21) are [published](https://github.com/Ulzuhan/arveil/releases).
-The main M3b.0–M3b.4 flows are implemented; platform and external-user
-acceptance remain open for M3b.5. QR codes, links and contact requests are
-implemented after beta 3 and need a newer relay. Follow
-[beta readiness](BETA_READINESS.md) for release compatibility and tracked work.
-The project has not been independently audited. Each ADR declares its own
-status; “MUST” is a design requirement, and the [platform record](PLATFORMS.md)
-states what has actually been tested.
+**Status (October 1, 2026).** [Beta 6, build 27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) is published on GitHub, Homebrew and Google Play internal testing. It includes personal invitations, QR codes, attachment opening and experimental notifications without Google. The compatible relay is deployed in the test environment; the public relay/CLI binaries remain at v0.1.0, with their distributable upgrade tracked in #133.
+
+M3b.5 physical-device and three-external-user acceptance remain open. The [beta record](BETA_READINESS.md) separates publication from acceptance. There is no independent security audit; the [platform record](PLATFORMS.md) preserves actual results and limits. Each ADR declares its own status.
 
 ## Where to start
 
@@ -42,6 +36,7 @@ states what has actually been tested.
 | [Cloudflare Tunnel](TUNNEL.md) | Opening that private relay to the Internet through a tunnel and a local proxy that verifies client addresses |
 | [Client packages](CLIENT_RELEASES.md) | Building, auditing and publishing the macOS ZIP and Android APK |
 | [Signed Android updates](CLIENT_UPDATES.md) | The opt-in update check in the Android app: signing key, signed feed, publishing and what the app verifies |
+| [Personal invitations](INVITATIONS.md) | User journey, owner setup, wire contract, verification and rollout gates |
 
 ### Design
 
@@ -77,6 +72,8 @@ states what has actually been tested.
 | [Phase 3b plan](PHASE3B.md) | Milestones M3b.0 to M3b.8 and their acceptance criteria |
 | [Implementation record](CLIENT_FOUNDATION.md) | What each change implemented, its evidence and its limits |
 | [Client design](CLIENT_DESIGN.md) | Visual system, personalization and the redesign plan |
+| [Invitation onboarding plan](INVITATION_ONBOARDING_PLAN.md) | Current priority: one invitation from installation to the first conversation; dependencies, blockers and acceptance |
+| [Attachments and notifications](CLIENT_FILES_NOTIFICATIONS.md) | File viewing, local Mac alerts and the Android experiment without Google |
 | [Platform record](PLATFORMS.md) | Dated acceptance runs: device, system, commit and result |
 
 ### Plans, reviews and evidence

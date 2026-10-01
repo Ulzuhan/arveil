@@ -213,3 +213,12 @@ Acceptance criteria, as verified on 2026-09-27:
 - Whether a card's long-lived write capability should become a separate, revocable capability per card.
 - Whether to offer the "People on this server" list, and who may see it.
 - Whether links for relays that are not the project's should use the project domain by default.
+
+## Personal invitation extension (October 1, 2026)
+
+The [personal invitation contract](../INVITATIONS.md) adds explicit join v2,
+combining admission and the inviter's route in a compact contact tuple. The
+600-byte limit and v1 readers remain. It requires compatible clients and relay;
+it is implemented in the review branch but not yet published. Unlike the
+existing in-person contact-card flow, **scanning an invitation does not mark a
+contact verified**. Acceptance is explicit and the name is only declared.

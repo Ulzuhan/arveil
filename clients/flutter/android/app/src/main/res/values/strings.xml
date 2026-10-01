@@ -1,0 +1,5 @@
+<resources>
+    <string name="push_channel">Arveil activity</string>
+    <string name="push_activity">Activity pending. Open Arveil to check your messages.</string>
+    <string name="push_setup">Open Arveil to finish connecting notifications.</string>
+</resources>

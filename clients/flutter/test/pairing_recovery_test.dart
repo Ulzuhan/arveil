@@ -133,6 +133,7 @@ class RecoveryProfile extends FakeProfile {
 
   // ADR-012 §3, both sides.
   int offers = 0;
+  int offerLifetime = 600;
   final answers = <bool>[];
   Completer<LinkRequestView>? asked;
   final joins = <(String, bool)>[];
@@ -146,7 +147,7 @@ class RecoveryProfile extends FakeProfile {
       pairId: Uint8List.fromList([7, 7]),
       link: linkText,
       expiresAt: BigInt.from(
-        DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600,
+        DateTime.now().millisecondsSinceEpoch ~/ 1000 + offerLifetime,
       ),
     );
   }
@@ -632,6 +633,47 @@ void main() {
     expect(profile.answers, [true]);
     expect(find.textContaining('Dispositivo vinculado'), findsOneWidget);
     semantics.dispose();
+  });
+
+  testWidgets('an expired offer hides its QR and can be replaced', (
+    tester,
+  ) async {
+    final profile = RecoveryProfile()..ready();
+    final session = await open(tester, profile);
+    await openSetting(tester, 'open-pairing');
+    await tester.tap(find.byKey(const Key('link-offer')));
+    await tester.pump();
+    await tester.pump();
+    final old = session.linkOffer!;
+    session.linkOffer = LinkOfferView(
+      pairId: old.pairId,
+      link: old.link,
+      expiresAt: BigInt.zero,
+    );
+    profile.asked!.completeError(
+      const CommandError.domain(
+        operation: 'await-link-request',
+        reason: 'expired',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('link-qr')), findsNothing);
+    expect(find.byKey(const Key('link-copy')), findsNothing);
+    expect(find.byKey(const Key('link-expired')), findsOneWidget);
+    profile.asked = null;
+    await tester.tap(find.byKey(const Key('link-renew')));
+    await tester.pump();
+    await tester.pump();
+    expect(profile.offers, 2);
+    expect(find.byKey(const Key('link-qr')), findsOneWidget);
+    expect(profile.answers, [false]);
+    profile.asked!.completeError(
+      const CommandError.domain(
+        operation: 'await-link-request',
+        reason: 'test ended',
+      ),
+    );
+    await tester.pumpAndSettle();
   });
 
   testWidgets('a device the person does not recognise is declined', (

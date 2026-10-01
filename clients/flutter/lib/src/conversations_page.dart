@@ -9,6 +9,7 @@ import 'conversation_controller.dart';
 import 'attachment_card.dart';
 import 'appearance.dart';
 import 'attachment_files.dart';
+import 'attachment_viewer.dart';
 import 'chat_list.dart';
 import 'contacts_page.dart';
 import 'conversation_details.dart';
@@ -197,6 +198,59 @@ class ConversationsPageState extends State<ConversationsPage>
     }
   }
 
+  Future<void> _openAttachment(String group, HistoryEventView event) async {
+    if (_fileDialog) return;
+    setState(() => _fileDialog = true);
+    try {
+      final bytes = await chat.profile.exportAttachment(
+        groupId: group,
+        eventId: event.eventId,
+      );
+      if (!mounted ||
+          chat.selected != group ||
+          !widget.active ||
+          ModalRoute.of(context)?.isCurrent == false) {
+        return;
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => AttachmentViewer(
+            name: event.attachment!.name,
+            bytes: bytes,
+            files: widget.attachmentFiles,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.attachmentOpenFailed)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _fileDialog = false);
+    }
+  }
+
+  Future<void> _downloadAttachment(String group, HistoryEventView event) async {
+    await chat.resumeAttachment(group, event.eventId);
+    if (!mounted ||
+        chat.selected != group ||
+        !widget.active ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        (WidgetsBinding.instance.lifecycleState != null &&
+            WidgetsBinding.instance.lifecycleState !=
+                AppLifecycleState.resumed)) {
+      return;
+    }
+    final current = chat.events
+        .where((e) => e.eventId == event.eventId)
+        .firstOrNull;
+    if (current?.attachment?.state == AttachmentStateView.ready) {
+      await _openAttachment(group, current!);
+    }
+  }
+
   Future<void> _create() async {
     if (chat.selected case final id?) _drafts[id] = _draft.text;
     final group = await Navigator.of(context).push<String>(
@@ -243,6 +297,9 @@ class ConversationsPageState extends State<ConversationsPage>
 
   /// Closes the open conversation, keeping its draft.
   Future<void> closeConversation() => _select(null);
+  Future<void> openNotifiedConversation(String? group) => _select(
+    chat.conversations.any((row) => row.groupId == group) ? group : null,
+  );
 
   /// On desktop Enter sends and Shift+Enter starts a new line; on phones
   /// Enter starts a new line.
@@ -416,6 +473,9 @@ class ConversationsPageState extends State<ConversationsPage>
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: chat,
     builder: (context, _) {
+      chat.setPageVisible(
+        widget.active && (ModalRoute.of(context)?.isCurrent ?? true),
+      );
       _markDisplayedHistory(context);
       final wide = widget.twoPane ?? WindowSize.of(context).twoPane;
       final selected = chat.selected != null;
@@ -727,11 +787,13 @@ class ConversationsPageState extends State<ConversationsPage>
                             active: chat.activeTransfers.contains(
                               event.eventId,
                             ),
-                            resume: () =>
-                                chat.resumeAttachment(group, event.eventId),
+                            resume: () => event.attachment!.outgoing
+                                ? chat.resumeAttachment(group, event.eventId)
+                                : _downloadAttachment(group, event),
                             cancel: () =>
                                 chat.cancelAttachment(group, event.eventId),
                             export: () => _export(group, event),
+                            open: () => _openAttachment(group, event),
                           ),
                         EventItem(:final event, :final position) =>
                           MessageBubble(
