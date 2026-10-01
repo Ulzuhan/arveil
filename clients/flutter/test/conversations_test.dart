@@ -605,6 +605,40 @@ void main() {
     );
   });
 
+  test('the clock follows the system: 24 hours or a.\u00a0m./p.\u00a0m.', () {
+    // Local times built from their parts: no time zone changes the result.
+    expect(clockTime(DateTime(2026, 9, 25, 8, 5), use24: true), '08:05');
+    expect(
+      clockTime(DateTime(2026, 9, 25, 18, 4), use24: false),
+      '6:04\u00a0p.\u00a0m.',
+    );
+    expect(
+      clockTime(DateTime(2026, 9, 25, 0, 30), use24: false),
+      '12:30\u00a0a.\u00a0m.',
+    );
+    expect(
+      clockTime(DateTime(2026, 9, 25, 12), use24: false),
+      '12:00\u00a0p.\u00a0m.',
+    );
+    expect(
+      clockTime(DateTime(2026, 9, 25, 8, 5), use24: false),
+      '8:05\u00a0a.\u00a0m.',
+    );
+
+    final dispatcher = TestWidgetsFlutterBinding.instance.platformDispatcher;
+    addTearDown(() => dispatcher.alwaysUse24HourFormatTestValue = true);
+    dispatcher.alwaysUse24HourFormatTestValue = false;
+    final seconds = DateTime(2026, 9, 25, 18, 4).millisecondsSinceEpoch ~/ 1000;
+    expect(
+      listTime(seconds, now: DateTime(2026, 9, 25, 23)),
+      '6:04\u00a0p.\u00a0m.',
+    );
+    expect(
+      recordedTime(seconds, now: DateTime(2026, 9, 26, 9)),
+      '25/9/2026 6:04\u00a0p.\u00a0m.',
+    );
+  });
+
   testWidgets('opening a conversation marks what it shows as read, once', (
     tester,
   ) async {

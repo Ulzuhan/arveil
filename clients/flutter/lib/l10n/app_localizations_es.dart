@@ -924,12 +924,17 @@ class AppLocalizationsEs extends AppLocalizations {
       'Código copiado. Puedes salir de Arveil para enviarlo: al volver, esta pantalla seguirá esperando.';
 
   @override
-  String pairingExpiresIn(int seconds) {
+  String pairingExpiresIn(String time) {
+    return 'Caduca en $time.';
+  }
+
+  @override
+  String pairingExpiresInSpoken(int minutes) {
     String _temp0 = intl.Intl.pluralLogic(
-      seconds,
+      minutes,
       locale: localeName,
-      other: 'Caduca en $seconds segundos.',
-      one: 'Caduca en 1 segundo.',
+      other: 'Caduca en $minutes minutos o menos.',
+      one: 'Caduca en un minuto o menos.',
     );
     return '$_temp0';
   }
@@ -1263,7 +1268,21 @@ class AppLocalizationsEs extends AppLocalizations {
       'La conversación se creó, pero no se pudo guardar algún nombre. Pónselo desde los detalles de la conversación.';
 
   @override
-  String numericDate(String day, String month, String year) {
+  String clockTime12(String time, String period) {
+    return '$time $period';
+  }
+
+  @override
+  String get clockAm => 'a. m.';
+
+  @override
+  String get clockPm => 'p. m.';
+
+  @override
+  String get shortDateMonths => '1 2 3 4 5 6 7 8 9 10 11 12';
+
+  @override
+  String shortDate(String day, String month, String year) {
     return '$day/$month/$year';
   }
 

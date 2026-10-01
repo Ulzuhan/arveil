@@ -330,6 +330,11 @@ void main() {
     await tester.pump();
     expect(profile.cards, [true]);
     expect(find.byKey(const Key('card-qr')), findsOneWidget);
+    // Ten minutes read as minutes and seconds, never as 600 seconds.
+    expect(
+      find.textContaining(RegExp(r'^Caduca en (10:00|9:5\d)\.$')),
+      findsOneWidget,
+    );
     expect(profile.closed, isEmpty);
     Navigator.of(tester.element(find.byKey(const Key('card-qr')))).pop();
     await tester.pumpAndSettle();

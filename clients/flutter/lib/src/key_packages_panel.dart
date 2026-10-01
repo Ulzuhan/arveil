@@ -62,7 +62,7 @@ class KeyPackagesPanel extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             context.l10n.keyPackagesCheckedAt(
-              numericDate(context.l10n, date),
+              shortDate(context.l10n, date),
               clockTime(date),
             ),
           ),

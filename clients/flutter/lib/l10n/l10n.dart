@@ -35,9 +35,39 @@ void useStrings(AppLocalizations strings) => _current = strings;
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
-/// Hour and minute on a 24-hour clock.
-String clockTime(DateTime at) => '${_two(at.hour)}:${_two(at.minute)}';
+/// Whether the system shows a 24-hour clock. Every platform reports it;
+/// a Spanish system usually does, an English one in the United States
+/// usually does not.
+bool get uses24HourClock =>
+    WidgetsBinding.instance.platformDispatcher.alwaysUse24HourFormat;
 
-/// A date in digits, in the order the language writes it.
-String numericDate(AppLocalizations l10n, DateTime at) =>
-    l10n.numericDate('${at.day}', '${at.month}', '${at.year}');
+/// Hour and minute on the clock the system uses: "18:30", or "6:30 PM"
+/// ("6:30 p. m." in Spanish) on a 12-hour clock.
+String clockTime(DateTime at, {bool? use24}) {
+  if (use24 ?? uses24HourClock) return '${_two(at.hour)}:${_two(at.minute)}';
+  final hour = at.hour % 12 == 0 ? 12 : at.hour % 12;
+  final s = currentStrings;
+  return s.clockTime12(
+    '$hour:${_two(at.minute)}',
+    at.hour < 12 ? s.clockAm : s.clockPm,
+  );
+}
+
+/// Time left as minutes and seconds ("9:59"), with hours in front past
+/// an hour ("1:00:00"). Never negative.
+String countdown(int seconds) {
+  final s = seconds < 0 ? 0 : seconds;
+  final hours = s ~/ 3600;
+  final minutes = s % 3600 ~/ 60;
+  final rest = _two(s % 60);
+  return hours > 0 ? '$hours:${_two(minutes)}:$rest' : '$minutes:$rest';
+}
+
+/// A short date in the order the language writes it: "20/9/2026" in
+/// Spanish, "Sep 20, 2026" in English, where digits alone would be read
+/// in two orders.
+String shortDate(AppLocalizations l10n, DateTime at) => l10n.shortDate(
+  '${at.day}',
+  l10n.shortDateMonths.split(' ')[at.month - 1],
+  '${at.year}',
+);

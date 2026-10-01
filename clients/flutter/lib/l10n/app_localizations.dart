@@ -1598,11 +1598,17 @@ abstract class AppLocalizations {
   /// **'Código copiado. Puedes salir de Arveil para enviarlo: al volver, esta pantalla seguirá esperando.'**
   String get pairingCodeCopied;
 
-  /// No description provided for @pairingExpiresIn.
+  /// Time left on a code, in minutes and seconds such as 9:59.
   ///
   /// In es, this message translates to:
-  /// **'{seconds, plural, =1{Caduca en 1 segundo.} other{Caduca en {seconds} segundos.}}'**
-  String pairingExpiresIn(int seconds);
+  /// **'Caduca en {time}.'**
+  String pairingExpiresIn(String time);
+
+  /// What a screen reader says for pairingExpiresIn: whole minutes, so it changes once a minute instead of every second.
+  ///
+  /// In es, this message translates to:
+  /// **'{minutes, plural, =1{Caduca en un minuto o menos.} other{Caduca en {minutes} minutos o menos.}}'**
+  String pairingExpiresInSpoken(int minutes);
 
   /// No description provided for @pairingWaiting.
   ///
@@ -2120,11 +2126,35 @@ abstract class AppLocalizations {
   /// **'La conversación se creó, pero no se pudo guardar algún nombre. Pónselo desde los detalles de la conversación.'**
   String get newConversationNamed;
 
-  /// A date in digits, in the order the language writes it.
+  /// Hour and minute on a 12-hour clock, when the system uses one; period is clockAm or clockPm.
+  ///
+  /// In es, this message translates to:
+  /// **'{time} {period}'**
+  String clockTime12(String time, String period);
+
+  /// No description provided for @clockAm.
+  ///
+  /// In es, this message translates to:
+  /// **'a. m.'**
+  String get clockAm;
+
+  /// No description provided for @clockPm.
+  ///
+  /// In es, this message translates to:
+  /// **'p. m.'**
+  String get clockPm;
+
+  /// How shortDate writes each month, January to December, separated by spaces: digits in Spanish, abbreviations in English so the date is not ambiguous.
+  ///
+  /// In es, this message translates to:
+  /// **'1 2 3 4 5 6 7 8 9 10 11 12'**
+  String get shortDateMonths;
+
+  /// A short date in the order the language writes it; month comes from shortDateMonths.
   ///
   /// In es, this message translates to:
   /// **'{day}/{month}/{year}'**
-  String numericDate(String day, String month, String year);
+  String shortDate(String day, String month, String year);
 
   /// No description provided for @noticeAdded.
   ///
