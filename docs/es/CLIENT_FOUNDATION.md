@@ -954,13 +954,18 @@ escritorio (1280×800), en claro y oscuro (`test/goldens/screens_test.dart`),
 con un círculo inventado de personas y mensajes y horas fijas en hora local,
 así que se ven igual en cualquier zona horaria. Las capturas de la
 documentación son copias de esos goldens: `scripts/update_screenshots.sh` las
-regenera y una prueba comprueba que no se desfasan.
+regenera y una prueba comprueba que no se desfasan. Desde el 1 de octubre de
+2026 los goldens se generan en inglés y en español (`test/goldens/screens/en/`
+y `es/`), incluyen la tarjeta de contacto, su código y un enlace de contacto
+recibido, y `scripts/readme_media.py` enmarca a partir de ellos las imágenes
+del README y el recorrido animado (`docs/assets/readme/`); una segunda prueba
+comprueba que salen de los goldens actuales.
 
-![Chats en un móvil, tema claro](../assets/screens/phone_chats_light.png){ width="260" }
-![Conversación de grupo en un móvil, tema oscuro](../assets/screens/phone_conversation_dark.png){ width="260" }
-![Ajustes por secciones en un móvil](../assets/screens/phone_settings_light.png){ width="260" }
+![Chats en un móvil, tema claro](../assets/screens/es/phone_chats_light.png){ width="260" }
+![Conversación de grupo en un móvil, tema oscuro](../assets/screens/es/phone_conversation_dark.png){ width="260" }
+![Ajustes por secciones en un móvil](../assets/screens/es/phone_settings_light.png){ width="260" }
 
-![Escritorio con lista, conversación y detalles](../assets/screens/desktop_conversation_light.png)
+![Escritorio con lista, conversación y detalles](../assets/screens/es/desktop_conversation_light.png)
 
 `test/hygiene_test.dart` comprueba que fuera de `design/` y `l10n/` no hay
 colores ni textos visibles escritos a mano (solo se permiten

@@ -100,8 +100,9 @@ checks English and that both ARB files have the same keys.
 `test/hygiene_test.dart` keeps colours and user-facing text inside the design
 system and the ARB files. After a visual change, update the goldens with
 `flutter test --update-goldens`. `../../scripts/update_screenshots.sh`
-regenerates the screen goldens and copies the documentation screenshots, which
-are rendered from invented test data.
+regenerates the screen goldens in English and Spanish, copies the
+documentation screenshots and frames the README pictures and animated tour
+(`scripts/readme_media.py`, needs `uv`), all rendered from invented test data.
 
 ## Acceptance
 

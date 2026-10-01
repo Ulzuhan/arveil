@@ -10,6 +10,7 @@ Cifrado de extremo a extremo con MLS (RFC 9420) · un único binario Go como rel
 
 [![CI](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulzuhan/arveil/actions/workflows/ci.yml)
 [![Docs](https://github.com/Ulzuhan/arveil/actions/workflows/docs.yml/badge.svg)](https://ulzuhan.github.io/arveil/)
+[![Apps](https://img.shields.io/github/v/release/Ulzuhan/arveil?include_prereleases&filter=*beta*&display_name=release&label=apps)](https://github.com/Ulzuhan/arveil/releases)
 [![Licencia: Apache-2.0](https://img.shields.io/badge/licencia-Apache--2.0-blue.svg)](LICENSE)
 [![Estado: experimental](https://img.shields.io/badge/estado-experimental-orange.svg)](#estado-del-proyecto)
 
@@ -30,13 +31,18 @@ Cifrado de extremo a extremo con MLS (RFC 9420) · un único binario Go como rel
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screens/desktop_conversation_dark.png">
-    <img src="docs/assets/screens/desktop_conversation_light.png" alt="La app de escritorio de Arveil: lista de chats, una conversación de grupo y sus participantes" width="860">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/es/desktop_dark.png">
+    <img src="docs/assets/readme/es/desktop_light.png" alt="La app de Arveil para Mac: lista de chats, una conversación de grupo con un archivo compartido y el número de seguridad para comparar con un participante" width="860">
   </picture>
 </p>
-<p align="center"><sub>La app de macOS en español. Funciona en español y en inglés, según el sistema o lo que elijas en Ajustes.</sub></p>
+<p align="center"><sub>La app para Mac. Funciona en español y en inglés, según el sistema o lo que elijas en Ajustes. Las personas y los mensajes de estas imágenes son inventados.</sub></p>
 
 ## Por qué Arveil
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/es/tour_dark.gif">
+  <img align="right" src="docs/assets/readme/es/tour_light.gif" alt="Un recorrido por la app de Android: chats, una conversación con un archivo compartido, contactos, la tarjeta de contacto, su código QR y un enlace de contacto que propone empezar a hablar" width="250">
+</picture>
 
 Quien quiere un chat familiar privado suele tener dos opciones: confiar en un
 servicio alojado que no puede administrar, o autoalojar un software que
@@ -76,19 +82,21 @@ puede mantener en una máquina pequeña sin tener que entenderlo.
 
 - Conversaciones de dos personas y de grupo, cada una un grupo MLS
 - Funciona sin conexión: lees el historial, escribes y se envía cuando el relay responde
-- Adjuntos cifrados con transferencias que se reanudan
+- Adjuntos cifrados con transferencias que se reanudan; las imágenes se abren dentro de la app
 - Estados de entrega que nunca afirman que alguien leyó tu mensaje
 - Búsqueda dentro de una conversación, en tu dispositivo
-- Mensajes sin leer y vista previa de cada conversación
+- Mensajes sin leer, vista previa y notificaciones opcionales que nunca muestran nombres ni texto (macOS; experimentales en Android con un ntfy propio)
 
 </td>
 <td valign="top" width="50%">
 
-**Identidad y dispositivos**
+**Identidad y contactos**
 
 - Identidad raíz Ed25519 generada en el dispositivo
-- Vincula un dispositivo nuevo comparando un código y revoca uno perdido
-- Números de seguridad para verificar contactos en persona o por otro canal
+- Vincula un dispositivo nuevo con un código QR: el dispositivo con la raíz solo lo firma cuando confirmas; revoca uno perdido
+- Una tarjeta de contacto para enseñar como código QR o compartir como enlace; abrirla envía una solicitud, nunca una unión silenciosa
+- Invitaciones personales: un enlace o código QR da de alta a alguien en tu relay y abre vuestra primera conversación
+- Habla primero, verifica después: compara los números de seguridad, o escanead el código del otro en persona y quedáis verificados los dos
 - Un aviso en el chat cuando un contacto añade o retira un dispositivo
 - Kit de identidad: un archivo de recuperación cifrado con una clave aparte
 - Archivos cifrados del historial, separados de la recuperación de la identidad
@@ -102,6 +110,8 @@ puede mantener en una máquina pequeña sin tener que entenderlo.
 
 - Flutter para macOS y Android sobre un núcleo Rust compartido
 - Perfil cifrado en reposo con SQLCipher; la clave se queda en el llavero o en el Keystore de Android
+- Los enlaces abren la app en la pantalla adecuada (Android App Links, `arveil:` en macOS)
+- Actualizaciones firmadas: Android las verifica y las instala sobre la app existente; macOS las anuncia
 - Diseño adaptable del móvil al escritorio, con atajos de teclado
 - Español e inglés, temas claro y oscuro, seis colores de acento, fondos y tamaño del texto
 - Etiquetas para lectores de pantalla, texto al 200 % y movimiento reducido
@@ -124,11 +134,10 @@ puede mantener en una máquina pequeña sin tener que entenderlo.
 </table>
 
 <p align="center">
-  <img src="docs/assets/screens/phone_chats_light.png" alt="Lista de chats en Android con mensajes sin leer e insignias de verificación" width="240">
-  &nbsp;
-  <img src="docs/assets/screens/phone_conversation_dark.png" alt="Una conversación de grupo en modo oscuro, con el aviso de que un contacto añadió un dispositivo" width="240">
-  &nbsp;
-  <img src="docs/assets/screens/phone_settings_light.png" alt="Ajustes con las secciones de identidad, recuperación y dispositivos" width="240">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/es/phones_dark.png">
+    <img src="docs/assets/readme/es/phones_light.png" alt="Tres pantallas de Android: la lista de chats con mensajes sin leer e insignias de verificación, una conversación de grupo con un archivo compartido y el aviso de que un contacto añadió un dispositivo, y el código QR de la tarjeta de contacto" width="760">
+  </picture>
 </p>
 
 ## Cómo funciona
@@ -175,6 +184,9 @@ el relay/CLI [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) y e
 cliente [beta 6 (0.1.0+27)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
 Las apps Flutter cubren el día a día; la aceptación de la beta sigue abierta.
 
+<details>
+<summary><b>Fases</b></summary>
+
 | Fase | Alcance | Estado |
 |---|---|---|
 | 0 · Viabilidad | Núcleo Rust, dos clientes CLI, relay mínimo; MLS real y persistencia atómica | ✅ Hecha |
@@ -183,6 +195,8 @@ Las apps Flutter cubren el día a día; la aceptación de la beta sigue abierta.
 | 3a · Lista para repartir | Vinculación, verificación de contactos, transferencias reanudables, aviso de push, compilaciones firmadas | ✅ Hecha |
 | 4 · Operable | Empaquetado, límites por dirección, salud y métricas, TLS, copias de seguridad | ✅ Hecha |
 | 3b · Apps | Clientes Flutter, actualizaciones firmadas, revisión de seguridad externa | 🚧 En curso |
+
+</details>
 
 Los flujos principales de M3b.0 a M3b.4 están implementados, con aceptación
 por plataforma pendiente. **M3b.5** requiere pruebas en dispositivos físicos
@@ -202,8 +216,8 @@ registrada con la release; v0.1.0 es anterior a estos cambios. Consulta el
 |---|---|
 | Relay en Linux x86-64 y ARM64 | Flujo de publicación de imágenes versionadas; véase la guía de operación |
 | Relay y CLI en Linux x86-64 y macOS arm64 | v0.1.0 publicada con sumas de comprobación y procedencia de compilación |
-| App para macOS 12 o posterior (Apple silicon) | ZIP beta público; actualizaciones de paquetes anteriores verificadas; falta instalación limpia descargada |
-| App para Android 7.0 o posterior (arm64) | APK beta público; aceptación registrada en emulador; falta dispositivo físico |
+| App para macOS 12 o posterior (Apple silicon) | ZIP beta público y cask de Homebrew; actualizaciones de paquetes anteriores verificadas; falta instalación limpia descargada |
+| App para Android 7.0 o posterior (arm64) | APK beta público y prueba interna en Google Play; aceptación registrada en emulador; falta dispositivo físico |
 | Apps de escritorio para Windows y Linux | Previstas (M3b.6) |
 | App para iOS | Prevista (M3b.7) |
 
@@ -237,10 +251,22 @@ sigue la [guía de Podman sin root y Tailscale](docs/PODMAN.md) (en inglés).
 
 ### Conseguir las apps
 
-Descarga el ZIP de macOS o APK de Android de la
-[beta 6 del cliente](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
-Ninguno necesita herramientas de desarrollo. Comprueba las notas y sumas;
-actualiza sobre la app existente sin desinstalarla ni borrar sus datos. La
+- **Mac (Apple silicon):** descarga el ZIP de la
+  [beta 6 del cliente](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6),
+  o instálala con Homebrew:
+
+  ```sh
+  brew tap kaicorplabs/tap
+  brew trust kaicorplabs/tap
+  brew install --cask arveil
+  ```
+
+- **Android 7.0 o posterior (arm64):** descarga el APK de la misma versión.
+  Google Play tiene la misma compilación en prueba interna, solo para personas
+  invitadas como testers.
+
+Ninguna necesita herramientas de desarrollo. Comprueba las notas y las sumas,
+y actualiza sobre la app existente sin desinstalarla ni borrar sus datos. La
 [guía de instalación](docs/es/INSTALLATION.md) explica cada camino, qué se ha
 verificado y qué falta. Para quien simplemente ha recibido una invitación, la
 web tiene una [guía paso a paso](https://arveil.kaicorplabs.com/es/instalar/)
@@ -295,10 +321,10 @@ Arveil a quien no es técnico y explica cómo instalarlo.
 
 | Tema | Documentos |
 |---|---|
-| Usarlo y administrarlo | [Instalación](docs/es/INSTALLATION.md) · [Poner en marcha un realm](docs/es/OPERATIONS.md) · [Podman sin root](docs/PODMAN.md) (en inglés) · [Paquetes del cliente](docs/es/CLIENT_RELEASES.md) |
+| Usarlo y administrarlo | [Instalación](docs/es/INSTALLATION.md) · [Invitaciones](docs/es/INVITATIONS.md) · [Poner en marcha un realm](docs/es/OPERATIONS.md) · [Podman sin root](docs/PODMAN.md) (en inglés) · [Túnel privado](docs/es/TUNNEL.md) · [Actualizaciones firmadas](docs/es/CLIENT_UPDATES.md) · [Paquetes del cliente](docs/es/CLIENT_RELEASES.md) · [Preparación de la beta](docs/es/BETA_READINESS.md) |
 | Diseño | [Arquitectura](docs/es/ARCHITECTURE.md) · [Modelo de amenazas](docs/es/THREAT_MODEL.md) · [Protocolo](docs/es/PROTOCOL.md) · [Modelo de dominio](docs/es/DOMAIN_MODEL.md) |
-| Decisiones | [ADR-001 a ADR-013](docs/es/adr/): Go y Rust, MLS, servidor sin confianza, SQLite, identidad, recuperación, redundancia, transporte, Flutter, distribución y actualizaciones, códigos QR y enlaces; propuestas: nombres elegidos y administración del realm desde la app |
-| Apps | [Diseño del cliente](docs/es/CLIENT_DESIGN.md) · [Registro de implementación](docs/es/CLIENT_FOUNDATION.md) · [Plan de la fase 3b](docs/es/PHASE3B.md) · [Matriz de plataformas](docs/es/PLATFORMS.md) |
+| Decisiones | [ADR-001 a ADR-013](docs/es/adr/): Go y Rust, MLS, servidor sin confianza, SQLite, identidad, recuperación, redundancia, transporte, Flutter, distribución y actualizaciones, códigos QR y enlaces; implementada en parte: administración del realm desde la app (invitaciones personales); propuesta: nombres elegidos |
+| Apps | [Diseño del cliente](docs/es/CLIENT_DESIGN.md) · [Registro de implementación](docs/es/CLIENT_FOUNDATION.md) · [Archivos y notificaciones](docs/es/CLIENT_FILES_NOTIFICATIONS.md) · [Plan de la fase 3b](docs/es/PHASE3B.md) · [Matriz de plataformas](docs/es/PLATFORMS.md) |
 | Historia | Planes de las fases [0](docs/PHASE0.md) · [1](docs/PHASE1.md) · [2](docs/PHASE2.md) · [3](docs/PHASE3.md) · [4](docs/PHASE4.md) (en inglés) · [Revisión de viabilidad v0.3](docs/es/REVIEW-v0.3.md) |
 
 ## Seguridad

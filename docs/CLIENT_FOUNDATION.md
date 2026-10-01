@@ -887,13 +887,17 @@ in light and dark (`test/goldens/screens_test.dart`), with an invented circle
 of people and messages and fixed local times, so they look the same in any
 time zone. The documentation's screenshots are copies of those goldens:
 `scripts/update_screenshots.sh` regenerates them and a test checks they do not
-drift.
+drift. Since October 1, 2026 the goldens are rendered in English and Spanish
+(`test/goldens/screens/en/` and `es/`), include the contact card, its code and
+an incoming contact link, and `scripts/readme_media.py` frames the README
+pictures and the animated tour from them (`docs/assets/readme/`); a second
+test checks those were framed from the current goldens.
 
-![Chats on a phone, light theme](assets/screens/phone_chats_light.png){ width="260" }
-![A group conversation on a phone, dark theme](assets/screens/phone_conversation_dark.png){ width="260" }
-![Settings in sections on a phone](assets/screens/phone_settings_light.png){ width="260" }
+![Chats on a phone, light theme](assets/screens/en/phone_chats_light.png){ width="260" }
+![A group conversation on a phone, dark theme](assets/screens/en/phone_conversation_dark.png){ width="260" }
+![Settings in sections on a phone](assets/screens/en/phone_settings_light.png){ width="260" }
 
-![Desktop with list, conversation and details](assets/screens/desktop_conversation_light.png)
+![Desktop with list, conversation and details](assets/screens/en/desktop_conversation_light.png)
 
 `test/hygiene_test.dart` checks that outside `design/` and `l10n/` no colour
 or visible text is written by hand (only `Colors.transparent` and the
