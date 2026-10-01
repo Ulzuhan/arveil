@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 import 'attachment_files.dart';
+import 'android_notifications.dart';
 import 'contact_cards.dart';
 import 'contacts_page.dart';
 import 'conversation_controller.dart';
 import 'conversations_page.dart';
 import 'design/design.dart';
+import 'desktop_notifications.dart';
 import 'incoming_links.dart';
 import 'kit_files.dart';
 import 'profile_session.dart';
@@ -88,6 +90,14 @@ class _HomeShellState extends State<HomeShell> {
     widget.session.setup!.bootstrap!,
   );
   final _chats = GlobalKey<ConversationsPageState>();
+  final _notifications = DesktopNotifications();
+  late final _androidNotifications = AndroidNotifications(
+    profile: _chat.profile,
+    sync: () async {
+      await _chat.sync();
+      return _chat.syncState == SyncState.synced;
+    },
+  );
 
   /// Keeps the destinations' state when the window crosses a size class
   /// and the layout around them changes.
@@ -99,14 +109,37 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     incomingLinks.addListener(_onLink);
+    _notifications.visibleGroup = () => _chat.visibleGroup;
+    _notifications.onWindowVisibility = _chat.setWindowVisible;
+    _notifications.onOpen = (group) {
+      // A notice tap explicitly returns to the inbox even when a settings
+      // page or file viewer currently covers the shell.
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      _inChats((page) => unawaited(page.openNotifiedConversation(group)));
+    };
+    _notifications.addListener(_notificationSettingsChanged);
+    _chat.onSnapshot = (rows) => unawaited(_notifications.observe(rows));
+    unawaited(_notifications.initialize());
+    _androidNotifications.onOpen = () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      _inChats((page) => unawaited(page.openNotifiedConversation(null)));
+    };
+    unawaited(_androidNotifications.initialize());
     WidgetsBinding.instance.addPostFrameCallback((_) => _onLink());
   }
 
   @override
   void dispose() {
     incomingLinks.removeListener(_onLink);
+    _chat.onSnapshot = null;
+    _notifications.removeListener(_notificationSettingsChanged);
+    _notifications.dispose();
+    _androidNotifications.dispose();
     super.dispose();
   }
+
+  void _notificationSettingsChanged() =>
+      _chat.setBackgroundSync(_notifications.background);
 
   /// A contact card opened from outside (ADR-012 §5): who it names, then the
   /// person decides. Codes meant for a device without an identity say so.
@@ -149,6 +182,7 @@ class _HomeShellState extends State<HomeShell> {
   void _go(HomeDestination destination) {
     if (destination == _destination) return;
     final from = _destination;
+    _chat.setPageVisible(false);
     setState(() {
       _destination = destination;
       _visited.add(destination);
@@ -233,6 +267,8 @@ class _HomeShellState extends State<HomeShell> {
           session: widget.session,
           kitFiles: widget.kitFiles,
           onClose: widget.onClose,
+          notifications: _notifications,
+          androidNotifications: _androidNotifications,
         ),
       };
 

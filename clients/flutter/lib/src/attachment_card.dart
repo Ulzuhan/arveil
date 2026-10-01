@@ -20,11 +20,13 @@ class AttachmentCard extends StatelessWidget {
     required this.resume,
     required this.cancel,
     required this.export,
+    this.open,
     this.position = BubblePosition.single,
   });
   final HistoryEventView event;
   final bool active;
   final VoidCallback resume, cancel, export;
+  final VoidCallback? open;
   final BubblePosition position;
 
   @override
@@ -73,6 +75,7 @@ class AttachmentCard extends StatelessWidget {
     final c = ArveilColors.of(context);
     final at = DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000);
     return GestureDetector(
+      onTap: ready ? open : null,
       onLongPress: () => showMessageDetails(context, event),
       onSecondaryTap: () => showMessageDetails(context, event),
       child: ChatBubble(
@@ -154,6 +157,13 @@ class AttachmentCard extends StatelessWidget {
               OverflowBar(
                 spacing: 8,
                 children: [
+                  if (ready && open != null)
+                    TextButton.icon(
+                      key: Key('open-${event.eventId}'),
+                      onPressed: open,
+                      icon: const Icon(Icons.visibility_outlined),
+                      label: Text(context.l10n.attachmentOpen),
+                    ),
                   if (retry)
                     TextButton(
                       key: Key('resume-${event.eventId}'),

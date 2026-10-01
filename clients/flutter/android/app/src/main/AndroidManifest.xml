@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- The camera reads QR codes to link a device or add a contact
          (ADR-012). It is asked for only after "Scan" is tapped, and a device
          without one pastes instead, so it is not a requirement. The camera
@@ -34,6 +35,15 @@
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules">
         <receiver android:name=".UpdateResultReceiver" android:exported="false"/>
+        <service android:name=".ArveilPushService" android:exported="false">
+            <intent-filter><action android:name="org.unifiedpush.android.connector.PUSH_EVENT"/></intent-filter>
+        </service>
+        <provider android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.attachment_viewer"
+            android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/attachment_paths"/>
+        </provider>
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -88,6 +98,10 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:mimeType="*/*"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

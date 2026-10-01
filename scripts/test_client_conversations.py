@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="macos")
-    parser.add_argument("--scenario", choices=("conversations", "attachments", "devices", "archives", "pairing_recovery"), default="conversations")
+    parser.add_argument("--scenario", choices=("conversations", "attachments", "devices", "archives", "pairing_recovery", "notifications"), default="conversations")
     args = parser.parse_args()
     flutter = shutil.which("flutter")
     adb = shutil.which("adb") if args.device != "macos" else None
@@ -78,12 +78,25 @@ def main():
                     result = subprocess.check_output([str(binary), "invite", "-data-dir", str(realm)], text=True)
                     invites.append(next(line.removeprefix("invite: ") for line in result.splitlines() if line.startswith("invite: ")))
                 token = secrets.token_hex(32)
+                hints = []
 
                 class Control(BaseHTTPRequestHandler):
                     def log_message(self, *_):
                         pass
 
                     def do_POST(self):
+                        if args.scenario == "notifications" and self.path in (f"/hint/{token}", f"/hint/{token}/rotated"):
+                            length = int(self.headers.get("Content-Length", "0"))
+                            if length != len(b"arveil-hint/v1"):
+                                self.send_error(400)
+                                return
+                            body = self.rfile.read(length)
+                            with lock:
+                                hints.append({"body": body.decode("ascii"), "rotated": self.path.endswith("/rotated")})
+                            self.send_response(200)
+                            self.send_header("Content-Length", "0")
+                            self.end_headers()
+                            return
                         if not hmac.compare_digest(self.headers.get("Authorization", ""), f"Bearer {token}"):
                             self.send_error(403)
                             return
@@ -99,6 +112,17 @@ def main():
                         self.send_response(200)
                         self.send_header("Content-Length", "0")
                         self.end_headers()
+
+                    def do_GET(self):
+                        if not hmac.compare_digest(self.headers.get("Authorization", ""), f"Bearer {token}") or self.path != "/hints":
+                            self.send_error(403)
+                            return
+                        with lock:
+                            body = json.dumps(hints).encode()
+                        self.send_response(200)
+                        self.send_header("Content-Length", str(len(body)))
+                        self.end_headers()
+                        self.wfile.write(body)
 
                 control = ThreadingHTTPServer(("127.0.0.1", 0), Control)
                 control_port = control.server_address[1]
@@ -136,6 +160,7 @@ def main():
                     destination.chmod(0o600)
                     raise RuntimeError("Native conversation acceptance failed. Private diagnostics retained in .local/client-acceptance/.")
                 summaries = {
+                    "notifications": "native profile hint registration, generic marker, rotation, removal and encrypted-profile reopen.",
                     "archives": "encrypted export, profile loss, identity recovery, read-only import, archived attachment bytes, duplicates, reopen, no resend/rejoin and a new conversation.",
                     "pairing_recovery": "pairing by an older code confirmed on both screens, linking by a scanned link after a yes (ADR-012), kit export and recovery of the same identity.",
                     "devices": "device inventory, pairing, offline revocation, encrypted reopen, relay refusal, MLS removal and remaining-peer text.",

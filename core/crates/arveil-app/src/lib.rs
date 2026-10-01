@@ -37,6 +37,7 @@ mod conversation_ui;
 pub use contacts::{ContactDevice, ContactSummary, SavedRecipient};
 pub use conversation_ui::{ConversationRoute, RoutePreview};
 mod key_packages;
+mod notifications;
 mod onboarding;
 mod recovery;
 pub mod updates;
@@ -130,6 +131,7 @@ pub enum Operation {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    SetNotificationHint,
     QueryDevices,
     QueryContacts,
     SaveContact,
@@ -272,6 +274,9 @@ pub enum ClientCommand {
     QueryKeyPackageSupply,
     CheckKeyPackages,
     ReplenishKeyPackages,
+    SetNotificationHint {
+        endpoint: String,
+    },
     QueryDevices,
     QueryContacts,
     SaveContact {
@@ -392,6 +397,7 @@ impl ClientCommand {
             Self::QueryKeyPackageSupply => Operation::QueryKeyPackageSupply,
             Self::CheckKeyPackages => Operation::CheckKeyPackages,
             Self::ReplenishKeyPackages => Operation::ReplenishKeyPackages,
+            Self::SetNotificationHint { .. } => Operation::SetNotificationHint,
             Self::QueueAttachment { .. } => Operation::QueueAttachment,
             Self::ResumeAttachment { .. } => Operation::ResumeAttachment,
             Self::CancelAttachment { .. } => Operation::CancelAttachment,
@@ -1885,6 +1891,7 @@ fn command_future(
                     | ClientCommand::RevokeDevice { .. }
                     | ClientCommand::CheckKeyPackages
                     | ClientCommand::ReplenishKeyPackages
+                    | ClientCommand::SetNotificationHint { .. }
             ) {
                 // A second sync waits cooperatively here: network waits from the
                 // active sync still yield to queries and non-sync commands.
@@ -2158,6 +2165,20 @@ impl Application {
         match self.execute(ClientCommand::ReplenishKeyPackages)? {
             CommandOutput::KeyPackageSupply(value) => Ok(value),
             _ => unreachable!("key package output"),
+        }
+    }
+
+    /// Idempotent relay registration through the existing profile executor.
+    /// Empty means remove. The platform retains its desired endpoint until ACK.
+    pub fn set_notification_hint(
+        &self,
+        endpoint: &str,
+    ) -> Result<OperationResult, ApplicationError> {
+        match self.execute(ClientCommand::SetNotificationHint {
+            endpoint: endpoint.to_owned(),
+        })? {
+            CommandOutput::Operation(value) => Ok(value),
+            _ => unreachable!("notification hint output"),
         }
     }
 
@@ -3070,6 +3091,12 @@ async fn run_command(
             .await
             .map(|(value, _)| CommandOutput::KeyPackageSupply(value))
         }
+        ClientCommand::SetNotificationHint { endpoint } => run_operation(
+            Operation::SetNotificationHint,
+            notifications::set(config, &endpoint),
+        )
+        .await
+        .map(CommandOutput::Operation),
         ClientCommand::ExportArchive => archives::export(config)
             .map(CommandOutput::Archive)
             .map_err(|e| application_error(Operation::ExportArchive, e)),

@@ -74,6 +74,7 @@ declares its own status; "MUST" states a design requirement, and the
 | [Phase 3b plan](PHASE3B.md) | Milestones M3b.0 to M3b.8 and their acceptance criteria |
 | [Implementation record](CLIENT_FOUNDATION.md) | What each change implemented, its evidence and its limits |
 | [Client design](CLIENT_DESIGN.md) | Visual system, personalization and the redesign plan |
+| [Attachments and notifications](CLIENT_FILES_NOTIFICATIONS.md) | File viewing, local Mac alerts and the Android experiment without Google |
 | [Platform record](PLATFORMS.md) | Dated acceptance runs: device, system, commit and result |
 
 ### Plans, reviews and evidence

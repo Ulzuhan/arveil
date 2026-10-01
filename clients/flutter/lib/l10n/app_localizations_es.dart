@@ -12,6 +12,71 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appTitle => 'Arveil';
 
   @override
+  String get notificationsTitle => 'Notificaciones';
+
+  @override
+  String get notificationsExplanation =>
+      'Recibe avisos genéricos de mensajes nuevos mientras tu perfil esté abierto. Las notificaciones no muestran nombres ni contenido de los mensajes.';
+
+  @override
+  String get notificationsEnable => 'Mostrar notificaciones en este Mac';
+
+  @override
+  String get notificationsBackground => 'Mantener Arveil en segundo plano';
+
+  @override
+  String get notificationsBackgroundDetail =>
+      'Cerrar la ventana mantiene tu perfil abierto y sincroniza cada diez segundos. Puedes reabrir Arveil o salir desde la barra de menús.';
+
+  @override
+  String get notificationsLimits =>
+      'Salir de Arveil, cerrar el perfil o poner el Mac en reposo detiene estos avisos. Los mensajes vuelven a sincronizarse al regresar. Los modos de concentración y ajustes del sistema pueden silenciar los avisos.';
+
+  @override
+  String get notificationsDenied =>
+      'Las notificaciones no están permitidas. Activa Arveil en Ajustes del Sistema → Notificaciones y vuelve a activar esta opción.';
+
+  @override
+  String get notificationsUnavailable =>
+      'No se pudieron preparar las notificaciones. Revisa los permisos del sistema y el acceso al Llavero, y vuelve a intentarlo. Tus mensajes siguen en Arveil.';
+
+  @override
+  String get notificationsNewActivity =>
+      'Tienes mensajes nuevos. Abre Arveil para leerlos.';
+
+  @override
+  String get notificationsOpenApp => 'Abrir Arveil';
+
+  @override
+  String get notificationsQuitApp => 'Salir de Arveil';
+
+  @override
+  String get attachmentOpen => 'Abrir';
+
+  @override
+  String get attachmentOpenExternal => 'Abrir con…';
+
+  @override
+  String get attachmentOpenWarning =>
+      'La aplicación elegida recibirá una copia descifrada y puede conservarla o incluirla en sus copias de seguridad. Arveil conserva su copia temporal aproximadamente una hora mientras está en ejecución y limpia las copias caducadas al volver a abrirse.';
+
+  @override
+  String get attachmentNoViewer =>
+      'Ninguna aplicación compatible pudo abrir este archivo. Puedes guardar una copia.';
+
+  @override
+  String get attachmentOpenFailed =>
+      'No se pudo abrir el archivo. Comprueba que haya terminado de descargarse y vuelve a intentarlo.';
+
+  @override
+  String get attachmentPreviewFailed =>
+      'No se pudo previsualizar la imagen o supera el límite de tamaño del visor.';
+
+  @override
+  String get attachmentExternalPreview =>
+      'Abre este archivo con una aplicación compatible, sin tener que buscarlo en Descargas.';
+
+  @override
   String get navChats => 'Chats';
 
   @override
@@ -693,7 +758,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get attachmentResumeDownload => 'Reanudar descarga';
 
   @override
-  String get attachmentDownload => 'Descargar';
+  String get attachmentDownload => 'Descargar y abrir';
 
   @override
   String get attachmentCancel => 'Cancelar transferencia';
@@ -2189,4 +2254,56 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get linkLinkHasIdentity =>
       'Este dispositivo ya tiene una identidad. Abre ese código en el dispositivo nuevo.';
+
+  @override
+  String get pushExplanation =>
+      'Notificaciones experimentales sin Google. Configura primero ntfy con tu servidor propio. El receptor solo muestra actividad genérica y nunca abre tu perfil ni lee mensajes.';
+
+  @override
+  String get pushInstall =>
+      'Instala ntfy desde F-Droid y configura tu servidor HTTPS propio. El servidor público ntfy.sh no se admite en este modo.';
+
+  @override
+  String get pushServer => 'Tu servidor de notificaciones';
+
+  @override
+  String get pushEnable => 'Recibir avisos de actividad';
+
+  @override
+  String get pushWaiting =>
+      'Esperando a ntfy. Comprueba que use el mismo servidor y reintenta.';
+
+  @override
+  String get pushReady =>
+      'Conectado. Los avisos son genéricos; Arveil consulta los mensajes al abrirse.';
+
+  @override
+  String get pushPermission =>
+      'Permite las notificaciones de Arveil en los ajustes de Android y reintenta.';
+
+  @override
+  String get pushEndpointMismatch =>
+      'ntfy ha devuelto otro servidor o uno no compatible. Comprueba su configuración y la dirección introducida aquí.';
+
+  @override
+  String get pushRegistrationFailed =>
+      'ntfy no pudo registrar este dispositivo. Abre ntfy, comprueba su conexión y reintenta.';
+
+  @override
+  String get pushUnavailable =>
+      'No se pudo actualizar la configuración. Revisa ntfy, la dirección del servidor y los permisos de Android.';
+
+  @override
+  String get pushRelayPending =>
+      'El cambio está guardado en este móvil pero sigue pendiente en el relay. Mantén Arveil abierto con conexión y reintenta. Los avisos desactivados siguen desactivados en el móvil.';
+
+  @override
+  String get pushLimits =>
+      'ntfy necesita funcionar en segundo plano. Las restricciones de batería pueden retrasar avisos. Forzar el cierre impide recibirlos hasta reabrir la app. Pueden llegar avisos genéricos con el perfil cerrado; desactiva esta opción para detenerlos.';
+
+  @override
+  String get pushRetry => 'Reintentar conexión';
+
+  @override
+  String get pushServerHint => 'https://notify.example.org';
 }

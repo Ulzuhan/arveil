@@ -260,6 +260,9 @@ abstract class Profile implements RustOpaqueInterface {
   /// The name this person puts on their cards; empty removes it.
   Future<void> setCardName({String? name});
 
+  /// Register or remove the generic wake hint, using this profile's executor.
+  Future<void> setNotificationHint({required String endpoint});
+
   /// Read durable setup state after opening, completing or retrying an
   /// enrollment. Progress events are hints; this is the source of truth.
   Future<SetupView> setup();

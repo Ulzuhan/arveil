@@ -178,8 +178,9 @@ current source or a package containing it:
 5. Open the conversation and send text. Offline messages remain saved locally;
    **Sincronizar** retries publication. Relay acceptance does not confirm reading.
 
-Automatic sync runs while the conversation screen is in the foreground. Push,
-background receipt and general group membership controls are still pending.
+Automatic sync runs while Arveil is in the foreground. The source increment
+described below adds opt-in Mac background sync; Android push and general group
+membership controls are still pending.
 The existing experimental packages may precede these source changes; check their
 recorded revision before expecting these screens.
 
@@ -194,6 +195,41 @@ That exported copy is outside Arveil's encrypted profile and may be backed up
 by its destination. Cancelling an unfinished transfer discards its local data;
 it does not recall a sent message. Request another copy if the relay reports
 expiry.
+
+### File viewing and notifications (source increment, not in build 25)
+
+In a client built with this increment, choose **Download and open** for an
+incoming attachment or **Open** for a local file. PNG/JPEG/WebP images display
+inside Arveil with zoom, including offline after reopening the profile.
+PDF and other files offer **Open with…**: confirm the temporary decrypted copy
+shared with the selected application. No manual visit to Downloads is needed.
+**Save copy…** remains a separate export. An external viewer may retain copies;
+Arveil cleans its expired temporary copies while running or on the next launch.
+
+On Mac, **Settings → Notifications** offers generic alerts and an independent
+**Keep Arveil running in the background** option. Enabling alerts requests system
+permission; a denial does not affect messaging. The background option keeps the
+profile unlocked, hides the window when closed, and provides menu-bar actions
+to reopen or quit. Quit, profile closure and Mac sleep stop local alerts.
+If permission is denied, enable Arveil in macOS notification settings and retry.
+
+Android adds an experimental **Settings → Notifications** page. It requires
+ntfy's F-Droid app configured with your own HTTPS server; enter the same base
+address in Arveil and grant notification permission. The public ntfy.sh server
+is rejected. Notices are generic and can arrive with the profile closed; they
+never unlock it. Disable the option to stop them. Keep Arveil open online to
+finish pending registration/removal. Force-stop and battery restrictions can
+prevent or delay delivery.
+
+Debug builds, native Android receiver instrumentation and disposable Mac
+attachment acceptance have run. Mac debug notification-center delivery and removal
+also passed with system permission enabled. The official ntfy F-Droid Android app
+passes a separate emulator delivery test against a disposable local server.
+Full relay-to-phone acceptance, packaged Mac banners and physical Android behavior remain release gates;
+see [scope and evidence](CLIENT_FILES_NOTIFICATIONS.md). No permanent notification
+server is deployed by these tests.
+No profile migration or reinstall is required by these changes. Keep the
+existing profile and Keychain when upgrading through the normal release path.
 
 ## Build from source
 

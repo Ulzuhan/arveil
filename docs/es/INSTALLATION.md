@@ -184,8 +184,9 @@ el código actual o un paquete que lo incluya:
 5. Abre la conversación y envía texto. Sin conexión queda guardado localmente;
    **Sincronizar** reintenta su publicación. Aceptación del relay no confirma lectura.
 
-La sincronización automática funciona con la pantalla de conversaciones en primer
-plano. Faltan push, recepción en segundo plano y gestión general de miembros.
+La sincronización automática funciona con Arveil en primer plano. El incremento
+de código descrito abajo añade segundo plano opcional en Mac; siguen pendientes
+push Android y la gestión general de miembros.
 Los paquetes experimentales anteriores pueden preceder estos cambios:
 comprueba su revisión antes de esperar estas pantallas.
 
@@ -200,6 +201,43 @@ destino externo. Esa copia queda fuera del perfil cifrado de Arveil y puede
 entrar en las copias de seguridad del destino. Cancelar una transferencia
 incompleta elimina sus datos locales; no retira un mensaje enviado. Pide otra
 copia si el relay indica caducidad.
+
+### Visor y notificaciones (incremento en código, no incluido en build 25)
+
+En un cliente compilado con este incremento, pulsa **Descargar y abrir** para
+un adjunto recibido o **Abrir** si ya está disponible. Las imágenes PNG/JPEG/WebP
+se ven dentro de Arveil con zoom, también sin red tras reabrir el perfil.
+PDF y otros archivos ofrecen **Abrir con…**: confirma que la aplicación elegida
+recibirá una copia temporal descifrada. No hace falta buscarla en Downloads.
+**Guardar copia…** sigue siendo una exportación independiente. El visor externo
+puede conservar copias; Arveil limpia sus temporales caducados durante la
+ejecución o al siguiente arranque.
+
+En Mac, **Ajustes → Notificaciones** ofrece avisos genéricos y la opción
+independiente **Mantener Arveil en segundo plano**. Activar avisos solicita
+permiso al sistema; denegarlo no impide enviar mensajes. El segundo plano
+mantiene el perfil desbloqueado, oculta la ventana al cerrarla y ofrece abrir
+o salir desde la barra de menús. Salir, cerrar el perfil o suspender el Mac
+detiene los avisos locales. Si se deniega el permiso, habilita Arveil en los
+ajustes de notificaciones de macOS y vuelve a activar la opción.
+
+Android añade **Ajustes → Notificaciones** experimental. Requiere ntfy de
+F-Droid con tu servidor HTTPS propio; introduce la misma dirección base en
+Arveil y concede permiso para avisar. Se rechaza ntfy.sh. Los avisos son genéricos
+y pueden llegar con el perfil cerrado, sin desbloquearlo. Desactiva la opción
+para detenerlos. Mantén Arveil abierto con conexión para completar altas/bajas
+pendientes. El cierre forzado y las restricciones de batería pueden impedir o
+retrasar la entrega.
+
+Se han ejecutado builds debug, instrumentación del receptor Android y aceptación
+de adjuntos Mac con perfiles desechables. También pasan la entrega y retirada del
+aviso en el centro de notificaciones Mac debug con el permiso activado. La app
+oficial ntfy F-Droid pasa la entrega en emulador con un servidor local desechable.
+Quedan el recorrido completo relay-móvil, avisos Mac empaquetados y Android físico antes de publicar; consulta
+[alcance y evidencia](CLIENT_FILES_NOTIFICATIONS.md). Estas pruebas no despliegan
+un servidor de notificaciones permanente.
+Los cambios no requieren migrar ni reinstalar el perfil: conserva el perfil
+y su llavero al actualizar mediante el procedimiento habitual.
 
 ## Compilar desde el código
 

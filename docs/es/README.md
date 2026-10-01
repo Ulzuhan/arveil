@@ -76,6 +76,7 @@ han probado.
 | [Plan de la fase 3b](PHASE3B.md) | Hitos M3b.0 a M3b.8 y sus criterios de aceptación (texto normativo) |
 | [Registro de implementación](CLIENT_FOUNDATION.md) | Qué implementó cada cambio, su evidencia y sus límites |
 | [Diseño del cliente](CLIENT_DESIGN.md) | Sistema visual, personalización y plan del rediseño |
+| [Adjuntos y notificaciones](CLIENT_FILES_NOTIFICATIONS.md) | Visor de archivos, avisos locales Mac y experimento Android sin Google |
 | [Matriz de plataformas](PLATFORMS.md) | Pruebas de aceptación fechadas: dispositivo, sistema, commit y resultado |
 
 ### Planes, revisiones y evidencias
