@@ -149,6 +149,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Unirme con una invitación'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Tengo los datos de una invitación anterior'));
+      await tester.pumpAndSettle();
       // Each step checks its own field before moving on.
       await tester.tap(find.byKey(const Key('enroll-next')));
       await tester.pumpAndSettle();

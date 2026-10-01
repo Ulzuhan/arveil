@@ -399,6 +399,6 @@ Future<String?> scanContactCard(BuildContext context, Profile profile) =>
     scanCode(
       context,
       profile: profile,
-      accept: (card) => card is CardView_Contact,
+      accept: (card) => card is CardView_Contact || card is CardView_Invitation,
       wrongCode: context.l10n.scanNotContact,
     );

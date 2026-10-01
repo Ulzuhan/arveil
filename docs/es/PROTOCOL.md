@@ -270,3 +270,12 @@ El kit de identidad y el backup de historial tienen claves separadas y no contie
 Fijar esquemas y límites, suites y providers, patrón y suite Noise del canal, formato de fragmentación de frames, transcript de bootstrap/pairing, extensión de política MLS, perfil AEAD de archivos/archives, retención de epochs y comportamiento de revocación. Verificar los criterios de aceptación de [ADR-008](adr/ADR-008-carrier-independent-transport.md#criterios-de-aceptación) con al menos un carrier que termine TLS. Crear vectores entre clientes y corpus adversarial. Verificar pérdida de red en cada paso de alta, commit, entrega, ACK, blob y recuperación. La revisión debe abarcar las capas de aplicación y sus metadatos además de MLS.
 
 Referencias primarias y alcance de revisión: [README](README.md#referencias-y-trazabilidad).
+
+## Frames de invitación personal (implementados, 1 de octubre de 2026)
+
+[INVITATIONS.md](INVITATIONS.md#contrato-de-protocolo) fija variantes CBOR,
+campos, límites y errores de `InvitePolicyGet`, `InviteCreate`, `InviteList`,
+`InviteGet`, `InviteRevoke`, `InviteAccept`, `KeyPackagesClaimOnce` y respuestas.
+Usan canales normales de miembro autenticado y rol owner vigente, no la
+credencial/endpoint administrativo independiente propuesto. Join v2 es explícito;
+v1 e `InviteRedeem` mantienen compatibilidad.

@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `by_activity`, `card_offer_view`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `how`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `read_card`, `shown`, `view`, `watch_with`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `by_activity`, `card_offer_view`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `how`, `invitation_error`, `invitation_item`, `invitation_view`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `read_card`, `shown`, `view`, `watch_with`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -36,6 +36,8 @@ Future<Profile> openUnencryptedProfile({required String dir}) =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Profile>>
 abstract class Profile implements RustOpaqueInterface {
+  Future<InvitationView> acceptInvitation({String? text, String? name});
+
   /// The person's answer. Only a yes signs and sends the authorization.
   Future<void> answerLink({required List<int> pairId, required bool approve});
 
@@ -123,6 +125,8 @@ abstract class Profile implements RustOpaqueInterface {
   /// the one that makes a profile more than a directory.
   Future<void> createIdentity();
 
+  Future<InvitationView> createInvitation({Uint8List? id});
+
   Future<DeviceInventoryView> devices();
 
   /// Creates an identity if needed, then resumes the existing enrollment.
@@ -151,6 +155,10 @@ abstract class Profile implements RustOpaqueInterface {
     required List<int> encrypted,
     required String secret,
   });
+
+  Future<bool> invitationPolicy();
+
+  Future<List<InvitationView>> invitations({required bool refresh});
 
   /// On a new device: answer a code shown by the other device. `scanned`
   /// says it was read from that screen with the camera, which
@@ -181,6 +189,8 @@ abstract class Profile implements RustOpaqueInterface {
   Future<LinkOfferView> offerLink();
 
   Future<String> ownRoute();
+
+  Future<InvitationView?> pendingInvitation();
 
   /// Who a contact card names, before talking to them.
   Future<CardPreviewView> previewCard({required String text});
@@ -232,6 +242,8 @@ abstract class Profile implements RustOpaqueInterface {
     required String bootstrap,
     required String deviceId,
   });
+
+  Future<InvitationView> revokeInvitation({required List<int> id});
 
   Future<ContactView> saveContact({
     required String route,
@@ -571,6 +583,13 @@ enum CardProblem {
 @freezed
 sealed class CardView with _$CardView {
   const CardView._();
+
+  /// One-use admission and a contact, handled as one durable operation.
+  const factory CardView.invitation({
+    String? name,
+    required String server,
+    required BigInt expiresAt,
+  }) = CardView_Invitation;
 
   /// Server details and a single-use invitation, as the enrollment form
   /// already takes them.
@@ -923,6 +942,71 @@ class HistoryPageView {
           runtimeType == other.runtimeType &&
           events == other.events &&
           next == other.next;
+}
+
+enum InvitationProblem {
+  offline,
+  storage,
+  busy,
+  notAllowed,
+  unavailable,
+  alreadyUsed,
+  otherServer,
+  ownInvitation,
+  pendingOperation,
+  oldServer,
+  noKeys,
+  invalid,
+  failed,
+}
+
+/// Why a command failed, in the category the application layer assigned.
+/// A shareable link is exposed only for an acknowledged pending invitation.
+class InvitationView {
+  final Uint8List id;
+  final String state;
+  final PlatformInt64 createdAt;
+  final PlatformInt64 expiresAt;
+  final String? link;
+  final String groupId;
+  final PlatformInt64 checkedAt;
+  final String? name;
+
+  const InvitationView({
+    required this.id,
+    required this.state,
+    required this.createdAt,
+    required this.expiresAt,
+    this.link,
+    required this.groupId,
+    required this.checkedAt,
+    this.name,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      state.hashCode ^
+      createdAt.hashCode ^
+      expiresAt.hashCode ^
+      link.hashCode ^
+      groupId.hashCode ^
+      checkedAt.hashCode ^
+      name.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InvitationView &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          state == other.state &&
+          createdAt == other.createdAt &&
+          expiresAt == other.expiresAt &&
+          link == other.link &&
+          groupId == other.groupId &&
+          checkedAt == other.checkedAt &&
+          name == other.name;
 }
 
 enum KeyPackageLevelView { unknown, empty, low, ready }

@@ -22,6 +22,9 @@ mod archive_store;
 #[path = "device_store.rs"]
 mod device_store;
 pub use device_store::Revocation;
+#[path = "invitation_store.rs"]
+mod invitation_store;
+pub use invitation_store::{InvitationHello, InvitationOperation};
 #[path = "card_store.rs"]
 mod card_store;
 pub use card_store::{

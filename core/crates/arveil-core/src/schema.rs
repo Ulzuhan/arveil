@@ -21,7 +21,7 @@ use rusqlite::Connection;
 use crate::storage::StorageError;
 
 /// The newest profile schema this build reads and writes.
-pub const PROFILE_SCHEMA_VERSION: u32 = 7;
+pub const PROFILE_SCHEMA_VERSION: u32 = 8;
 
 /// One step from `version - 1` to `version`.
 pub(crate) struct Migration {
@@ -57,6 +57,10 @@ const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 7,
         apply: contact_cards,
+    },
+    Migration {
+        version: 8,
+        apply: invitation_operations,
     },
 ];
 
@@ -311,3 +315,21 @@ fn columns(conn: &Connection, table: &str) -> Result<BTreeMap<String, ColumnShap
 #[cfg(test)]
 #[path = "schema_tests.rs"]
 mod tests;
+
+/// Version 8: resumable personal invitations; tokens stay inside SQLCipher.
+fn invitation_operations(conn: &Connection) -> Result<(), StorageError> {
+    conn.execute_batch(
+        "CREATE TABLE invitation_operations (
+        id BLOB NOT NULL, direction TEXT NOT NULL, link TEXT NOT NULL,
+        request_key BLOB NOT NULL, claim_key BLOB NOT NULL, secret BLOB NOT NULL,
+        state TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+        claimant BLOB NOT NULL, group_id BLOB NOT NULL, key_package BLOB NOT NULL,
+        checked_at INTEGER NOT NULL, PRIMARY KEY(id,direction)
+    );
+    CREATE TABLE invitation_hellos (
+        group_id BLOB PRIMARY KEY, invitation_id BLOB NOT NULL,
+        sender BLOB NOT NULL, name TEXT
+    );",
+    )?;
+    Ok(())
+}

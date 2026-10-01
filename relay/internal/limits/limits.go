@@ -17,6 +17,8 @@ import (
 
 // Config is what an operator can tune.
 type Config struct {
+	// Invitation request attempts per address per minute, including refusals.
+	InvitationsPerAddr int
 	// MaxTotal bounds concurrent channels on the whole relay.
 	MaxTotal int
 	// MaxPerAddr bounds concurrent channels from one address.
@@ -30,10 +32,11 @@ type Config struct {
 // Default values sized for a family realm behind a home connection.
 func Default() Config {
 	return Config{
-		MaxTotal:        256,
-		MaxPerAddr:      8,
-		PairingsPerAddr: 4,
-		PairingWindow:   10 * time.Minute,
+		InvitationsPerAddr: 120,
+		MaxTotal:           256,
+		MaxPerAddr:         8,
+		PairingsPerAddr:    4,
+		PairingWindow:      10 * time.Minute,
 	}
 }
 
@@ -42,14 +45,15 @@ func Default() Config {
 type Gate struct {
 	cfg Config
 
-	mu       sync.Mutex
-	total    int
-	perAddr  map[string]int
-	pairings map[string][]time.Time
+	mu          sync.Mutex
+	total       int
+	perAddr     map[string]int
+	pairings    map[string][]time.Time
+	invitations map[string][]time.Time
 }
 
 func New(cfg Config) *Gate {
-	return &Gate{cfg: cfg, perAddr: map[string]int{}, pairings: map[string][]time.Time{}}
+	return &Gate{cfg: cfg, perAddr: map[string]int{}, pairings: map[string][]time.Time{}, invitations: map[string][]time.Time{}}
 }
 
 // Acquire takes one connection slot for addr. The returned release must be
@@ -113,4 +117,32 @@ func (g *Gate) Active() int {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.total
+}
+
+// AllowInvitation bounds administrative request attempts independently of login.
+func (g *Gate) AllowInvitation(addr string, now time.Time) bool {
+	if g == nil || g.cfg.InvitationsPerAddr <= 0 {
+		return true
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	cutoff := now.Add(-time.Minute)
+	// Entries expire on traffic, so roaming addresses do not grow the map forever.
+	for key, items := range g.invitations {
+		if len(items) == 0 || !items[len(items)-1].After(cutoff) {
+			delete(g.invitations, key)
+		}
+	}
+	kept := g.invitations[addr][:0]
+	for _, at := range g.invitations[addr] {
+		if at.After(cutoff) {
+			kept = append(kept, at)
+		}
+	}
+	if len(kept) >= g.cfg.InvitationsPerAddr {
+		g.invitations[addr] = kept
+		return false
+	}
+	g.invitations[addr] = append(kept, now)
+	return true
 }

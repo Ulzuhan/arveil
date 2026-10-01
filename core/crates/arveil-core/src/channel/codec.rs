@@ -29,10 +29,69 @@ pub struct Frame {
     pub payload: Payload,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InvitationRecord {
+    pub sequence: u64,
+    #[serde(with = "serde_bytes")]
+    pub id: Vec<u8>,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub state: String,
+    #[serde(with = "serde_bytes")]
+    pub claimed_identity: Vec<u8>,
+    pub claimed_at: u64,
+}
+
 /// Phase 0 frame catalog. Grows milestone by milestone
 /// (`docs/PROTOCOL.md`, "Channel frame catalog").
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Payload {
+    // Personal invitations: owner-scoped admission, no contact data on relay.
+    InvitePolicyGet,
+    InvitePolicy {
+        can_invite: bool,
+        server_time: u64,
+        ttl: u64,
+    },
+    InviteCreate {
+        #[serde(with = "serde_bytes")]
+        request_key: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        token_hash: Vec<u8>,
+        ttl: u64,
+    },
+    InviteList {
+        cursor: u64,
+        limit: u16,
+    },
+    InviteGet {
+        #[serde(with = "serde_bytes")]
+        invitation_id: Vec<u8>,
+    },
+    InviteRevoke {
+        #[serde(with = "serde_bytes")]
+        invitation_id: Vec<u8>,
+    },
+    InviteAccept {
+        #[serde(with = "serde_bytes")]
+        token: Vec<u8>,
+    },
+    Invitation {
+        invitation: InvitationRecord,
+    },
+    Invitations {
+        invitations: Vec<InvitationRecord>,
+        next_cursor: u64,
+    },
+    KeyPackagesClaimOnce {
+        #[serde(with = "serde_bytes")]
+        request_key: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        identity_id: Vec<u8>,
+        #[serde(with = "serde_bytes")]
+        device_id: Vec<u8>,
+    },
+
     /// Liveness for carriers that close idle connections.
     Ping,
     Pong,

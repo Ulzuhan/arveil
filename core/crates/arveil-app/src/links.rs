@@ -26,6 +26,7 @@ const MAX_TEXT_CHARS: usize = 2048;
 /// A pasted message searched for a card.
 const MAX_MESSAGE_BYTES: usize = 16 * 1024;
 pub const VERSION: u8 = 1;
+pub const INVITATION_VERSION: u8 = 2;
 /// A self-description is shown, never trusted, and kept short: 64 bytes of
 /// UTF-8, so the largest card still fits [`MAX_PAYLOAD_BYTES`].
 pub const MAX_NAME_BYTES: usize = 64;
@@ -130,6 +131,15 @@ impl CardRoute {
 /// What a payload carries.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Card {
+    /// A personal invitation combines admission and the inviter contact.
+    Invitation {
+        realm: Realm,
+        invitation: Vec<u8>,
+        expires_at: u64,
+        route: CardRoute,
+        secret: Vec<u8>,
+        name: Option<String>,
+    },
     /// Join a realm with a single-use invitation (§2).
     Join { realm: Realm, invitation: Vec<u8> },
     /// Link a device to the identity whose device shows this (§3). The new
@@ -156,8 +166,22 @@ pub enum Card {
 
 /// The wire map. Fields that a kind does not use are absent; fields a newer
 /// version adds are ignored by this one.
+// Positional contact fields avoid enlarging the existing 600-byte QR bound.
+type PackedContact = (
+    serde_bytes::ByteBuf,
+    serde_bytes::ByteBuf,
+    serde_bytes::ByteBuf,
+    serde_bytes::ByteBuf,
+    serde_bytes::ByteBuf,
+    serde_bytes::ByteBuf,
+    serde_bytes::ByteBuf,
+    Option<String>,
+);
+
 #[derive(Default, Serialize, Deserialize)]
 struct Wire {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    contact: Option<PackedContact>,
     version: u8,
     kind: String,
     #[serde(with = "serde_bytes")]
@@ -227,7 +251,7 @@ pub fn clean_name(name: &str) -> Option<String> {
 impl Card {
     pub fn kind(&self) -> &'static str {
         match self {
-            Card::Join { .. } => "join",
+            Card::Join { .. } | Card::Invitation { .. } => "join",
             Card::Link { .. } => "link",
             Card::Contact { .. } => "contact",
         }
@@ -235,9 +259,10 @@ impl Card {
 
     pub fn realm(&self) -> &Realm {
         match self {
-            Card::Join { realm, .. } | Card::Link { realm, .. } | Card::Contact { realm, .. } => {
-                realm
-            }
+            Card::Join { realm, .. }
+            | Card::Invitation { realm, .. }
+            | Card::Link { realm, .. }
+            | Card::Contact { realm, .. } => realm,
         }
     }
 
@@ -253,6 +278,28 @@ impl Card {
             ..Wire::default()
         };
         match self {
+            Card::Invitation {
+                invitation,
+                expires_at,
+                route,
+                secret,
+                name,
+                ..
+            } => {
+                w.version = INVITATION_VERSION;
+                w.invitation = bytes(invitation);
+                w.expires_at = Some(*expires_at);
+                w.contact = Some((
+                    route.device_id.clone().into(),
+                    route.credential_hash.clone().into(),
+                    route.root_public.clone().into(),
+                    route.mailbox_id.clone().into(),
+                    route.write_capability.clone().into(),
+                    route.hpke_public.clone().into(),
+                    secret.clone().into(),
+                    name.as_deref().and_then(clean_name),
+                ));
+            }
             Card::Join { invitation, .. } => w.invitation = bytes(invitation),
             Card::Link {
                 pair_id,
@@ -286,6 +333,9 @@ impl Card {
             arveil_core::signed::canonical(&w).map_err(|_| LinkError::Damaged("encoding"))?;
         if cbor.len() > MAX_PAYLOAD_BYTES {
             return Err(LinkError::TooLarge);
+        }
+        if matches!(self, Card::Invitation { .. }) {
+            Self::decode(&cbor)?;
         }
         Ok(BASE64URL_NOPAD.encode(&cbor))
     }
@@ -370,10 +420,10 @@ impl Card {
             return Err(LinkError::TooLarge);
         }
         let w: Wire = ciborium::from_reader(cbor).map_err(|_| LinkError::NotALink)?;
-        if w.version > VERSION {
+        if w.version > INVITATION_VERSION {
             return Err(LinkError::NewerVersion);
         }
-        if w.version != VERSION {
+        if w.version != VERSION && w.version != INVITATION_VERSION {
             return Err(LinkError::Damaged("version"));
         }
         let signing: [u8; 32] = w
@@ -391,6 +441,37 @@ impl Card {
             },
             url: valid_url(w.url)?,
         };
+        if w.version == INVITATION_VERSION {
+            if w.kind != "join" {
+                return Err(LinkError::Damaged("invitation kind"));
+            }
+            let (device, credential, root, mailbox, write, hpke, secret, name) =
+                w.contact.ok_or(LinkError::Damaged("inviter contact"))?;
+            let route = CardRoute {
+                device_id: field(Some(device), 16, "device")?,
+                credential_hash: field(Some(credential), 32, "credential")?,
+                root_public: field(Some(root), 32, "root key")?,
+                mailbox_id: field(Some(mailbox), 16, "mailbox")?,
+                write_capability: field(Some(write), 32, "mailbox")?,
+                hpke_public: field(Some(hpke), 32, "device key")?,
+            };
+            root_key(&route.root_public)?;
+            let expires_at = w
+                .expires_at
+                .filter(|n| *n > 0 && *n <= i64::MAX as u64)
+                .ok_or(LinkError::Damaged("expiry"))?;
+            return Ok(Card::Invitation {
+                realm,
+                invitation: field(w.invitation, 32, "invitation")?,
+                expires_at,
+                route,
+                secret: field(Some(secret), 16, "secret")?,
+                name: name.as_deref().and_then(clean_name),
+            });
+        }
+        if w.contact.is_some() {
+            return Err(LinkError::Damaged("invitation version"));
+        }
         match w.kind.as_str() {
             "join" => Ok(Card::Join {
                 realm,
@@ -506,6 +587,63 @@ mod tests {
             contact(Some("Ana")),
             contact(None),
         ]
+    }
+
+    #[test]
+    fn personal_invitation_fits_existing_qr_bound_and_preserves_version() {
+        let Card::Contact {
+            mut realm,
+            route,
+            secret,
+            ..
+        } = contact(None)
+        else {
+            unreachable!()
+        };
+        realm.url = format!("wss://{}", "r".repeat(MAX_URL_CHARS - 6));
+        let card = Card::Invitation {
+            realm,
+            route,
+            secret,
+            invitation: vec![9; 32],
+            expires_at: i64::MAX as u64,
+            name: Some("ñ".repeat(32)),
+        };
+        let payload = card.payload().unwrap();
+        let raw = BASE64URL_NOPAD.decode(payload.as_bytes()).unwrap();
+        assert!(raw.len() <= MAX_PAYLOAD_BYTES, "{}", raw.len());
+        assert_eq!(
+            Card::parse(&card.link(DEFAULT_LINK_BASE).unwrap()).unwrap(),
+            card
+        );
+        let link = card.link(DEFAULT_LINK_BASE).unwrap();
+        let qr = crate::qr::encode(&link).unwrap();
+        let width = qr.width as usize;
+        let side = (width + 8) * 4;
+        let mut luma = vec![255; side * side];
+        for y in 0..width {
+            for x in 0..width {
+                if qr.dark[y * width + x] {
+                    for dy in 0..4 {
+                        for dx in 0..4 {
+                            luma[((y + 4) * 4 + dy) * side + (x + 4) * 4 + dx] = 0;
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(
+            crate::qr::decode(side as u32, side as u32, side as u32, &luma),
+            vec![link]
+        );
+        let mut wire: Wire = ciborium::from_reader(raw.as_slice()).unwrap();
+        assert_eq!(wire.version, 2); // v1 sees a newer version before redemption.
+        wire.version = 1;
+        let downgraded = arveil_core::signed::canonical(&wire).unwrap();
+        assert!(Card::decode(&downgraded).is_err());
+        wire.version = 2;
+        wire.contact = None;
+        assert!(Card::decode(&arveil_core::signed::canonical(&wire).unwrap()).is_err());
     }
 
     #[test]
@@ -642,7 +780,7 @@ mod tests {
     #[test]
     fn a_newer_version_is_named_as_such() {
         let w = Wire {
-            version: VERSION + 1,
+            version: INVITATION_VERSION + 1,
             kind: "join".into(),
             ..Wire::default()
         };

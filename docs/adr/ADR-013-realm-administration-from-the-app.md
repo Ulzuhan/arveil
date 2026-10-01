@@ -1,12 +1,14 @@
 # ADR-013 — Realm administration from the app
 
-- **Status:** proposed. Nothing in this record is implemented.
+- **Status:** partially implemented on 2026-10-01: owner-only personal invitations. Member removal, remote role changes and the wider administration panel remain proposed.
 - **Date:** 2026-09-27.
 - **Scope:** who administers a realm, how they invite and remove people from the app, and how administration is recovered when devices are lost. Invitation links and QR codes are [ADR-012](ADR-012-qr-codes-and-links.md).
 
 *Versión en español: [../es/adr/ADR-013-realm-administration-from-the-app.md](../es/adr/ADR-013-realm-administration-from-the-app.md)*
 
-## Context
+The implemented subset and exact wire shapes are in [personal invitations](../INVITATIONS.md). The broader design below remains a proposal where it goes beyond that subset; `admin` does not gain invitation permission in this release.
+
+## Original context (before implementation)
 
 Today a realm is administered only from its host.
 - **Invitations.** `arveil-relay invite` opens the relay database directly, so creating one requires a shell on the host: SSH, `podman exec` or `docker compose exec`.

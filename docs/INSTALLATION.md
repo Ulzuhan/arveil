@@ -21,6 +21,22 @@ The previous `0.1.0+5` candidates passed Mac ↔ Android-emulator messaging.
 Earlier experimental packages may contain only invitation enrollment; check
 the package revision and release notes. Use disposable test profiles at this stage.
 
+## Personal invitation candidate (October 1, 2026)
+
+The review branch implements **Invite someone**: one private link/QR combines
+server admission and the inviter's contact. Install a compatible client, open a
+protected profile, return to the original link (or scan/paste), review and accept.
+You get an independent identity and one conversation; existing same-server
+members keep their identity. No previous history is copied and contact verification
+remains separate. Legacy server/token entry is still available.
+
+This flow is not in the published beta yet. It requires the updated relay and
+an explicitly authorized owner. See [invitations](INVITATIONS.md) for prerequisites,
+owner setup, recovery limits, migrations and deployment order. Preserve profile
+backups before updating; do not downgrade a migrated profile. Signed/physical
+installation acceptance is pending. Play eligibility does not come with the
+invitation; return to the same link after installing from any supported source.
+
 ## Choose your starting point
 
 | I want to… | Available path | What remains before a downloadable release |

@@ -85,6 +85,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  InvitationView dco_decode_box_autoadd_invitation_view(dynamic raw);
+
+  @protected
   LastEventView dco_decode_box_autoadd_last_event_view(dynamic raw);
 
   @protected
@@ -153,6 +156,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  InvitationProblem dco_decode_invitation_problem(dynamic raw);
+
+  @protected
+  InvitationView dco_decode_invitation_view(dynamic raw);
+
+  @protected
   KeyPackageLevelView dco_decode_key_package_level_view(dynamic raw);
 
   @protected
@@ -190,6 +199,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<HistoryEventView> dco_decode_list_history_event_view(dynamic raw);
+
+  @protected
+  List<InvitationView> dco_decode_list_invitation_view(dynamic raw);
 
   @protected
   List<ManagedDeviceView> dco_decode_list_managed_device_view(dynamic raw);
@@ -231,6 +243,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  InvitationView? dco_decode_opt_box_autoadd_invitation_view(dynamic raw);
+
+  @protected
   LastEventView? dco_decode_opt_box_autoadd_last_event_view(dynamic raw);
 
   @protected
@@ -255,6 +270,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
   PairingView dco_decode_pairing_view(dynamic raw);
@@ -381,6 +399,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  InvitationView sse_decode_box_autoadd_invitation_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LastEventView sse_decode_box_autoadd_last_event_view(
     SseDeserializer deserializer,
   );
@@ -455,6 +478,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  InvitationProblem sse_decode_invitation_problem(SseDeserializer deserializer);
+
+  @protected
+  InvitationView sse_decode_invitation_view(SseDeserializer deserializer);
+
+  @protected
   KeyPackageLevelView sse_decode_key_package_level_view(
     SseDeserializer deserializer,
   );
@@ -504,6 +533,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   List<HistoryEventView> sse_decode_list_history_event_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<InvitationView> sse_decode_list_invitation_view(
     SseDeserializer deserializer,
   );
 
@@ -559,6 +593,11 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  InvitationView? sse_decode_opt_box_autoadd_invitation_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LastEventView? sse_decode_opt_box_autoadd_last_event_view(
     SseDeserializer deserializer,
   );
@@ -591,6 +630,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   PairingView sse_decode_pairing_view(SseDeserializer deserializer);
@@ -744,6 +786,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_invitation_view(
+    InvitationView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_last_event_view(
     LastEventView self,
     SseSerializer serializer,
@@ -846,6 +894,18 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_invitation_problem(
+    InvitationProblem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_invitation_view(
+    InvitationView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_key_package_level_view(
     KeyPackageLevelView self,
     SseSerializer serializer,
@@ -908,6 +968,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   @protected
   void sse_encode_list_history_event_view(
     List<HistoryEventView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_invitation_view(
+    List<InvitationView> self,
     SseSerializer serializer,
   );
 
@@ -975,6 +1041,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_invitation_view(
+    InvitationView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_last_event_view(
     LastEventView? self,
     SseSerializer serializer,
@@ -1015,6 +1087,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_pairing_view(PairingView self, SseSerializer serializer);

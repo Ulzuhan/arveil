@@ -102,3 +102,12 @@ Restoring an old snapshot is visible to clients rather than silent: a device rec
 ## Upgrading
 
 Stop, replace the binary, start. The schema migrates on open. Take a backup first, and keep the previous binary until the family has used the new one, because there is no downgrade path for the database.
+
+## Personal invitation rollout
+
+See [owner setup and rollout](INVITATIONS.md). This candidate migrates relay
+schema 4→5 and client profiles 7→8. Back up consistently, rehearse restoration,
+deploy the compatible relay first, and promote the intended existing owner by
+full identity ID. Do not open newer databases with older binaries. The wider
+administration panel is not implemented. No production upgrade is implied by
+building this branch.

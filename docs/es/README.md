@@ -41,6 +41,7 @@ han probado.
 | [Cloudflare Tunnel](TUNNEL.md) | Abrir ese relay privado a Internet con un túnel y un proxy local que verifica las direcciones de los clientes |
 | [Paquetes del cliente](CLIENT_RELEASES.md) | Compilar, auditar y publicar el ZIP de macOS y el APK de Android |
 | [Actualizaciones Android firmadas](CLIENT_UPDATES.md) | La búsqueda opcional de actualizaciones de la app Android: clave de firma, canal firmado, publicación y qué verifica la app |
+| [Invitaciones personales](INVITATIONS.md) | Recorrido, permiso owner, contrato, evidencia y puertas de despliegue |
 
 ### Diseño
 
@@ -76,6 +77,7 @@ han probado.
 | [Plan de la fase 3b](PHASE3B.md) | Hitos M3b.0 a M3b.8 y sus criterios de aceptación (texto normativo) |
 | [Registro de implementación](CLIENT_FOUNDATION.md) | Qué implementó cada cambio, su evidencia y sus límites |
 | [Diseño del cliente](CLIENT_DESIGN.md) | Sistema visual, personalización y plan del rediseño |
+| [Plan de invitación y alta](INVITATION_ONBOARDING_PLAN.md) | Prioridad actual: una invitación desde la instalación hasta la primera conversación; dependencias, bloqueos y aceptación |
 | [Adjuntos y notificaciones](CLIENT_FILES_NOTIFICATIONS.md) | Visor de archivos, avisos locales Mac y experimento Android sin Google |
 | [Matriz de plataformas](PLATFORMS.md) | Pruebas de aceptación fechadas: dispositivo, sistema, commit y resultado |
 

@@ -142,3 +142,12 @@ No se fusionan forks de secretos MLS con reglas de «última escritura gana». E
 8. La UI deriva sus estados de hechos locales, aceptación de relay y recibos autenticados por separado.
 
 Referencias y alcance de revisión: [README](README.md#referencias-y-trazabilidad).
+
+## Persistencia de invitaciones personales (implementada)
+
+Esquema 5 del relay añade `issued_invitations`, `invitation_audit` y
+`key_package_claim_receipts`; `owner` autoriza invitaciones y se asigna
+expresamente desde el host. Perfil 8 añade `invitation_operations` e
+`invitation_hellos`. Enlace/token/secreto pendiente viven cifrados en el perfil,
+no en preferencias Flutter. MLS, conversación, outbox y vínculo invitación→grupo
+comparten transacción. Véase [ciclo de vida y retención](INVITATIONS.md#persistencia-privacidad-y-limpieza).

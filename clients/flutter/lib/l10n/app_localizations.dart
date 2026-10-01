@@ -3847,6 +3847,324 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'https://notify.example.org'**
   String get pushServerHint;
+
+  /// No description provided for @inviteTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitar a alguien'**
+  String get inviteTitle;
+
+  /// No description provided for @inviteHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Una invitación conecta a una persona con tu servidor y abre un chat contigo. Puede instalar Arveil desde el mismo enlace y volver a abrirlo después. Tu dispositivo puede estar desconectado cuando la acepte.'**
+  String get inviteHelp;
+
+  /// No description provided for @inviteCreate.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear invitación personal'**
+  String get inviteCreate;
+
+  /// No description provided for @inviteShareApp.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir solo la descarga de Arveil'**
+  String get inviteShareApp;
+
+  /// No description provided for @inviteListTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Tus invitaciones'**
+  String get inviteListTitle;
+
+  /// No description provided for @inviteLocalList.
+  ///
+  /// In es, this message translates to:
+  /// **'Los estados muestran la última consulta. Actualiza para comprobar si alguien ha aceptado.'**
+  String get inviteLocalList;
+
+  /// No description provided for @inviteEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'Todavía no has creado invitaciones.'**
+  String get inviteEmpty;
+
+  /// No description provided for @inviteShow.
+  ///
+  /// In es, this message translates to:
+  /// **'Mostrar código o compartir'**
+  String get inviteShow;
+
+  /// No description provided for @inviteShare.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir invitación'**
+  String get inviteShare;
+
+  /// No description provided for @inviteShareMessage.
+  ///
+  /// In es, this message translates to:
+  /// **'Te invito a Arveil para hablar de forma privada. Abre este enlace; si necesitas instalar la app, vuelve a abrir el mismo enlace después. La invitación es personal y de un solo uso.'**
+  String get inviteShareMessage;
+
+  /// No description provided for @invitePrivate.
+  ///
+  /// In es, this message translates to:
+  /// **'Envía este enlace solo a la persona que quieres invitar. Quien lo acepte primero podrá entrar en tu servidor y abrir un chat contigo. Dura siete días y puedes revocarlo mientras no se haya usado.'**
+  String get invitePrivate;
+
+  /// No description provided for @inviteWaiting.
+  ///
+  /// In es, this message translates to:
+  /// **'Pendiente de aceptar'**
+  String get inviteWaiting;
+
+  /// No description provided for @inviteUsed.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptada · esperando el contacto'**
+  String get inviteUsed;
+
+  /// No description provided for @inviteConnected.
+  ///
+  /// In es, this message translates to:
+  /// **'Contacto conectado'**
+  String get inviteConnected;
+
+  /// No description provided for @inviteExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitación caducada'**
+  String get inviteExpired;
+
+  /// No description provided for @inviteRevoked.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitación revocada'**
+  String get inviteRevoked;
+
+  /// No description provided for @inviteRevoking.
+  ///
+  /// In es, this message translates to:
+  /// **'Revocación pendiente de confirmar'**
+  String get inviteRevoking;
+
+  /// No description provided for @inviteIssuing.
+  ///
+  /// In es, this message translates to:
+  /// **'Creación pendiente de confirmar'**
+  String get inviteIssuing;
+
+  /// No description provided for @inviteConnecting.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuenta conectada · terminando el chat'**
+  String get inviteConnecting;
+
+  /// No description provided for @inviteAccepting.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptación en curso'**
+  String get inviteAccepting;
+
+  /// No description provided for @inviteOtherDevice.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta invitación se creó en otro dispositivo tuyo. Desde aquí puedes revocarla; para compartirla, abre el dispositivo que la creó.'**
+  String get inviteOtherDevice;
+
+  /// No description provided for @inviteAcceptTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar invitación'**
+  String get inviteAcceptTitle;
+
+  /// No description provided for @inviteUnnamed.
+  ///
+  /// In es, this message translates to:
+  /// **'Has recibido una invitación a Arveil'**
+  String get inviteUnnamed;
+
+  /// No description provided for @inviteConsent.
+  ///
+  /// In es, this message translates to:
+  /// **'Al aceptar, usarás este servidor y añadirás a quien te invita como contacto. Si es tu primera vez, Arveil creará tu propia identidad. No copiará la identidad ni los mensajes de otra persona.'**
+  String get inviteConsent;
+
+  /// No description provided for @inviteUnverified.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre lo ha escrito quien comparte el enlace. Escanearlo no verifica quién es: puedes comprobar el código de seguridad del contacto después.'**
+  String get inviteUnverified;
+
+  /// No description provided for @inviteNameHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Opcional. Este nombre se enviará a quien te invita al abrir el chat.'**
+  String get inviteNameHelp;
+
+  /// No description provided for @inviteAccept.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar y conectar'**
+  String get inviteAccept;
+
+  /// No description provided for @inviteResume.
+  ///
+  /// In es, this message translates to:
+  /// **'Continuar invitación'**
+  String get inviteResume;
+
+  /// No description provided for @inviteResumeHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'El progreso está guardado en este perfil. Puedes continuar sin volver a pedir un enlace.'**
+  String get inviteResumeHelp;
+
+  /// No description provided for @inviteInputHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Pide a un contacto que abra «Invitar a alguien» en Arveil. Escanea su código o pega el enlace que te envíe.'**
+  String get inviteInputHelp;
+
+  /// No description provided for @inviteScan.
+  ///
+  /// In es, this message translates to:
+  /// **'Escanear invitación'**
+  String get inviteScan;
+
+  /// No description provided for @inviteLinkLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlace de invitación'**
+  String get inviteLinkLabel;
+
+  /// No description provided for @inviteOpen.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisar invitación'**
+  String get inviteOpen;
+
+  /// No description provided for @inviteLegacy.
+  ///
+  /// In es, this message translates to:
+  /// **'Tengo los datos de una invitación anterior'**
+  String get inviteLegacy;
+
+  /// No description provided for @inviteWrongCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Este código no es una invitación para entrar en Arveil.'**
+  String get inviteWrongCode;
+
+  /// No description provided for @inviteOffline.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo conectar con el servidor. Comprueba la conexión y vuelve a intentarlo; el progreso confirmado se conserva.'**
+  String get inviteOffline;
+
+  /// No description provided for @inviteNotAllowed.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu cuenta no tiene permiso para invitar a este servidor. Pide una invitación a quien lo administra. Compartir la descarga por sí sola no da acceso.'**
+  String get inviteNotAllowed;
+
+  /// No description provided for @inviteUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta invitación ha caducado o se ha revocado. Pide una nueva a quien te invita.'**
+  String get inviteUnavailable;
+
+  /// No description provided for @inviteAlreadyUsed.
+  ///
+  /// In es, this message translates to:
+  /// **'La invitación ya se aceptó desde otro perfil o dispositivo. Continúa allí o pide una nueva.'**
+  String get inviteAlreadyUsed;
+
+  /// No description provided for @inviteOtherServer.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta invitación pertenece a otro servidor. Tu perfil actual se conserva; pide un enlace de tu mismo servidor.'**
+  String get inviteOtherServer;
+
+  /// No description provided for @inviteOwn.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta invitación es tuya. Compártela con la persona que quieras añadir.'**
+  String get inviteOwn;
+
+  /// No description provided for @inviteAnotherPending.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya hay otra invitación en curso. Continúala antes de abrir una diferente.'**
+  String get inviteAnotherPending;
+
+  /// No description provided for @inviteOldServer.
+  ///
+  /// In es, this message translates to:
+  /// **'El servidor necesita una actualización para usar invitaciones personales. Pide a quien lo administra que lo actualice.'**
+  String get inviteOldServer;
+
+  /// No description provided for @inviteNoKeys.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu cuenta ya está conectada, pero faltan datos para abrir el chat. Pide a quien te invita que abra Arveil y sincronice; después pulsa continuar.'**
+  String get inviteNoKeys;
+
+  /// No description provided for @inviteBusy.
+  ///
+  /// In es, this message translates to:
+  /// **'Se ha alcanzado un límite temporal. Espera un poco y vuelve a intentarlo.'**
+  String get inviteBusy;
+
+  /// No description provided for @inviteStorage.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo guardar el progreso. Comprueba el espacio disponible y vuelve a abrir el perfil; conserva los datos de Arveil.'**
+  String get inviteStorage;
+
+  /// No description provided for @inviteFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo completar la invitación. Revisa que el enlace esté completo y que ambas apps estén actualizadas.'**
+  String get inviteFailed;
+
+  /// No description provided for @inviteExpires.
+  ///
+  /// In es, this message translates to:
+  /// **'Caduca: {date}'**
+  String inviteExpires(String date);
+
+  /// No description provided for @inviteChecked.
+  ///
+  /// In es, this message translates to:
+  /// **'Última consulta: {date}'**
+  String inviteChecked(String date);
+
+  /// No description provided for @inviteFrom.
+  ///
+  /// In es, this message translates to:
+  /// **'{name} te invita a Arveil'**
+  String inviteFrom(String name);
+
+  /// No description provided for @inviteServer.
+  ///
+  /// In es, this message translates to:
+  /// **'Servidor: {server}'**
+  String inviteServer(String server);
+
+  /// No description provided for @invitePermissionDetails.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalles del permiso para invitar'**
+  String get invitePermissionDetails;
+
+  /// No description provided for @invitePermissionHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Si administras este servidor, comprueba este identificador completo de tu identidad antes de concederle el permiso de propietario desde el servidor. Esto conserva tu cuenta actual.'**
+  String get invitePermissionHelp;
 }
 
 class _AppLocalizationsDelegate

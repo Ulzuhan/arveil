@@ -96,6 +96,7 @@ void main() {
   ) async {
     await openProfile(tester, FakeProfile());
     await tapText(tester, 'Unirme con una invitación');
+    await tapText(tester, 'Tengo los datos de una invitación anterior');
     expect(find.text('Paso 1 de 2'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('bootstrap')), relay);
     await tapText(tester, 'Siguiente');
@@ -143,6 +144,7 @@ void main() {
     final profile = FakeProfile();
     await openProfile(tester, profile);
     await tapText(tester, 'Unirme con una invitación');
+    await tapText(tester, 'Tengo los datos de una invitación anterior');
     await tester.enterText(
       find.byKey(const Key('bootstrap')),
       'Datos del servidor:\n$relay\n\nInvitación: $invitation',
@@ -167,6 +169,7 @@ void main() {
       final profile = LinkProfile();
       await openProfile(tester, profile);
       await tapText(tester, 'Unirme con una invitación');
+      await tapText(tester, 'Tengo los datos de una invitación anterior');
       await tester.enterText(
         find.byKey(const Key('bootstrap')),
         'Te invito a Arveil: $joinLink',
@@ -190,6 +193,7 @@ void main() {
     ) async {
       await openProfile(tester, LinkProfile());
       await tapText(tester, 'Unirme con una invitación');
+      await tapText(tester, 'Tengo los datos de una invitación anterior');
       await tester.enterText(find.byKey(const Key('bootstrap')), text);
       await tapText(tester, 'Siguiente');
       expect(find.text('Paso 1 de 2'), findsOneWidget);
@@ -243,6 +247,7 @@ void main() {
       final profile = AdminProfile();
       await openProfile(tester, profile);
       await tapText(tester, 'Unirme con una invitación');
+      await tapText(tester, 'Tengo los datos de una invitación anterior');
       await tester.enterText(find.byKey(const Key('bootstrap')), relay);
       await tapText(tester, 'Siguiente');
       await tester.enterText(find.byKey(const Key('invite')), invitation);
@@ -266,6 +271,7 @@ void main() {
     final profile = AdminProfile();
     await openProfile(tester, profile);
     await tapText(tester, 'Unirme con una invitación');
+    await tapText(tester, 'Tengo los datos de una invitación anterior');
     await tester.enterText(find.byKey(const Key('bootstrap')), relay);
     await tapText(tester, 'Siguiente');
     await tester.enterText(find.byKey(const Key('invite')), invitation);

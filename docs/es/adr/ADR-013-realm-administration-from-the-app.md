@@ -1,12 +1,14 @@
 # ADR-013 — Administrar el realm desde la app
 
-- **Estado:** propuesta. Nada de lo que describe está implementado.
+- **Estado:** implementación parcial el 01-10-2026: invitaciones personales exclusivas de owner. Expulsión, cambios remotos de rol y panel completo siguen propuestos.
 - **Fecha:** 2026-09-27.
 - **Alcance:** quién administra un realm, cómo invita y retira a personas desde la app y cómo se recupera la administración si se pierden dispositivos. Los enlaces y códigos QR de invitación son la [ADR-012](ADR-012-qr-codes-and-links.md).
 
 [English version](../../adr/ADR-013-realm-administration-from-the-app.md).
 
-## Contexto
+El subconjunto implementado y su protocolo exacto están en [invitaciones personales](../INVITATIONS.md). El diseño amplio de abajo sigue propuesto en lo que excede ese subconjunto; `admin` no obtiene permiso de invitación en esta entrega.
+
+## Contexto original (antes de implementar)
 
 Hoy un realm solo se administra desde su servidor.
 - **Invitaciones.** `arveil-relay invite` abre directamente la base de datos del relay, así que crear una exige una shell en el servidor: SSH, `podman exec` o `docker compose exec`.

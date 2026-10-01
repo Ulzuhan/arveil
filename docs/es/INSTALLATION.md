@@ -23,6 +23,22 @@ Los candidatos anteriores `0.1.0+5` pasaron conversación Mac ↔ emulador Andro
 Los paquetes anteriores pueden incluir solo el alta: comprueba la revisión
 y sus notas. En esta fase, utiliza perfiles de prueba desechables.
 
+## Candidata de invitación personal (1 de octubre de 2026)
+
+La rama de revisión implementa **Invitar a alguien**: un enlace/QR privado reúne
+admisión al servidor y contacto del emisor. Instala un cliente compatible, abre
+un perfil protegido, vuelve al enlace (o escanea/pega), revisa y acepta. Tendrás
+identidad independiente y una conversación; si ya perteneces al mismo servidor,
+conservarás tu identidad. No se copia historial y la verificación sigue siendo
+separada. La entrada antigua de servidor/token se mantiene.
+
+Este flujo todavía no está en la beta publicada. Necesita relay actualizado y
+owner autorizado expresamente. [Invitaciones](INVITATIONS.md) detalla requisitos,
+permiso, límites de recuperación, migraciones y orden de despliegue. Conserva
+copias de perfil antes de actualizar; no bajes de versión un perfil migrado.
+Falta aceptación física/firmada. La invitación no da acceso al canal de Play;
+tras instalar desde cualquier vía compatible, vuelve al mismo enlace.
+
 ## Elige por dónde empezar
 
 | Quiero… | Ruta disponible | Qué falta para una versión descargable |

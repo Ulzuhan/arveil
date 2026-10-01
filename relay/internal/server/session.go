@@ -24,7 +24,9 @@ type session struct {
 	device       *store.Device // nil while provisional
 	// addr is what the per-address limits are keyed on. It never reaches
 	// the database and never reaches a log line.
-	addr string
+	addr               string
+	invitationWindow   time.Time
+	invitationRequests int
 }
 
 func (s *session) member() bool { return s.device != nil }
@@ -51,6 +53,8 @@ func errFrame(id uint64, code uint16, msg string) channel.Frame {
 
 func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Frame, now time.Time) channel.Frame {
 	switch f.Payload.Kind {
+	case channel.KindInvitePolicyGet, channel.KindInviteCreate, channel.KindInviteList, channel.KindInviteGet, channel.KindInviteRevoke, channel.KindInviteAccept, channel.KindKeyPackagesClaimOnce:
+		return srv.invitation(ctx, s, f, now)
 	case channel.KindPing:
 		return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindPong}}
 	case channel.KindEndpointListGet:

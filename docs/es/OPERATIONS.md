@@ -102,3 +102,11 @@ Restaurar una copia antigua es visible para los clientes en vez de silencioso: u
 ## Actualizaciones
 
 Parar, sustituir el binario, arrancar. El esquema migra al abrir. Haz una copia antes y conserva el binario anterior hasta que la familia haya usado el nuevo, porque no hay camino de vuelta para la base de datos.
+
+## Despliegue de invitaciones personales
+
+Véase [permiso owner y despliegue](INVITATIONS.md). La candidata migra relay
+4→5 y perfiles 7→8. Copia consistente, ensayo de restauración, relay compatible
+primero y promoción del owner existente por ID completo. No abrir bases nuevas
+con binarios antiguos. El panel administrativo completo no está implementado.
+Compilar esta rama no equivale a actualizar producción.
