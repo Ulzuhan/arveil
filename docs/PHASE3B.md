@@ -4,6 +4,10 @@ Status: implementation direction accepted; milestone acceptance remains pending,
 
 The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria. This condensed English translation must be updated in the same review; the Spanish text prevails if they diverge.
 
+## Current execution priority — October 1, 2026
+
+[One invitation, from installation to the first conversation](INVITATION_ONBOARDING_PLAN.md) is the current M3b.2/M3b.5 priority. [Implementation and acceptance record](INVITATIONS.md) documents owner authorization, combined enrollment/contact, durable recovery and EN/ES UI. Automated tests and debug builds pass; full fault injection, signed/physical acceptance and deployment remain open. Outstanding beta acceptance is unchanged.
+
 ## Scope and structure
 
 Deliver a usable macOS/Android beta for enrollment, pairing and conversation, including offline work and understandable errors. Extend the same Flutter application to Windows, Linux and iOS. The client opens encrypted profiles and enrolls an identity through invitation/bootstrap fields, resumes a failed enrollment and recognizes completion after reopening. Pairing with manual code comparison and encrypted identity-kit export/restore are implemented. Dated KeyPackage availability, exhaustion and resumable replenishment are implemented. Conversation creation, paginated history, offline text and sync are implemented. Separate release apps passed Mac ↔ Android-emulator messaging, upgrade and offline/reconnect checks on September 24; physical-device acceptance remains pending. See the [platform record](PLATFORMS.md#cross-platform-package-acceptance-september-24-2026). SwiftUI, UniFFI, calls, federation, protocol redesign and GUI/CLI IPC are outside this phase's initial scope.

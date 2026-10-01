@@ -26,6 +26,8 @@ use crate::links::{Card, CardRoute, DEFAULT_LINK_BASE, Realm, clean_name};
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Hello {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invitation: Option<serde_bytes::ByteBuf>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secret: Option<serde_bytes::ByteBuf>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -85,6 +87,7 @@ pub(crate) fn plain_hello(client: &Client) -> Result<Option<Hello>, CliError> {
         .card_name()
         .map_err(storage_error("card name"))?
         .map(|name| Hello {
+            invitation: None,
             secret: None,
             name: Some(name),
         }))
@@ -139,6 +142,7 @@ pub(crate) fn receive_hello(
             description: "own hello".into(),
         });
     }
+    invitations::remember_hello(s, gid, sender, &hello)?;
     let now = unix_now();
     let card = match &hello.secret {
         Some(secret) => match s
@@ -416,6 +420,7 @@ pub(crate) async fn start_from_card(
         .card_name()
         .map_err(storage_error("card name"))?;
     let hello = Hello {
+        invitation: None,
         secret: Some(serde_bytes::ByteBuf::from(secret)),
         name: own_name,
     };

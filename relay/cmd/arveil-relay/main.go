@@ -34,6 +34,8 @@ import (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "make-owner":
+			os.Exit(makeOwnerCommand(os.Args[2:]))
 		case "invite":
 			os.Exit(inviteCommand(os.Args[2:]))
 		case "backup":
@@ -226,10 +228,11 @@ func serve() {
 		Logger:     logger,
 		PairTTL:    *pairTTL,
 		Limits: limits.New(limits.Config{
-			MaxTotal:        *maxConns,
-			MaxPerAddr:      *maxPerAddr,
-			PairingsPerAddr: *maxPairings,
-			PairingWindow:   *pairWindow,
+			InvitationsPerAddr: limits.Default().InvitationsPerAddr,
+			MaxTotal:           *maxConns,
+			MaxPerAddr:         *maxPerAddr,
+			PairingsPerAddr:    *maxPairings,
+			PairingWindow:      *pairWindow,
 		}),
 		TrustForwardedFor: *trustForward,
 		ReadTimeout:       90 * time.Second,

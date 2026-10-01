@@ -1075,5 +1075,88 @@
   "pushRelayPending": "El cambio está guardado en este móvil pero sigue pendiente en el relay. Mantén Arveil abierto con conexión y reintenta. Los avisos desactivados siguen desactivados en el móvil.",
   "pushLimits": "ntfy necesita funcionar en segundo plano. Las restricciones de batería pueden retrasar avisos. Forzar el cierre impide recibirlos hasta reabrir la app. Pueden llegar avisos genéricos con el perfil cerrado; desactiva esta opción para detenerlos.",
   "pushRetry": "Reintentar conexión",
-  "pushServerHint": "https://notify.example.org"
+  "pushServerHint": "https://notify.example.org",
+  "inviteTitle": "Invitar a alguien",
+  "inviteHelp": "Una invitación conecta a una persona con tu servidor y abre un chat contigo. Puede instalar Arveil desde el mismo enlace y volver a abrirlo después. Tu dispositivo puede estar desconectado cuando la acepte.",
+  "inviteCreate": "Crear invitación personal",
+  "inviteShareApp": "Compartir solo la descarga de Arveil",
+  "inviteListTitle": "Tus invitaciones",
+  "inviteLocalList": "Los estados muestran la última consulta. Actualiza para comprobar si alguien ha aceptado.",
+  "inviteEmpty": "Todavía no has creado invitaciones.",
+  "inviteShow": "Mostrar código o compartir",
+  "inviteShare": "Compartir invitación",
+  "inviteShareMessage": "Te invito a Arveil para hablar de forma privada. Abre este enlace; si necesitas instalar la app, vuelve a abrir el mismo enlace después. La invitación es personal y de un solo uso.",
+  "invitePrivate": "Envía este enlace solo a la persona que quieres invitar. Quien lo acepte primero podrá entrar en tu servidor y abrir un chat contigo. Dura siete días y puedes revocarlo mientras no se haya usado.",
+  "inviteWaiting": "Pendiente de aceptar",
+  "inviteUsed": "Aceptada · esperando el contacto",
+  "inviteConnected": "Contacto conectado",
+  "inviteExpired": "Invitación caducada",
+  "inviteRevoked": "Invitación revocada",
+  "inviteRevoking": "Revocación pendiente de confirmar",
+  "inviteIssuing": "Creación pendiente de confirmar",
+  "inviteConnecting": "Cuenta conectada · terminando el chat",
+  "inviteAccepting": "Aceptación en curso",
+  "inviteOtherDevice": "Esta invitación se creó en otro dispositivo tuyo. Desde aquí puedes revocarla; para compartirla, abre el dispositivo que la creó.",
+  "inviteAcceptTitle": "Aceptar invitación",
+  "inviteUnnamed": "Has recibido una invitación a Arveil",
+  "inviteConsent": "Al aceptar, usarás este servidor y añadirás a quien te invita como contacto. Si es tu primera vez, Arveil creará tu propia identidad. No copiará la identidad ni los mensajes de otra persona.",
+  "inviteUnverified": "El nombre lo ha escrito quien comparte el enlace. Escanearlo no verifica quién es: puedes comprobar el código de seguridad del contacto después.",
+  "inviteNameHelp": "Opcional. Este nombre se enviará a quien te invita al abrir el chat.",
+  "inviteAccept": "Aceptar y conectar",
+  "inviteResume": "Continuar invitación",
+  "inviteResumeHelp": "El progreso está guardado en este perfil. Puedes continuar sin volver a pedir un enlace.",
+  "inviteInputHelp": "Pide a un contacto que abra «Invitar a alguien» en Arveil. Escanea su código o pega el enlace que te envíe.",
+  "inviteScan": "Escanear invitación",
+  "inviteLinkLabel": "Enlace de invitación",
+  "inviteOpen": "Revisar invitación",
+  "inviteLegacy": "Tengo los datos de una invitación anterior",
+  "inviteWrongCode": "Este código no es una invitación para entrar en Arveil.",
+  "inviteOffline": "No se pudo conectar con el servidor. Comprueba la conexión y vuelve a intentarlo; el progreso confirmado se conserva.",
+  "inviteNotAllowed": "Tu cuenta no tiene permiso para invitar a este servidor. Pide una invitación a quien lo administra. Compartir la descarga por sí sola no da acceso.",
+  "inviteUnavailable": "Esta invitación ha caducado o se ha revocado. Pide una nueva a quien te invita.",
+  "inviteAlreadyUsed": "La invitación ya se aceptó desde otro perfil o dispositivo. Continúa allí o pide una nueva.",
+  "inviteOtherServer": "Esta invitación pertenece a otro servidor. Tu perfil actual se conserva; pide un enlace de tu mismo servidor.",
+  "inviteOwn": "Esta invitación es tuya. Compártela con la persona que quieras añadir.",
+  "inviteAnotherPending": "Ya hay otra invitación en curso. Continúala antes de abrir una diferente.",
+  "inviteOldServer": "El servidor necesita una actualización para usar invitaciones personales. Pide a quien lo administra que lo actualice.",
+  "inviteNoKeys": "Tu cuenta ya está conectada, pero faltan datos para abrir el chat. Pide a quien te invita que abra Arveil y sincronice; después pulsa continuar.",
+  "inviteBusy": "Se ha alcanzado un límite temporal. Espera un poco y vuelve a intentarlo.",
+  "inviteStorage": "No se pudo guardar el progreso. Comprueba el espacio disponible y vuelve a abrir el perfil; conserva los datos de Arveil.",
+  "inviteFailed": "No se pudo completar la invitación. Revisa que el enlace esté completo y que ambas apps estén actualizadas.",
+  "inviteExpires": "Caduca: {date}",
+  "@inviteExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteChecked": "Última consulta: {date}",
+  "@inviteChecked": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteFrom": "{name} te invita a Arveil",
+  "@inviteFrom": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteServer": "Servidor: {server}",
+  "@inviteServer": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      }
+    }
+  },
+
+  "invitePermissionDetails": "Detalles del permiso para invitar",
+  "invitePermissionHelp": "Si administras este servidor, comprueba este identificador completo de tu identidad antes de concederle el permiso de propietario desde el servidor. Esto conserva tu cuenta actual."
+
 }

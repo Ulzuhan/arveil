@@ -211,6 +211,16 @@ void main() {
       await openRich(tester, profile: AdminProfile());
       expect(tester.takeException(), isNull);
       await settle(tester, find.text('Unirme con una invitación'));
+      await reveal(tester, find.byKey(const Key('invite-open')));
+      expect(tester.takeException(), isNull);
+      await reveal(
+        tester,
+        find.text('Tengo los datos de una invitación anterior'),
+      );
+      await settle(
+        tester,
+        find.text('Tengo los datos de una invitación anterior'),
+      );
       // At this size the fields sit below the explanation.
       await reveal(tester, find.byKey(const Key('bootstrap')));
       await tester.enterText(find.byKey(const Key('bootstrap')), relay);

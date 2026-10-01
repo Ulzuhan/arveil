@@ -94,7 +94,27 @@ La restauración va a un directorio nuevo y nunca sobre uno vivo, porque mezclar
 
 ```
 arveil-relay restore -in /backups/arveil-2026-09-04.tar.gz -data-dir /var/lib/arveil.new
-systemctl stop arveil-relay && mv /var/lib/arveil /var/lib/arveil.old && mv /var/lib/arveil.new /var/lib/arveil && systemctl start arveil-relay
+systemctl stop arveil-relay
+```
+
+Antes de sustituir el directorio, compara sin imprimir sus contenidos las claves
+`server-secrets/realm-signing.key` y `realm-noise.key` de ambos directorios.
+Deben pertenecer al mismo realm. Conserva en el restaurado el **mayor contador
+conocido** de `server-secrets/endpoint-sequence` (entero decimal), incluidos
+arranques posteriores al backup. Mantén propietario y modo 0600. No rebajes el
+contador ni borres las claves/listas guardadas por los clientes. El siguiente
+arranque incrementa ese valor y firma una lista nueva. Si se perdió el estado
+posterior al backup, hay que recuperar ese máximo conocido antes de afirmar
+que la actualización de endpoints funciona; no adivinar un valor.
+
+Sin este paso un cliente conserva su lista más reciente y rechaza la antigua:
+puede seguir conectado por su ruta conocida, pero no acepta la actualización
+restaurada. Una vez conservado el contador, intercambia los directorios y
+arranca con el binario compatible con el esquema del backup:
+
+```
+mv /var/lib/arveil /var/lib/arveil.old && mv /var/lib/arveil.new /var/lib/arveil
+systemctl start arveil-relay
 ```
 
 Restaurar una copia antigua es visible para los clientes en vez de silencioso: un dispositivo que se recupera con su kit de identidad avisa de que el realm tiene un manifiesto más viejo que el suyo (invariante I-08), y los miembros refrescan manifiestos en cada sincronización. Eso es detección, no prevención.
@@ -102,3 +122,11 @@ Restaurar una copia antigua es visible para los clientes en vez de silencioso: u
 ## Actualizaciones
 
 Parar, sustituir el binario, arrancar. El esquema migra al abrir. Haz una copia antes y conserva el binario anterior hasta que la familia haya usado el nuevo, porque no hay camino de vuelta para la base de datos.
+
+## Despliegue de invitaciones personales
+
+Véase [permiso owner y despliegue](INVITATIONS.md). La candidata migra relay
+4→5 y perfiles 7→8. Copia consistente, ensayo de restauración, relay compatible
+primero y promoción del owner existente por ID completo. No abrir bases nuevas
+con binarios antiguos. El panel administrativo completo no está implementado.
+Compilar esta rama no equivale a actualizar producción.

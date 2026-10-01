@@ -213,3 +213,12 @@ Criterios de aceptación, verificados el 2026-09-27:
 - Si la capacidad de escritura de larga duración de una tarjeta debería pasar a ser una capacidad aparte y revocable por tarjeta.
 - Si ofrecer la lista de «Personas en este servidor», y quién puede verla.
 - Si los enlaces de relays que no son del proyecto deberían usar por defecto el dominio del proyecto.
+
+## Ampliación de invitaciones personales (1 de octubre de 2026)
+
+El [contrato de invitaciones](../INVITATIONS.md) añade join v2 explícito: alta
+y ruta del emisor en una tupla compacta de contacto. Mantiene 600 bytes y lectores
+v1. Requiere clientes y relay compatibles; está implementado en la rama de
+revisión, sin publicar. A diferencia de la tarjeta presencial existente,
+**escanear una invitación no verifica el contacto**. Hay aceptación expresa y el
+nombre es solo una declaración.

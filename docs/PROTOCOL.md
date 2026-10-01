@@ -270,3 +270,12 @@ The identity kit and the history backup have separate keys and contain neither a
 Fix schemas and limits, suites and providers, the channel's Noise pattern and suite, the frame fragmentation format, the bootstrap/pairing transcript, the MLS policy extension, the AEAD profile for files/archives, epoch retention and revocation behavior. Verify the acceptance criteria of [ADR-008](adr/ADR-008-carrier-independent-transport.md#acceptance-criteria) with at least one carrier that terminates TLS. Create cross-client test vectors and an adversarial corpus. Verify network loss at every step of enrollment, commit, delivery, ACK, blob and recovery. The review must cover the application layers and their metadata in addition to MLS.
 
 Primary references and review scope: [README](README.md#references-and-traceability).
+
+## Personal invitation frames (implemented, October 1, 2026)
+
+[INVITATIONS.md](INVITATIONS.md#wire-contract) defines the exact CBOR variants,
+fields, limits and errors for `InvitePolicyGet`, `InviteCreate`, `InviteList`,
+`InviteGet`, `InviteRevoke`, `InviteAccept` and `KeyPackagesClaimOnce` and their
+replies. These use ordinary authenticated member channels and current owner
+membership, not the proposed separate administrative credential/endpoint.
+Personal join v2 is explicit; legacy v1 and `InviteRedeem` remain compatible.

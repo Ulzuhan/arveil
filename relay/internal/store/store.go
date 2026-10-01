@@ -172,6 +172,10 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("pairing schema: %w", err)
 	}
+	if err := s.initInvitations(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("invitation schema: %w", err)
+	}
 	if err := s.recordSchemaVersion(); err != nil {
 		db.Close()
 		return nil, err
@@ -214,7 +218,7 @@ func (s *Store) checkVersion() error {
 // far has been additive, which is why one number is enough: a database at an
 // older version is brought forward by the schema itself, and a database at a
 // newer one is refused rather than guessed at.
-const SchemaVersion = 4
+const SchemaVersion = 5
 
 // refuseFutureSchema reads the recorded version and refuses a database from
 // a newer relay. It reads only: a database with no `schema_migrations` table
@@ -336,6 +340,9 @@ func (s *Store) RedeemInvite(ctx context.Context, tokenHash []byte, now time.Tim
 		`INSERT INTO invite_redemptions (token_hash, identity_id, credential_hash, redeemed_at)
 		 VALUES (?, ?, ?, ?)`,
 		tokenHash, e.IdentityID, e.CredentialHash, now.Unix()); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE issued_invitations SET state='used',claimed_identity=?,claimed_at=? WHERE token_hash=?`, e.IdentityID, now.Unix(), tokenHash); err != nil {
 		return err
 	}
 	return tx.Commit()

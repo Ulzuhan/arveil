@@ -39,6 +39,7 @@ declares its own status; "MUST" states a design requirement, and the
 | [Cloudflare Tunnel](TUNNEL.md) | Opening that private relay to the Internet through a tunnel and a local proxy that verifies client addresses |
 | [Client packages](CLIENT_RELEASES.md) | Building, auditing and publishing the macOS ZIP and Android APK |
 | [Signed Android updates](CLIENT_UPDATES.md) | The opt-in update check in the Android app: signing key, signed feed, publishing and what the app verifies |
+| [Personal invitations](INVITATIONS.md) | User journey, owner setup, wire contract, verification and rollout gates |
 
 ### Design
 
@@ -74,6 +75,7 @@ declares its own status; "MUST" states a design requirement, and the
 | [Phase 3b plan](PHASE3B.md) | Milestones M3b.0 to M3b.8 and their acceptance criteria |
 | [Implementation record](CLIENT_FOUNDATION.md) | What each change implemented, its evidence and its limits |
 | [Client design](CLIENT_DESIGN.md) | Visual system, personalization and the redesign plan |
+| [Invitation onboarding plan](INVITATION_ONBOARDING_PLAN.md) | Current priority: one invitation from installation to the first conversation; dependencies, blockers and acceptance |
 | [Attachments and notifications](CLIENT_FILES_NOTIFICATIONS.md) | File viewing, local Mac alerts and the Android experiment without Google |
 | [Platform record](PLATFORMS.md) | Dated acceptance runs: device, system, commit and result |
 

@@ -115,3 +115,19 @@ This extension is future work and does not extend the current guarantees. [ADR-0
 - Entry of unauthorized nodes and greater exposure of metadata, operational credentials and backups.
 
 Nodes do not receive E2EE keys. Cluster continuity will be evaluated against failures and partitions under operational trust among nodes; no protection against malicious nodes will be assumed from using consensus. On loss of write authority, the client keeps its pending outbox and does not simulate remote acceptance.
+
+## Personal invitation surface (October 1, 2026)
+
+A combined invitation is a bearer capability: forwarding can let another person
+claim it first. Single use prevents reuse, not forwarding or human impersonation.
+Names remain declared and scanning does not set verification. Issuance is
+owner-only with current credential checks, quotas, atomic revoke/claim and bound
+replay receipts. Host promotion is an explicit privileged operation on an exact
+existing identity. The relay additionally sees issuer/claimant correlation and
+package target metadata. It cannot supply the contact secret or forge the
+root-signed credential/MLS sender that the client checks for auto-acceptance.
+Secrets remain in the URL fragment, the chosen sharing channel and encrypted
+profiles; a fragment does not hide a link from the app receiving the share.
+Full-profile backups may contain pending secrets. See the [contract and residual
+limits](INVITATIONS.md); loss of the emitting device and resume outside retention
+remain availability risks, not reasons to silently replace identity or chat.

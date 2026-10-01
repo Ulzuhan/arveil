@@ -406,10 +406,10 @@ func (s *Store) Sweep(ctx context.Context, now time.Time) (SweepResult, error) {
 		return r, err
 	}
 	r.Envelopes = n
-	res, err := s.db.ExecContext(ctx, `DELETE FROM invites WHERE expires_at <= ? OR uses_left <= 0`, now.Unix())
+	res, err := s.db.ExecContext(ctx, `DELETE FROM invites WHERE (expires_at <= ? OR uses_left <= 0) AND token_hash NOT IN (SELECT token_hash FROM issued_invitations)`, now.Unix())
 	if err != nil {
 		return r, err
 	}
 	r.Invites, _ = res.RowsAffected()
-	return r, nil
+	return r, s.sweepInvitationHistory(ctx, now)
 }

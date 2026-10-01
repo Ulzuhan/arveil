@@ -4,6 +4,10 @@
 
 Estado: plan aprobado en dirección; la aceptación de los hitos sigue pendiente, con partes de M3b.0–M3b.4 ya implementadas. Orden de ejecución por dependencias, sin estimaciones de calendario todavía. [ADR-009](adr/ADR-009-flutter-first.md) fija la elección de framework; [base implementada](CLIENT_FOUNDATION.md) se describe en la documentación del cliente.
 
+## Prioridad actual de ejecución — 1 de octubre de 2026
+
+[Una invitación, desde la instalación hasta la primera conversación](INVITATION_ONBOARDING_PLAN.md) es la prioridad actual M3b.2/M3b.5. El [registro de implementación](INVITATIONS.md) documenta autorización owner, alta/contacto conjuntos, recuperación durable y UI EN/ES. Pasan pruebas automáticas y builds debug; quedan fallos exhaustivos, aceptación física/firmada y despliegue. Los criterios pendientes de la beta siguen abiertos.
+
 ## Objetivo y alcance
 
 Una beta que permita a dos personas instalar Arveil, crear o vincular su identidad y conversar desde macOS y Android, incluyendo trabajo sin conexión y errores comprensibles. La misma base Flutter se ampliará a Windows, Linux e iOS.

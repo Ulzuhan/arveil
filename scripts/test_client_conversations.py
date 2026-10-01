@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="macos")
-    parser.add_argument("--scenario", choices=("conversations", "attachments", "devices", "archives", "pairing_recovery", "notifications"), default="conversations")
+    parser.add_argument("--scenario", choices=("conversations", "attachments", "devices", "archives", "pairing_recovery", "notifications", "invitations"), default="conversations")
     args = parser.parse_args()
     flutter = shutil.which("flutter")
     adb = shutil.which("adb") if args.device != "macos" else None
@@ -100,6 +100,28 @@ def main():
                         if not hmac.compare_digest(self.headers.get("Authorization", ""), f"Bearer {token}"):
                             self.send_error(403)
                             return
+                        if args.scenario == "invitations" and self.path == "/owner":
+                            # Test-only control of this disposable realm. No
+                            # production API or real membership is modified.
+                            try:
+                                length = int(self.headers.get("Content-Length", "0"))
+                                if length != 64:
+                                    raise ValueError("identity length")
+                                identity = self.rfile.read(length).decode("ascii")
+                                if len(bytes.fromhex(identity)) != 32:
+                                    raise ValueError("identity encoding")
+                            except (ValueError, UnicodeError):
+                                self.send_error(400)
+                                return
+                            with lock:
+                                result = subprocess.run([str(binary), "make-owner", "-data-dir", str(realm), "-identity", identity], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+                            if result.returncode:
+                                self.send_error(500)
+                                return
+                            self.send_response(200)
+                            self.send_header("Content-Length", "0")
+                            self.end_headers()
+                            return
                         if self.path not in ("/online", "/offline"):
                             self.send_error(404)
                             return
@@ -160,6 +182,7 @@ def main():
                     destination.chmod(0o600)
                     raise RuntimeError("Native conversation acceptance failed. Private diagnostics retained in .local/client-acceptance/.")
                 summaries = {
+                    "invitations": "native invitation management and QR, consent before effects, offline encrypted reopen/resume, one chat, unverified contacts and duplex text with an offline issuer.",
                     "notifications": "native profile hint registration, generic marker, rotation, removal and encrypted-profile reopen.",
                     "archives": "encrypted export, profile loss, identity recovery, read-only import, archived attachment bytes, duplicates, reopen, no resend/rejoin and a new conversation.",
                     "pairing_recovery": "pairing by an older code confirmed on both screens, linking by a scanned link after a yes (ADR-012), kit export and recovery of the same identity.",

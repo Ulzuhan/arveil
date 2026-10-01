@@ -115,3 +115,20 @@ Esta extensión es futura y no amplía las garantías actuales. El [ADR-007](adr
 - Ingreso de nodos no autorizados y mayor exposición de metadatos, credenciales operativas y copias de seguridad.
 
 Los nodos no reciben claves E2EE. La continuidad del clúster se evaluará frente a fallos y particiones bajo confianza operativa entre nodos; no se supondrá protección frente a nodos maliciosos por usar consenso. Ante pérdida de autoridad de escritura, el cliente conserva su outbox pendiente y no simula aceptación remota.
+
+## Superficie de invitación personal (1 de octubre de 2026)
+
+El enlace combinado es una capacidad al portador: reenviarlo puede permitir que
+otra persona lo use primero. Uso único evita reutilización, no reenvío ni
+suplantación humana. El nombre es declarado y escanear no marca verificación.
+Emisión exclusiva de owner, comprobación vigente de credencial, cuotas,
+carrera revocar/canjear atómica y recibos ligados a peticiones. Promover desde
+el host es una operación privilegiada explícita sobre una identidad exacta.
+El relay aprende relación emisor/reclamante y destino del paquete, pero no
+posee el secreto de contacto ni puede falsificar credencial firmada por raíz
+/remitente MLS que comprueba el cliente. Los secretos están en el fragmento,
+el canal escogido para compartir y el perfil cifrado; el fragmento no los oculta
+a la app que recibe el mensaje compartido. Copias completas del perfil pueden
+contener secretos pendientes. El [contrato y límites](INVITATIONS.md) recoge
+riesgos de disponibilidad al perder emisor o superar retención; nunca justifican
+sustituir silenciosamente identidad o chat.

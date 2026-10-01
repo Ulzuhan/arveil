@@ -66,6 +66,9 @@ void main() {
     expect(find.text('How do you want to start?'), findsOneWidget);
     await tester.tap(find.text('Join with an invitation'));
     await tester.pumpAndSettle();
+    expect(find.text('Review invitation'), findsOneWidget);
+    await tester.tap(find.text('I have details from an older invitation'));
+    await tester.pumpAndSettle();
     expect(find.text('Step 1 of 2'), findsOneWidget);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();

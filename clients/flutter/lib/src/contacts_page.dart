@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import 'contact_cards.dart';
+import 'invitations_page.dart';
 import 'design/design.dart';
 import 'qr_scanner.dart';
 import 'rust/api/profile.dart';
@@ -74,6 +75,17 @@ class _ContactsPageState extends State<ContactsPage> {
     if (text == null || !mounted) return;
     final bootstrap = (await widget.profile.setup()).bootstrap;
     if (bootstrap == null || !mounted) return;
+    if (await widget.profile.readCard(text: text) is CardView_Invitation) {
+      if (!mounted) return;
+      await openPersonalInvitation(
+        context,
+        profile: widget.profile,
+        text: text,
+      );
+      if (mounted) await _load();
+      return;
+    }
+    if (!mounted) return;
     final group = await openContactCard(
       context,
       profile: widget.profile,
@@ -209,6 +221,18 @@ class _ContactsPageState extends State<ContactsPage> {
                       if (!widget.selectRecipients) ...[
                         SettingsGroup(
                           children: [
+                            SettingsRow(
+                              key: const Key('invite-someone'),
+                              icon: Icons.person_add_alt_1,
+                              title: context.l10n.inviteTitle,
+                              subtitle: context.l10n.inviteCreate,
+                              onTap: () => Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      InvitationsPage(profile: widget.profile),
+                                ),
+                              ),
+                            ),
                             SettingsRow(
                               key: const Key('my-card'),
                               icon: Icons.badge_outlined,
@@ -692,7 +716,8 @@ class _ContactLinkDialogState extends State<ContactLinkDialog> {
     final value = _field.text.trim();
     var contact = false;
     try {
-      contact = await widget.profile.readCard(text: value) is CardView_Contact;
+      final card = await widget.profile.readCard(text: value);
+      contact = card is CardView_Contact || card is CardView_Invitation;
     } catch (_) {}
     if (!mounted) return;
     if (contact) {

@@ -14,6 +14,7 @@ import 'conversations_page.dart';
 import 'design/design.dart';
 import 'desktop_notifications.dart';
 import 'incoming_links.dart';
+import 'invitations_page.dart';
 import 'kit_files.dart';
 import 'profile_session.dart';
 import 'rust/api/profile.dart';
@@ -103,6 +104,7 @@ class _HomeShellState extends State<HomeShell> {
   /// and the layout around them changes.
   final _pagesKey = GlobalKey();
   var _destination = HomeDestination.chats;
+  bool _handlingLink = false;
   final _visited = {HomeDestination.chats};
 
   @override
@@ -147,35 +149,64 @@ class _HomeShellState extends State<HomeShell> {
     final link = incomingLinks.pending;
     final profile = widget.session.profile;
     final bootstrap = widget.session.setup?.bootstrap;
-    if (link == null || profile == null || bootstrap == null) return;
-    incomingLinks.take();
-    final CardView card;
-    try {
-      card = await profile.readCard(text: link);
-    } catch (_) {
+    if (_handlingLink || link == null || profile == null || bootstrap == null) {
       return;
     }
-    if (!mounted) return;
-    switch (card) {
-      case CardView_Contact():
-        final group = await openContactCard(
-          context,
-          profile: profile,
-          bootstrap: bootstrap,
-          text: link,
-          scanned: false,
-        );
-        if (group != null) await _chat.refresh();
-      case CardView_Join():
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(context.l10n.linkJoinHasIdentity)),
-        );
-      case CardView_Link():
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(context.l10n.linkLinkHasIdentity)),
-        );
-      case CardView_Other():
-        break;
+    _handlingLink = true;
+    try {
+      incomingLinks.take();
+      final CardView card;
+      try {
+        card = await profile.readCard(text: link);
+      } catch (_) {
+        return;
+      }
+      if (!mounted) return;
+      switch (card) {
+        case CardView_Invitation():
+          await _openInvitation(link);
+        case CardView_Contact():
+          final group = await openContactCard(
+            context,
+            profile: profile,
+            bootstrap: bootstrap,
+            text: link,
+            scanned: false,
+          );
+          if (group != null) await _chat.refresh();
+        case CardView_Join():
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(content: Text(context.l10n.linkJoinHasIdentity)),
+          );
+        case CardView_Link():
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(content: Text(context.l10n.linkLinkHasIdentity)),
+          );
+        case CardView_Other():
+          break;
+      }
+    } finally {
+      incomingLinks.finished(link);
+      _handlingLink = false;
+      if (mounted && incomingLinks.pending != null) unawaited(_onLink());
+    }
+  }
+
+  Future<void> _openInvitation(String? text) async {
+    final group = await openPersonalInvitation(
+      context,
+      profile: widget.session.profile!,
+      text: text,
+      onChanged: () async {
+        await widget.session.refresh();
+        if (mounted) setState(() {});
+      },
+    );
+    if (group != null) {
+      await _chat.refresh();
+      if (mounted) {
+        _inChats((page) => unawaited(page.openNotifiedConversation(group)));
+      }
     }
   }
 
@@ -226,6 +257,19 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   List<Widget> _notices(BuildContext context) => [
+    if (widget.session.pendingInvitation != null)
+      StatusBanner(
+        title: context.l10n.inviteResume,
+        body: context.l10n.inviteResumeHelp,
+        icon: Icons.person_add_outlined,
+        actions: [
+          TextButton(
+            key: const Key('invite-resume'),
+            onPressed: () => _openInvitation(null),
+            child: Text(context.l10n.inviteResume),
+          ),
+        ],
+      ),
     if (_kitReminder(context.l10n) case (final title, final body))
       StatusBanner(
         key: const Key('kit-reminder'),
