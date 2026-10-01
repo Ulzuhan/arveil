@@ -39,6 +39,8 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+    env:
+      RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '0.0.1-dev' }}
     strategy:
       fail-fast: false
       matrix:
@@ -75,14 +77,14 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           go build -trimpath \
-            -ldflags "-s -w -X github.com/Ulzuhan/arveil/relay/internal/version.Revision=${GITHUB_SHA}" \
+            -ldflags "-s -w -X github.com/Ulzuhan/arveil/relay/internal/version.Relay=${RELEASE_VERSION#v} -X github.com/Ulzuhan/arveil/relay/internal/version.Revision=${GITHUB_SHA}" \
             -o "dist/arveil-relay" ./cmd/arveil-relay
 
       - name: Build the client
         working-directory: core
         env:
           ARVEIL_REVISION: ${{ github.sha }}
-        run: cargo build --release -p arveil-cli
+        run: ARVEIL_RELEASE_VERSION="${RELEASE_VERSION#v}" cargo build --release -p arveil-cli
 
       - name: Collect and check the artifacts
         run: |
@@ -92,9 +94,9 @@ jobs:
           cp core/target/release/arveil "dist/arveil-${{ matrix.target }}"
           # The binaries must report the revision they were built from.
           if [ "${{ matrix.goos }}" = "$(go env GOHOSTOS)" ]; then
-            "dist/arveil-relay-${{ matrix.target }}" -version | tee /dev/stderr | grep -q "${GITHUB_SHA}"
+            "dist/arveil-relay-${{ matrix.target }}" -version | tee /dev/stderr | grep -Fq "arveil-relay ${RELEASE_VERSION#v}+${GITHUB_SHA} (protocol "
           fi
-          "dist/arveil-${{ matrix.target }}" version | tee /dev/stderr | grep -q "${GITHUB_SHA}"
+          "dist/arveil-${{ matrix.target }}" version | tee /dev/stderr | grep -Fq "arveil ${RELEASE_VERSION#v}+${GITHUB_SHA} (protocol "
           cd dist && shasum -a 256 arveil-* > "SHA256SUMS-${{ matrix.target }}.txt"
 
       - name: Attest build provenance

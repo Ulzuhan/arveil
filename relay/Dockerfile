@@ -6,10 +6,11 @@ COPY relay/go.mod relay/go.sum ./relay/
 RUN cd relay && go mod download
 COPY relay ./relay
 ARG REVISION=""
+ARG VERSION="0.0.1-dev"
 # CGO off: modernc.org/sqlite is pure Go, so the result runs on a base with
 # no libc and no shell (ADR-004's single binary, taken literally).
 RUN cd relay && CGO_ENABLED=0 go build -trimpath \
-      -ldflags "-s -w -X github.com/Ulzuhan/arveil/relay/internal/version.Revision=${REVISION}" \
+      -ldflags "-s -w -X github.com/Ulzuhan/arveil/relay/internal/version.Relay=${VERSION#v} -X github.com/Ulzuhan/arveil/relay/internal/version.Revision=${REVISION}" \
       -o /out/arveil-relay ./cmd/arveil-relay
 # An empty data directory to copy in with the right owner: the final image
 # has no shell to mkdir with, and the relay does not run as root.

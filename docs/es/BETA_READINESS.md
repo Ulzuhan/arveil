@@ -29,7 +29,7 @@ El APK se instaló correctamente en el emulador desechable Android 15/API 35 arm
 
 ## Compatibilidad e integración
 
-Los binarios públicos de relay/CLI siguen en [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0). Son anteriores a la consulta de credenciales de contactos y a las invitaciones personales; no deben usarse con beta 6. Usa la revisión compatible registrada u otra posterior probada. Actualizar el despliegue privado no publica una nueva release del relay/CLI; #133 conserva ese trabajo.
+Cuando se publicó beta 6, la release pública de relay/CLI era [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0). Esos binarios son anteriores a la consulta de credenciales e invitaciones personales; no deben usarse con beta 6. Usa la revisión compatible registrada u otra release posterior probada cuyas notas declaren compatibilidad. [#133](https://github.com/Ulzuhan/arveil/issues/133) registra la distribución pública posterior del relay/CLI y sus pruebas de compatibilidad; actualizar solo el despliegue privado no demuestra esos criterios.
 
 Relay 4→5 y perfil 7→8 requieren copias consistentes y un despliegue compatible. Se ensayó restaurar el relay anterior con su backup compatible y contador de endpoints conservado. No es un downgrade in situ de esquema ni reversión del perfil del cliente. Prefiere una build correctiva superior a reemplazar una release inmutable.
 

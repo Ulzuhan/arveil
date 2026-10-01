@@ -29,6 +29,24 @@ Para código posterior a la release publicada, compila la revisión elegida
 como arriba. Consulta la [preparación de la beta](BETA_READINESS.md) para
 compatibilidad cliente/relay y orden de actualización.
 
+**Identidad y verificación de la release.** Descarga los binarios de relay/CLI y
+`SHA256SUMS-cli-relay.txt` juntos de la [release elegida](https://github.com/Ulzuhan/arveil/releases).
+Comprueba las sumas y `gh attestation verify <binario> --repo Ulzuhan/arveil`
+antes de instalar. Las nuevas compilaciones de release muestran la versión del
+tag y el commit completo mediante `arveil-relay -version` y `arveil version`;
+la imagen identifica la misma revisión. Las compilaciones locales conservan
+versiones de desarrollo. Los artefactos originales v0.1.0 mostraban una versión
+de desarrollo; su commit registrado permite identificarlos.
+
+Elige un relay cuyas notas indiquen compatibilidad con los clientes instalados.
+El relay v0.1.0 es anterior a la consulta de credenciales e invitaciones personales
+de beta 6. El [registro de beta](BETA_READINESS.md) y
+[#133](https://github.com/Ulzuhan/arveil/issues/133) recogen la distribución
+compatible y las pruebas de actualización. Crea una copia consistente antes,
+actualiza el relay antes que los clientes que lo necesitan y conserva el binario
+compatible con cada backup. Migrar un esquema no permite volver a abrir sus datos
+con un binario antiguo.
+
 **systemd.** Copia [`relay/packaging/arveil-relay.service`](https://github.com/Ulzuhan/arveil/blob/main/relay/packaging/arveil-relay.service), que corre con su propio usuario, con una sección de servicio endurecida y sus datos en `/var/lib/arveil`.
 
 **A mano.** `arveil-relay -data-dir ./data -listen 127.0.0.1:8447`. La primera línea que imprime es la cadena de bootstrap; es lo que un dispositivo necesita para encontrar y autenticar el realm.
