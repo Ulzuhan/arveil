@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 import 'profile_session.dart';
+import 'design/components.dart';
 import 'design/qr_code.dart';
 import 'qr_scanner.dart';
 import 'rust/api/profile.dart';
@@ -269,7 +270,7 @@ class _PairingPanelState extends State<PairingPanel> {
               ),
             ),
             const SizedBox(height: 12),
-            Text(l10n.pairingExpiresIn(remaining > 0 ? remaining : 0)),
+            ExpiresIn(remaining, key: const Key('pair-expires')),
             const SizedBox(height: 12),
             Text(
               session.waitingForPairing
@@ -531,7 +532,7 @@ class _PairingPanelState extends State<PairingPanel> {
           ),
         ),
       const SizedBox(height: 12),
-      Text(l10n.pairingExpiresIn(remaining > 0 ? remaining : 0)),
+      ExpiresIn(remaining, key: const Key('link-expires')),
       const SizedBox(height: 8),
       Align(
         alignment: AlignmentDirectional.centerStart,

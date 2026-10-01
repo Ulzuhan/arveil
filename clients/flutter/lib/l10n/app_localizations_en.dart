@@ -916,12 +916,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Code copied. You can leave Arveil to send it: when you come back, this screen keeps waiting.';
 
   @override
-  String pairingExpiresIn(int seconds) {
+  String pairingExpiresIn(String time) {
+    return 'Expires in $time.';
+  }
+
+  @override
+  String pairingExpiresInSpoken(int minutes) {
     String _temp0 = intl.Intl.pluralLogic(
-      seconds,
+      minutes,
       locale: localeName,
-      other: 'Expires in $seconds seconds.',
-      one: 'Expires in 1 second.',
+      other: 'Expires in $minutes minutes or less.',
+      one: 'Expires in a minute or less.',
     );
     return '$_temp0';
   }

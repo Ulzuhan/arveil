@@ -1598,11 +1598,17 @@ abstract class AppLocalizations {
   /// **'Código copiado. Puedes salir de Arveil para enviarlo: al volver, esta pantalla seguirá esperando.'**
   String get pairingCodeCopied;
 
-  /// No description provided for @pairingExpiresIn.
+  /// Time left on a code, in minutes and seconds such as 9:59.
   ///
   /// In es, this message translates to:
-  /// **'{seconds, plural, =1{Caduca en 1 segundo.} other{Caduca en {seconds} segundos.}}'**
-  String pairingExpiresIn(int seconds);
+  /// **'Caduca en {time}.'**
+  String pairingExpiresIn(String time);
+
+  /// What a screen reader says for pairingExpiresIn: whole minutes, so it changes once a minute instead of every second.
+  ///
+  /// In es, this message translates to:
+  /// **'{minutes, plural, =1{Caduca en un minuto o menos.} other{Caduca en {minutes} minutos o menos.}}'**
+  String pairingExpiresInSpoken(int minutes);
 
   /// No description provided for @pairingWaiting.
   ///

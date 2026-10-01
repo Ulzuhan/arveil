@@ -69,6 +69,76 @@ void main() {
     semantics.dispose();
   });
 
+  test('a countdown reads as minutes and seconds', () {
+    expect(countdown(600), '10:00');
+    expect(countdown(599), '9:59');
+    expect(countdown(61), '1:01');
+    expect(countdown(9), '0:09');
+    expect(countdown(0), '0:00');
+    expect(countdown(-5), '0:00');
+    expect(countdown(3600), '1:00:00');
+    expect(countdown(3661), '1:01:01');
+  });
+
+  testWidgets('a code says how long it lasts, spoken a minute at a time', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    Future<void> show(int seconds) =>
+        tester.pumpWidget(_app(ExpiresIn(seconds)));
+
+    await show(600);
+    expect(find.text('Caduca en 10:00.'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Caduca en 10 minutos o menos.'),
+      findsOneWidget,
+    );
+    await show(599);
+    expect(find.text('Caduca en 9:59.'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Caduca en 10 minutos o menos.'),
+      findsOneWidget,
+      reason: 'the spoken text does not change every second',
+    );
+    await show(540);
+    expect(
+      find.bySemanticsLabel('Caduca en 9 minutos o menos.'),
+      findsOneWidget,
+    );
+    await show(42);
+    expect(find.text('Caduca en 0:42.'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Caduca en un minuto o menos.'),
+      findsOneWidget,
+    );
+    await show(-3);
+    expect(find.text('Caduca en 0:00.'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Caduca en un minuto o menos.'),
+      findsOneWidget,
+    );
+    // Not a live region: a screen reader is not interrupted every second.
+    expect(
+      tester.getSemantics(find.byType(ExpiresIn)).flagsCollection.isLiveRegion,
+      isFalse,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(body: ExpiresIn(599)),
+      ),
+    );
+    expect(find.text('Expires in 9:59.'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Expires in 10 minutes or less.'),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
   testWidgets('components fit a phone at twice the text size', (tester) async {
     tester.view.physicalSize = const Size(390, 1600);
     tester.view.devicePixelRatio = 1;

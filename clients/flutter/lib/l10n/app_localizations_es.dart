@@ -924,12 +924,17 @@ class AppLocalizationsEs extends AppLocalizations {
       'Código copiado. Puedes salir de Arveil para enviarlo: al volver, esta pantalla seguirá esperando.';
 
   @override
-  String pairingExpiresIn(int seconds) {
+  String pairingExpiresIn(String time) {
+    return 'Caduca en $time.';
+  }
+
+  @override
+  String pairingExpiresInSpoken(int minutes) {
     String _temp0 = intl.Intl.pluralLogic(
-      seconds,
+      minutes,
       locale: localeName,
-      other: 'Caduca en $seconds segundos.',
-      one: 'Caduca en 1 segundo.',
+      other: 'Caduca en $minutes minutos o menos.',
+      one: 'Caduca en un minuto o menos.',
     );
     return '$_temp0';
   }

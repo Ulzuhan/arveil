@@ -368,10 +368,20 @@
   "pairingShareCode": "Copia este código y pégalo en el administrador, en «Vincular otro dispositivo», por un canal privado.",
   "pairingCopyCode": "Copiar código",
   "pairingCodeCopied": "Código copiado. Puedes salir de Arveil para enviarlo: al volver, esta pantalla seguirá esperando.",
-  "pairingExpiresIn": "{seconds, plural, =1{Caduca en 1 segundo.} other{Caduca en {seconds} segundos.}}",
+  "pairingExpiresIn": "Caduca en {time}.",
   "@pairingExpiresIn": {
+    "description": "Time left on a code, in minutes and seconds such as 9:59.",
     "placeholders": {
-      "seconds": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "pairingExpiresInSpoken": "{minutes, plural, =1{Caduca en un minuto o menos.} other{Caduca en {minutes} minutos o menos.}}",
+  "@pairingExpiresInSpoken": {
+    "description": "What a screen reader says for pairingExpiresIn: whole minutes, so it changes once a minute instead of every second.",
+    "placeholders": {
+      "minutes": {
         "type": "int"
       }
     }

@@ -38,6 +38,16 @@ String _two(int n) => n.toString().padLeft(2, '0');
 /// Hour and minute on a 24-hour clock.
 String clockTime(DateTime at) => '${_two(at.hour)}:${_two(at.minute)}';
 
+/// Time left as minutes and seconds ("9:59"), with hours in front past
+/// an hour ("1:00:00"). Never negative.
+String countdown(int seconds) {
+  final s = seconds < 0 ? 0 : seconds;
+  final hours = s ~/ 3600;
+  final minutes = s % 3600 ~/ 60;
+  final rest = _two(s % 60);
+  return hours > 0 ? '$hours:${_two(minutes)}:$rest' : '$minutes:$rest';
+}
+
 /// A date in digits, in the order the language writes it.
 String numericDate(AppLocalizations l10n, DateTime at) =>
     l10n.numericDate('${at.day}', '${at.month}', '${at.year}');
