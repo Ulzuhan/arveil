@@ -160,7 +160,8 @@ cleanup, not a promise to erase filesystem snapshots or all SQLite free pages.
   rollback of operation mapping, v1 compatibility and largest v2 QR pass.
 - Real Go↔Rust disposable-relay tests cover a new recipient while the inviter is
   closed, relay restart, repeated links, same-realm members, rejected token
-  replacement, offline/reopened concurrent resume, and a pruned receipt leaving
+  replacement, offline/reopened concurrent resume, offline revocation surviving refresh,
+  and a pruned receipt leaving
   an ordinary request without blocking sync. CI runs these explicitly.
 - Flutter analysis and 303 tests pass, including explicit consent, disabled
   double-submit, saved progress, permissions, localization/accessibility and

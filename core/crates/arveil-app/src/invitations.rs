@@ -147,7 +147,11 @@ fn apply_record(o: &mut InvitationOperation, r: InvitationRecord) -> Result<(), 
     if r.state == "used" && r.claimed_identity.len() != 32 {
         return Err(failure("invalid claim"));
     }
-    o.state = if r.state == "used" && !o.group_id.is_empty() {
+    o.state = if o.state == "revoke-pending" && r.state == "pending" {
+        // A refresh can observe the old server state after offline revocation.
+        // Keep the person's intent and hide the link until revoke is resolved.
+        "revoke-pending".into()
+    } else if r.state == "used" && !o.group_id.is_empty() {
         "connected".into()
     } else {
         r.state

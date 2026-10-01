@@ -157,7 +157,8 @@ las páginas libres de SQLite.
   rollback del vínculo de grupo, compatibilidad v1 y QR v2 máximo.
 - Pruebas reales Go↔Rust con relay desechable: persona nueva con emisor cerrado,
   reinicio del relay, enlace repetido, miembro existente, sustitución de token
-  rechazado, red caída/reapertura/reintentos concurrentes y recibo eliminado
+  rechazado, red caída/reapertura/reintentos concurrentes, revocación offline que resiste
+  un refresco y recibo eliminado
   que conserva una solicitud sin bloquear sync. El CI las ejecuta expresamente.
 - Análisis Flutter y 303 pruebas correctas: consentimiento, doble pulsación,
   progreso, permisos, idiomas/accesibilidad y capturas de Contactos. Compilan APK

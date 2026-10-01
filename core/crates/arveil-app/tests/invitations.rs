@@ -350,3 +350,32 @@ fn a_pruned_invitation_receipt_does_not_block_other_invitation_completion() {
     );
     owner.close();
 }
+
+#[test]
+#[ignore = "requires the disposable Go relay binary"]
+fn refreshing_after_offline_revocation_preserves_intent_and_hides_the_link() {
+    let mut f = Fixture::new();
+    let owner = f.owner();
+    let issued = item(&owner, A::Create);
+    f.stop();
+    assert!(
+        owner
+            .invitations(A::Revoke {
+                id: issued.id.clone()
+            })
+            .is_err()
+    );
+    owner.close();
+    drop(owner);
+    f.start();
+    let owner = f.profile("owner");
+    let O::Items(rows) = owner.invitations(A::List { refresh: true }).unwrap() else {
+        panic!("list");
+    };
+    assert_eq!(rows[0].state, "revoke-pending");
+    assert!(rows[0].link.is_none());
+    let revoked = item(&owner, A::Revoke { id: issued.id });
+    assert_eq!(revoked.state, "revoked");
+    assert!(revoked.link.is_none());
+    owner.close();
+}
