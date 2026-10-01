@@ -51,6 +51,7 @@ dependencies:
   camera: ^0.12.1
 
 dev_dependencies:
+  camera_platform_interface: ^2.14.0
   # Only the tests sign and check with it; the app verifies update signatures
   # in the Rust core.
   cryptography: ^2.9.0

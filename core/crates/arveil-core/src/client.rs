@@ -614,6 +614,26 @@ pub struct StoredRealm {
     pub enrolled: bool,
 }
 
+impl StoredRealm {
+    /// Current preferred client route from the signature-verified endpoint
+    /// list. The original enrollment URL is only a fallback before a client
+    /// endpoint is known; it may belong to an old LAN or tailnet.
+    /// Keep operator priorities, including intentionally private-only realms.
+    pub fn preferred_endpoint_url(&self) -> &str {
+        self.endpoint_list
+            .as_ref()
+            .and_then(|list| {
+                list.endpoints
+                    .iter()
+                    .filter(|endpoint| endpoint.kind != "admin")
+                    .min_by_key(|endpoint| endpoint.priority)
+            })
+            .map_or(self.bootstrap_url.as_str(), |endpoint| {
+                endpoint.url.as_str()
+            })
+    }
+}
+
 pub const KEY_PACKAGE_FLOOR: u32 = 3;
 pub const KEY_PACKAGE_TARGET: u32 = 10;
 
