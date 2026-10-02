@@ -67,6 +67,8 @@ sleep/wake delivery still require interactive acceptance before a release promis
 
 ## Android: self-hosted experiment
 
+> **To be replaced.** [ADR-014](adr/ADR-014-relay-activity-notices.md) (proposed) has the relay announce activity over the Noise channel to a foreground service in Arveil, with a watch-only key. ntfy, the UnifiedPush distributor app and the typed server address go away. This section describes what betas 5 and 6 ship until then.
+
 ```mermaid
 flowchart LR
   R[Relay] -->|Generic mailbox hint| N[Self-hosted ntfy]

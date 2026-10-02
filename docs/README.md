@@ -64,6 +64,8 @@ M3b.5 physical-device and three-external-user acceptance remain open. The [beta 
 | [ADR-011](adr/ADR-011-shared-display-names.md) | Names people choose for themselves, shared end to end with their conversations (proposed) |
 | [ADR-012](adr/ADR-012-qr-codes-and-links.md) | QR codes and links to join, link devices and add contacts; verification as a separate, optional step (implemented) |
 | [ADR-013](adr/ADR-013-realm-administration-from-the-app.md) | Realm roles and administration from the app, with the host as the last resort (proposed) |
+| [ADR-014](adr/ADR-014-relay-activity-notices.md) | Activity notices from the relay over the Noise channel, without ntfy or Google (proposed) |
+| [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) | Less delivery metadata at rest, an anonymous sender profile and what is not a goal (proposed) |
 
 ### Apps
 
