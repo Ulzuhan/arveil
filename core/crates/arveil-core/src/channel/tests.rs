@@ -237,3 +237,54 @@ proptest! {
         prop_assert_eq!(out, Some(bytes));
     }
 }
+
+/// Padded frames are byte-identical in the core and the relay (ADR-014); the
+/// same vectors are checked in the relay's `TestPaddedFrameVectors`.
+#[test]
+fn padded_frame_vectors_match_the_relay() {
+    use super::codec::{WATCH_FRAME_BYTES, encode_padded};
+    let vector =
+        |head: &str, zeros: usize, tail: &str| format!("{head}{}{tail}", "00".repeat(zeros));
+    let cases = [
+        (
+            Frame {
+                id: 0,
+                payload: Payload::MailboxWakeup,
+            },
+            vector(
+                "a3626964006370616458df",
+                223,
+                "677061796c6f61646d4d61696c626f7857616b657570",
+            ),
+        ),
+        (
+            Frame {
+                id: 7,
+                payload: Payload::Ping,
+            },
+            vector("a3626964076370616458e8", 232, "677061796c6f61646450696e67"),
+        ),
+        (
+            Frame {
+                id: 3,
+                payload: Payload::WatchKeySet {
+                    key: vec![0x11; 32],
+                },
+            },
+            vector(
+                "a3626964036370616458b9",
+                185,
+                &format!(
+                    "677061796c6f6164a16b57617463684b6579536574a1636b65795820{}",
+                    "11".repeat(32)
+                ),
+            ),
+        ),
+    ];
+    for (frame, want) in cases {
+        let got = encode_padded(&frame, WATCH_FRAME_BYTES).unwrap();
+        assert_eq!(got.len(), WATCH_FRAME_BYTES);
+        assert_eq!(hex::encode(&got), want, "{:?}", frame.payload);
+        assert_eq!(super::codec::decode(&got).unwrap(), frame);
+    }
+}

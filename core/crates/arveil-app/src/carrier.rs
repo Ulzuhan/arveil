@@ -5,7 +5,7 @@ use std::fmt;
 use std::future::Future;
 use std::time::Duration;
 
-use arveil_core::channel::codec::{Frame, Payload};
+use arveil_core::channel::codec::{Frame, Payload, WATCH_FRAME_BYTES};
 use arveil_core::channel::{Channel, Initiator, StaticKeypair, prologue};
 use ed25519_dalek::VerifyingKey;
 use futures_util::{SinkExt, StreamExt};
@@ -157,6 +157,10 @@ pub struct Connection {
     channel: Option<Channel>,
     next_id: u64,
     request_timeout: Duration,
+    /// Pad every frame sent, as a watch session does (ADR-014).
+    padded: bool,
+    /// An activity notice arrived while a request waited for its reply.
+    wake_pending: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -254,7 +258,69 @@ impl Connection {
             channel: Some(Channel::new(transport)),
             next_id: 1,
             request_timeout: timeouts.request,
+            padded: false,
+            wake_pending: false,
         })
+    }
+
+    /// Pad every frame this connection sends to [`WATCH_FRAME_BYTES`], so
+    /// keepalives on a watch session look like everything else on it.
+    pub fn pad_frames(&mut self) {
+        self.padded = true;
+    }
+
+    /// Subscribe to activity notices for this device (ADR-014).
+    pub async fn watch(&mut self) -> Result<(), CliError> {
+        match self.request(Payload::MailboxWatch).await? {
+            Payload::Ack => Ok(()),
+            other => Err(CliError::Protocol(format!(
+                "unexpected reply to MailboxWatch: {other:?}"
+            ))),
+        }
+    }
+
+    /// Wait for the next activity notice, pinging whenever `keepalive`
+    /// passes in silence. Returns when a notice arrives; any failure means
+    /// the session is over and the caller reconnects.
+    pub async fn next_wakeup(&mut self, keepalive: Duration) -> Result<(), CliError> {
+        loop {
+            if std::mem::take(&mut self.wake_pending) {
+                return Ok(());
+            }
+            let Some(ws) = self.ws.as_mut() else {
+                return Err(CliError::Transport(
+                    "connection invalidated; reconnect required".into(),
+                ));
+            };
+            // Reading a WebSocket message is cancel-safe: tungstenite keeps
+            // a partly received message in the stream, so a keepalive that
+            // interrupts this wait loses nothing.
+            match tokio::time::timeout(keepalive, next_binary(ws)).await {
+                Ok(message) => {
+                    let message = message?;
+                    let channel = self.channel.as_mut().ok_or_else(|| {
+                        CliError::Transport("connection invalidated; reconnect required".into())
+                    })?;
+                    if let Some(frame) = channel.open(&message).map_err(transport("open"))? {
+                        if !is_wakeup(&frame) {
+                            return Err(CliError::Protocol(format!(
+                                "unsolicited frame {} on a watched session",
+                                frame.id
+                            )));
+                        }
+                        return Ok(());
+                    }
+                }
+                Err(_) => match self.request(Payload::Ping).await? {
+                    Payload::Pong => {}
+                    other => {
+                        return Err(CliError::Protocol(format!(
+                            "unexpected reply to Ping: {other:?}"
+                        )));
+                    }
+                },
+            }
+        }
     }
 
     /// Send a payload and wait for the reply with the same id.
@@ -282,12 +348,13 @@ impl Connection {
         let id = self.next_id;
         self.next_id += 1;
         let frame = Frame { id, payload };
-        let messages = self
-            .channel
-            .as_mut()
-            .expect("request checked the channel")
-            .seal(&frame)
-            .map_err(transport("seal"))?;
+        let channel = self.channel.as_mut().expect("request checked the channel");
+        let messages = if self.padded {
+            channel.seal_padded(&frame, WATCH_FRAME_BYTES)
+        } else {
+            channel.seal(&frame)
+        }
+        .map_err(transport("seal"))?;
         for m in messages {
             self.ws
                 .as_mut()
@@ -305,6 +372,12 @@ impl Connection {
                 .open(&m)
                 .map_err(transport("open"))?
             {
+                // A notice may arrive between a request and its reply on a
+                // session that watches; it is kept for next_wakeup.
+                if is_wakeup(&f) {
+                    self.wake_pending = true;
+                    continue;
+                }
                 if f.id != id {
                     return Err(CliError::Protocol(format!(
                         "reply id {} for request {id}",
@@ -361,6 +434,10 @@ fn tls_connector(
     Ok(tokio_tungstenite::Connector::Rustls(std::sync::Arc::new(
         config,
     )))
+}
+
+fn is_wakeup(frame: &Frame) -> bool {
+    frame.id == 0 && frame.payload == Payload::MailboxWakeup
 }
 
 async fn next_binary(ws: &mut Ws) -> Result<Vec<u8>, CliError> {

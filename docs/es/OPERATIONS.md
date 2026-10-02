@@ -144,6 +144,8 @@ Parar, sustituir el binario, arrancar. El esquema migra al abrir. Haz una copia 
 
 El esquema 6 del relay numera la cola de sobres por buzón y redondea las horas guardadas (parte 1 de la [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md)). Los clientes conservan sus cursores y no necesitan actualizarse. Un relay anterior al esquema 6 rechaza la base migrada; volver atrás significa restaurar la copia hecha antes de actualizar y perder lo que llegó después.
 
+El esquema 7 del relay añade las claves de vigilancia de los avisos de actividad ([ADR-014](adr/ADR-014-relay-activity-notices.md)). Una sesión suscrita a avisos sigue abierta mientras el dispositivo la quiera; `-watch-idle` (diez minutos por defecto) cierra la que deja de enviar pings. Cada sesión así cuenta para `-max-conns` y `-max-conns-per-addr` (8 por defecto): varios móviles que llegan a una ruta pública desde la misma dirección de casa pueden necesitar un límite mayor. `/metrics` informa de `arveil_activity_subscriptions` y `arveil_activity_notices_total`.
+
 ## Despliegue de invitaciones personales
 
 Véase [permiso owner y despliegue](INVITATIONS.md). La candidata migra relay

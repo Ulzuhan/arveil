@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
@@ -50,6 +51,12 @@ type Server struct {
 	// reaches the relay through it; otherwise a client sets its own address
 	// and the limits stop meaning anything.
 	TrustForwardedFor bool
+	// WatchIdle is how long a session subscribed to activity notices may
+	// stay silent (ADR-014). Zero means DefaultWatchIdle.
+	WatchIdle time.Duration
+
+	watchOnce sync.Once
+	watchers  *watchHub
 }
 
 // Handler returns the HTTP handler mounting the channel route.
@@ -119,7 +126,8 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 	defer c.CloseNow()
 	c.SetReadLimit(channel.MaxNoiseMessage)
 
-	ctx := r.Context()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
 	ch, sess, err := s.handshake(ctx, c)
 	if err != nil {
 		metrics.HandshakesFailed.Add(1)
@@ -129,8 +137,16 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fw := &frameWriter{c: c, ch: ch, timeout: s.ReadTimeout, padded: sess.watcher != nil}
+	readTimeout := s.ReadTimeout
+	var sub *subscription
+	defer func() {
+		if sub != nil {
+			s.hub().unsubscribe(sess.watchDevice().DeviceID, sub)
+		}
+	}()
 	for {
-		frame, ok, err := s.readFrame(ctx, c, ch)
+		frame, ok, err := s.readFrame(ctx, c, ch, readTimeout)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) && websocket.CloseStatus(err) == -1 {
 				s.Logger.Printf("channel closed: %v", errKind(err))
@@ -142,11 +158,94 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 		}
 		sess.addr = addr
 		metrics.FramesHandled.Add(1)
-		reply := s.dispatchSession(ctx, sess, frame, time.Now())
-		if err := s.writeFrame(ctx, c, ch, reply); err != nil {
+		if frame.Payload.Kind == channel.KindMailboxWatch {
+			// Already subscribed: nothing changes, and replacing its own
+			// subscription must not close a watch session.
+			if sub != nil && sub.active() {
+				if err := fw.write(ctx, channel.Frame{ID: frame.ID, Payload: channel.Payload{Kind: channel.KindAck}}); err != nil {
+					return
+				}
+				continue
+			}
+			next, refusal := s.startWatch(sess, frame)
+			if refusal != nil {
+				if err := fw.write(ctx, *refusal); err != nil {
+					return
+				}
+				continue
+			}
+			if sub != nil {
+				s.hub().unsubscribe(sess.watchDevice().DeviceID, sub)
+			}
+			sub = next
+			if err := fw.write(ctx, channel.Frame{ID: frame.ID, Payload: channel.Payload{Kind: channel.KindAck}}); err != nil {
+				return
+			}
+			readTimeout = s.watchIdle()
+			go s.deliver(ctx, sess, sub, fw)
+			continue
+		}
+		var reply channel.Frame
+		if sess.watcher != nil {
+			reply = s.dispatchWatch(frame)
+		} else {
+			reply = s.dispatchSession(ctx, sess, frame, time.Now())
+		}
+		if err := fw.write(ctx, reply); err != nil {
 			return
 		}
 	}
+}
+
+// frameWriter serialises writes on one connection. Replies and activity
+// notices come from different goroutines, and the Noise nonce must follow
+// the order in which messages reach the socket.
+type frameWriter struct {
+	mu      sync.Mutex
+	c       *websocket.Conn
+	ch      *channel.Channel
+	timeout time.Duration
+	// padded pads every frame, as a watch session does (ADR-014).
+	padded bool
+}
+
+func (w *frameWriter) write(ctx context.Context, f channel.Frame) error {
+	if w.padded {
+		return w.writePadded(ctx, f)
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	msgs, err := w.ch.Seal(f)
+	if err != nil {
+		return err
+	}
+	return w.send(ctx, msgs)
+}
+
+func (w *frameWriter) writePadded(ctx context.Context, f channel.Frame) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	msgs, err := w.ch.SealPadded(f, channel.WatchFrameBytes)
+	if err != nil {
+		return err
+	}
+	return w.send(ctx, msgs)
+}
+
+func (w *frameWriter) send(ctx context.Context, msgs [][]byte) error {
+	for _, m := range msgs {
+		wctx, cancel := context.WithTimeout(ctx, w.timeout)
+		err := w.c.Write(wctx, websocket.MessageBinary, m)
+		cancel()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *frameWriter) close(reason string) {
+	w.c.Close(websocket.StatusNormalClosure, reason)
 }
 
 func (s *Server) handshake(ctx context.Context, c *websocket.Conn) (*channel.Channel, *session, error) {
@@ -184,8 +283,8 @@ func (s *Server) handshake(ctx context.Context, c *websocket.Conn) (*channel.Cha
 	return channel.NewChannel(t), sess, nil
 }
 
-func (s *Server) readFrame(ctx context.Context, c *websocket.Conn, ch *channel.Channel) (channel.Frame, bool, error) {
-	rctx, cancel := context.WithTimeout(ctx, s.ReadTimeout)
+func (s *Server) readFrame(ctx context.Context, c *websocket.Conn, ch *channel.Channel, timeout time.Duration) (channel.Frame, bool, error) {
+	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	typ, msg, err := c.Read(rctx)
 	if err != nil {
@@ -195,22 +294,6 @@ func (s *Server) readFrame(ctx context.Context, c *websocket.Conn, ch *channel.C
 		return channel.Frame{}, false, errors.New("text frame on channel")
 	}
 	return ch.Open(msg)
-}
-
-func (s *Server) writeFrame(ctx context.Context, c *websocket.Conn, ch *channel.Channel, f channel.Frame) error {
-	msgs, err := ch.Seal(f)
-	if err != nil {
-		return err
-	}
-	for _, m := range msgs {
-		wctx, cancel := context.WithTimeout(ctx, s.ReadTimeout)
-		err := c.Write(wctx, websocket.MessageBinary, m)
-		cancel()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // errKind strips anything that could carry identifiers from an error before logging.

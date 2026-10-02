@@ -139,6 +139,8 @@ Stop, replace the binary, start. The schema migrates on open. Take a backup firs
 
 Relay schema 6 renumbers the envelope queue per mailbox and rounds stored times ([ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) part 1). Clients keep their cursors and need no update. A relay older than schema 6 refuses the migrated database; going back means restoring the backup taken before the upgrade, and losing what arrived since.
 
+Relay schema 7 adds watch keys for activity notices ([ADR-014](adr/ADR-014-relay-activity-notices.md)). A session subscribed to notices stays open while the device wants it; `-watch-idle` (ten minutes by default) closes one that stops pinging. Each such session counts against `-max-conns` and `-max-conns-per-addr` (8 by default): several phones reaching a public route from behind one home address may need a higher limit. `/metrics` reports `arveil_activity_subscriptions` and `arveil_activity_notices_total`.
+
 ## Personal invitation rollout
 
 See [owner setup and rollout](INVITATIONS.md). The personal invitation implementation migrates relay

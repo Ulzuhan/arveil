@@ -35,6 +35,8 @@ const USAGE: &str = "usage:
   arveil archive import --data-dir <dir> <path> <secret>
   arveil notify set --data-dir <dir> <bootstrap> <url>
   arveil notify clear --data-dir <dir> <bootstrap>
+  arveil watch --data-dir <dir> <bootstrap> [<count>]
+  arveil watch clear --data-dir <dir> <bootstrap>
   arveil contact list --data-dir <dir>
   arveil contact card --data-dir <dir> [--in-person]
   arveil contact card-close --data-dir <dir> <secret>
@@ -178,6 +180,18 @@ fn main() -> ExitCode {
             ["notify", "clear", bootstrap] => match data_dir {
                 Some(d) => commands::notify_set(&d, bootstrap, ""),
                 None => usage(),
+            },
+            ["watch", "clear", bootstrap] => match data_dir {
+                Some(d) => commands::watch_clear(&d, bootstrap),
+                None => usage(),
+            },
+            ["watch", bootstrap] => match data_dir {
+                Some(d) => commands::watch(&d, bootstrap, None),
+                None => usage(),
+            },
+            ["watch", bootstrap, count] => match (data_dir, count.parse::<u64>()) {
+                (Some(d), Ok(n)) if n > 0 => commands::watch(&d, bootstrap, Some(n)),
+                _ => usage(),
             },
             ["contact", "card"] => match data_dir {
                 Some(d) => cards::card(&d, false),
