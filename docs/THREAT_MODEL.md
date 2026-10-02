@@ -6,7 +6,7 @@
 
 ## 1. Assets and trust boundaries
 
-Highest-sensitivity assets: personal root keys, device private keys, active MLS secrets, local database keys, recovery codes, content and exported history. Also sensitive are the social graph, correlatable public identities, IP addresses, capabilities, push tokens and revocation state.
+Highest-sensitivity assets: personal root keys, device private keys, active MLS secrets, local database keys, recovery codes, content and exported history. Also sensitive are the social graph, correlatable public identities, IP addresses, capabilities, push tokens, watch keys for activity notices ([ADR-014](adr/ADR-014-relay-activity-notices.md)) and revocation state.
 
 The trusted perimeter includes the legitimate core and UI, the operating system while it handles plaintext, and the device that authorizes an identity. An unlocked screen or a compromised process can expose conversations. The realm, proxy, network, intermediate tunnel or CDN, push provider, directory and remote storage are treated as adversarial for content confidentiality and person authenticity. An intermediary that terminates TLS, such as Cloudflare Tunnel, is additionally treated as an adversary of the API: the Noise channel of [ADR-008](adr/ADR-008-carrier-independent-transport.md) prevents it from seeing or using credentials and identifiers.
 
@@ -28,7 +28,7 @@ The homelab owner may be honest, curious or malicious. E2EE must protect against
 | Theft of a locked device | Local encryption and OS-protected secrets | Depends on lock, hardware and configuration; does not protect already-unlocked memory |
 | Malware on the device or tampered client | Reduce privileges, signed releases, review and updates | Outside the E2EE guarantee: the attacker uses legitimate keys and plaintext |
 | Theft of a personal backup | Authenticated archive encrypted with a high-entropy secret | Backup and key together expose content; a copy with the root also enables impersonation |
-| Curious push provider | Generic payload, optional adapter | Can see token, IP, timing and application; the OS does not guarantee it will always wake the app |
+| Activity notices ([ADR-014](adr/ADR-014-relay-activity-notices.md), proposed) | Opt-in and off by default; notices inside the Noise channel with a fixed size; a watch-only key that cannot fetch, acknowledge or send; generic local notification without opening the profile | While enabled, the realm and any carrier see when the phone is connected and from which IP, continuously; a stolen watch key reveals when that mailbox has mail until revocation; the OS does not guarantee the service survives. The experimental ntfy receiver of betas 5 and 6 also exposes the ntfy server and its endpoints until it is retired |
 | Malicious group member | Signature/identity of each leaf and authorization of changes | A legitimate recipient can copy, photograph or publish content |
 | Exhaustion of disk, CPU or bandwidth | Quotas, sizes, parsing limits and future-epoch limits | No DDoS resistance or availability against the operator is promised |
 | Global traffic analysis | Less persisted semantics, padding and individual wrapping | Unsolved; delivery authentication and fan-out allow correlation |
@@ -43,6 +43,8 @@ The homelab owner may be honest, curious or malicious. E2EE must protect against
 | Mailbox and owning device | Visible for access control/quotas |
 | Sender of an authenticated request and destination mailbox | Visible during delivery; correlatable by an operator |
 | IP, time, size, frequency, push tokens | Visible depending on the component; minimize retention |
+| Presence of a device with activity notices enabled | Its persistent connection and IP changes, continuously, to the realm and the carrier ([ADR-014](adr/ADR-014-relay-activity-notices.md)) |
+| Queued envelopes | Mailbox, random delivery id, size bucket and expiry; not the sender. Until [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) part 1, a realm-wide sequence and expiries to the second let a stolen database group the copies of one message |
 | API frames, capabilities, mailbox and delivery IDs | Visible only to the realm inside the Noise channel; opaque to tunnels, CDNs and proxies |
 | Endpoint list and realm Noise key | Public by design; their authenticity depends on the realm signing key, not on the carrier |
 | MLS group ID, epochs, roster and titles | Inside the encrypted wrapping; not server columns |
@@ -51,6 +53,10 @@ The homelab owner may be honest, curious or malicious. E2EE must protect against
 | Voluntarily hosted history backups | Ciphertext, size and access pattern; no content without the key |
 
 The absence of conversation tables reduces what is stored and exposed by ordinary queries. It does not prevent a modified server from reconstructing relationships from connections and deliveries. Stable cryptographic identifiers can correlate a person across realms if they reuse the root: this architecture does not claim to be free of globally correlatable identifiers.
+
+### Non-goal: unlinkability of a person's mailboxes
+
+Arveil does not try to stop the realm from relating the mailboxes, deliveries and connections of one person, as SimpleX Chat does with queues created without accounts. A realm is membership-based: it knows its members, which device owns each mailbox and which session sends each delivery. In a realm of a few people, an operator who watches IP addresses and timing can reconstruct who writes to whom whatever the protocol does. [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) reduces what a stolen database reveals and leaves an anonymous sender profile ready for when it pays off; per-contact anonymous queues and hiding IP addresses are recorded there as non-goals, with the conditions to reopen them.
 
 A carrier intermediary sees the same as a network observer: who connects, when and how much they send. With Cloudflare Tunnel that observer is a permanent third party in another jurisdiction; with Funnel or a VPS with passthrough, it sees only TLS bytes. It is an operator deployment decision, not a change of guarantees. Bucket padding reduces size precision; it does not hide total volume. A compromised outer HPKE key can reveal MLS headers of recorded envelopes; content confidentiality still depends on MLS. No forward secrecy is attributed to a static HPKE receiving key.
 
@@ -80,11 +86,13 @@ A carrier intermediary sees the same as a network observer: who connects, when a
 | I-06 | A removed device loses access to new epochs | Test with several members, partition, Remove and subsequent Update/commit; documented limits for old epochs |
 | I-07 | Imported history does not revive old MLS secrets | Restoring an outdated backup; new device, rejoin and separate archive |
 | I-08 | Server restore does not roll back known versions | Snapshot prior to revocation and deliveries; detection and reconciliation |
-| I-09 | Push, errors and telemetry do not leak content/capabilities | Real payloads, proxy logs, crash reports and binding traces reviewed |
+| I-09 | Notices, errors and telemetry do not leak content/capabilities | Real payloads and notice frames, proxy logs, crash reports and binding traces reviewed |
 | I-10 | Malformed inputs do not consume unbounded resources | Fuzzing of framing, CBOR/MLS/HPKE and quota tests before deserializing |
 | I-11 | The backup preserves a consistent set | Isolated restore with coherent DB, blobs, migrations and operational secrets |
 | I-12 | An intermediary that terminates TLS obtains neither credentials, nor identifiers, nor the ability to act | Capture on the origin side of a tunnel: only opaque frames; replay of the first Noise message without effect; endpoint with a different key rejected |
 | I-13 | The client switches carrier without intervention and without rolling back the endpoint list | Sequential failure of LAN, tailnet and public; list with a lower sequence or invalid signature rejected |
+| I-14 | A watch key only watches ([ADR-014](adr/ADR-014-relay-activity-notices.md)) | A watch session sends fetch, ack, put, blob, KeyPackage, manifest and invitation frames: all refused; revocation closes it |
+| I-15 | A stolen database does not group the copies of one message ([ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) part 1) | Group message to N devices, then inspection of the database and a backup: no realm-wide order, no identical expiry to the second |
 
 These tests can detect violations. No "we found no plaintext" test proves by itself that an attacker cannot decrypt; cryptographic review, assumptions and library quality remain essential.
 
