@@ -244,7 +244,7 @@ func TestInvitationMigrationBackupAndDurableReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Reconstruct the actual v4 table set, keeping a real enrolled identity.
-	if _, err = s.db.Exec(`DROP TABLE issued_invitations; DROP TABLE invitation_audit; DROP TABLE key_package_claim_receipts; DELETE FROM schema_migrations WHERE version=5; INSERT OR IGNORE INTO schema_migrations VALUES(4,0);`); err != nil {
+	if _, err = s.db.Exec(`DROP TABLE issued_invitations; DROP TABLE invitation_audit; DROP TABLE key_package_claim_receipts; DELETE FROM schema_migrations WHERE version>=5; INSERT OR IGNORE INTO schema_migrations VALUES(4,0);`); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.BackupTo(ctx, snapshot); err != nil {

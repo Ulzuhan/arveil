@@ -108,7 +108,7 @@ func (b *BlobStore) Begin(ctx context.Context, ownerIdentity []byte, size uint64
 	}
 	if _, err := b.s.db.ExecContext(ctx,
 		`INSERT INTO blobs (blob_id, owner_identity, read_cap_hash, declared_size, state, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		id, ownerIdentity, capHash(readCap), size, BlobStaging, now.Unix()); err != nil {
+		id, ownerIdentity, capHash(readCap), size, BlobStaging, coarseHour(now)); err != nil {
 		return nil, nil, err
 	}
 	f, err := os.OpenFile(b.stagingPath(id), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
@@ -223,7 +223,14 @@ func (b *BlobStore) Commit(ctx context.Context, ownerIdentity, id, ciphertextHas
 	if expiry <= 0 || expiry > maxExpiry {
 		expiry = maxExpiry
 	}
+	expiry = coarseExpiry(expiry, now)
 	if err := os.Rename(b.stagingPath(id), b.finalPath(id)); err != nil {
+		return 0, err
+	}
+	// The file's own times would otherwise keep the second the database
+	// no longer does. The change time cannot be set and remains.
+	stamp := time.Unix(coarseHour(now), 0)
+	if err := os.Chtimes(b.finalPath(id), stamp, stamp); err != nil {
 		return 0, err
 	}
 	if _, err := b.s.db.ExecContext(ctx, `UPDATE blobs SET state = ?, expires_at = ? WHERE blob_id = ?`, BlobCommitted, expiry, id); err != nil {
@@ -265,6 +272,14 @@ func (b *BlobStore) Read(ctx context.Context, id, readCap []byte, offset uint64,
 		return nil, 0, err
 	}
 	return buf[:n], uint64(size), nil
+}
+
+// coarseHour is the start of the hour of `now`. A blob's creation time is
+// kept to the hour (ADR-015 part 1), so an upload left in staging lives
+// between 23 and 24 hours rather than exactly StagingTTL.
+func coarseHour(now time.Time) int64 {
+	t := now.Unix()
+	return t - t%3600
 }
 
 // Sweep removes expired committed blobs and stale staging uploads.

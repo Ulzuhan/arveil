@@ -44,7 +44,7 @@ The homelab owner may be honest, curious or malicious. E2EE must protect against
 | Sender of an authenticated request and destination mailbox | Visible during delivery; correlatable by an operator |
 | IP, time, size, frequency, push tokens | Visible depending on the component; minimize retention |
 | Presence of a device with activity notices enabled | Its persistent connection and IP changes, continuously, to the realm and the carrier ([ADR-014](adr/ADR-014-relay-activity-notices.md)) |
-| Queued envelopes | Mailbox, random delivery id, size bucket and expiry; not the sender. Until [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) part 1, a realm-wide sequence and expiries to the second let a stolen database group the copies of one message |
+| Queued envelopes | Mailbox, random delivery id, size bucket and expiry; not the sender. Before relay schema 6 ([ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) part 1), a realm-wide sequence and expiries to the second let a stolen database group the copies of one message; numbers migrated from that schema remain until their envelopes leave |
 | API frames, capabilities, mailbox and delivery IDs | Visible only to the realm inside the Noise channel; opaque to tunnels, CDNs and proxies |
 | Endpoint list and realm Noise key | Public by design; their authenticity depends on the realm signing key, not on the carrier |
 | MLS group ID, epochs, roster and titles | Inside the encrypted wrapping; not server columns |

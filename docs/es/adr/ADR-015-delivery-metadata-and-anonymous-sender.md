@@ -1,6 +1,6 @@
 # ADR-015 — Metadatos de entrega y remitente anónimo
 
-- **Estado:** propuesta. La parte 1 (metadatos de entrega guardados) está pensada para la siguiente versión del relay. La parte 2 (remitente anónimo) espera a las condiciones que enumera. La parte 3 deja escrito lo que no es objetivo.
+- **Estado:** parte 1 (metadatos de entrega guardados) implementada el 02-10-2026 como esquema 6 del relay, aún sin desplegar. La parte 2 (remitente anónimo) sigue propuesta y espera a las condiciones que enumera. La parte 3 deja escrito lo que no es objetivo.
 - **Fecha:** 2026-10-02.
 - **Alcance:** qué puede relacionar el relay entre remitentes, buzones y personas, en su base de datos y mientras funciona, y qué reducciones compensan su coste en un realm familiar.
 
@@ -28,10 +28,10 @@ En un realm de cinco a diez personas, un operador que observe tiempos y direccio
 ### Parte 1 — Metadatos de entrega guardados (siguiente versión del relay)
 
 La ganancia barata y real está en lo que revela una base de datos o una copia robada.
-- **Secuencia por buzón.** Los sobres pasan a una tabla con clave `(mailbox_id, mailbox_seq)` y sin rowid, de modo que el orden físico sigue al buzón y no a la llegada en todo el realm. El cursor que reciben los clientes es la secuencia del buzón.
-- **Migración de cursores.** El contador de cada buzón empieza por encima del `seq` más alto del realm en el momento de migrar. Todos los cursores que ya tienen los clientes siguen siendo válidos y no se salta ni se repite nada.
-- **Caducidad redondeada.** `expires_at` se redondea hacia abajo al día UTC para duraciones de dos días o más, y a la hora por debajo de eso. El protocolo ya permite una caducidad efectiva más corta, declarada en la respuesta `EnvelopeAccepted`.
-- **Blobs.** `created_at` y `expires_at` se redondean igual. `owner_identity` se mantiene porque la cuota por miembro la necesita; queda documentado como residuo.
+- **Secuencia por buzón.** Los sobres pasan a `queued_envelopes`, numerados con el contador propio de cada buzón (`mailboxes.next_seq`) y con un id de fila aleatorio, así que ni el cursor ni el orden de las filas siguen la llegada en todo el realm. Se descartó una tabla sin rowid: SQLite la desaconseja para filas tan grandes como un sobre.
+- **Migración de cursores.** Los sobres migrados conservan su número, y el contador de cada buzón empieza por encima del número más alto que la tabla antigua llegó a dar, incluidos sobres ya confirmados. Todos los cursores que tienen los clientes siguen siendo válidos y no se salta ni se repite nada. Los números antiguos comunes al realm desaparecen con sus sobres, en un periodo de retención.
+- **Caducidad redondeada.** `expires_at` se redondea hacia abajo al día UTC para duraciones de dos días o más, a la hora para dos horas o más y al minuto para dos minutos o más; el redondeo nunca quita más de la mitad de la duración. El protocolo ya permite una caducidad efectiva más corta, declarada en la respuesta `EnvelopeAccepted`.
+- **Blobs.** `created_at` se guarda a la hora, así que una subida que se queda a medias se borra entre 23 y 24 horas después. La caducidad tras confirmar se redondea como la de los sobres, y la fecha de modificación del archivo se fija a esa hora; su fecha de cambio no se puede fijar y se mantiene. `owner_identity` se mantiene porque la cuota por miembro la necesita; queda documentado como residuo.
 - **Reparto en orden aleatorio.** El cliente envía las copias de un mensaje en orden aleatorio, para que los dispositivos propios del remitente no vayan siempre primero o último.
 
 Esto no oculta tamaños (el relleno por tramos reduce su precisión) ni los tiempos ante quien observe el relay en directo. Las páginas de SQLite, el WAL y las páginas libres pueden conservar rastros del orden de inserción. El objetivo son las consultas normales y las copias, no resistir un análisis forense.

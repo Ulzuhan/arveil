@@ -44,7 +44,7 @@ El propietario del homelab puede ser honesto, curioso o malicioso. E2EE debe pro
 | Emisor de una solicitud autenticada y mailbox destino | Visible durante la entrega; correlacionable por un operador |
 | IP, hora, tamaño, frecuencia, tokens push | Visible según el componente; minimizar retención |
 | Presencia de un dispositivo con avisos de actividad | Su conexión permanente y sus cambios de IP, de forma continua, para el realm y la ruta intermedia ([ADR-014](adr/ADR-014-relay-activity-notices.md)) |
-| Sobres en cola | Buzón, id de entrega aleatorio, tramo de tamaño y caducidad; no el remitente. Hasta la parte 1 de la [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md), una secuencia común al realm y caducidades al segundo permiten a una base robada agrupar las copias de un mismo mensaje |
+| Sobres en cola | Buzón, id de entrega aleatorio, tramo de tamaño y caducidad; no el remitente. Antes del esquema 6 del relay (parte 1 de la [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md)), una secuencia común al realm y caducidades al segundo permitían a una base robada agrupar las copias de un mismo mensaje; los números migrados de ese esquema se mantienen hasta que salen sus sobres |
 | Frames de la API, capabilities, IDs de mailbox y entrega | Visibles solo para el realm dentro del canal Noise; opacos para túneles, CDNs y proxies |
 | Lista de endpoints y clave Noise del realm | Pública por diseño; su autenticidad depende de la clave de firma del realm, no del carrier |
 | ID del grupo MLS, epochs, roster y títulos | Dentro del envoltorio cifrado; no columnas del servidor |
