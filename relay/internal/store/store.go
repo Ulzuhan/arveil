@@ -214,11 +214,12 @@ func (s *Store) checkVersion() error {
 	return nil
 }
 
-// SchemaVersion is what this binary writes and understands. Every change so
-// far has been additive, which is why one number is enough: a database at an
-// older version is brought forward by the schema itself, and a database at a
-// newer one is refused rather than guessed at.
-const SchemaVersion = 5
+// SchemaVersion is what this binary writes and understands. One number is
+// enough: a database at an older version is brought forward when it opens,
+// and a database at a newer one is refused rather than guessed at. Versions
+// up to 5 were additive; 6 moves the envelope queue to per-mailbox numbering
+// (ADR-015 part 1), so a relay older than 6 must not open it again.
+const SchemaVersion = 6
 
 // refuseFutureSchema reads the recorded version and refuses a database from
 // a newer relay. It reads only: a database with no `schema_migrations` table

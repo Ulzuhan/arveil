@@ -1,6 +1,6 @@
 # ADR-015 — Delivery metadata and an anonymous sender
 
-- **Status:** proposed. Part 1 (delivery metadata at rest) is meant for the next relay release. Part 2 (anonymous sender) waits for the conditions it lists. Part 3 records non-goals.
+- **Status:** part 1 (delivery metadata at rest) implemented on 2026-10-02 as relay schema 6, not yet deployed. Part 2 (anonymous sender) is proposed and waits for the conditions it lists. Part 3 records non-goals.
 - **Date:** 2026-10-02.
 - **Scope:** what the relay can relate between senders, mailboxes and people, in its database and while it runs, and which reductions are worth their cost in a family realm.
 
@@ -28,10 +28,10 @@ In a realm of five to ten people, an operator who watches timing and IP addresse
 ### Part 1 — Delivery metadata at rest (next relay release)
 
 The cheap, real gain is in what a stolen database or backup reveals.
-- **Per-mailbox sequence.** Envelopes move to a table keyed by `(mailbox_id, mailbox_seq)` without a rowid, so physical order follows the mailbox and not arrival across the realm. The cursor returned to clients is the per-mailbox sequence.
-- **Cursor migration.** Each mailbox's counter starts above the highest realm-wide `seq` at migration time. Every cursor a client already holds stays valid, and nothing is skipped or repeated.
-- **Coarse expiry.** `expires_at` is rounded down to a UTC day for lifetimes of two days or more, and to the hour below that. The protocol already allows a shorter effective expiry, declared in the `EnvelopeAccepted` answer.
-- **Blobs.** `created_at` and `expires_at` get the same rounding. `owner_identity` stays, because the per-member quota needs it; this is documented as a residual.
+- **Per-mailbox sequence.** Envelopes move to `queued_envelopes`, numbered by each mailbox's own counter (`mailboxes.next_seq`) under a random row id, so neither the cursor nor the order of rows follows arrival across the realm. A table without a rowid was considered and set aside: SQLite advises against it for rows as large as an envelope.
+- **Cursor migration.** Migrated envelopes keep their numbers, and each mailbox's counter starts above the highest number the old table ever handed out, including envelopes already acknowledged. Every cursor a client holds stays valid, and nothing is skipped or repeated. The old realm-wide numbers leave with their envelopes, within one retention period.
+- **Coarse expiry.** `expires_at` is rounded down to a UTC day for lifetimes of two days or more, to the hour for two hours or more, and to the minute for two minutes or more; rounding never takes more than half the lifetime away. The protocol already allows a shorter effective expiry, declared in the `EnvelopeAccepted` answer.
+- **Blobs.** `created_at` is kept to the hour, so an upload left in staging is removed after 23 to 24 hours. The committed expiry gets the same rounding as envelopes, and the file's modification time is set to that hour; its change time cannot be set and remains. `owner_identity` stays, because the per-member quota needs it; this is documented as a residual.
 - **Shuffled fan-out.** The client sends the copies of one message in random order, so the sender's own devices are not always first or last.
 
 This does not hide sizes (padding buckets reduce their precision), nor timing from anyone watching the relay live. SQLite pages, the WAL and free pages may keep traces of insertion order. The goal is ordinary queries and backups, not forensic resistance.

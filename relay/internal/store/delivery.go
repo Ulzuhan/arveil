@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
 	"errors"
 	"time"
 )
@@ -18,7 +19,8 @@ CREATE TABLE IF NOT EXISTS mailboxes (
     mailbox_id     BLOB PRIMARY KEY,
     owner_identity BLOB NOT NULL REFERENCES realm_memberships(identity_id),
     owner_device   BLOB NOT NULL,
-    created_at     INTEGER NOT NULL
+    created_at     INTEGER NOT NULL,
+    next_seq       INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS capabilities (
     cap_hash   BLOB PRIMARY KEY,
@@ -44,17 +46,22 @@ CREATE TABLE IF NOT EXISTS notify_hints (
     url        TEXT NOT NULL,
     created_at INTEGER NOT NULL
 );
-CREATE TABLE IF NOT EXISTS envelopes (
-    seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+-- Queued envelopes (ADR-015 part 1). Each mailbox numbers its own queue
+-- from mailboxes.next_seq, the row id is random and the expiry is coarse,
+-- so neither a cursor, nor the order of rows, nor an expiry to the second
+-- relates the copies of one message across mailboxes.
+CREATE TABLE IF NOT EXISTS queued_envelopes (
+    row_id      INTEGER PRIMARY KEY,
     mailbox_id  BLOB NOT NULL REFERENCES mailboxes(mailbox_id),
+    seq         INTEGER NOT NULL,
     delivery_id BLOB NOT NULL,
     body_hash   BLOB NOT NULL,
     hpke_enc    BLOB NOT NULL,
     ciphertext  BLOB NOT NULL,
     expires_at  INTEGER NOT NULL,
+    UNIQUE (mailbox_id, seq),
     UNIQUE (mailbox_id, delivery_id)
 );
-CREATE INDEX IF NOT EXISTS envelopes_by_mailbox ON envelopes (mailbox_id, seq);
 `
 
 const (
@@ -81,8 +88,109 @@ var (
 )
 
 func (s *Store) initDelivery() error {
-	_, err := s.db.Exec(deliverySchema)
+	if err := s.addNextSeq(); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(deliverySchema); err != nil {
+		return err
+	}
+	return s.migrateEnvelopeQueue(time.Now())
+}
+
+// addNextSeq gives a schema 5 mailboxes table its own queue counter. A
+// fresh database gets the column from deliverySchema instead.
+func (s *Store) addNextSeq() error {
+	var tables, columns int
+	if err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'mailboxes'`).Scan(&tables); err != nil {
+		return err
+	}
+	if tables == 0 {
+		return nil
+	}
+	if err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM pragma_table_info('mailboxes') WHERE name = 'next_seq'`).Scan(&columns); err != nil {
+		return err
+	}
+	if columns > 0 {
+		return nil
+	}
+	_, err := s.db.Exec(`ALTER TABLE mailboxes ADD COLUMN next_seq INTEGER NOT NULL DEFAULT 1`)
 	return err
+}
+
+// migrateEnvelopeQueue moves a schema 5 queue, numbered once for the whole
+// realm, into queued_envelopes. Rows keep their numbers, so every cursor a
+// client holds stays exact; each mailbox then continues above the highest
+// number the old table ever handed out, which AUTOINCREMENT keeps in
+// sqlite_sequence even after its row is gone. That starting point is the
+// same for every mailbox and says nothing about any of them. The old
+// numbers leave with their envelopes, within one retention period.
+func (s *Store) migrateEnvelopeQueue(now time.Time) error {
+	var legacy int
+	if err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'envelopes'`).Scan(&legacy); err != nil {
+		return err
+	}
+	if legacy == 0 {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var high int64
+	if err := tx.QueryRow(`SELECT MAX(
+		COALESCE((SELECT seq FROM sqlite_sequence WHERE name = 'envelopes'), 0),
+		COALESCE((SELECT MAX(seq) FROM envelopes), 0))`).Scan(&high); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE mailboxes SET next_seq = ? WHERE next_seq <= ?`, high+1, high); err != nil {
+		return err
+	}
+	// Random row ids and coarse expiries, as PutEnvelope writes them. The
+	// CASE is coarseExpiry in SQL.
+	if _, err := tx.Exec(`
+		INSERT INTO queued_envelopes (row_id, mailbox_id, seq, delivery_id, body_hash, hpke_enc, ciphertext, expires_at)
+		SELECT random() & 9223372036854775807, mailbox_id, seq, delivery_id, body_hash, hpke_enc, ciphertext,
+		       CASE
+		         WHEN expires_at - ?1 >= 172800 THEN expires_at - expires_at % 86400
+		         WHEN expires_at - ?1 >= 7200 THEN expires_at - expires_at % 3600
+		         WHEN expires_at - ?1 >= 120 THEN expires_at - expires_at % 60
+		         ELSE expires_at
+		       END
+		FROM envelopes ORDER BY random()`, now.Unix()); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DROP TABLE envelopes`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// coarseExpiry rounds an expiry down so that what is stored says the day of
+// arrival, not the second (ADR-015 part 1). Lives of two days or more round
+// to a UTC day, of two hours or more to the hour, of two minutes or more to
+// the minute. The protocol allows a shorter effective expiry, which the
+// relay declares; rounding never takes more than half the life away.
+func coarseExpiry(expiry int64, now time.Time) int64 {
+	life := expiry - now.Unix()
+	for _, unit := range []int64{86400, 3600, 60} {
+		if life >= 2*unit {
+			return expiry - expiry%unit
+		}
+	}
+	return expiry
+}
+
+// randomRowID is a row id that orders nothing.
+func randomRowID() (int64, error) {
+	b, err := randomBytes(8)
+	if err != nil {
+		return 0, err
+	}
+	return int64(binary.BigEndian.Uint64(b) >> 1), nil
 }
 
 // Mailbox is what the owner receives at creation; the relay keeps only the
@@ -290,6 +398,7 @@ func (s *Store) PutEnvelope(ctx context.Context, mailboxID, deliveryID, hpkeEnc,
 	if expiry <= 0 || expiry > maxExpiry {
 		expiry = maxExpiry
 	}
+	expiry = coarseExpiry(expiry, now)
 	h := sha256.New()
 	h.Write(hpkeEnc)
 	h.Write(ciphertext)
@@ -303,7 +412,7 @@ func (s *Store) PutEnvelope(ctx context.Context, mailboxID, deliveryID, hpkeEnc,
 
 	var existingHash []byte
 	var existingExpiry int64
-	err = tx.QueryRowContext(ctx, `SELECT body_hash, expires_at FROM envelopes WHERE mailbox_id = ? AND delivery_id = ?`, mailboxID, deliveryID).
+	err = tx.QueryRowContext(ctx, `SELECT body_hash, expires_at FROM queued_envelopes WHERE mailbox_id = ? AND delivery_id = ?`, mailboxID, deliveryID).
 		Scan(&existingHash, &existingExpiry)
 	switch {
 	case err == nil:
@@ -316,15 +425,29 @@ func (s *Store) PutEnvelope(ctx context.Context, mailboxID, deliveryID, hpkeEnc,
 	}
 
 	var queued int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM envelopes WHERE mailbox_id = ?`, mailboxID).Scan(&queued); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM queued_envelopes WHERE mailbox_id = ?`, mailboxID).Scan(&queued); err != nil {
 		return nil, err
 	}
 	if queued >= MaxMailboxQueue {
 		return nil, ErrMailboxFull
 	}
+	var seq int64
+	err = tx.QueryRowContext(ctx,
+		`UPDATE mailboxes SET next_seq = next_seq + 1 WHERE mailbox_id = ? RETURNING next_seq - 1`,
+		mailboxID).Scan(&seq)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, ErrUnknownMailbox
+	case err != nil:
+		return nil, err
+	}
+	rowID, err := randomRowID()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO envelopes (mailbox_id, delivery_id, body_hash, hpke_enc, ciphertext, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		mailboxID, deliveryID, bodyHash, hpkeEnc, ciphertext, expiry); err != nil {
+		`INSERT INTO queued_envelopes (row_id, mailbox_id, seq, delivery_id, body_hash, hpke_enc, ciphertext, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		rowID, mailboxID, seq, deliveryID, bodyHash, hpkeEnc, ciphertext, expiry); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -348,7 +471,7 @@ func (s *Store) FetchEnvelopes(ctx context.Context, mailboxID []byte, cursor uin
 		limit = 100
 	}
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT seq, delivery_id, hpke_enc, ciphertext FROM envelopes WHERE mailbox_id = ? AND seq > ? AND expires_at > ? ORDER BY seq LIMIT ?`,
+		`SELECT seq, delivery_id, hpke_enc, ciphertext FROM queued_envelopes WHERE mailbox_id = ? AND seq > ? AND expires_at > ? ORDER BY seq LIMIT ?`,
 		mailboxID, cursor, now.Unix(), limit)
 	if err != nil {
 		return nil, cursor, err
@@ -375,7 +498,7 @@ func (s *Store) AckEnvelopes(ctx context.Context, mailboxID []byte, deliveryIDs 
 	}
 	defer tx.Rollback()
 	for _, d := range deliveryIDs {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM envelopes WHERE mailbox_id = ? AND delivery_id = ?`, mailboxID, d); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM queued_envelopes WHERE mailbox_id = ? AND delivery_id = ?`, mailboxID, d); err != nil {
 			return err
 		}
 	}
@@ -384,7 +507,7 @@ func (s *Store) AckEnvelopes(ctx context.Context, mailboxID []byte, deliveryIDs 
 
 // ExpireEnvelopes removes envelopes past their TTL. Called periodically.
 func (s *Store) ExpireEnvelopes(ctx context.Context, now time.Time) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM envelopes WHERE expires_at <= ?`, now.Unix())
+	res, err := s.db.ExecContext(ctx, `DELETE FROM queued_envelopes WHERE expires_at <= ?`, now.Unix())
 	if err != nil {
 		return 0, err
 	}

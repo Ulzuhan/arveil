@@ -66,7 +66,7 @@ La aceptación física y con tres usuarios externos de M3b.5 sigue abierta. El [
 | [ADR-012](adr/ADR-012-qr-codes-and-links.md) | Códigos QR y enlaces para unirse, vincular dispositivos y añadir contactos; la verificación como paso aparte y opcional (implementada) |
 | [ADR-013](adr/ADR-013-realm-administration-from-the-app.md) | Roles del realm y administración desde la app, con el servidor como último recurso (propuesta) |
 | [ADR-014](adr/ADR-014-relay-activity-notices.md) | Avisos de actividad desde el relay por el canal Noise, sin ntfy ni Google (propuesta) |
-| [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) | Menos metadatos de entrega guardados, un perfil de remitente anónimo y lo que no es objetivo (propuesta) |
+| [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) | Menos metadatos de entrega guardados (implementado, esquema 6 del relay), un perfil de remitente anónimo y lo que no es objetivo (propuesta) |
 
 ### Apps
 
