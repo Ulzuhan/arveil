@@ -176,6 +176,10 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("invitation schema: %w", err)
 	}
+	if err := s.initWatch(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("watch schema: %w", err)
+	}
 	if err := s.recordSchemaVersion(); err != nil {
 		db.Close()
 		return nil, err
@@ -218,8 +222,9 @@ func (s *Store) checkVersion() error {
 // enough: a database at an older version is brought forward when it opens,
 // and a database at a newer one is refused rather than guessed at. Versions
 // up to 5 were additive; 6 moves the envelope queue to per-mailbox numbering
-// (ADR-015 part 1), so a relay older than 6 must not open it again.
-const SchemaVersion = 6
+// (ADR-015 part 1), so a relay older than 6 must not open it again; 7 adds
+// watch keys for activity notices (ADR-014).
+const SchemaVersion = 7
 
 // refuseFutureSchema reads the recorded version and refuses a database from
 // a newer relay. It reads only: a database with no `schema_migrations` table
@@ -350,6 +355,16 @@ func (s *Store) RedeemInvite(ctx context.Context, tokenHash []byte, now time.Tim
 }
 
 func insertCredential(ctx context.Context, tx *sql.Tx, e Enrollment) error {
+	// A transport key must never also be a watch key (ADR-014): the same
+	// static key would then open a member session for one device and a
+	// watch session for another.
+	var watch int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM watch_keys WHERE watch_key = ?`, e.TransportKey).Scan(&watch); err != nil {
+		return err
+	}
+	if watch > 0 {
+		return ErrDeviceKeyInUse
+	}
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO device_credentials (credential_hash, identity_id, device_id, transport_noise_public_key, signed, status, not_after)
 		 VALUES (?, ?, ?, ?, ?, 'active', ?)`,
@@ -565,6 +580,9 @@ func (s *Store) RecoverIdentity(ctx context.Context, e Enrollment, revoked [][]b
 			e.IdentityID, deviceID); err != nil {
 			return previous, err
 		}
+		if err := forgetWatchKey(ctx, tx, deviceID); err != nil {
+			return previous, err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO identity_recoveries
 		(credential_hash, signed_manifest, previous_sequence) VALUES (?, ?, ?)`,
@@ -607,6 +625,9 @@ func revokeCredentials(ctx context.Context, tx *sql.Tx, identityID []byte, hashe
 		if _, err := tx.ExecContext(ctx,
 			`UPDATE capabilities SET revoked = 1 WHERE mailbox_id IN (SELECT mailbox_id FROM mailboxes WHERE owner_identity = ? AND owner_device = ?)`,
 			identityID, deviceID); err != nil {
+			return n, err
+		}
+		if err := forgetWatchKey(ctx, tx, deviceID); err != nil {
 			return n, err
 		}
 		n++

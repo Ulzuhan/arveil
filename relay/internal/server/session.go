@@ -22,6 +22,10 @@ import (
 type session struct {
 	remoteStatic []byte
 	device       *store.Device // nil while provisional
+	// watcher is the device behind a watch key (ADR-014). A watch session
+	// is never a member session: device stays nil and only dispatchWatch
+	// answers it.
+	watcher *store.Device
 	// addr is what the per-address limits are keyed on. It never reaches
 	// the database and never reaches a log line.
 	addr               string
@@ -43,6 +47,18 @@ func (srv *Server) authorize(ctx context.Context, remoteStatic []byte, now time.
 	}
 	if d != nil && (d.Status != "active" || d.NotAfter < now.Unix()) {
 		return nil, errors.New("credential revoked or expired")
+	}
+	if d == nil {
+		w, found, err := srv.Store.DeviceByWatchKey(ctx, remoteStatic, now)
+		if err != nil {
+			return nil, err
+		}
+		if found && w == nil {
+			return nil, errors.New("watch key of a device without an active credential")
+		}
+		if w != nil {
+			return &session{remoteStatic: remoteStatic, watcher: w}, nil
+		}
 	}
 	return &session{remoteStatic: remoteStatic, device: d}, nil
 }
@@ -73,6 +89,8 @@ func (srv *Server) dispatchSession(ctx context.Context, s *session, f channel.Fr
 		return srv.recoverIdentity(ctx, s, f, now)
 	case channel.KindNotifyHintSet:
 		return srv.notifyHintSet(ctx, s, f, now)
+	case channel.KindWatchKeySet:
+		return srv.watchKeySet(ctx, s, f, now)
 	case channel.KindPairBegin:
 		return srv.pairBegin(ctx, s, f, now)
 	case channel.KindPairPut:
@@ -237,6 +255,9 @@ func (srv *Server) manifestPut(ctx context.Context, s *session, f channel.Frame)
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
 	srv.Logger.Printf("manifest %d for identity %x: %d active, %d revoked (%d newly revoked)", m.ManifestSequence, s.device.IdentityID[:4], len(m.ActiveCredentialHashes), len(m.RevokedCredentialHashes), revoked)
+	if revoked > 0 {
+		srv.recheckWatchers(ctx, s.device.IdentityID, time.Now())
+	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
 
@@ -377,6 +398,7 @@ func (srv *Server) recoverIdentity(ctx context.Context, s *session, f channel.Fr
 		NotAfter:       int64(v.Credential.Validity.NotAfter),
 	}
 	srv.Logger.Printf("identity recovered: %x now on device %x, manifest %d (was %d)", v.IdentityID[:4], v.Credential.DeviceID[:4], m.ManifestSequence, previous)
+	srv.recheckWatchers(ctx, v.IdentityID, now)
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{
 		Kind: channel.KindRecovered, IdentityID: v.IdentityID, PreviousSequence: previous,
 	}}

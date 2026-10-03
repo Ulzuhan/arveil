@@ -90,6 +90,7 @@ func (srv *Server) envelopePut(ctx context.Context, s *session, f channel.Frame,
 	// Only the empty to non-empty transition is worth a hint (M3.4).
 	if res.WasEmpty && !res.Duplicate {
 		srv.notifyMailbox(ctx, p.MailboxID)
+		srv.wakeMailbox(ctx, p.MailboxID)
 	}
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindEnvelopeAccepted, EffectiveExpiry: uint64(res.EffectiveExpiry)}}
 }

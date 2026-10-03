@@ -21,6 +21,19 @@ func (c *Channel) Seal(f Frame) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return c.seal(b)
+}
+
+// SealPadded is Seal with the frame padded to at least `size` bytes.
+func (c *Channel) SealPadded(f Frame, size int) ([][]byte, error) {
+	b, err := EncodePadded(f, size)
+	if err != nil {
+		return nil, err
+	}
+	return c.seal(b)
+}
+
+func (c *Channel) seal(b []byte) ([][]byte, error) {
 	frags := Fragments(b)
 	out := make([][]byte, 0, len(frags))
 	for _, frag := range frags {

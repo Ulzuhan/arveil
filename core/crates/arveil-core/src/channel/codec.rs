@@ -13,6 +13,11 @@ use serde::{Deserialize, Serialize};
 /// Upper bound for one encoded frame. Blobs move in chunks well below this.
 pub const MAX_FRAME_BYTES: usize = 1024 * 1024;
 
+/// Size every frame of a watch session, and every activity notice, is padded
+/// to, so an observer of the carrier cannot tell a notice from a keepalive
+/// by its length (ADR-014). Matches the relay's `WatchFrameBytes`.
+pub const WATCH_FRAME_BYTES: usize = 256;
+
 #[derive(Debug, thiserror::Error)]
 pub enum CodecError {
     #[error("codec: encoded frame of {0} bytes exceeds {MAX_FRAME_BYTES}")]
@@ -95,6 +100,19 @@ pub enum Payload {
     /// Liveness for carriers that close idle connections.
     Ping,
     Pong,
+    /// Register, replace or (empty) remove this device's watch key: a
+    /// separate Noise key whose sessions may only wait for activity
+    /// notices (ADR-014). Sent from a member session.
+    WatchKeySet {
+        #[serde(with = "serde_bytes")]
+        key: Vec<u8>,
+    },
+    /// Subscribe this session to notices for its device's mailboxes. The
+    /// relay answers `Ack`, and at once sends a notice if mail is waiting.
+    MailboxWatch,
+    /// Unsolicited notice, frame id 0: a mailbox of this device went from
+    /// empty to non-empty. It names nothing and counts nothing.
+    MailboxWakeup,
     /// Request the realm's signed endpoint list.
     EndpointListGet,
     /// The signed `RealmEndpointList` bytes (deterministic CBOR, signed).
@@ -376,6 +394,43 @@ pub fn encode(frame: &Frame) -> Result<Vec<u8>, CodecError> {
         return Err(CodecError::TooLarge(out.len()));
     }
     Ok(out)
+}
+
+/// A frame with a top-level `pad` field. Decoders ignore the field, so a
+/// padded frame decodes as the same [`Frame`].
+#[derive(Serialize)]
+struct PaddedFrame<'a> {
+    id: u64,
+    payload: &'a Payload,
+    #[serde(with = "serde_bytes")]
+    pad: Vec<u8>,
+}
+
+/// Encode a frame padded to at least `size` bytes; a frame already that
+/// large is left as it is. Produces the same bytes as the relay's
+/// `EncodePadded`: the shortest padding that reaches `size`.
+pub fn encode_padded(frame: &Frame, size: usize) -> Result<Vec<u8>, CodecError> {
+    let plain = encode(frame)?;
+    if plain.len() >= size {
+        return Ok(plain);
+    }
+    // The pad field costs its key (4 bytes) and a bstr header (1 to 3).
+    let mut n = size.saturating_sub(plain.len() + 7);
+    loop {
+        let padded = crate::signed::canonical(&PaddedFrame {
+            id: frame.id,
+            payload: &frame.payload,
+            pad: vec![0; n],
+        })
+        .map_err(|e| CodecError::Encode(e.to_string()))?;
+        if padded.len() > MAX_FRAME_BYTES {
+            return Err(CodecError::TooLarge(padded.len()));
+        }
+        if padded.len() >= size {
+            return Ok(padded);
+        }
+        n += 1;
+    }
 }
 
 /// Decode a frame; refuses inputs over [`MAX_FRAME_BYTES`] before parsing.
