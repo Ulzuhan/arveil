@@ -118,7 +118,7 @@ if command -v sqlite3 >/dev/null; then
   done
   echo "$DUMP" | grep -qi "$GROUP_ID" && fail "MLS group id found in the relay database"
   echo "no plaintext, no group id ($GROUP_ID), no conversation table"
-  sqlite3 "$DATA/relay/realm.db" 'SELECT "memberships", COUNT(*) FROM realm_memberships; SELECT "mailboxes", COUNT(*) FROM mailboxes; SELECT "envelopes left", COUNT(*) FROM envelopes; SELECT "key packages consumed", COUNT(*) FROM key_packages WHERE consumed = 1;'
+  sqlite3 "$DATA/relay/realm.db" 'SELECT "memberships", COUNT(*) FROM realm_memberships; SELECT "mailboxes", COUNT(*) FROM mailboxes; SELECT "envelopes left", COUNT(*) FROM queued_envelopes; SELECT "key packages consumed", COUNT(*) FROM key_packages WHERE consumed = 1;'
 else
   echo "sqlite3 not installed: inventory skipped"
 fi

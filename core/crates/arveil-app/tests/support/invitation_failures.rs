@@ -231,7 +231,7 @@ fn acceptance_recovers_across_every_persistence_boundary_after_process_exit() {
             assert_eq!(count(&relay_db(&f), "key_package_claim_receipts"), 1);
         }
         if stage == "publication reply" {
-            assert_eq!(count(&relay_db(&f), "envelopes"), 1);
+            assert_eq!(count(&relay_db(&f), "queued_envelopes"), 1);
             assert_eq!(outbox.len(), 3);
         }
         remove_fault(&f, "guest");
@@ -290,7 +290,7 @@ fn acceptance_recovers_across_every_persistence_boundary_after_process_exit() {
             ("realm_memberships", 2),
             ("mailboxes", 2),
             ("key_package_claim_receipts", 1),
-            ("envelopes", 3),
+            ("queued_envelopes", 3),
         ] {
             assert_eq!(count(&r, table), total, "{stage}: {table}");
         }
@@ -550,7 +550,7 @@ fn backup_restores_invitation_receipts_owner_policy_and_undelivered_chat() {
         "server keys and URL changed"
     );
     assert_eq!(count(&relay_db(&f), "key_package_claim_receipts"), 1);
-    assert_eq!(count(&relay_db(&f), "envelopes"), 3);
+    assert_eq!(count(&relay_db(&f), "queued_envelopes"), 3);
     let owner = f.profile("owner");
     assert!(matches!(owner.invitations(A::Policy).unwrap(), O::Policy(p) if p.can_invite));
     let O::Items(rows) = owner.invitations(A::List { refresh: true }).unwrap() else {

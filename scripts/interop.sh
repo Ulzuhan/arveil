@@ -91,7 +91,7 @@ echo "refused as expected"
 echo "--- relay database inventory (I-01 spot check)"
 if command -v sqlite3 >/dev/null; then
   sqlite3 "$DATA/relay/realm.db" '.tables'
-  sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) AS memberships FROM realm_memberships; SELECT COUNT(*) AS credentials FROM device_credentials; SELECT COUNT(*) AS manifests FROM device_manifests; SELECT COUNT(*) AS mailboxes FROM mailboxes; SELECT COUNT(*) AS envelopes_left FROM envelopes;'
-  if sqlite3 "$DATA/relay/realm.db" 'SELECT hex(ciphertext) FROM envelopes' | grep -qi "$(printf 'hola alice' | xxd -p)"; then echo "PLAINTEXT FOUND IN RELAY"; exit 1; fi
+  sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) AS memberships FROM realm_memberships; SELECT COUNT(*) AS credentials FROM device_credentials; SELECT COUNT(*) AS manifests FROM device_manifests; SELECT COUNT(*) AS mailboxes FROM mailboxes; SELECT COUNT(*) AS envelopes_left FROM queued_envelopes;'
+  if sqlite3 "$DATA/relay/realm.db" 'SELECT hex(ciphertext) FROM queued_envelopes' | grep -qi "$(printf 'hola alice' | xxd -p)"; then echo "PLAINTEXT FOUND IN RELAY"; exit 1; fi
 fi
 echo "interop ok"

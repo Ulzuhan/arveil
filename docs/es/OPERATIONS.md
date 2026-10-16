@@ -142,6 +142,8 @@ Restaurar una copia antigua es visible para los clientes en vez de silencioso: u
 
 Parar, sustituir el binario, arrancar. El esquema migra al abrir. Haz una copia antes y conserva el binario anterior hasta que la familia haya usado el nuevo, porque no hay camino de vuelta para la base de datos.
 
+El esquema 6 del relay numera la cola de sobres por buzón y redondea las horas guardadas (parte 1 de la [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md)). Los clientes conservan sus cursores y no necesitan actualizarse. Un relay anterior al esquema 6 rechaza la base migrada; volver atrás significa restaurar la copia hecha antes de actualizar y perder lo que llegó después.
+
 ## Despliegue de invitaciones personales
 
 Véase [permiso owner y despliegue](INVITATIONS.md). La candidata migra relay

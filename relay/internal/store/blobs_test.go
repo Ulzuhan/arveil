@@ -163,3 +163,44 @@ func TestBlobLimitsAndReconcile(t *testing.T) {
 		t.Fatalf("staging sweep %d %v", n, err)
 	}
 }
+
+// A committed blob keeps its times to the hour and its expiry to the day,
+// in the database and on its file (ADR-015 part 1).
+func TestBlobTimesAreCoarse(t *testing.T) {
+	b, ctx, now, dir := blobStore(t)
+	owner := []byte{1, 1}
+	data := []byte("attachment")
+	sum := sha256.Sum256(data)
+	id, _, err := b.Begin(ctx, owner, uint64(len(data)), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Chunk(ctx, owner, id, 0, data); err != nil {
+		t.Fatal(err)
+	}
+	exp, err := b.Commit(ctx, owner, id, sum[:], 0, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp%86400 != 0 {
+		t.Fatalf("expiry %d is not a day boundary", exp)
+	}
+	var created int64
+	if err := b.s.db.QueryRow(`SELECT created_at FROM blobs WHERE blob_id = ?`, id).Scan(&created); err != nil {
+		t.Fatal(err)
+	}
+	if created%3600 != 0 || created > now.Unix() || now.Unix()-created >= 3600 {
+		t.Fatalf("created_at %d is not the hour of %d", created, now.Unix())
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "blobs", "*"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("blob files %v: %v", files, err)
+	}
+	info, err := os.Stat(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.ModTime().Unix() != created {
+		t.Fatalf("file time %v, want %d", info.ModTime(), created)
+	}
+}

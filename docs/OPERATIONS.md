@@ -137,6 +137,8 @@ Restoring an old snapshot is visible to clients rather than silent: a device rec
 
 Stop, replace the binary, start. The schema migrates on open. Take a backup first, and keep the previous binary until the family has used the new one, because there is no downgrade path for the database.
 
+Relay schema 6 renumbers the envelope queue per mailbox and rounds stored times ([ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) part 1). Clients keep their cursors and need no update. A relay older than schema 6 refuses the migrated database; going back means restoring the backup taken before the upgrade, and losing what arrived since.
+
 ## Personal invitation rollout
 
 See [owner setup and rollout](INVITATIONS.md). The personal invitation implementation migrates relay

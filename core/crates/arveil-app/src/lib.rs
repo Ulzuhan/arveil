@@ -4016,6 +4016,19 @@ fn enrolled(config: &ProfileConfig) -> Result<(Client, StoredDevice, StoredRealm
     Ok((client, device, realm))
 }
 
+/// A uniformly random permutation of `0..n` (Fisher-Yates). The modulo bias
+/// of a 64-bit draw over a roster of a few dozen devices is negligible.
+fn shuffled_order(n: usize) -> Result<Vec<usize>, getrandom::Error> {
+    let mut order: Vec<usize> = (0..n).collect();
+    for i in (1..n).rev() {
+        let mut draw = [0_u8; 8];
+        getrandom::fill(&mut draw)?;
+        let j = (u64::from_le_bytes(draw) % (i as u64 + 1)) as usize;
+        order.swap(i, j);
+    }
+    Ok(order)
+}
+
 fn random_delivery_id() -> Result<Vec<u8>, CliError> {
     let mut id = [0_u8; 16];
     getrandom::fill(&mut id).map_err(domain_error("random"))?;
@@ -4171,7 +4184,10 @@ impl FanOut {
     }
 }
 
-/// Fan-out: one envelope per routable, non-revoked peer device.
+/// Fan-out: one envelope per routable, non-revoked peer device. The outbox
+/// sends in the order envelopes are queued, so they are queued in a random
+/// order: the copies of one message do not reach the relay in roster order,
+/// with the sender's own devices always first or last (ADR-015 part 1).
 fn enqueue_for_all(
     s: &Session,
     peers: &[Peer],
@@ -4179,7 +4195,8 @@ fn enqueue_for_all(
     mls_bytes: &[u8],
 ) -> Result<FanOut, rusqlite::Error> {
     let mut out = FanOut::default();
-    for p in peers {
+    let order = shuffled_order(peers.len()).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    for p in order.into_iter().map(|i| &peers[i]) {
         // A device known to be revoked receives nothing more.
         if p.revoked {
             out.revoked += 1;
@@ -5904,6 +5921,22 @@ mod tests {
     use super::*;
     use futures_util::SinkExt;
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn fan_out_order_is_a_permutation_that_varies() {
+        assert!(shuffled_order(0).unwrap().is_empty());
+        assert_eq!(shuffled_order(1).unwrap(), vec![0]);
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..200 {
+            let mut order = shuffled_order(6).unwrap();
+            seen.insert(order.clone());
+            order.sort_unstable();
+            assert_eq!(order, (0..6).collect::<Vec<_>>());
+        }
+        // 720 orders exist; 200 draws landing on very few would mean the
+        // roster order survived.
+        assert!(seen.len() > 100, "only {} distinct orders", seen.len());
+    }
 
     fn enrolled_test_application(label: &str, url: &str) -> (PathBuf, String, Application) {
         let profile = std::env::temp_dir().join(format!(
