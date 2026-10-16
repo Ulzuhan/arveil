@@ -615,6 +615,15 @@ void main() {
       find.bySemanticsLabel('Código QR para vincular un dispositivo'),
       findsOneWidget,
     );
+    expect(
+      find.textContaining(RegExp(r'^Caduca en (10:00|9:5\d)\.$')),
+      findsOneWidget,
+    );
+    // The panel reads its texts together; the countdown in whole minutes.
+    expect(
+      find.bySemanticsLabel(RegExp(r'\nCaduca en 10 minutos o menos\.\n')),
+      findsOneWidget,
+    );
     expect(find.text('Esperando al dispositivo nuevo…'), findsOneWidget);
     expect(profile.answers, isEmpty);
     profile.asked!.complete(

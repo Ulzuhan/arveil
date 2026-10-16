@@ -83,7 +83,7 @@ String dayLabel(DateTime day, {DateTime? now}) {
   return switch (today.difference(_day(day)).inDays) {
     0 => currentStrings.today,
     1 => currentStrings.yesterday,
-    _ => numericDate(currentStrings, day),
+    _ => shortDate(currentStrings, day),
   };
 }
 
