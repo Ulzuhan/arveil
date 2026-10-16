@@ -14,7 +14,7 @@ La [beta 6 del cliente, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag
 | Google Play | Build 27 en pruebas internas, disponible el 1 de octubre; Sin revisar, no distribución de producción |
 | Homebrew | Cask `0.1.0-beta.6,27`; estilo y descarga/suma reales correctos |
 | Anuncio firmado | Canal beta, secuencia 8; firma, feed público y redirecciones de descarga verificados |
-| Relay compatible | `e4011f3f2781aa48888d7da35114aa475d6ff71e` desplegado en el entorno de prueba; copia consistente, identidad conservada, servicios activos y prueba Noise pública correctos |
+| Relay compatible | `e4011f3f2781aa48888d7da35114aa475d6ff71e` desplegado en el entorno de prueba; copia consistente, identidad conservada, servicios activos y prueba Noise pública correctos. Desde el 16-10-2026 ejecuta `d2417aaf5243042f32e14005332cc13f80701ef2` (esquema 7 del relay, [ADR-014](adr/ADR-014-relay-activity-notices.md) y parte 1 de la [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md)), migrado desde el esquema 5 tras ensayarlo sobre una copia; los clientes de la beta 6 no necesitan cambios |
 | Web complementaria | PR [#3](https://github.com/Ulzuhan/kaicorplabs-web/pull/3) integrada y desplegada; guías y descargas firmadas en `8cc3d8b`; Lighthouse correcto en ambos idiomas |
 
 El APK directo conserva su certificado. El AAB usa la clave de subida establecida; Google Play firma la distribución con su propio certificado de app. macOS conserva firma ad hoc, sin notarización de Apple. Actualiza por el mismo canal sin desinstalar ni borrar datos del perfil.

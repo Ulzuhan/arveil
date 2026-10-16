@@ -14,7 +14,7 @@ Status checked October 1, 2026. Publication and milestone acceptance are separat
 | Google Play | Build 27, internal testing, available to internal testers on October 1; unreviewed, not production distribution |
 | Homebrew | Cask `0.1.0-beta.6,27`; style and actual download/checksum passed |
 | Signed announcement | Beta sequence 8; signature, live feed and download redirects verified |
-| Compatible relay | `e4011f3f2781aa48888d7da35114aa475d6ff71e` deployed in the test environment; consistent backup, unchanged realm identity, active services and public Noise probe passed |
+| Compatible relay | `e4011f3f2781aa48888d7da35114aa475d6ff71e` deployed in the test environment; consistent backup, unchanged realm identity, active services and public Noise probe passed. Since 2026-10-16 it runs `d2417aaf5243042f32e14005332cc13f80701ef2` (relay schema 7, [ADR-014](adr/ADR-014-relay-activity-notices.md) and [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) part 1), migrated from schema 5 after a rehearsal on a copy; beta 6 clients need no change |
 | Companion web | PR [#3](https://github.com/Ulzuhan/kaicorplabs-web/pull/3) merged and deployed; guides and signed downloads at `8cc3d8b`; both languages pass Lighthouse |
 
 The direct APK retains its release certificate. The Play AAB uses the established upload key; Google Play signs delivery with its own app-signing certificate. macOS remains ad-hoc signed, without Apple notarization. Update through the same channel without uninstalling or clearing profile data.

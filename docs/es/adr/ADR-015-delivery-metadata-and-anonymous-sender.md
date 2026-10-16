@@ -1,6 +1,6 @@
 # ADR-015 — Metadatos de entrega y remitente anónimo
 
-- **Estado:** parte 1 (metadatos de entrega guardados) implementada el 02-10-2026 como esquema 6 del relay, aún sin desplegar. La parte 2 (remitente anónimo) sigue propuesta y espera a las condiciones que enumera. La parte 3 deja escrito lo que no es objetivo.
+- **Estado:** parte 1 (metadatos de entrega guardados) implementada el 02-10-2026 como esquema 6 del relay y desplegada en el entorno de prueba el 16-10-2026 (`d2417aa`, tras ensayarla sobre una copia de su base). La parte 2 (remitente anónimo) sigue propuesta y espera a las condiciones que enumera. La parte 3 deja escrito lo que no es objetivo.
 - **Fecha:** 2026-10-02.
 - **Alcance:** qué puede relacionar el relay entre remitentes, buzones y personas, en su base de datos y mientras funciona, y qué reducciones compensan su coste en un realm familiar.
 
