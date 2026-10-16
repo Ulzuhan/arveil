@@ -6,7 +6,7 @@
 
 ## 1. Activos y límites de confianza
 
-Activos de máxima sensibilidad: claves raíz personales, claves privadas de dispositivo, secretos MLS activos, claves de la base local, códigos de recuperación, contenido e historial exportado. También son sensibles el grafo social, las identidades públicas correlacionables, las direcciones IP, las capabilities, los tokens push y el estado de revocación.
+Activos de máxima sensibilidad: claves raíz personales, claves privadas de dispositivo, secretos MLS activos, claves de la base local, códigos de recuperación, contenido e historial exportado. También son sensibles el grafo social, las identidades públicas correlacionables, las direcciones IP, las capabilities, los tokens push, las claves de vigilancia de los avisos de actividad ([ADR-014](adr/ADR-014-relay-activity-notices.md)) y el estado de revocación.
 
 El perímetro confiable incluye el core y la UI legítimos, el sistema operativo mientras usa plaintext y el dispositivo que autoriza una identidad. Una pantalla desbloqueada o un proceso comprometido pueden exponer conversaciones. El realm, proxy, red, túnel o CDN intermedio, proveedor push, directorio y almacenamiento remoto se tratan como adversariales para confidencialidad del contenido y autenticidad de personas. Un intermediario que termina TLS, como Cloudflare Tunnel, se trata además como adversario de la API: el canal Noise de [ADR-008](adr/ADR-008-carrier-independent-transport.md) le impide ver o usar credenciales e identificadores.
 
@@ -28,7 +28,7 @@ El propietario del homelab puede ser honesto, curioso o malicioso. E2EE debe pro
 | Robo de dispositivo bloqueado | Cifrado local y secretos protegidos por el SO | Depende del bloqueo, hardware y configuración; no protege memoria ya desbloqueada |
 | Malware en dispositivo o cliente adulterado | Reducir privilegios, releases firmadas, revisión y actualizaciones | Fuera de la garantía E2EE: el atacante usa claves y plaintext legítimos |
 | Robo de backup personal | Archivo autenticado y cifrado con secreto de alta entropía | Backup y clave juntos exponen contenido; una copia con raíz también permite suplantación |
-| Proveedor push curioso | Payload genérico, adaptador opcional | Puede ver token, IP, tiempos y aplicación; el SO no garantiza despertar siempre |
+| Avisos de actividad ([ADR-014](adr/ADR-014-relay-activity-notices.md), propuesta) | Opcionales y desactivados por defecto; avisos dentro del canal Noise con tamaño fijo; clave solo de vigilancia que no puede descargar, confirmar ni enviar; notificación local genérica sin abrir el perfil | Mientras están activos, el realm y la ruta intermedia ven de forma continua cuándo está conectado el móvil y desde qué IP; una clave de vigilancia robada revela cuándo ese buzón tiene correo hasta la revocación; el SO no garantiza que el servicio sobreviva. El receptor ntfy experimental de las betas 5 y 6 expone además el servidor ntfy y sus endpoints hasta que se retire |
 | Miembro malicioso del grupo | Firma/identidad de cada leaf y autorización de cambios | Un destinatario legítimo puede copiar, fotografiar o publicar contenido |
 | Agotamiento de disco, CPU o ancho de banda | Cuotas, tamaños, límites de parsing y de epoch futuro | No se promete resistencia a DDoS ni disponibilidad frente al operador |
 | Análisis global de tráfico | Menos semántica persistida, padding y envoltorio individual | No resuelto; autenticación de entrega y fan-out permiten correlación |
@@ -43,6 +43,8 @@ El propietario del homelab puede ser honesto, curioso o malicioso. E2EE debe pro
 | Mailbox y dispositivo propietario | Visible por control de acceso/cuotas |
 | Emisor de una solicitud autenticada y mailbox destino | Visible durante la entrega; correlacionable por un operador |
 | IP, hora, tamaño, frecuencia, tokens push | Visible según el componente; minimizar retención |
+| Presencia de un dispositivo con avisos de actividad | Su conexión permanente y sus cambios de IP, de forma continua, para el realm y la ruta intermedia ([ADR-014](adr/ADR-014-relay-activity-notices.md)) |
+| Sobres en cola | Buzón, id de entrega aleatorio, tramo de tamaño y caducidad; no el remitente. Hasta la parte 1 de la [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md), una secuencia común al realm y caducidades al segundo permiten a una base robada agrupar las copias de un mismo mensaje |
 | Frames de la API, capabilities, IDs de mailbox y entrega | Visibles solo para el realm dentro del canal Noise; opacos para túneles, CDNs y proxies |
 | Lista de endpoints y clave Noise del realm | Pública por diseño; su autenticidad depende de la clave de firma del realm, no del carrier |
 | ID del grupo MLS, epochs, roster y títulos | Dentro del envoltorio cifrado; no columnas del servidor |
@@ -51,6 +53,10 @@ El propietario del homelab puede ser honesto, curioso o malicioso. E2EE debe pro
 | Backups de historial alojados voluntariamente | Ciphertext, tamaño y patrón de acceso; no contenido sin clave |
 
 La ausencia de tablas de conversaciones reduce lo almacenado y expuesto por consultas ordinarias. No impide que un servidor modificado reconstruya relaciones a partir de conexiones y entregas. Los identificadores criptográficos estables pueden correlacionar una persona entre realms si reutiliza la raíz: esta arquitectura no afirma carecer de identificadores globalmente correlacionables.
+
+### No es objetivo: impedir relacionar los buzones de una persona
+
+Arveil no intenta impedir que el realm relacione los buzones, entregas y conexiones de una misma persona, como hace SimpleX Chat con colas creadas sin cuenta. Un realm funciona por membresía: conoce a sus miembros, qué dispositivo es dueño de cada buzón y qué sesión envía cada entrega. En un realm de pocas personas, un operador que observe direcciones IP y tiempos puede reconstruir quién escribe a quién haga lo que haga el protocolo. La [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md) reduce lo que revela una base de datos robada y deja preparado un perfil de remitente anónimo para cuando compense; las colas anónimas por contacto y ocultar las direcciones IP quedan allí como no objetivos, con las condiciones para reabrirlos.
 
 Un intermediario del carrier ve lo mismo que un observador de red: quién se conecta, cuándo y cuánto envía. Con Cloudflare Tunnel ese observador es un tercero permanente en otra jurisdicción; con Funnel o un VPS con passthrough, ve solo bytes TLS. Es una decisión de despliegue del operador, no un cambio de garantías. Padding por buckets reduce precisión de tamaños, no oculta el volumen total. Una clave exterior HPKE comprometida puede revelar cabeceras MLS de sobres grabados; la confidencialidad del contenido sigue dependiendo de MLS. No se atribuye forward secrecy a una clave de recepción HPKE estática.
 
@@ -80,11 +86,13 @@ Un intermediario del carrier ve lo mismo que un observador de red: quién se con
 | I-06 | Un dispositivo retirado pierde acceso a epochs nuevos | Prueba con varios miembros, partición, Remove y posterior Update/commit; límites de epochs antiguos documentados |
 | I-07 | El historial importado no revive secretos MLS antiguos | Restauración de backup desactualizado; nuevo dispositivo, reingreso y archivo separado |
 | I-08 | El server restore no hace retroceder versiones conocidas | Snapshot anterior a revocación y entregas; detección y reconciliación |
-| I-09 | Push, errores y telemetría no filtran contenido/capabilities | Payloads reales, logs de proxy, crash reports y trazas de bindings revisados |
+| I-09 | Avisos, errores y telemetría no filtran contenido/capabilities | Payloads y frames de aviso reales, logs de proxy, crash reports y trazas de bindings revisados |
 | I-10 | Entradas malformadas no consumen recursos ilimitados | Fuzzing de framing, CBOR/MLS/HPKE y pruebas de cuotas antes de deserializar |
 | I-11 | El backup conserva un conjunto consistente | Restauración aislada con DB, blobs, migraciones y secretos operativos coherentes |
 | I-12 | Un intermediario que termina TLS no obtiene credenciales, identificadores ni capacidad de actuar | Captura en el lado del origen de un túnel: solo frames opacos; replay del primer mensaje Noise sin efecto; endpoint con clave distinta rechazado |
 | I-13 | El cliente conmuta de carrier sin intervención y sin retroceder la lista de endpoints | Caída secuencial de LAN, tailnet y público; lista con secuencia inferior o firma inválida rechazada |
+| I-14 | Una clave de vigilancia solo vigila ([ADR-014](adr/ADR-014-relay-activity-notices.md)) | Una sesión de vigilancia envía frames de descarga, confirmación, envío, blobs, KeyPackages, manifiestos e invitaciones: todos rechazados; la revocación la cierra |
+| I-15 | Una base de datos robada no agrupa las copias de un mismo mensaje (parte 1 de la [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md)) | Mensaje de grupo a N dispositivos e inspección de la base y de una copia: sin orden común al realm ni caducidad idéntica al segundo |
 
 Estas pruebas pueden detectar incumplimientos. Ninguna prueba de «no encontramos plaintext» demuestra por sí sola que un atacante no pueda descifrar; la revisión criptográfica, las suposiciones y la calidad de bibliotecas siguen siendo esenciales.
 

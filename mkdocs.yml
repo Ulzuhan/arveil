@@ -90,6 +90,8 @@ nav:
       - ADR-011 Names people choose: adr/ADR-011-shared-display-names.md
       - ADR-012 QR codes and links: adr/ADR-012-qr-codes-and-links.md
       - ADR-013 Realm administration: adr/ADR-013-realm-administration-from-the-app.md
+      - ADR-014 Activity notices from the relay: adr/ADR-014-relay-activity-notices.md
+      - ADR-015 Delivery metadata and anonymous sender: adr/ADR-015-delivery-metadata-and-anonymous-sender.md
   - Evidence:
       - Demo transcript: evidence/demo-transcript.txt
       - Q3 capture excerpt: evidence/q3-capture-excerpt.txt
@@ -132,6 +134,8 @@ nav:
       - ADR-011 Nombres que cada persona elige: es/adr/ADR-011-shared-display-names.md
       - ADR-012 Códigos QR y enlaces: es/adr/ADR-012-qr-codes-and-links.md
       - ADR-013 Administrar el realm: es/adr/ADR-013-realm-administration-from-the-app.md
+      - ADR-014 Avisos de actividad desde el relay: es/adr/ADR-014-relay-activity-notices.md
+      - ADR-015 Metadatos de entrega y remitente anónimo: es/adr/ADR-015-delivery-metadata-and-anonymous-sender.md
 
 validation:
   anchors: warn

@@ -71,6 +71,8 @@ en una versión publicada.
 
 ## Android: experimento con servidor propio
 
+> **Pendiente de sustituir.** La [ADR-014](adr/ADR-014-relay-activity-notices.md) (propuesta) hace que el relay avise de la actividad por el canal Noise a un servicio en primer plano de Arveil, con una clave solo de vigilancia. Desaparecen ntfy, la app distribuidora UnifiedPush y la dirección del servidor escrita a mano. Esta sección describe lo que incluyen las betas 5 y 6 hasta entonces.
+
 ```mermaid
 flowchart LR
   R[Relay] -->|Aviso genérico del buzón| N[ntfy propio]
