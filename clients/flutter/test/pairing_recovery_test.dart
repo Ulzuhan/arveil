@@ -196,6 +196,16 @@ class RecoveryProfile extends FakeProfile {
   void stopWatching({required BigInt generation}) {}
 
   @override
+  BigInt startActivity() => BigInt.one;
+
+  @override
+  Stream<ActivityView> watchActivity({required BigInt generation}) =>
+      const Stream.empty();
+
+  @override
+  void stopActivity({required BigInt generation}) {}
+
+  @override
   Future<bool> cancelPairing({required List<int> sessionId}) async {
     cancellations++;
     state = const SetupView(

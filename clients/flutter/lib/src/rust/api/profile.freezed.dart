@@ -194,7 +194,7 @@ return other(_that.kind);case _:
 
 class CardView_Invitation extends CardView {
   const CardView_Invitation({this.name, required this.server, required this.expiresAt}): super._();
-
+  
 
  final  String? name;
  final  String server;
@@ -264,7 +264,7 @@ as BigInt,
 
 class CardView_Join extends CardView {
   const CardView_Join({required this.bootstrap, required this.invitation}): super._();
-
+  
 
  final  String bootstrap;
  final  String invitation;
@@ -332,7 +332,7 @@ as String,
 
 class CardView_Link extends CardView {
   const CardView_Link({required this.server, required this.expiresAt}): super._();
-
+  
 
  final  String server;
  final  BigInt expiresAt;
@@ -400,7 +400,7 @@ as BigInt,
 
 class CardView_Contact extends CardView {
   const CardView_Contact({this.name}): super._();
-
+  
 
  final  String? name;
 
@@ -466,7 +466,7 @@ as String?,
 
 class CardView_Other extends CardView {
   const CardView_Other({required this.kind}): super._();
-
+  
 
  final  String kind;
 
@@ -740,7 +740,7 @@ return interrupted(_that.reason);case _:
 
 class CommandError_Busy extends CommandError {
   const CommandError_Busy({required this.operation, required this.active}): super._();
-
+  
 
  final  String operation;
  final  int active;
@@ -808,7 +808,7 @@ as int,
 
 class CommandError_Panicked extends CommandError {
   const CommandError_Panicked({required this.operation}): super._();
-
+  
 
  final  String operation;
 
@@ -874,7 +874,7 @@ as String,
 
 class CommandError_Transport extends CommandError {
   const CommandError_Transport({required this.operation, required this.reason}): super._();
-
+  
 
  final  String operation;
  final  String reason;
@@ -942,7 +942,7 @@ as String,
 
 class CommandError_Storage extends CommandError {
   const CommandError_Storage({required this.operation, required this.reason}): super._();
-
+  
 
  final  String operation;
  final  String reason;
@@ -1010,7 +1010,7 @@ as String,
 
 class CommandError_Protocol extends CommandError {
   const CommandError_Protocol({required this.operation, required this.reason}): super._();
-
+  
 
  final  String operation;
  final  String reason;
@@ -1078,7 +1078,7 @@ as String,
 
 class CommandError_Quota extends CommandError {
   const CommandError_Quota({required this.operation, required this.reason}): super._();
-
+  
 
  final  String operation;
  final  String reason;
@@ -1146,7 +1146,7 @@ as String,
 
 class CommandError_Domain extends CommandError {
   const CommandError_Domain({required this.operation, required this.reason}): super._();
-
+  
 
  final  String operation;
  final  String reason;
@@ -1214,7 +1214,7 @@ as String,
 
 class CommandError_FileSystem extends CommandError {
   const CommandError_FileSystem({required this.operation, required this.reason}): super._();
-
+  
 
  final  String operation;
  final  String reason;
@@ -1282,7 +1282,7 @@ as String,
 
 class CommandError_Internal extends CommandError {
   const CommandError_Internal({required this.operation, required this.reason}): super._();
-
+  
 
  final  String operation;
  final  String reason;
@@ -1350,7 +1350,7 @@ as String,
 
 class CommandError_Interrupted extends CommandError {
   const CommandError_Interrupted({required this.reason}): super._();
-
+  
 
  final  String reason;
 
@@ -1612,7 +1612,7 @@ return io(_that.path,_that.reason);case _:
 
 class ProfileError_BadKey extends ProfileError {
   const ProfileError_BadKey(): super._();
-
+  
 
 
 
@@ -1644,7 +1644,7 @@ String toString() {
 
 class ProfileError_NoRandomness extends ProfileError {
   const ProfileError_NoRandomness(): super._();
-
+  
 
 
 
@@ -1676,7 +1676,7 @@ String toString() {
 
 class ProfileError_AlreadyOpen extends ProfileError {
   const ProfileError_AlreadyOpen({required this.path}): super._();
-
+  
 
  final  String path;
 
@@ -1742,7 +1742,7 @@ as String,
 
 class ProfileError_Closing extends ProfileError {
   const ProfileError_Closing({required this.path}): super._();
-
+  
 
  final  String path;
 
@@ -1808,7 +1808,7 @@ as String,
 
 class ProfileError_InUse extends ProfileError {
   const ProfileError_InUse({required this.path}): super._();
-
+  
 
  final  String path;
 
@@ -1874,7 +1874,7 @@ as String,
 
 class ProfileError_TooNew extends ProfileError {
   const ProfileError_TooNew({required this.path, required this.found, required this.supported}): super._();
-
+  
 
  final  String path;
  final  int found;
@@ -1944,7 +1944,7 @@ as int,
 
 class ProfileError_Unusable extends ProfileError {
   const ProfileError_Unusable({required this.path, required this.reason}): super._();
-
+  
 
  final  String path;
  final  String reason;
@@ -2012,7 +2012,7 @@ as String,
 
 class ProfileError_Io extends ProfileError {
   const ProfileError_Io({required this.path, required this.reason}): super._();
-
+  
 
  final  String path;
  final  String reason;
@@ -2306,7 +2306,7 @@ return gap(_that.dropped);case _:
 
 class ProgressKindView_MessageQueued extends ProgressKindView {
   const ProgressKindView_MessageQueued({required this.groupId, required this.eventId}): super._();
-
+  
 
  final  String groupId;
  final  String eventId;
@@ -2374,7 +2374,7 @@ as String,
 
 class ProgressKindView_MessageReceived extends ProgressKindView {
   const ProgressKindView_MessageReceived({required this.groupId, required this.eventId}): super._();
-
+  
 
  final  String groupId;
  final  String eventId;
@@ -2442,7 +2442,7 @@ as String,
 
 class ProgressKindView_EnvelopesPublished extends ProgressKindView {
   const ProgressKindView_EnvelopesPublished({required this.count, required this.pending}): super._();
-
+  
 
  final  int count;
  final  bool pending;
@@ -2510,7 +2510,7 @@ as bool,
 
 class ProgressKindView_DeliveryChanged extends ProgressKindView {
   const ProgressKindView_DeliveryChanged({required this.deliveryId, required this.state}): super._();
-
+  
 
  final  String deliveryId;
  final  String state;
@@ -2578,7 +2578,7 @@ as String,
 
 class ProgressKindView_FileAnnounced extends ProgressKindView {
   const ProgressKindView_FileAnnounced({required this.groupId, required this.eventId, required this.name, required this.size}): super._();
-
+  
 
  final  String groupId;
  final  String eventId;
@@ -2650,7 +2650,7 @@ as BigInt,
 
 class ProgressKindView_FileTransfer extends ProgressKindView {
   const ProgressKindView_FileTransfer({required this.name, required this.offset, this.total}): super._();
-
+  
 
  final  String name;
  final  BigInt offset;
@@ -2720,7 +2720,7 @@ as BigInt?,
 
 class ProgressKindView_FileSaved extends ProgressKindView {
   const ProgressKindView_FileSaved({required this.name}): super._();
-
+  
 
  final  String name;
 
@@ -2786,7 +2786,7 @@ as String,
 
 class ProgressKindView_Synced extends ProgressKindView {
   const ProgressKindView_Synced({required this.fetched, required this.new_, required this.acked}): super._();
-
+  
 
  final  int fetched;
  final  int new_;
@@ -2856,7 +2856,7 @@ as int,
 
 class ProgressKindView_PairingChanged extends ProgressKindView {
   const ProgressKindView_PairingChanged({required this.sessionId, required this.phase}): super._();
-
+  
 
  final  String sessionId;
  final  String phase;
@@ -2924,7 +2924,7 @@ as String,
 
 class ProgressKindView_PairingVerification extends ProgressKindView {
   const ProgressKindView_PairingVerification({required this.sessionId, required this.verificationCode, required this.confirmationRequired}): super._();
-
+  
 
  final  String sessionId;
  final  String verificationCode;
@@ -2994,7 +2994,7 @@ as bool,
 
 class ProgressKindView_RelayUnavailable extends ProgressKindView {
   const ProgressKindView_RelayUnavailable({required this.pending}): super._();
-
+  
 
  final  int pending;
 
@@ -3060,7 +3060,7 @@ as int,
 
 class ProgressKindView_Onboarding extends ProgressKindView {
   const ProgressKindView_Onboarding({required this.step}): super._();
-
+  
 
  final  String step;
 
@@ -3126,7 +3126,7 @@ as String,
 
 class ProgressKindView_Gap extends ProgressKindView {
   const ProgressKindView_Gap({required this.dropped}): super._();
-
+  
 
  final  int dropped;
 

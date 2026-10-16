@@ -718,13 +718,17 @@ pub fn watch(data_dir: &Path, bootstrap: &str, count: Option<u64>) -> Result<(),
             endpoints: vec![b.url.clone()],
             watch_private: key.private,
             watch_public: key.public,
+            tls_ca: ca.clone(),
         };
         let keepalive =
             std::time::Duration::from_secs(env_seconds("ARVEIL_WATCH_KEEPALIVE").unwrap_or(60));
         println!("watch: waiting for activity");
         let _ = std::io::stdout().flush();
         let mut seen = 0_u64;
-        arveil_app::watch::run(&credentials, ca.as_deref(), keepalive, || {
+        arveil_app::watch::run(&credentials, keepalive, |event| {
+            if event == arveil_app::watch::WatchEvent::Listening {
+                return true;
+            }
             seen += 1;
             println!("watch: activity {seen}");
             let _ = std::io::stdout().flush();
@@ -732,6 +736,56 @@ pub fn watch(data_dir: &Path, bootstrap: &str, count: Option<u64>) -> Result<(),
         })
         .await
     })?
+}
+
+/// `arveil watch credentials --data-dir D <bootstrap> [<url>]`
+///
+/// Registers a fresh watch key and prints the credentials an Android
+/// service waits with, as hex, with `url` as the only endpoint when given
+/// (an emulator reaches the host as 10.0.2.2). For acceptance tests: the
+/// output contains a private key, so keep it out of logs and files.
+pub fn watch_credentials(
+    data_dir: &Path,
+    bootstrap: &str,
+    url: Option<&str>,
+) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let guard = arveil_app::ProfileGuard::acquire(data_dir)
+        .map_err(|error| CliError::FileSystem(error.to_string()))?;
+    let (c, d, _r) = enrolled(data_dir)?;
+    drop(c);
+    drop(guard);
+    let key = StaticKeypair::generate().map_err(err("watch key"))?;
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &d.keys.transport_noise,
+            tls_ca().as_deref(),
+        )
+        .await?;
+        let reply = conn
+            .request(Payload::WatchKeySet {
+                key: key.public.clone(),
+            })
+            .await;
+        conn.close().await;
+        match reply? {
+            Payload::Ack => Ok(()),
+            other => Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+    })??;
+    let credentials = arveil_app::watch::WatchCredentials {
+        realm_id: b.realm_id.clone(),
+        realm_noise_public: b.noise_public.clone(),
+        endpoints: vec![url.unwrap_or(&b.url).to_string()],
+        watch_private: key.private,
+        watch_public: key.public,
+        tls_ca: None,
+    };
+    println!("credentials: {}", hex::encode(credentials.to_bytes()?));
+    Ok(())
 }
 
 /// `arveil watch clear`: remove this device's watch key from the realm.

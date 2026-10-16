@@ -37,6 +37,7 @@ const USAGE: &str = "usage:
   arveil notify clear --data-dir <dir> <bootstrap>
   arveil watch --data-dir <dir> <bootstrap> [<count>]
   arveil watch clear --data-dir <dir> <bootstrap>
+  arveil watch credentials --data-dir <dir> <bootstrap> [<url>]
   arveil contact list --data-dir <dir>
   arveil contact card --data-dir <dir> [--in-person]
   arveil contact card-close --data-dir <dir> <secret>
@@ -179,6 +180,14 @@ fn main() -> ExitCode {
             },
             ["notify", "clear", bootstrap] => match data_dir {
                 Some(d) => commands::notify_set(&d, bootstrap, ""),
+                None => usage(),
+            },
+            ["watch", "credentials", bootstrap] => match data_dir {
+                Some(d) => commands::watch_credentials(&d, bootstrap, None),
+                None => usage(),
+            },
+            ["watch", "credentials", bootstrap, url] => match data_dir {
+                Some(d) => commands::watch_credentials(&d, bootstrap, Some(url)),
                 None => usage(),
             },
             ["watch", "clear", bootstrap] => match data_dir {

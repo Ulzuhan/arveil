@@ -45,12 +45,20 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  RustStreamSink<ActivityView> dco_decode_StreamSink_activity_view_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<ProgressView> dco_decode_StreamSink_progress_view_Sse(
     dynamic raw,
   );
 
   @protected
   String dco_decode_String(dynamic raw);
+
+  @protected
+  ActivityView dco_decode_activity_view(dynamic raw);
 
   @protected
   ArchiveEntryView dco_decode_archive_entry_view(dynamic raw);
@@ -351,12 +359,20 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  RustStreamSink<ActivityView> sse_decode_StreamSink_activity_view_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<ProgressView> sse_decode_StreamSink_progress_view_Sse(
     SseDeserializer deserializer,
   );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  ActivityView sse_decode_activity_view(SseDeserializer deserializer);
 
   @protected
   ArchiveEntryView sse_decode_archive_entry_view(SseDeserializer deserializer);
@@ -721,6 +737,12 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_activity_view_Sse(
+    RustStreamSink<ActivityView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_progress_view_Sse(
     RustStreamSink<ProgressView> self,
     SseSerializer serializer,
@@ -728,6 +750,9 @@ abstract class ArveilRustApiImplPlatform extends BaseApiImpl<ArveilRustWire> {
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_activity_view(ActivityView self, SseSerializer serializer);
 
   @protected
   void sse_encode_archive_entry_view(

@@ -2,28 +2,17 @@ import 'package:flutter/material.dart';
 import '../l10n/l10n.dart';
 import 'android_notifications.dart';
 
-class AndroidNotificationSettings extends StatefulWidget {
+/// Activity notices on Android (ADR-014): one switch, what it costs, and
+/// what the phone may still do to it.
+class AndroidNotificationSettings extends StatelessWidget {
   const AndroidNotificationSettings({super.key, required this.controller});
   final AndroidNotifications controller;
-  @override
-  State<AndroidNotificationSettings> createState() =>
-      _AndroidNotificationSettingsState();
-}
-
-class _AndroidNotificationSettingsState
-    extends State<AndroidNotificationSettings> {
-  late final _server = TextEditingController(text: widget.controller.server);
-  @override
-  void dispose() {
-    _server.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
+    listenable: controller,
     builder: (context, _) {
-      final c = widget.controller;
+      final c = controller;
       final s = context.l10n;
       return Scaffold(
         appBar: AppBar(title: Text(s.notificationsTitle)),
@@ -36,34 +25,14 @@ class _AndroidNotificationSettingsState
                 children: [
                   Text(s.pushExplanation),
                   const SizedBox(height: 16),
-                  if (!c.installed) Text(s.pushInstall),
-                  TextField(
-                    controller: _server,
-                    enabled: !c.enabled && !c.busy,
-                    keyboardType: TextInputType.url,
-                    autocorrect: false,
-                    decoration: InputDecoration(
-                      labelText: s.pushServer,
-                      hintText: s.pushServerHint,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   SwitchListTile(
                     key: const Key('android-notifications-enabled'),
                     title: Text(s.pushEnable),
                     value: c.enabled,
-                    onChanged: c.busy || (!c.installed && !c.enabled)
-                        ? null
-                        : (v) => c.configure(enable: v, server: _server.text),
+                    onChanged: c.busy ? null : (v) => c.configure(enable: v),
                   ),
                   if (c.enabled)
-                    Text(
-                      c.waiting
-                          ? s.pushWaiting
-                          : c.relayPending
-                          ? s.pushRelayPending
-                          : s.pushReady,
-                    ),
+                    Text(c.listening ? s.pushReady : s.pushConnecting),
                   if (c.enabled && !c.permission) Text(s.pushPermission),
                   if (c.nativeError ?? c.error case final error?)
                     Padding(
@@ -75,11 +44,20 @@ class _AndroidNotificationSettingsState
                         ),
                       ),
                     ),
-                  if (c.enabled || c.relayPending)
-                    TextButton(
-                      onPressed: c.busy ? null : c.retry,
-                      child: Text(s.pushRetry),
+                  if (c.enabled && !c.batteryExempt) ...[
+                    const SizedBox(height: 16),
+                    Text(s.pushBattery),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton(
+                        key: const Key('android-notifications-battery'),
+                        onPressed: c.busy ? null : c.allowBackground,
+                        child: Text(s.pushBatteryAction),
+                      ),
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  Text(s.pushPrivacy),
                   const SizedBox(height: 16),
                   Text(s.pushLimits),
                 ],

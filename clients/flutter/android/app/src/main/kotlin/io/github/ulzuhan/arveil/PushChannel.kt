@@ -4,19 +4,24 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import android.provider.Settings
+import android.util.Base64
 import androidx.core.app.NotificationManagerCompat
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
-import org.unifiedpush.android.connector.UnifiedPush
-import java.util.UUID
 
+/** The app's side of activity notices (ADR-014). Registering and removing
+ * the watch key goes through the open Rust profile; this channel only keeps
+ * the credentials it is handed, encrypted, and starts or stops the service. */
 class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger) {
     private val channel = MethodChannel(messenger, "io.github.ulzuhan.arveil/push")
     private var permissionResult: MethodChannel.Result? = null
-    private var permissionServer: String? = null
+    private var permissionCredentials: ByteArray? = null
     private var opened = activity.intent?.action == PushNotice.openAction
     init {
         live = this
@@ -27,48 +32,32 @@ class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger
                     "bind" -> {
                         val owner = call.argument<String>("owner") ?: ""
                         require(owner.matches(Regex("[a-f0-9]{64}")))
-                        val previous = PushStore.read(activity)
-                        if (previous.optString("owner") != owner) {
-                            val instance = previous.optString("instance")
+                        if (PushStore.read(activity).optString("owner") != owner) {
+                            // Another identity on this phone: nothing of the
+                            // previous one's notices survives.
+                            WatchService.stop(activity)
                             PushStore.update(activity) { it.keys().asSequence().toList().forEach(it::remove); it.put("owner", owner) }
-                            if (instance.isNotEmpty()) UnifiedPush.unregister(activity, instance)
                             PushNotice.clear(activity)
-                        }
+                        } else if (WatchState.enabled(activity)) WatchService.start(activity)
                         result.success(status())
                     }
                     "enable" -> {
                         check(permissionResult == null)
-                        val server = PushPolicy.server(call.argument<String>("server") ?: "", BuildConfig.DEBUG)
-                        require(server != null)
-                        require(UnifiedPush.getDistributors(activity).contains(distributor))
+                        val credentials = call.argument<ByteArray>("credentials")
+                        require(credentials != null && credentials.size in 64..8192)
                         if (Build.VERSION.SDK_INT >= 33 && activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                             permissionResult = result
-                            permissionServer = server
+                            permissionCredentials = credentials
                             activity.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), permissionRequest)
-                        } else enable(server, result)
-                    }
-                    "retry" -> {
-                        val state = PushStore.read(activity)
-                        if (state.optBoolean("enabled")) register(state.optString("instance"))
-                        result.success(status())
+                        } else enable(credentials, result)
                     }
                     "disable" -> {
-                        val instance = PushStore.read(activity).optString("instance")
+                        WatchService.stop(activity)
                         PushStore.update(activity) {
-                            it.put("enabled", false).put("endpoint", "").put("error", "")
-                                .put("revision", UUID.randomUUID().toString()).put("pending", false).put("presented", false)
+                            it.put("enabled", false).put("watch", "").put("error", "").put("listening", false)
+                                .put("pending", false).put("presented", false).put("removal", true)
                         }
-                        if (instance.isNotEmpty()) UnifiedPush.unregister(activity, instance)
                         PushNotice.clear(activity)
-                        result.success(status())
-                    }
-                    "ack" -> {
-                        PushStore.update(activity) {
-                            if (it.optString("owner") == call.argument<String>("owner") &&
-                                it.optString("revision") == call.argument<String>("revision")) {
-                                it.put("applied", it.optString("revision"))
-                            }
-                        }
                         result.success(status())
                     }
                     "synced" -> {
@@ -82,6 +71,21 @@ class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger
                         if (clear) PushNotice.clear(activity)
                         result.success(status())
                     }
+                    "removed" -> {
+                        PushStore.update(activity) { if (!it.optBoolean("enabled")) it.remove("removal") }
+                        result.success(status())
+                    }
+                    "legacyCleared" -> {
+                        PushStore.update(activity) { state -> WatchState.legacy.forEach(state::remove) }
+                        result.success(status())
+                    }
+                    "battery" -> {
+                        if (Build.VERSION.SDK_INT >= 23 && !batteryExempt()) {
+                            activity.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                .setData(Uri.parse("package:${activity.packageName}")))
+                        }
+                        result.success(status())
+                    }
                     "takeOpen" -> { result.success(opened); opened = false }
                     else -> result.notImplemented()
                 }
@@ -89,51 +93,52 @@ class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger
         }
     }
 
-    private fun enable(server: String, result: MethodChannel.Result) {
+    private fun enable(credentials: ByteArray, result: MethodChannel.Result) {
         try {
             if (!NotificationManagerCompat.from(activity).areNotificationsEnabled()) {
                 PushStore.update(activity) { it.put("error", "permission") }
                 result.success(status()); return
             }
-            val previous = PushStore.read(activity)
-            check(previous.optString("owner").isNotEmpty())
-            val instance = if (previous.optBoolean("enabled") && previous.optString("server") == server)
-                previous.optString("instance") else UUID.randomUUID().toString()
-            if (previous.optString("instance").isNotEmpty() && previous.optString("instance") != instance)
-                UnifiedPush.unregister(activity, previous.optString("instance"))
+            check(PushStore.read(activity).optString("owner").isNotEmpty())
             PushStore.update(activity) {
-                if (it.optString("instance") != instance) it.put("endpoint", "").put("revision", UUID.randomUUID().toString())
-                it.put("instance", instance).put("enabled", true).put("server", server).put("error", "")
+                it.put("enabled", true).put("watch", Base64.encodeToString(credentials, Base64.NO_WRAP))
+                    .put("error", "").put("listening", false)
+                it.remove("removal")
             }
-            register(instance)
+            WatchService.stop(activity)
+            WatchService.start(activity)
             result.success(status())
         } catch (_: Exception) { result.error("push", "Cannot enable notification delivery.", null) }
     }
 
-    private fun register(instance: String) {
-        UnifiedPush.saveDistributor(activity, distributor)
-        UnifiedPush.register(activity, instance, "Arveil")
-    }
     fun permission(granted: Boolean) {
         val result = permissionResult ?: return
-        val server = permissionServer
-        permissionResult = null; permissionServer = null
-        if (granted && server != null) enable(server, result)
+        val credentials = permissionCredentials
+        permissionResult = null; permissionCredentials = null
+        if (granted && credentials != null) enable(credentials, result)
         else {
             try { PushStore.update(activity) { it.put("error", "permission") }; result.success(status()) }
             catch (_: Exception) { result.error("push", "Cannot read notification settings.", null) }
         }
     }
+
+    private fun batteryExempt(): Boolean =
+        Build.VERSION.SDK_INT < 23 || activity.getSystemService(PowerManager::class.java)
+            ?.isIgnoringBatteryOptimizations(activity.packageName) == true
+
     private fun status(): Map<String, Any> {
         val state = PushStore.read(activity)
         return mapOf(
-            "enabled" to state.optBoolean("enabled"), "server" to state.optString("server"),
-            "owner" to state.optString("owner"), "endpoint" to state.optString("endpoint"),
-            "revision" to state.optString("revision"), "applied" to state.optString("applied"),
+            "enabled" to (state.optBoolean("enabled") && state.optString("watch").isNotEmpty()),
+            "owner" to state.optString("owner"),
+            "listening" to state.optBoolean("listening"),
             "pending" to state.optBoolean("pending"), "hintRevision" to state.optString("hintRevision"),
             "error" to state.optString("error"),
-            "installed" to UnifiedPush.getDistributors(activity).contains(distributor),
-            "permission" to NotificationManagerCompat.from(activity).areNotificationsEnabled()
+            "removal" to state.optBoolean("removal"),
+            "legacy" to WatchState.hasLegacy(state),
+            "legacyEnabled" to (WatchState.hasLegacy(state) && state.optBoolean("enabled")),
+            "permission" to NotificationManagerCompat.from(activity).areNotificationsEnabled(),
+            "battery" to batteryExempt()
         )
     }
     fun visibility(value: Boolean) = updateVisibility(activity, value)
@@ -149,7 +154,6 @@ class PushChannel(private val activity: MainActivity, messenger: BinaryMessenger
     }
     companion object {
         const val permissionRequest = 3140
-        const val distributor = "io.heckel.ntfy"
         var foreground = false
             private set
         private var live: PushChannel? = null

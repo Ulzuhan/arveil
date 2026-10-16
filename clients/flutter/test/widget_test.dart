@@ -86,6 +86,16 @@ class FakeProfile implements Profile {
       const Stream.empty();
   @override
   void stopWatching({required BigInt generation}) {}
+
+  @override
+  BigInt startActivity() => BigInt.one;
+
+  @override
+  Stream<ActivityView> watchActivity({required BigInt generation}) =>
+      const Stream.empty();
+
+  @override
+  void stopActivity({required BigInt generation}) {}
   @override
   Future<SyncView> sync_({required String bootstrap}) async =>
       const SyncView(processedEnvelopes: 0);

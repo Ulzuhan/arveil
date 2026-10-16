@@ -211,21 +211,22 @@ profile unlocked, hides the window when closed, and provides menu-bar actions
 to reopen or quit. Quit, profile closure and Mac sleep stop local alerts.
 If permission is denied, enable Arveil in macOS notification settings and retry.
 
-Android adds an experimental **Settings → Notifications** page. It requires
-ntfy's F-Droid app configured with your own HTTPS server; enter the same base
-address in Arveil and grant notification permission. The public ntfy.sh server
-is rejected. Notices are generic and can arrive with the profile closed; they
-never unlock it. Disable the option to stop them. Keep Arveil open online to
-finish pending registration/removal. Force-stop and battery restrictions can
-prevent or delay delivery.
+On Android, **Settings → Notifications → Receive activity notices** keeps
+Arveil's own connection to your relay in a foreground service and shows a generic
+notice when new mail arrives ([ADR-014](adr/ADR-014-relay-activity-notices.md)).
+It needs no second app, no server address and no Google service; grant the
+notification permission and, ideally, **Allow in background**. Android shows a
+silent permanent notification while it runs. Notices can arrive with the profile
+closed and never unlock it; turning the option off stops them at once. While it is
+on, your relay can see when the phone is connected and from which network.
+Force stop and battery restrictions can prevent or delay notices. Updating from
+betas 5 or 6 removes the old ntfy setup and keeps notices on if they were.
 
-Debug builds, native Android receiver instrumentation and disposable Mac
-attachment acceptance have run. Mac debug notification-center delivery and removal
-also passed with system permission enabled. The official ntfy F-Droid Android app
-passes a separate emulator delivery test against a disposable local server.
-Full relay-to-phone acceptance, packaged Mac banners and physical Android behavior remain release gates;
-see [scope and evidence](CLIENT_FILES_NOTIFICATIONS.md). No permanent notification
-server is deployed by these tests.
+Debug builds and disposable Mac attachment acceptance have run. Mac debug
+notification-center delivery and removal also passed with system permission
+enabled. The Android notice service passed relay-to-emulator acceptance against
+a disposable relay. Packaged Mac banners and physical Android behavior remain
+release gates; see [scope and evidence](CLIENT_FILES_NOTIFICATIONS.md).
 No profile migration or reinstall is required by these changes. Keep the
 existing profile and Keychain when upgrading through the normal release path.
 

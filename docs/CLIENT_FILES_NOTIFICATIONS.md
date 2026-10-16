@@ -2,7 +2,7 @@
 
 **Source increment, September 30, 2026; not yet a published client release.**
 Tracked in [issue 140](https://github.com/Ulzuhan/arveil/issues/140).
-Android notification direction: self-hosted delivery without Google/FCM.
+Notices on Android and macOS come from your own relay, without Google/FCM or a second app ([ADR-014](adr/ADR-014-relay-activity-notices.md)).
 
 *Versión en español: [es/CLIENT_FILES_NOTIFICATIONS.md](es/CLIENT_FILES_NOTIFICATIONS.md)*
 
@@ -42,9 +42,12 @@ plaintext staging, resource limits and renderer isolation before adoption.
 - **Show notifications on this Mac** requests the system's alert/sound permission.
   Notices are generic; no name, message text, filename or conversation identifier
   is passed to the operating system.
-- **Keep Arveil running in the background** keeps the profile unlocked and syncs
-  every ten seconds. Closing the window hides it; the menu-bar item can reopen
-  Arveil or quit it. Closing the profile removes the background menu and notices.
+- **Keep Arveil running in the background** keeps the profile unlocked and waits
+  for the relay's activity notices on the profile's own session, syncing when one
+  arrives (ADR-014). While subscribed it also syncs every two minutes; while the
+  session is down it falls back to every ten seconds. Closing the window hides it;
+  the menu-bar item can reopen Arveil or quit it. Closing the profile removes the
+  background menu and notices.
 
 The same Rust profile and conversation coordinator own synchronization and read
 state. Window focus, route visibility and sync eligibility are separate: hidden
@@ -65,137 +68,85 @@ through normal sync. This does not provide delivery into a terminated process
 or use APNs. Packaged-app permission, menu/window behavior, click handling and
 sleep/wake delivery still require interactive acceptance before a release promise.
 
-## Android: self-hosted experiment
-
-> **To be replaced.** [ADR-014](adr/ADR-014-relay-activity-notices.md) (proposed) has the relay announce activity over the Noise channel to a foreground service in Arveil, with a watch-only key. ntfy, the UnifiedPush distributor app and the typed server address go away. This section describes what betas 5 and 6 ship until then.
+## Android: notices from your own server
 
 ```mermaid
 flowchart LR
-  R[Relay] -->|Generic mailbox hint| N[Self-hosted ntfy]
-  N -->|Connection from phone| D[Android ntfy distributor]
-  D -->|UnifiedPush callback| A[Arveil generic notification]
-  A -->|Open existing profile and sync| R
+  R[Relay] -->|MailboxWakeup over Noise| S[Arveil foreground service]
+  S -->|Generic notification| P[Person]
+  P -->|Opens Arveil, the profile syncs| R
 ```
 
-The Mac mini can host ntfy beside the relay. This source increment adds an
-experimental Android receiver using the official UnifiedPush connector 3.0.10
-and the ntfy distributor as a second application. Install ntfy's F-Droid flavor,
-configure its default server to your own HTTPS server, then enter the same base
-address in **Arveil → Settings → Notifications** and enable activity notices.
-Grant Android's notification permission. A returned endpoint must belong to that
-server and path; the public ntfy.sh service is rejected. HTTP loopback is allowed
-only in debug builds for disposable acceptance.
+**Settings → Notifications → Receive activity notices** turns them on. Arveil
+registers a watch key for this device with the relay through the open profile,
+hands the credentials to its own foreground service and asks for Android's
+notification permission. There is no second app, no server address to type and
+no Google service.
 
-Registration, rotation and removal run through the already-open Rust profile
-executor. Offline changes are retained and retried on resume or every 30 seconds
-while active. Disabling immediately suppresses local notices even if remote
-removal is pending. A revision guards against an older network response marking
-a newer endpoint as applied. Opening a different identity unregisters the old
-local subscription. This does not promise remote removal from a closed profile.
+- **What runs.** A `specialUse` foreground service keeps one watch session to the
+  relay ([ADR-014](adr/ADR-014-relay-activity-notices.md)). It tries the signed
+  endpoint list in order, reconnects after a failure with a pause of 1 s doubling
+  to 60 s, and at once when the network changes. It pings every 90 seconds.
+  Android shows a permanent, silent "Waiting for activity" notification while it
+  runs; that channel can be silenced. It starts again after a reboot or an update.
+- **What a notice says.** Only "Activity pending. Open Arveil to check your
+  messages." The service never opens the profile, decrypts or reads anything,
+  and the relay's notice names nothing. Notices coalesce until a successful sync
+  in the foreground; one received while Arveil is visible is shown once if Arveil
+  leaves before syncing. A tap opens the inbox after unlocking.
+- **What the key can do.** Only wait for notices: the relay refuses every other
+  frame from it. The credentials are encrypted under an Android Keystore key and
+  stay out of backups. A rotated, revoked or removed key ends the service; Arveil
+  registers a new one the next time it opens.
+- **Turning off** stops the service and the notices at once and removes the key
+  from the relay. If the relay cannot be reached, the removal is retried while
+  Arveil is open. Opening another identity on the phone clears the previous one's
+  notices.
+- **Battery.** Android may pause Arveil; **Allow in background** opens the system
+  exemption. Force stop ends notices until Arveil is opened again.
+- **What it costs.** While notices are on, the relay and any carrier in between see
+  when this phone is connected and from which network
+  ([what each party learns](adr/ADR-014-relay-activity-notices.md#what-each-party-learns)).
+- **Upgrading from betas 5 and 6.** Their ntfy/UnifiedPush receiver is gone. On
+  first start Arveil removes the ntfy endpoint from the relay and, if notices were
+  on, turns the new ones on. The ntfy app is no longer needed.
 
-The native receiver stores its delivery capability encrypted with a separate
-Android Keystore key. It never starts Flutter, opens a profile, decrypts a message
-or changes read state. It accepts only the exact generic marker and coalesces
-notices until a successful foreground sync. A hint received while visible remains
-eligible for one notice when Arveil goes into the background before sync finishes;
-an already displayed or dismissed notice is not replayed on each transition.
-A tap opens Arveil's inbox after
-unlock. Generic notices can arrive with the profile closed; disable them before
-closing if that is unwanted. Endpoint changes received in the background ask
-the person to open Arveil to finish registration.
+### Remaining work
 
-This is specifically ntfy's plaintext generic-marker path, supported by the
-connector's plaintext fallback. It is **not** a general WebPush/VAPID sender;
-the modern UnifiedPush encrypted-payload path remains separate work. Hints are
-untrusted activity, never proof of a sender or a message count. The connector's
-Tink dependency performs local cryptography; no FCM or Google Play Services
-dependency is added to Arveil.
-
-ntfy documents that self-hosted subscriptions avoid Firebase and its F-Droid
-flavor omits Firebase entirely: [Android/UnifiedPush documentation](https://docs.ntfy.sh/subscribe/phone/).
-The deployment needs a stable HTTPS address reachable from mobile data, no
-Firebase key or upstream relay, and the publisher/subscriber permissions in
-[ntfy's UnifiedPush configuration](https://docs.ntfy.sh/config/#example-unifiedpush).
-Do not expose the acceptance test's anonymous loopback configuration publicly.
-Endpoints are capabilities: keep them out of logs and protect subscriber access.
-Self-hosting still reveals endpoint/IP/timing metadata to the host and any TLS proxy.
-
-The relay already accepts a device's hint URL and sends only `arveil-hint/v1`
-when its mailbox becomes nonempty. The reproducible experiment is:
-
-```sh
-cd core && cargo build -p arveil-cli
-cd ..
-python3 scripts/test_ntfy_hints.py --ntfy /path/to/server-capable/ntfy
-# Or forward a disposable remote ntfy instance to a local port:
-python3 scripts/test_ntfy_hints.py --ntfy-url http://127.0.0.1:2586
-```
-
-The first form creates its own ntfy configuration and also tests restart/outage.
-The second does not stop or reconfigure the supplied server. Both build a fresh
-loopback relay, use synthetic profiles and a random topic, check the fixed marker,
-coalescing, acknowledgement and unregistration, then remove local test data.
-Failure diagnostics remain private in ignored `.local/ntfy-acceptance`.
-The official Darwin ntfy archive is client-only; its source has a
-`make cli-darwin-server` target for this experiment. Verified with ntfy v2.28.0.
-
-### Remaining reliability and integration work
-
-- Hints are currently best effort: one attempt, five seconds, no retry. A missed
-  hint does not trigger again while mail stays pending; normal sync recovers it.
-  HTTP error responses also currently count as sent. A retry/coalescing policy
-  would change the timing policy in [Phase 3](PHASE3.md) and needs an explicit design.
-- Before accepting general delivery endpoints, constrain destinations, resolved
-  addresses and redirects, with intentional operator exceptions; bound delivery
-  concurrency. Scheme validation alone is not an outbound network policy.
-- Verify the complete relay → real ntfy Android distributor → Arveil path with
-  endpoint rotation, process death and notification taps. Relay transport and
-  the real Android distributor now pass separate disposable acceptance tests;
-  they have not yet been exercised together with a physical profile.
-- Test screen-off/Doze, battery saver, Wi-Fi/mobile switching, restart, process death,
-  Recents swipe and force-stop/reopen on a physical phone. Measure delay and battery.
-  A server cannot bypass [Android's background limits](https://developer.android.com/training/monitoring-device-state/doze-standby).
-- An embedded receiver could later remove the second app, but needs a legitimate
-  service lifecycle. A `dataSync` service cannot be assumed to run indefinitely;
-  see [Android foreground service limits](https://developer.android.com/develop/background-work/services/fgs/timeout).
+- Physical phone: screen off and Doze, battery saver, Wi-Fi to mobile data and
+  back, reboot, process death, removal from Recents, force stop and reopening.
+  Measure delay and battery over LAN or tailnet and over the public tunnel. A
+  server cannot bypass [Android's background limits](https://developer.android.com/training/monitoring-device-state/doze-standby).
+- The 90-second keepalive is fixed; measure it per route and adjust
+  ([ADR-014, open questions](adr/ADR-014-relay-activity-notices.md#open-questions)).
+- The relay still accepts the old `NotifyHintSet` for clients that have not
+  updated; it goes one release later ([ADR-014 §5](adr/ADR-014-relay-activity-notices.md#5-ntfy-and-the-m34-hint-are-retired)).
 
 ## Evidence and limits
 
-The implementation passes Flutter analysis and 298 unit/widget tests, including
+The implementation passes Flutter analysis and 321 unit/widget tests, including
 preview bounds, external-sharing confirmation, failed verification, notification
 deduplication, permission denial and hidden read-marker protection. Debug builds
 passed on macOS and Android. Disposable native macOS acceptance checks encrypted
 transfer/reopen, offline sent/received image preview, cancellation, duplicate
 filenames and the explicit export boundary.
 
-The local ntfy v2.28.0 run passed marker/coalescing/unregistration, restart and
-missed-hint catch-up. A disposable Linux ARM64 ntfy on the Mac mini also passed
-marker/coalescing/unregistration over an authenticated loopback SSH forward;
-its service and data were removed afterwards. Neither run used Firebase or an
-upstream provider. The remote run did not test its server's restart/outage.
+Android, 2026-10-16, on an Android 15 ARM64 emulator against a disposable
+relay (`scripts/test_android_watch.py`): the debug service subscribed through
+JNI within a second, showed its persistent notification, showed only the generic
+notice when another identity wrote, and stopped with the key refused once it was
+removed. The application-level relay test
+`activity_notices_reach_a_watch_key_and_an_open_profile` checks a registered watch
+key, the open profile's member session and the refusal of a removed key. Six Dart
+tests cover enabling, offline disabling and its retry, migration from the ntfy
+hint, renewing a refused key once per foreground, and foreground-only sync. None
+of this establishes physical-phone behavior under Doze, battery limits or network
+changes.
 
-The Android receiver passes native emulator instrumentation through the official
-connector, Keystore and notification manager: unknown-token/wrong-marker rejection,
-server mismatch rejection, generic delivery, coalescing and local disable. A
-regression test also covers a foreground hint followed by a background transition
-without another push, repeated transitions and dismissal before sync. Five
-Dart tests cover registration, rotation races, offline removal, foreground-only
-sync and preserving a hint after failed sync. These are separate from the ntfy
-transport experiment; they do not establish physical-phone delivery.
-Native macOS profile acceptance also passed relay registration, exact marker
-delivery, endpoint rotation/removal and reopening the encrypted profile.
-
-The optional `NtfyDeliveryTest` passed on an Android 15 ARM64 emulator using the
-official ntfy v1.25.2 F-Droid release APK (published checksum and signing certificate
-verified) and a loopback ntfy v2.28.0 server, without Firebase or an upstream
-provider. It checks real endpoint registration, marker delivery, foreground to
-background presentation, duplicate coalescing, local token removal and silence
-after disable/unregister. All three native tests also pass together. The native
-test posts the marker directly to ntfy; it does not open an Arveil profile, test
-relay-to-phone delivery end to end, or establish behavior after process death.
-Loopback HTTP for the test publisher is enabled only in the debug source set;
-release network policy is unchanged. The temporary server and forward are removed
-and ntfy's previous preferences restored after acceptance.
+Betas 5 and 6 used a self-hosted ntfy server and its F-Droid app through
+UnifiedPush. That design, its acceptance and its limits are in this document's
+history before ADR-014; the relay's M3.4 hint it relied on still works for those
+clients until they update.
 
 Separate macOS native acceptance passed window hiding/reopening, real external
 text-file opening, 0700/0600 temporary permissions and expiry cleanup. With Arveil's

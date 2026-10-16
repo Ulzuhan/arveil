@@ -275,36 +275,27 @@ and the Android tool settings above apply to both scenarios.
 
 ### Native notification and external-viewer acceptance
 
-The Android receiver uses the official UnifiedPush connector with a disposable
-test distributor. This exercises the real Keystore, service and notification
-manager; it does not establish delivery through the real ntfy Android app.
-Start a disposable emulator and run from `clients/flutter/android` with the
-same JDK used by Flutter:
+Android activity notices ([ADR-014](../../docs/adr/ADR-014-relay-activity-notices.md))
+run in `WatchService`, which waits on the relay through the Rust core over JNI.
+`scripts/test_android_watch.py` checks them on a connected emulator against a
+disposable loopback relay with synthetic identities: subscription, the persistent
+notification, the generic notice when another identity writes, and the service
+stopping once the watch key is removed. Build the binaries and both APKs first,
+with the JDK Flutter uses, then run it from the repository root:
 
 ```sh
-./gradlew :app:testDebugUnitTest :app:connectedDebugAndroidTest -Ptarget-platform=android-arm64
+(cd relay && go build -o bin/arveil-relay ./cmd/arveil-relay)
+(cd core && cargo build -p arveil-cli)
+(cd clients/flutter && flutter build apk --debug --target-platform android-arm64)
+(cd clients/flutter/android && ./gradlew app:assembleDebugAndroidTest -Ptarget-platform=android-arm64)
+python3 scripts/test_android_watch.py
 ```
 
-`PushVisibilityTest` also verifies that a hint received in the foreground is
-presented once when leaving before sync completes, without needing another push.
-For the optional `NtfyDeliveryTest`, install the official ntfy F-Droid APK in the
-disposable emulator and configure its default server to a disposable ntfy server
-forwarded with `adb reverse`. Supply the same loopback URL as the `ntfyServer`
-instrumentation argument. The test is skipped by default and uses no real profile:
-
-```sh
-./gradlew :app:connectedDebugAndroidTest -Ptarget-platform=android-arm64 \
-  -Pandroid.testInstrumentationRunnerArguments.class=io.github.ulzuhan.arveil.NtfyDeliveryTest \
-  -Pandroid.testInstrumentationRunnerArguments.ntfyServer=http://127.0.0.1:2586
-```
-
-This passed with the official ntfy v1.25.2 F-Droid release APK and ntfy v2.28.0
-on an Android 15 ARM64 emulator. It checks real distributor registration, marker
-delivery, foreground/background coalescing, local token removal and silence after
-disable/unregister. Debug network policy allows HTTP only for `127.0.0.1`; this
-configuration is absent from release builds. The marker is posted directly to
-ntfy, so this does not establish relay-to-phone delivery, Doze or physical-phone
-behavior. Remove the temporary server/forward and restore ntfy settings afterwards.
+`--reverse` uses `adb reverse` for a phone on USB instead of the emulator's
+10.0.2.2. The credentials handed to the device contain a private key: the script
+keeps them in memory and out of its output. This passed on an Android 15 ARM64
+emulator; it does not establish Doze, battery or network-change behavior on a
+physical phone. `./gradlew app:testDebugUnitTest` runs the JVM unit tests.
 
 The existing helper verifies profile hint registration/rotation/removal against
 a disposable relay and reopens the encrypted profile:

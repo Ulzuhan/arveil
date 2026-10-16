@@ -96,6 +96,13 @@ class ConversationController extends ChangeNotifier {
   final Set<String> activeTransfers = {};
   StreamSubscription<ProgressView>? _watch;
   BigInt? _watchGeneration;
+  // Activity notices from the relay (ADR-014). While subscribed, polling
+  // only covers what a notice could miss; without it, it stays frequent.
+  StreamSubscription<ActivityView>? _activity;
+  BigInt? _activityGeneration;
+  bool _listening = false;
+  static const _pollAlone = Duration(seconds: 10);
+  static const _pollListening = Duration(minutes: 2);
 
   void _changed() {
     if (!_disposed) notifyListeners();
@@ -132,14 +139,73 @@ class ConversationController extends ChangeNotifier {
     _timer?.cancel();
     if (_canSync) {
       unawaited(sync());
-      _timer = Timer.periodic(const Duration(seconds: 10), (_) {
-        if (!syncing) unawaited(sync());
-      });
+      _startPolling();
+      _startActivity();
     } else {
+      _stopActivity();
       _syncAgain = false;
       _debounce?.cancel();
       _debounce = null;
     }
+  }
+
+  void _startPolling() {
+    _timer?.cancel();
+    _timer = Timer.periodic(_listening ? _pollListening : _pollAlone, (_) {
+      if (!syncing) unawaited(sync());
+    });
+  }
+
+  void _setListening(bool value) {
+    if (_listening == value) return;
+    _listening = value;
+    if (_canSync) _startPolling();
+  }
+
+  void _startActivity() {
+    if (_disposed || _activity != null) return;
+    try {
+      final generation = profile.startActivity();
+      _activityGeneration = generation;
+      _activity = profile
+          .watchActivity(generation: generation)
+          .listen(
+            (event) {
+              if (_disposed) return;
+              switch (event) {
+                case ActivityView.listening:
+                  _setListening(true);
+                case ActivityView.activity:
+                  if (_canSync) unawaited(sync());
+                case ActivityView.disconnected:
+                  _setListening(false);
+              }
+            },
+            // The stream ends when the realm refuses the device or the
+            // profile closes; polling carries on either way.
+            onError: (Object _) => _activityEnded(),
+            onDone: _activityEnded,
+          );
+    } catch (failure) {
+      FailureLog.record(failure);
+      _activityEnded();
+    }
+  }
+
+  void _activityEnded() {
+    _activity = null;
+    _activityGeneration = null;
+    if (!_disposed) _setListening(false);
+  }
+
+  void _stopActivity() {
+    if (_activityGeneration case final generation?) {
+      profile.stopActivity(generation: generation);
+    }
+    unawaited(_activity?.cancel());
+    _activity = null;
+    _activityGeneration = null;
+    _listening = false;
   }
 
   /// Accept or decline a request. Accepting makes its sender a contact.
@@ -524,6 +590,7 @@ class ConversationController extends ChangeNotifier {
       profile.stopWatching(generation: generation);
     }
     unawaited(_watch?.cancel());
+    _stopActivity();
     super.dispose();
   }
 }
