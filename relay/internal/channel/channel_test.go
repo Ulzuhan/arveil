@@ -3,6 +3,7 @@ package channel
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 )
 
@@ -424,6 +425,33 @@ func TestCodecMatchesRustVectorsCredentialGet(t *testing.T) {
 			!bytes.Equal(dec.Payload.CredentialHash, v.frame.Payload.CredentialHash) ||
 			!bytes.Equal(dec.Payload.Credential, v.frame.Payload.Credential) {
 			t.Errorf("%s: decode mismatch (%v): %+v", v.frame.Payload.Kind, err, dec.Payload)
+		}
+	}
+}
+
+// Padded frames are byte-identical in the relay and the core (ADR-014); the
+// same vectors are checked in arveil-core's channel tests.
+func TestPaddedFrameVectors(t *testing.T) {
+	vector := func(head string, zeros int, tail string) string {
+		return head + strings.Repeat("00", zeros) + tail
+	}
+	for _, c := range []struct {
+		f    Frame
+		want string
+	}{
+		{Frame{ID: 0, Payload: Payload{Kind: KindMailboxWakeup}},
+			vector("a3626964006370616458df", 223, "677061796c6f61646d4d61696c626f7857616b657570")},
+		{Frame{ID: 7, Payload: Payload{Kind: KindPing}},
+			vector("a3626964076370616458e8", 232, "677061796c6f61646450696e67")},
+		{Frame{ID: 3, Payload: Payload{Kind: KindWatchKeySet, WatchKey: bytes.Repeat([]byte{0x11}, 32)}},
+			vector("a3626964036370616458b9", 185, "677061796c6f6164a16b57617463684b6579536574a1636b65795820"+strings.Repeat("11", 32))},
+	} {
+		got, err := EncodePadded(c.f, WatchFrameBytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hex.EncodeToString(got) != c.want {
+			t.Errorf("%s: %x", c.f.Payload.Kind, got)
 		}
 	}
 }

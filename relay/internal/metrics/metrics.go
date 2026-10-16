@@ -27,6 +27,8 @@ var (
 	PairingsRefused    atomic.Int64
 	HintsSent          atomic.Int64
 	HintsFailed        atomic.Int64
+	WakeupsSent        atomic.Int64
+	WatchSubscriptions atomic.Int64 // gauge, kept by the server
 
 	start = time.Now()
 )
@@ -56,6 +58,8 @@ func WriteTo(w io.Writer, s Snapshot) error {
 		{"arveil_pairings_refused_total", "Pairing rendezvous refused by a limit.", "counter", PairingsRefused.Load()},
 		{"arveil_notification_hints_total", "Notification hints sent.", "counter", HintsSent.Load()},
 		{"arveil_notification_hints_failed_total", "Notification hints that failed.", "counter", HintsFailed.Load()},
+		{"arveil_activity_notices_total", "Activity notices sent over the channel.", "counter", WakeupsSent.Load()},
+		{"arveil_activity_subscriptions", "Devices subscribed to activity notices right now.", "gauge", WatchSubscriptions.Load()},
 	}
 	for _, m := range metrics {
 		if _, err := fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s %s\n%s %d\n", m.name, m.help, m.name, m.kind, m.name, m.value); err != nil {

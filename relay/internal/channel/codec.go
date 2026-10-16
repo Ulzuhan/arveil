@@ -27,6 +27,9 @@ const (
 	KindCredentialFound  = "CredentialFound"
 	KindRecoverIdentity  = "RecoverIdentity"
 	KindNotifyHintSet    = "NotifyHintSet"
+	KindWatchKeySet      = "WatchKeySet"
+	KindMailboxWatch     = "MailboxWatch"
+	KindMailboxWakeup    = "MailboxWakeup"
 	KindPairBegin        = "PairBegin"
 	KindPairStarted      = "PairStarted"
 	KindPairPut          = "PairPut"
@@ -133,10 +136,12 @@ type Payload struct {
 	Cursor           uint64
 	PreviousSequence uint64
 	// Pairing rendezvous
-	PairID      []byte
-	Capability  []byte
-	Slot        string
-	URL         string
+	PairID     []byte
+	Capability []byte
+	Slot       string
+	URL        string
+	// WatchKeySet (ADR-014)
+	WatchKey    []byte
 	Count       uint32
 	ExpiresAt   uint64
 	NextCursor  uint64
@@ -284,6 +289,10 @@ type manifestPutBody struct {
 	Manifest []byte `cbor:"manifest"`
 }
 
+type watchKeySetBody struct {
+	Key []byte `cbor:"key"`
+}
+
 type notifyHintSetBody struct {
 	URL string `cbor:"url"`
 }
@@ -342,7 +351,15 @@ type errorBody struct {
 type wireFrame struct {
 	ID      uint64          `cbor:"id"`
 	Payload cbor.RawMessage `cbor:"payload"`
+	// Pad only fills a frame up to a fixed size (ADR-014); decoders ignore
+	// it, and frames that are not padded do not carry it.
+	Pad []byte `cbor:"pad,omitempty"`
 }
+
+// WatchFrameBytes is the size every frame of a watch session, and every
+// activity notice, is padded to, so an observer of the carrier cannot tell
+// a notice from a keepalive by its length (ADR-014).
+const WatchFrameBytes = 256
 
 var encMode cbor.EncMode
 
@@ -370,12 +387,14 @@ func Encode(f Frame) ([]byte, error) {
 			ReadCapability:  f.Payload.ReadCapability,
 			WriteCapability: f.Payload.WriteCapability,
 		}}
-	case KindPing, KindPong, KindEndpointListGet, KindAck, KindPairBegin, KindKeyPackagesStatus:
+	case KindPing, KindPong, KindEndpointListGet, KindAck, KindPairBegin, KindKeyPackagesStatus, KindMailboxWatch, KindMailboxWakeup:
 		payload = f.Payload.Kind
 	case KindKeyPackagesAvail:
 		payload = map[string]keyPackagesAvailableBody{KindKeyPackagesAvail: {Count: f.Payload.Count}}
 	case KindNotifyHintSet:
 		payload = map[string]notifyHintSetBody{KindNotifyHintSet: {URL: f.Payload.URL}}
+	case KindWatchKeySet:
+		payload = map[string]watchKeySetBody{KindWatchKeySet: {Key: nonNil(f.Payload.WatchKey)}}
 	case KindPairStarted:
 		payload = map[string]pairStartedBody{KindPairStarted: {PairID: f.Payload.PairID, Capability: f.Payload.Capability, ExpiresAt: f.Payload.ExpiresAt}}
 	case KindPairPut:
@@ -467,7 +486,11 @@ func Encode(f Frame) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := encMode.Marshal(wireFrame{ID: f.ID, Payload: raw})
+	return encodeWire(wireFrame{ID: f.ID, Payload: raw})
+}
+
+func encodeWire(w wireFrame) ([]byte, error) {
+	out, err := encMode.Marshal(w)
 	if err != nil {
 		return nil, err
 	}
@@ -475,6 +498,32 @@ func Encode(f Frame) ([]byte, error) {
 		return nil, ErrFrameTooLarge
 	}
 	return out, nil
+}
+
+// EncodePadded encodes a frame and pads it to at least `size` bytes with a
+// top-level `pad` field. A frame already that large is left as it is. The
+// shortest padding that reaches `size` is used; for frames well below it
+// that is exactly `size`.
+func EncodePadded(f Frame, size int) ([]byte, error) {
+	out, err := Encode(f)
+	if err != nil || len(out) >= size {
+		return out, err
+	}
+	var w wireFrame
+	if err := cbor.Unmarshal(out, &w); err != nil {
+		return nil, err
+	}
+	// The pad field costs its key (4 bytes) and a bstr header (1 to 3).
+	for n := max(0, size-len(out)-7); ; n++ {
+		w.Pad = make([]byte, n)
+		padded, err := encodeWire(w)
+		if err != nil {
+			return nil, err
+		}
+		if len(padded) >= size {
+			return padded, nil
+		}
+	}
 }
 
 // Decode a frame; refuses inputs over MaxFrameBytes before parsing.
@@ -492,7 +541,7 @@ func Decode(b []byte) (Frame, error) {
 	var kind string
 	if err := cbor.Unmarshal(w.Payload, &kind); err == nil {
 		switch kind {
-		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin, KindKeyPackagesStatus, KindInvitePolicyGet:
+		case KindPing, KindPong, KindEndpointListGet, KindAck, KindMailboxCreate, KindPairBegin, KindKeyPackagesStatus, KindInvitePolicyGet, KindMailboxWatch, KindMailboxWakeup:
 			f.Payload.Kind = kind
 			return f, nil
 		}
@@ -539,6 +588,12 @@ func Decode(b []byte) (Frame, error) {
 				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
 			}
 			f.Payload = Payload{Kind: name, Credential: v.Credential}
+		case KindWatchKeySet:
+			var v watchKeySetBody
+			if err := cbor.Unmarshal(body, &v); err != nil {
+				return Frame{}, fmt.Errorf("codec: %s: %w", name, err)
+			}
+			f.Payload = Payload{Kind: name, WatchKey: v.Key}
 		case KindNotifyHintSet:
 			var v notifyHintSetBody
 			if err := cbor.Unmarshal(body, &v); err != nil {

@@ -44,7 +44,23 @@ impl Fixture {
         f
     }
     fn start(&mut self) {
+        // The port was free when the fixture chose it, but between a stop
+        // and this start another test running in parallel may hold it for
+        // a moment. Only that is retried; any other early exit fails with
+        // the relay's own error.
+        for attempt in 0.. {
+            match self.try_start() {
+                Ok(()) => return,
+                Err(error) if error.contains("address already in use") && attempt < 50 => {
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+                Err(error) => panic!("local relay exited: {error}"),
+            }
+        }
+    }
+    fn try_start(&mut self) -> Result<(), String> {
         let output = fs::File::create(self.path.join("relay.log")).unwrap();
+        let errors = fs::File::create(self.path.join("relay.err")).unwrap();
         self.process = Some(
             Command::new(&self.binary)
                 .arg("-data-dir")
@@ -52,7 +68,7 @@ impl Fixture {
                 .arg("-listen")
                 .arg(format!("127.0.0.1:{}", self.port))
                 .stdout(output)
-                .stderr(Stdio::null())
+                .stderr(errors)
                 .spawn()
                 .unwrap(),
         );
@@ -65,13 +81,18 @@ impl Fixture {
                 .unwrap();
             if let Some(line) = text.lines().find_map(|s| s.strip_prefix("bootstrap: ")) {
                 self.bootstrap = line.to_string();
-                break;
+                return Ok(());
             }
             assert!(Instant::now() < deadline, "local relay startup timed out");
-            assert!(
-                self.process.as_mut().unwrap().try_wait().unwrap().is_none(),
-                "local relay exited"
-            );
+            if self.process.as_mut().unwrap().try_wait().unwrap().is_some() {
+                self.process = None;
+                let mut errors = String::new();
+                let _ = fs::File::open(self.path.join("relay.err"))
+                    .and_then(|mut f| f.read_to_string(&mut errors));
+                // The relay logs no secrets on startup failure; keep the
+                // last line only.
+                return Err(errors.lines().last().unwrap_or("no output").to_string());
+            }
             std::thread::sleep(Duration::from_millis(20));
         }
     }

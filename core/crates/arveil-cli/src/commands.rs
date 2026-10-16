@@ -672,6 +672,95 @@ pub fn notify_set(data_dir: &Path, bootstrap: &str, url: &str) -> Result<(), Cli
     })?
 }
 
+/// `arveil watch --data-dir D <bootstrap> [<count>]` and
+/// `arveil watch clear --data-dir D <bootstrap>`
+///
+/// Registers a fresh watch key for this device (ADR-014), then waits on a
+/// watch session and prints one line per activity notice, stopping after
+/// `count` of them. The session can do nothing but wait: it cannot fetch,
+/// acknowledge or send. `ARVEIL_WATCH_KEEPALIVE` sets the ping interval in
+/// seconds (default 60).
+pub fn watch(data_dir: &Path, bootstrap: &str, count: Option<u64>) -> Result<(), CliError> {
+    use std::io::Write;
+    let b = Bootstrap::parse(bootstrap)?;
+    // The watch session needs the device's transport key once, to register
+    // its own key, and nothing from the profile after that: the profile is
+    // reserved only while it is read, so it stays usable while this waits.
+    let guard = arveil_app::ProfileGuard::acquire(data_dir)
+        .map_err(|error| CliError::FileSystem(error.to_string()))?;
+    let (c, d, _r) = enrolled(data_dir)?;
+    drop(c);
+    drop(guard);
+    let key = StaticKeypair::generate().map_err(err("watch key"))?;
+    let ca = tls_ca();
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &d.keys.transport_noise,
+            ca.as_deref(),
+        )
+        .await?;
+        let reply = conn
+            .request(Payload::WatchKeySet {
+                key: key.public.clone(),
+            })
+            .await;
+        conn.close().await;
+        match reply? {
+            Payload::Ack => {}
+            other => return Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+        let credentials = arveil_app::watch::WatchCredentials {
+            realm_id: b.realm_id.clone(),
+            realm_noise_public: b.noise_public.clone(),
+            endpoints: vec![b.url.clone()],
+            watch_private: key.private,
+            watch_public: key.public,
+        };
+        let keepalive =
+            std::time::Duration::from_secs(env_seconds("ARVEIL_WATCH_KEEPALIVE").unwrap_or(60));
+        println!("watch: waiting for activity");
+        let _ = std::io::stdout().flush();
+        let mut seen = 0_u64;
+        arveil_app::watch::run(&credentials, ca.as_deref(), keepalive, || {
+            seen += 1;
+            println!("watch: activity {seen}");
+            let _ = std::io::stdout().flush();
+            count.is_none_or(|n| seen < n)
+        })
+        .await
+    })?
+}
+
+/// `arveil watch clear`: remove this device's watch key from the realm.
+pub fn watch_clear(data_dir: &Path, bootstrap: &str) -> Result<(), CliError> {
+    let b = Bootstrap::parse(bootstrap)?;
+    let _guard = arveil_app::ProfileGuard::acquire(data_dir)
+        .map_err(|error| CliError::FileSystem(error.to_string()))?;
+    let (_c, d, _r) = enrolled(data_dir)?;
+    block_on(async {
+        let mut conn = Connection::open(
+            &b.url,
+            &b.realm_id,
+            &b.noise_public,
+            &d.keys.transport_noise,
+            tls_ca().as_deref(),
+        )
+        .await?;
+        let reply = conn.request(Payload::WatchKeySet { key: Vec::new() }).await;
+        conn.close().await;
+        match reply? {
+            Payload::Ack => {
+                println!("watch: key removed from the realm");
+                Ok(())
+            }
+            other => Err(CliError(format!("unexpected reply: {other:?}"))),
+        }
+    })?
+}
+
 /// `arveil contact name --data-dir D <identity-id> <name>`
 ///
 /// A local label, to stop reading hexadecimal. It never leaves this device

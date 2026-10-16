@@ -58,7 +58,21 @@ impl Channel {
     /// send, in order.
     pub fn seal(&mut self, frame: &Frame) -> Result<Vec<Vec<u8>>, ChannelError> {
         let bytes = codec::encode(frame)?;
-        fragments(&bytes)
+        self.seal_bytes(&bytes)
+    }
+
+    /// [`Channel::seal`] with the frame padded to at least `size` bytes.
+    pub fn seal_padded(
+        &mut self,
+        frame: &Frame,
+        size: usize,
+    ) -> Result<Vec<Vec<u8>>, ChannelError> {
+        let bytes = codec::encode_padded(frame, size)?;
+        self.seal_bytes(&bytes)
+    }
+
+    fn seal_bytes(&mut self, bytes: &[u8]) -> Result<Vec<Vec<u8>>, ChannelError> {
+        fragments(bytes)
             .map(|fragment| self.transport.seal(&fragment).map_err(ChannelError::from))
             .collect()
     }

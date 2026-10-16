@@ -177,6 +177,7 @@ func serve() {
 		maxPairings  = flag.Int("max-pairings-per-addr", limits.Default().PairingsPerAddr, "pairing rendezvous one address may open per window (0: unlimited)")
 		pairWindow   = flag.Duration("pairing-window", limits.Default().PairingWindow, "window for -max-pairings-per-addr")
 		trustForward = flag.Bool("trust-forwarded-for", false, "read the client address from the last X-Forwarded-For entry; only when every connection comes through a proxy you trust")
+		watchIdle    = flag.Duration("watch-idle", server.DefaultWatchIdle, "how long a session subscribed to activity notices may stay silent before it is closed")
 	)
 	flag.Parse()
 
@@ -235,6 +236,7 @@ func serve() {
 			PairingWindow:      *pairWindow,
 		}),
 		TrustForwardedFor: *trustForward,
+		WatchIdle:         *watchIdle,
 		ReadTimeout:       90 * time.Second,
 		HandshakeTTL:      10 * time.Second,
 	}

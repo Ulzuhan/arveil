@@ -43,6 +43,7 @@ mod notifications;
 mod onboarding;
 mod recovery;
 pub mod updates;
+pub mod watch;
 pub use key_packages::{KeyPackageLevel, KeyPackageSupply};
 pub use recovery::{KitExport, RecoveryRequest, RecoveryResult};
 
@@ -4394,15 +4395,7 @@ async fn connect(
     s: &Session,
     b: &Bootstrap,
 ) -> Result<Connection, CliError> {
-    let mut candidates: Vec<String> = Vec::new();
-    if let Some(list) = &s.realm.endpoint_list {
-        let mut eps = list.endpoints.clone();
-        eps.sort_by_key(|e| e.priority);
-        candidates.extend(eps.into_iter().filter(|e| e.kind != "admin").map(|e| e.url));
-    }
-    if !candidates.contains(&b.url) {
-        candidates.push(b.url.clone());
-    }
+    let candidates = endpoint_candidates(s, b);
     let mut last = CliError::Transport("no endpoints".into());
     for url in &candidates {
         match Connection::open(
@@ -4449,6 +4442,21 @@ async fn connect(
         }
     }
     Err(last)
+}
+
+/// Channel URLs to try, in priority order from the stored signed list, with
+/// the bootstrap URL last. Administrative endpoints are never used.
+fn endpoint_candidates(s: &Session, b: &Bootstrap) -> Vec<String> {
+    let mut candidates: Vec<String> = Vec::new();
+    if let Some(list) = &s.realm.endpoint_list {
+        let mut eps = list.endpoints.clone();
+        eps.sort_by_key(|e| e.priority);
+        candidates.extend(eps.into_iter().filter(|e| e.kind != "admin").map(|e| e.url));
+    }
+    if !candidates.contains(&b.url) {
+        candidates.push(b.url.clone());
+    }
+    candidates
 }
 
 /// Claim a KeyPackage for a route only after the route is bound to its

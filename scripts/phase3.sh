@@ -330,6 +330,28 @@ if command -v sqlite3 >/dev/null; then
   [ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) FROM notify_hints')" = 0 ] || fail "the realm still stores an endpoint"
 fi
 
+step "ADR-014 the relay announces activity over the channel to a session that can only watch"
+# Alice's mailbox still holds "cuarto": subscribing is told at once.
+"$CLI" watch --data-dir "$DATA/alice" "$BOOTSTRAP2" 2 > "$DATA/alice.watch" 2>&1 &
+WATCH_PID=$!
+wait_for "$DATA/alice.watch" "^watch: activity 1$"
+# Reading empties the mailbox while the watch session stays open; the next
+# envelope is announced on it.
+"$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" > /dev/null
+grep -q "^watch: activity 2$" "$DATA/alice.watch" && fail "a notice arrived with nothing new"
+"$CLI" chat send --data-dir "$DATA/bob" "$BOOTSTRAP2" "quinto" > /dev/null
+wait_for "$DATA/alice.watch" "^watch: activity 2$"
+wait "$WATCH_PID" || fail "the watch session failed: $(cat "$DATA/alice.watch")"
+if command -v sqlite3 >/dev/null; then
+  [ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) FROM watch_keys')" = 1 ] || fail "the watch key was not stored"
+fi
+"$CLI" watch clear --data-dir "$DATA/alice" "$BOOTSTRAP2" | tee "$DATA/alice.watchclear"
+grep -q "key removed" "$DATA/alice.watchclear" || fail "the watch key was not removed"
+if command -v sqlite3 >/dev/null; then
+  [ "$(sqlite3 "$DATA/relay/realm.db" 'SELECT COUNT(*) FROM watch_keys')" = 0 ] || fail "the realm still stores a watch key"
+fi
+"$CLI" chat sync --data-dir "$DATA/alice" "$BOOTSTRAP2" > /dev/null
+
 step "M3.5 a build says where it came from"
 REV="0123456789abcdef0123456789abcdef01234567"
 (cd "$ROOT/relay" && go build -trimpath \

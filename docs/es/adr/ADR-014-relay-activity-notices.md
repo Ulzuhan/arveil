@@ -1,6 +1,6 @@
 # ADR-014 — Avisos de actividad desde el relay
 
-- **Estado:** propuesta.
+- **Estado:** protocolo del relay y del núcleo implementado el 02-10-2026 (secciones 1 y 2, esquema 7 del relay), aún sin desplegar. El servicio de Android, la suscripción de macOS y la retirada de ntfy (secciones 3 a 5) siguen propuestos y llegan como incrementos aparte.
 - **Fecha:** 2026-10-02.
 - **Alcance:** cómo sabe un dispositivo que su buzón tiene algo mientras Arveil no está en pantalla, en Android y macOS, sin Google, sin una segunda app y sin un segundo servidor. Sustituye al receptor experimental ntfy/UnifiedPush de Android descrito en [adjuntos y notificaciones](../CLIENT_FILES_NOTIFICATIONS.md) y al aviso M3.4 del [protocolo](../PROTOCOL.md).
 
