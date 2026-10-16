@@ -2262,55 +2262,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pushExplanation =>
-      'Experimental notifications without Google. Configure ntfy with your own server first. The receiver only shows generic activity and never opens your profile or reads messages.';
+      'Arveil can keep its own connection to your server and show a notice when new mail arrives, without Google or another app. The notice says only that there is activity; Arveil reads your messages when you open it.';
 
   @override
-  String get pushInstall =>
-      'Install ntfy from F-Droid and configure your own HTTPS server. The public ntfy.sh server is not accepted in this mode.';
+  String get pushEnable => 'Receive activity notices';
 
   @override
-  String get pushServer => 'Your notification server';
+  String get pushReady => 'Connected. Your server will announce new activity.';
 
   @override
-  String get pushEnable => 'Receive activity notifications';
-
-  @override
-  String get pushWaiting =>
-      'Waiting for ntfy. Check that it uses the same server, then retry.';
-
-  @override
-  String get pushReady =>
-      'Connected. Notices are generic; messages are checked when Arveil opens.';
+  String get pushConnecting => 'Connecting to your server…';
 
   @override
   String get pushPermission =>
-      'Allow Arveil notifications in Android settings, then retry.';
+      'Allow Arveil notifications in Android settings, then turn notices on again.';
 
   @override
-  String get pushEndpointMismatch =>
-      'ntfy returned a different or unsupported server. Check its server setting and the address entered here.';
-
-  @override
-  String get pushRegistrationFailed =>
-      'ntfy could not register this device. Open ntfy, check its connection, then retry.';
+  String get pushRefused =>
+      'Your server no longer accepts this phone\'s notice key. Arveil renews it the next time it opens; if this stays, turn notices off and on.';
 
   @override
   String get pushUnavailable =>
-      'Notification settings could not be updated. Check ntfy, the server address and Android permissions.';
+      'Notices could not be updated. Check your connection to the server and Android permissions.';
 
   @override
-  String get pushRelayPending =>
-      'The change is saved on this device but is still pending on the relay. Keep Arveil open with a connection and retry. Disabled notices remain disabled locally.';
+  String get pushRemovalPending =>
+      'Notices are off on this phone. The server could not be told yet; nothing is listening for it.';
+
+  @override
+  String get pushBattery =>
+      'Android may pause Arveil to save battery, which delays or stops notices.';
+
+  @override
+  String get pushBatteryAction => 'Allow in background';
+
+  @override
+  String get pushPrivacy =>
+      'While notices are on, your server and the network in between can see when this phone is connected and from which network.';
 
   @override
   String get pushLimits =>
-      'ntfy must be allowed to run in the background. Battery restrictions can delay notices. Force stop prevents delivery until reopening. Generic notices may arrive while the profile is closed; disable this option to stop them.';
-
-  @override
-  String get pushRetry => 'Retry connection';
-
-  @override
-  String get pushServerHint => 'https://notify.example.org';
+      'Android shows a permanent “Waiting for activity” notification while notices are on; you can silence that channel. Force stop ends notices until you open Arveil again.';
 
   @override
   String get inviteTitle => 'Invite someone';

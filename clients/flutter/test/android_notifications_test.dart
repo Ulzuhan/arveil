@@ -1,19 +1,30 @@
-import 'dart:async';
 import 'package:arveil/src/android_notifications.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'widget_test.dart' show FakeProfile;
 
-class PushProfile extends FakeProfile {
-  final endpoints = <String>[];
+class WatchProfile extends FakeProfile {
+  int registered = 0, cleared = 0;
+  final hints = <String>[];
   bool offline = false;
-  Completer<void>? wait;
+  @override
+  Future<Uint8List> registerWatchKey() async {
+    if (offline) throw StateError('PRIVATE_WATCH_DIAGNOSTIC');
+    registered++;
+    return Uint8List.fromList(List.filled(96, registered));
+  }
+
+  @override
+  Future<void> clearWatchKey() async {
+    if (offline) throw StateError('PRIVATE_WATCH_DIAGNOSTIC');
+    cleared++;
+  }
+
   @override
   Future<void> setNotificationHint({required String endpoint}) async {
-    endpoints.add(endpoint);
     if (offline) throw StateError('PRIVATE_ENDPOINT_DIAGNOSTIC');
-    await wait?.future;
+    hints.add(endpoint);
   }
 }
 
@@ -22,35 +33,45 @@ void main() {
   const channel = MethodChannel('io.github.ulzuhan.arveil/push');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-  late PushProfile profile;
+  late WatchProfile profile;
   late AndroidNotifications controller;
   late Map<String, Object?> state;
+  late List<Uint8List> handed;
   late int syncs;
   setUp(() async {
-    profile = PushProfile();
+    profile = WatchProfile();
     syncs = 0;
+    handed = [];
     state = {
       'owner': 'a' * 64,
       'enabled': false,
-      'installed': true,
-      'endpoint': '',
-      'revision': '',
-      'applied': '',
+      'listening': false,
       'pending': false,
       'hintRevision': '',
+      'error': '',
+      'removal': false,
+      'legacy': false,
+      'legacyEnabled': false,
+      'permission': true,
+      'battery': false,
     };
     messenger.setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'takeOpen') return false;
-      if (call.method == 'ack' &&
-          call.arguments['revision'] == state['revision']) {
-        state['applied'] = state['revision'];
-      }
-      if (call.method == 'synced' &&
-          call.arguments['revision'] == state['hintRevision']) {
-        state['pending'] = false;
-      }
-      if (call.method == 'disable') {
-        state.addAll({'enabled': false, 'endpoint': '', 'revision': 'off'});
+      switch (call.method) {
+        case 'takeOpen':
+          return false;
+        case 'enable':
+          handed.add(call.arguments['credentials'] as Uint8List);
+          state.addAll({'enabled': true, 'error': ''});
+        case 'disable':
+          state.addAll({'enabled': false, 'removal': true, 'pending': false});
+        case 'removed':
+          state['removal'] = false;
+        case 'legacyCleared':
+          state.addAll({'legacy': false, 'legacyEnabled': false});
+        case 'synced':
+          if (call.arguments['revision'] == state['hintRevision']) {
+            state['pending'] = false;
+          }
       }
       return Map<String, Object?>.of(state);
     });
@@ -71,65 +92,59 @@ void main() {
   });
 
   test(
-    'registers once, catches up, and ignores repeated unchanged endpoints',
+    'turning on registers a watch key and hands it to the service',
     () async {
-      state.addAll({
-        'enabled': true,
-        'endpoint': 'https://notify.example.org/up-a?up=1',
-        'revision': 'one',
-      });
-      await Future.wait([controller.reconcile(), controller.reconcile()]);
-      expect(profile.endpoints, ['https://notify.example.org/up-a?up=1']);
-      expect(syncs, 1);
-      expect(controller.relayPending, isFalse);
+      await controller.configure(enable: true);
+      expect(profile.registered, 1);
+      expect(handed.single, hasLength(96));
+      expect(controller.enabled, isTrue);
     },
   );
+
   test(
-    'endpoint rotation cannot be acknowledged by an older network reply',
+    'turning off stops at once and tells the realm, retrying offline',
     () async {
-      state.addAll({
-        'enabled': true,
-        'endpoint': 'https://notify.example.org/up-a',
-        'revision': 'one',
-      });
-      profile.wait = Completer<void>();
-      final pending = controller.reconcile();
-      await Future<void>.delayed(Duration.zero);
-      state.addAll({
-        'endpoint': 'https://notify.example.org/up-b',
-        'revision': 'two',
-      });
-      profile.wait!.complete();
-      await pending;
-      expect(profile.endpoints, [
-        'https://notify.example.org/up-a',
-        'https://notify.example.org/up-b',
-      ]);
-      expect(state['applied'], 'two');
-    },
-  );
-  test(
-    'offline disable remains local and retries remote removal after reconnect',
-    () async {
-      state.addAll({
-        'enabled': true,
-        'endpoint': 'https://notify.example.org/up-a',
-        'revision': 'one',
-        'applied': 'one',
-      });
+      await controller.configure(enable: true);
       profile.offline = true;
       await controller.configure(enable: false);
       expect(controller.enabled, isFalse);
-      expect(controller.relayPending, isTrue);
+      expect(state['removal'], isTrue);
       expect(controller.error, isNot(contains('PRIVATE')));
       profile.offline = false;
       await controller.reconcile();
-      expect(profile.endpoints, ['', '']);
-      expect(controller.relayPending, isFalse);
+      expect(profile.cleared, 1);
+      expect(state['removal'], isFalse);
     },
   );
+
   test(
-    'background hints never open a second profile or start a sync',
+    'the ntfy hint of beta 6 is removed and an enabled choice carries over',
+    () async {
+      state.addAll({'legacy': true, 'legacyEnabled': true, 'enabled': false});
+      await controller.reconcile();
+      expect(profile.hints, ['']);
+      expect(state['legacy'], isFalse);
+      expect(profile.registered, 1);
+      expect(controller.enabled, isTrue);
+    },
+  );
+
+  test('a refused key is renewed once per foreground', () async {
+    await controller.configure(enable: true);
+    state['error'] = 'refused';
+    await controller.reconcile();
+    expect(profile.registered, 2);
+    state['error'] = 'refused';
+    await controller.reconcile();
+    expect(profile.registered, 2, reason: 'not again until the next resume');
+    controller.didChangeAppLifecycleState(AppLifecycleState.paused);
+    controller.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await controller.reconcile();
+    expect(profile.registered, 3);
+  });
+
+  test(
+    'background notices never open a second profile or start a sync',
     () async {
       controller.didChangeAppLifecycleState(AppLifecycleState.paused);
       state.addAll({'pending': true, 'hintRevision': 'hint'});
@@ -138,6 +153,7 @@ void main() {
       expect(state['pending'], isTrue);
     },
   );
+
   test('failed sync keeps the generic notice pending', () async {
     state.addAll({'pending': true, 'hintRevision': 'hint'});
     profile.offline = true;

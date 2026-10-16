@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'profile.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `by_activity`, `card_offer_view`, `chat_mutation`, `command_error`, `contact_view`, `decode_hex`, `event_view`, `hex`, `how`, `invitation_error`, `invitation_item`, `invitation_view`, `key_package_view`, `last_event_view`, `notice_view`, `operation_name`, `profile_error`, `progress_view`, `read_card`, `shown`, `view`, `watch_with`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Whether a profile already lives in this directory. The difference
 /// between "no key yet" and "the key is gone" depends on it, and only the
@@ -82,6 +82,10 @@ abstract class Profile implements RustOpaqueInterface {
   Future<String?> cardName();
 
   Future<KeyPackageSupplyView> checkKeyPackages();
+
+  /// Remove this device's watch key from the realm, which also ends any
+  /// service session using it.
+  Future<void> clearWatchKey();
 
   /// Stop admitting work, wait for what is running and release the
   /// profile. Idempotent, and every later call fails instead of quietly
@@ -215,6 +219,12 @@ abstract class Profile implements RustOpaqueInterface {
   /// Nothing is fetched: the link is only read.
   Future<CardView> readCard({required String text});
 
+  /// Register a fresh watch key for this device and return the credentials
+  /// a platform service waits with (ADR-014). Replaces any earlier key. The
+  /// bytes include a private key: the platform stores them encrypted and
+  /// hands them only to its own service.
+  Future<Uint8List> registerWatchKey();
+
   Future<ContactView> renameContact({
     required String identityId,
     required String name,
@@ -282,6 +292,9 @@ abstract class Profile implements RustOpaqueInterface {
   /// Links this device shared that still work, newest first.
   Future<List<CardOfferView>> sharedCards();
 
+  /// Reserve an activity watcher, as `start_watching` does for progress.
+  BigInt startActivity();
+
   /// Start talking to the person a card names. `scanned` says it was read
   /// in person from their screen, which verifies them.
   Future<ChatMutationView> startFromCard({
@@ -293,6 +306,9 @@ abstract class Profile implements RustOpaqueInterface {
   /// Reserve a watcher synchronously before its asynchronous worker starts.
   /// Stopping during dispatch therefore cannot accidentally revive a stream.
   BigInt startWatching();
+
+  /// Stop the activity stream started with `generation`.
+  void stopActivity({required BigInt generation});
 
   /// Stop the stream this profile is feeding, without closing anything
   /// else. Dropping the subscription on the Rust side is what actually
@@ -310,6 +326,25 @@ abstract class Profile implements RustOpaqueInterface {
   /// profile closes or when `stop_watching` is called; a listener should
   /// stop before cancelling, since the stream is closed from this side.
   Stream<ProgressView> watch({required BigInt generation});
+
+  /// Wait for activity notices on a member session while this profile is
+  /// open (ADR-014), reconnecting after failures with a growing pause, on
+  /// a thread of its own. The stream ends when `stop_activity` is called,
+  /// the profile closes, or the realm refuses the device.
+  Stream<ActivityView> watchActivity({required BigInt generation});
+}
+
+/// What the activity stream reports (ADR-014). A notice names nothing: the
+/// screen syncs to learn what arrived.
+enum ActivityView {
+  /// Subscribed; polling can slow down.
+  listening,
+
+  /// A mailbox of this device stopped being empty.
+  activity,
+
+  /// The session dropped; it reconnects on its own. Poll meanwhile.
+  disconnected,
 }
 
 class ArchiveEntryView {

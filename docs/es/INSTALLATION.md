@@ -217,21 +217,24 @@ o salir desde la barra de menús. Salir, cerrar el perfil o suspender el Mac
 detiene los avisos locales. Si se deniega el permiso, habilita Arveil en los
 ajustes de notificaciones de macOS y vuelve a activar la opción.
 
-Android añade **Ajustes → Notificaciones** experimental. Requiere ntfy de
-F-Droid con tu servidor HTTPS propio; introduce la misma dirección base en
-Arveil y concede permiso para avisar. Se rechaza ntfy.sh. Los avisos son genéricos
-y pueden llegar con el perfil cerrado, sin desbloquearlo. Desactiva la opción
-para detenerlos. Mantén Arveil abierto con conexión para completar altas/bajas
-pendientes. El cierre forzado y las restricciones de batería pueden impedir o
-retrasar la entrega.
+En Android, **Ajustes → Notificaciones → Recibir avisos de actividad** mantiene
+la propia conexión de Arveil con tu relay en un servicio en primer plano y muestra
+un aviso genérico cuando llega correo nuevo ([ADR-014](adr/ADR-014-relay-activity-notices.md)).
+No necesita otra app, ni dirección de servidor, ni servicios de Google; concede el
+permiso de notificaciones y, mejor, **Permitir en segundo plano**. Android muestra
+una notificación permanente y silenciosa mientras funciona. Los avisos pueden
+llegar con el perfil cerrado y nunca lo desbloquean; desactivar la opción los
+detiene al momento. Mientras esté activa, tu relay puede ver cuándo está conectado
+el móvil y desde qué red. Forzar el cierre y las restricciones de batería pueden
+impedir o retrasar los avisos. Actualizar desde las betas 5 o 6 retira la antigua
+configuración de ntfy y mantiene los avisos si estaban activos.
 
-Se han ejecutado builds debug, instrumentación del receptor Android y aceptación
-de adjuntos Mac con perfiles desechables. También pasan la entrega y retirada del
-aviso en el centro de notificaciones Mac debug con el permiso activado. La app
-oficial ntfy F-Droid pasa la entrega en emulador con un servidor local desechable.
-Quedan el recorrido completo relay-móvil, avisos Mac empaquetados y Android físico antes de publicar; consulta
-[alcance y evidencia](CLIENT_FILES_NOTIFICATIONS.md). Estas pruebas no despliegan
-un servidor de notificaciones permanente.
+Se han ejecutado builds debug y la aceptación de adjuntos Mac con perfiles
+desechables. También pasan la entrega y retirada del aviso en el centro de
+notificaciones Mac debug con el permiso activado. El servicio de avisos de Android
+pasó la aceptación relay-emulador contra un relay desechable. Quedan los avisos Mac
+empaquetados y Android físico antes de publicar; consulta
+[alcance y evidencia](CLIENT_FILES_NOTIFICATIONS.md).
 Los cambios no requieren migrar ni reinstalar el perfil: conserva el perfil
 y su llavero al actualizar mediante el procedimiento habitual.
 

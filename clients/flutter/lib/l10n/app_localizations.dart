@@ -3797,20 +3797,8 @@ abstract class AppLocalizations {
   /// No description provided for @pushExplanation.
   ///
   /// In es, this message translates to:
-  /// **'Notificaciones experimentales sin Google. Configura primero ntfy con tu servidor propio. El receptor solo muestra actividad genérica y nunca abre tu perfil ni lee mensajes.'**
+  /// **'Arveil puede mantener su propia conexión con tu servidor y avisarte cuando llegue correo nuevo, sin Google ni otra app. El aviso solo dice que hay actividad; Arveil lee tus mensajes cuando lo abres.'**
   String get pushExplanation;
-
-  /// No description provided for @pushInstall.
-  ///
-  /// In es, this message translates to:
-  /// **'Instala ntfy desde F-Droid y configura tu servidor HTTPS propio. El servidor público ntfy.sh no se admite en este modo.'**
-  String get pushInstall;
-
-  /// No description provided for @pushServer.
-  ///
-  /// In es, this message translates to:
-  /// **'Tu servidor de notificaciones'**
-  String get pushServer;
 
   /// No description provided for @pushEnable.
   ///
@@ -3818,65 +3806,65 @@ abstract class AppLocalizations {
   /// **'Recibir avisos de actividad'**
   String get pushEnable;
 
-  /// No description provided for @pushWaiting.
-  ///
-  /// In es, this message translates to:
-  /// **'Esperando a ntfy. Comprueba que use el mismo servidor y reintenta.'**
-  String get pushWaiting;
-
   /// No description provided for @pushReady.
   ///
   /// In es, this message translates to:
-  /// **'Conectado. Los avisos son genéricos; Arveil consulta los mensajes al abrirse.'**
+  /// **'Conectado. Tu servidor avisará de la actividad nueva.'**
   String get pushReady;
+
+  /// No description provided for @pushConnecting.
+  ///
+  /// In es, this message translates to:
+  /// **'Conectando con tu servidor…'**
+  String get pushConnecting;
 
   /// No description provided for @pushPermission.
   ///
   /// In es, this message translates to:
-  /// **'Permite las notificaciones de Arveil en los ajustes de Android y reintenta.'**
+  /// **'Permite las notificaciones de Arveil en los ajustes de Android y vuelve a activar los avisos.'**
   String get pushPermission;
 
-  /// No description provided for @pushEndpointMismatch.
+  /// No description provided for @pushRefused.
   ///
   /// In es, this message translates to:
-  /// **'ntfy ha devuelto otro servidor o uno no compatible. Comprueba su configuración y la dirección introducida aquí.'**
-  String get pushEndpointMismatch;
-
-  /// No description provided for @pushRegistrationFailed.
-  ///
-  /// In es, this message translates to:
-  /// **'ntfy no pudo registrar este dispositivo. Abre ntfy, comprueba su conexión y reintenta.'**
-  String get pushRegistrationFailed;
+  /// **'Tu servidor ya no acepta la clave de avisos de este móvil. Arveil la renueva la próxima vez que se abra; si sigue así, desactiva y activa los avisos.'**
+  String get pushRefused;
 
   /// No description provided for @pushUnavailable.
   ///
   /// In es, this message translates to:
-  /// **'No se pudo actualizar la configuración. Revisa ntfy, la dirección del servidor y los permisos de Android.'**
+  /// **'No se pudieron actualizar los avisos. Revisa la conexión con el servidor y los permisos de Android.'**
   String get pushUnavailable;
 
-  /// No description provided for @pushRelayPending.
+  /// No description provided for @pushRemovalPending.
   ///
   /// In es, this message translates to:
-  /// **'El cambio está guardado en este móvil pero sigue pendiente en el relay. Mantén Arveil abierto con conexión y reintenta. Los avisos desactivados siguen desactivados en el móvil.'**
-  String get pushRelayPending;
+  /// **'Los avisos están desactivados en este móvil. Aún no se pudo avisar al servidor; nada lo está escuchando.'**
+  String get pushRemovalPending;
+
+  /// No description provided for @pushBattery.
+  ///
+  /// In es, this message translates to:
+  /// **'Android puede pausar Arveil para ahorrar batería, lo que retrasa o detiene los avisos.'**
+  String get pushBattery;
+
+  /// No description provided for @pushBatteryAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Permitir en segundo plano'**
+  String get pushBatteryAction;
+
+  /// No description provided for @pushPrivacy.
+  ///
+  /// In es, this message translates to:
+  /// **'Mientras los avisos estén activos, tu servidor y la red intermedia pueden ver cuándo está conectado este móvil y desde qué red.'**
+  String get pushPrivacy;
 
   /// No description provided for @pushLimits.
   ///
   /// In es, this message translates to:
-  /// **'ntfy necesita funcionar en segundo plano. Las restricciones de batería pueden retrasar avisos. Forzar el cierre impide recibirlos hasta reabrir la app. Pueden llegar avisos genéricos con el perfil cerrado; desactiva esta opción para detenerlos.'**
+  /// **'Android muestra una notificación permanente «Espera de avisos» mientras los avisos están activos; puedes silenciar ese canal. Forzar el cierre detiene los avisos hasta que vuelvas a abrir Arveil.'**
   String get pushLimits;
-
-  /// No description provided for @pushRetry.
-  ///
-  /// In es, this message translates to:
-  /// **'Reintentar conexión'**
-  String get pushRetry;
-
-  /// No description provided for @pushServerHint.
-  ///
-  /// In es, this message translates to:
-  /// **'https://notify.example.org'**
-  String get pushServerHint;
 
   /// No description provided for @inviteTitle.
   ///

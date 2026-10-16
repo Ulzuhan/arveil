@@ -66,7 +66,7 @@ class ArveilRust
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1152022235;
+  int get rustContentHash => -292400997;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -146,6 +146,8 @@ abstract class ArveilRustApi extends BaseApi {
   Future<KeyPackageSupplyView> crateApiProfileProfileCheckKeyPackages({
     required Profile that,
   });
+
+  Future<void> crateApiProfileProfileClearWatchKey({required Profile that});
 
   Future<void> crateApiProfileProfileClose({required Profile that});
 
@@ -298,6 +300,10 @@ abstract class ArveilRustApi extends BaseApi {
     required String text,
   });
 
+  Future<Uint8List> crateApiProfileProfileRegisterWatchKey({
+    required Profile that,
+  });
+
   Future<ContactView> crateApiProfileProfileRenameContact({
     required Profile that,
     required String identityId,
@@ -374,6 +380,8 @@ abstract class ArveilRustApi extends BaseApi {
     required Profile that,
   });
 
+  BigInt crateApiProfileProfileStartActivity({required Profile that});
+
   Future<ChatMutationView> crateApiProfileProfileStartFromCard({
     required Profile that,
     required String bootstrap,
@@ -382,6 +390,11 @@ abstract class ArveilRustApi extends BaseApi {
   });
 
   BigInt crateApiProfileProfileStartWatching({required Profile that});
+
+  void crateApiProfileProfileStopActivity({
+    required Profile that,
+    required BigInt generation,
+  });
 
   void crateApiProfileProfileStopWatching({
     required Profile that,
@@ -400,6 +413,11 @@ abstract class ArveilRustApi extends BaseApi {
   });
 
   Stream<ProgressView> crateApiProfileProfileWatch({
+    required Profile that,
+    required BigInt generation,
+  });
+
+  Stream<ActivityView> crateApiProfileProfileWatchActivity({
     required Profile that,
     required BigInt generation,
   });
@@ -941,7 +959,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
-  Future<void> crateApiProfileProfileClose({required Profile that}) {
+  Future<void> crateApiProfileProfileClearWatchKey({required Profile that}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -954,6 +972,40 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             generalizedFrbRustBinding,
             serializer,
             funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileClearWatchKeyConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileClearWatchKeyConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_clear_watch_key",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiProfileProfileClose({required Profile that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
             port: port_,
           );
         },
@@ -988,7 +1040,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 16,
             port: port_,
           );
         },
@@ -1022,7 +1074,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -1064,7 +1116,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 18,
             port: port_,
           );
         },
@@ -1100,7 +1152,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 19,
             port: port_,
           );
         },
@@ -1133,7 +1185,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 20,
             port: port_,
           );
         },
@@ -1173,7 +1225,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 21,
             port: port_,
           );
         },
@@ -1215,7 +1267,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1249,7 +1301,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 23,
             port: port_,
           );
         },
@@ -1287,7 +1339,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1323,7 +1375,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1360,7 +1412,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1396,7 +1448,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1436,7 +1488,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1470,7 +1522,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1509,7 +1561,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1549,7 +1601,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1583,7 +1635,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1621,7 +1673,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1663,7 +1715,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1699,7 +1751,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1739,7 +1791,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1777,7 +1829,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1813,7 +1865,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1844,7 +1896,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1877,7 +1929,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1915,7 +1967,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1953,7 +2005,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1991,7 +2043,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 43,
             port: port_,
           );
         },
@@ -2033,7 +2085,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 44,
             port: port_,
           );
         },
@@ -2073,7 +2125,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 45,
             port: port_,
           );
         },
@@ -2111,7 +2163,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 46,
             port: port_,
           );
         },
@@ -2133,6 +2185,42 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Future<Uint8List> crateApiProfileProfileRegisterWatchKey({
+    required Profile that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 47,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeErrorData: sse_decode_command_error,
+        ),
+        constMeta: kCrateApiProfileProfileRegisterWatchKeyConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileRegisterWatchKeyConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_register_watch_key",
+        argNames: ["that"],
+      );
+
+  @override
   Future<ContactView> crateApiProfileProfileRenameContact({
     required Profile that,
     required String identityId,
@@ -2151,7 +2239,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 48,
             port: port_,
           );
         },
@@ -2187,7 +2275,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 49,
             port: port_,
           );
         },
@@ -2229,7 +2317,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 48,
+            funcId: 50,
             port: port_,
           );
         },
@@ -2271,7 +2359,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 51,
             port: port_,
           );
         },
@@ -2305,7 +2393,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 52,
             port: port_,
           );
         },
@@ -2345,7 +2433,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 53,
             port: port_,
           );
         },
@@ -2383,7 +2471,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 54,
             port: port_,
           );
         },
@@ -2425,7 +2513,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 55,
             port: port_,
           );
         },
@@ -2469,7 +2557,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 54,
+            funcId: 56,
             port: port_,
           );
         },
@@ -2513,7 +2601,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 55,
+            funcId: 57,
             port: port_,
           );
         },
@@ -2551,7 +2639,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 56,
+            funcId: 58,
             port: port_,
           );
         },
@@ -2589,7 +2677,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 57,
+            funcId: 59,
             port: port_,
           );
         },
@@ -2623,7 +2711,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 58,
+            funcId: 60,
             port: port_,
           );
         },
@@ -2656,7 +2744,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 59,
+            funcId: 61,
             port: port_,
           );
         },
@@ -2674,6 +2762,35 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   TaskConstMeta get kCrateApiProfileProfileSharedCardsConstMeta =>
       const TaskConstMeta(
         debugName: "Profile_shared_cards",
+        argNames: ["that"],
+      );
+
+  @override
+  BigInt crateApiProfileProfileStartActivity({required Profile that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_64,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiProfileProfileStartActivityConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileStartActivityConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_start_activity",
         argNames: ["that"],
       );
 
@@ -2698,7 +2815,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 60,
+            funcId: 63,
             port: port_,
           );
         },
@@ -2729,7 +2846,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 61)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 64)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_64,
@@ -2749,6 +2866,39 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  void crateApiProfileProfileStopActivity({
+    required Profile that,
+    required BigInt generation,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+            that,
+            serializer,
+          );
+          sse_encode_u_64(generation, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiProfileProfileStopActivityConstMeta,
+        argValues: [that, generation],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileStopActivityConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_stop_activity",
+        argNames: ["that", "generation"],
+      );
+
+  @override
   void crateApiProfileProfileStopWatching({
     required Profile that,
     required BigInt generation,
@@ -2762,7 +2912,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             serializer,
           );
           sse_encode_u_64(generation, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 66)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -2798,7 +2948,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 63,
+            funcId: 67,
             port: port_,
           );
         },
@@ -2837,7 +2987,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 64,
+            funcId: 68,
             port: port_,
           );
         },
@@ -2878,7 +3028,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 65,
+              funcId: 69,
               port: port_,
             );
           },
@@ -2902,6 +3052,49 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       );
 
   @override
+  Stream<ActivityView> crateApiProfileProfileWatchActivity({
+    required Profile that,
+    required BigInt generation,
+  }) {
+    final sink = RustStreamSink<ActivityView>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerProfile(
+              that,
+              serializer,
+            );
+            sse_encode_u_64(generation, serializer);
+            sse_encode_StreamSink_activity_view_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 70,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiProfileProfileWatchActivityConstMeta,
+          argValues: [that, generation, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiProfileProfileWatchActivityConstMeta =>
+      const TaskConstMeta(
+        debugName: "Profile_watch_activity",
+        argNames: ["that", "generation", "sink"],
+      );
+
+  @override
   Future<String> crateApiProfileGenerateProfileKey() {
     return handler.executeNormal(
       NormalTask(
@@ -2910,7 +3103,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 66,
+            funcId: 71,
             port: port_,
           );
         },
@@ -2938,7 +3131,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 67,
+            funcId: 72,
             port: port_,
           );
         },
@@ -2970,7 +3163,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 68,
+            funcId: 73,
             port: port_,
           );
         },
@@ -2999,7 +3192,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 69,
+            funcId: 74,
             port: port_,
           );
         },
@@ -3027,7 +3220,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 70)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 75)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -3056,7 +3249,7 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
           sse_encode_list_prim_u_8_loose(payload, serializer);
           sse_encode_list_prim_u_8_loose(signature, serializer);
           sse_encode_list_prim_u_8_loose(publicKey, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 71)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 76)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -3117,6 +3310,14 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  RustStreamSink<ActivityView> dco_decode_StreamSink_activity_view_Sse(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   RustStreamSink<ProgressView> dco_decode_StreamSink_progress_view_Sse(
     dynamic raw,
   ) {
@@ -3128,6 +3329,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
+  }
+
+  @protected
+  ActivityView dco_decode_activity_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ActivityView.values[raw as int];
   }
 
   @protected
@@ -4176,6 +4383,14 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  RustStreamSink<ActivityView> sse_decode_StreamSink_activity_view_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   RustStreamSink<ProgressView> sse_decode_StreamSink_progress_view_Sse(
     SseDeserializer deserializer,
   ) {
@@ -4188,6 +4403,13 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
+  }
+
+  @protected
+  ActivityView sse_decode_activity_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ActivityView.values[inner];
   }
 
   @protected
@@ -5556,6 +5778,23 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   }
 
   @protected
+  void sse_encode_StreamSink_activity_view_Sse(
+    RustStreamSink<ActivityView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_activity_view,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_StreamSink_progress_view_Sse(
     RustStreamSink<ProgressView> self,
     SseSerializer serializer,
@@ -5576,6 +5815,12 @@ class ArveilRustApiImpl extends ArveilRustApiImplPlatform
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_activity_view(ActivityView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -6845,6 +7090,11 @@ class ProfileImpl extends RustOpaque implements Profile {
   Future<KeyPackageSupplyView> checkKeyPackages() => ArveilRust.instance.api
       .crateApiProfileProfileCheckKeyPackages(that: this);
 
+  /// Remove this device's watch key from the realm, which also ends any
+  /// service session using it.
+  Future<void> clearWatchKey() =>
+      ArveilRust.instance.api.crateApiProfileProfileClearWatchKey(that: this);
+
   /// Stop admitting work, wait for what is running and release the
   /// profile. Idempotent, and every later call fails instead of quietly
   /// opening it again.
@@ -7061,6 +7311,13 @@ class ProfileImpl extends RustOpaque implements Profile {
   Future<CardView> readCard({required String text}) => ArveilRust.instance.api
       .crateApiProfileProfileReadCard(that: this, text: text);
 
+  /// Register a fresh watch key for this device and return the credentials
+  /// a platform service waits with (ADR-014). Replaces any earlier key. The
+  /// bytes include a private key: the platform stores them encrypted and
+  /// hands them only to its own service.
+  Future<Uint8List> registerWatchKey() => ArveilRust.instance.api
+      .crateApiProfileProfileRegisterWatchKey(that: this);
+
   Future<ContactView> renameContact({
     required String identityId,
     required String name,
@@ -7175,6 +7432,10 @@ class ProfileImpl extends RustOpaque implements Profile {
   Future<List<CardOfferView>> sharedCards() =>
       ArveilRust.instance.api.crateApiProfileProfileSharedCards(that: this);
 
+  /// Reserve an activity watcher, as `start_watching` does for progress.
+  BigInt startActivity() =>
+      ArveilRust.instance.api.crateApiProfileProfileStartActivity(that: this);
+
   /// Start talking to the person a card names. `scanned` says it was read
   /// in person from their screen, which verifies them.
   Future<ChatMutationView> startFromCard({
@@ -7192,6 +7453,10 @@ class ProfileImpl extends RustOpaque implements Profile {
   /// Stopping during dispatch therefore cannot accidentally revive a stream.
   BigInt startWatching() =>
       ArveilRust.instance.api.crateApiProfileProfileStartWatching(that: this);
+
+  /// Stop the activity stream started with `generation`.
+  void stopActivity({required BigInt generation}) => ArveilRust.instance.api
+      .crateApiProfileProfileStopActivity(that: this, generation: generation);
 
   /// Stop the stream this profile is feeding, without closing anything
   /// else. Dropping the subscription on the Rust side is what actually
@@ -7218,4 +7483,13 @@ class ProfileImpl extends RustOpaque implements Profile {
       .instance
       .api
       .crateApiProfileProfileWatch(that: this, generation: generation);
+
+  /// Wait for activity notices on a member session while this profile is
+  /// open (ADR-014), reconnecting after failures with a growing pause, on
+  /// a thread of its own. The stream ends when `stop_activity` is called,
+  /// the profile closes, or the realm refuses the device.
+  Stream<ActivityView> watchActivity({required BigInt generation}) => ArveilRust
+      .instance
+      .api
+      .crateApiProfileProfileWatchActivity(that: this, generation: generation);
 }

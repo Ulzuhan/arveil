@@ -2,7 +2,7 @@
 
 **Incremento en código del 30 de septiembre de 2026; aún sin publicar.**
 Seguimiento en [issue 140](https://github.com/Ulzuhan/arveil/issues/140).
-Dirección elegida para Android: entrega propia sin Google/FCM.
+Los avisos en Android y macOS llegan de tu propio relay, sin Google/FCM ni una segunda app ([ADR-014](adr/ADR-014-relay-activity-notices.md)).
 
 *English version: [../CLIENT_FILES_NOTIFICATIONS.md](../CLIENT_FILES_NOTIFICATIONS.md)*
 
@@ -43,9 +43,12 @@ inicialmente:
 - **Mostrar notificaciones en este Mac** solicita permiso de avisos/sonido al
   sistema. El aviso es genérico: no entrega al sistema nombres, contenido,
   nombres de archivo ni identificadores de conversación.
-- **Mantener Arveil en segundo plano** mantiene el perfil desbloqueado y sincroniza
-  cada diez segundos. Cerrar la ventana la oculta; el icono de la barra de menús
-  permite abrir Arveil o salir. Cerrar el perfil retira ese menú y los avisos.
+- **Mantener Arveil en segundo plano** mantiene el perfil desbloqueado y espera los
+  avisos de actividad del relay en la propia sesión del perfil, y sincroniza cuando
+  llega uno (ADR-014). Mientras está suscrito sincroniza además cada dos minutos;
+  si la sesión se cae, vuelve a hacerlo cada diez segundos. Cerrar la ventana la
+  oculta; el icono de la barra de menús permite abrir Arveil o salir. Cerrar el
+  perfil retira ese menú y los avisos.
 
 El mismo perfil Rust y coordinador de conversaciones controlan sincronización
 y lecturas. El foco de la ventana, la pantalla visible y la posibilidad de
@@ -69,134 +72,88 @@ Permisos con la aplicación empaquetada, menú/ventana, pulsación del aviso y
 suspensión/reactivación requieren aceptación interactiva antes de prometerlos
 en una versión publicada.
 
-## Android: experimento con servidor propio
-
-> **Pendiente de sustituir.** La [ADR-014](adr/ADR-014-relay-activity-notices.md) (propuesta) hace que el relay avise de la actividad por el canal Noise a un servicio en primer plano de Arveil, con una clave solo de vigilancia. Desaparecen ntfy, la app distribuidora UnifiedPush y la dirección del servidor escrita a mano. Esta sección describe lo que incluyen las betas 5 y 6 hasta entonces.
+## Android: avisos desde tu propio servidor
 
 ```mermaid
 flowchart LR
-  R[Relay] -->|Aviso genérico del buzón| N[ntfy propio]
-  N -->|Conexión desde el móvil| D[Distribuidor ntfy Android]
-  D -->|Callback UnifiedPush| A[Aviso genérico Arveil]
-  A -->|Abrir perfil existente y sincronizar| R
+  R[Relay] -->|MailboxWakeup por Noise| S[Servicio en primer plano de Arveil]
+  S -->|Notificación genérica| P[Persona]
+  P -->|Abre Arveil y el perfil sincroniza| R
 ```
 
-El Mac mini puede alojar ntfy junto al relay. Este incremento añade un receptor
-Android experimental con el conector oficial UnifiedPush 3.0.10 y ntfy como
-segunda aplicación. Instala la variante F-Droid de ntfy y configura tu propio
-servidor HTTPS como predeterminado. Introduce la misma dirección base en
-**Arveil → Ajustes → Notificaciones**, activa los avisos y concede el permiso
-Android. El endpoint recibido debe pertenecer a ese servidor y ruta; se rechaza
-ntfy.sh. HTTP local solo se admite en builds debug para pruebas desechables.
+**Ajustes → Notificaciones → Recibir avisos de actividad** los activa. Arveil
+registra en el relay una clave de vigilancia para este dispositivo a través del
+perfil abierto, entrega las credenciales a su propio servicio en primer plano y
+pide el permiso de notificaciones de Android. No hay segunda app, ni dirección de
+servidor que escribir, ni servicios de Google.
 
-El alta, rotación y baja usan el ejecutor Rust del perfil abierto. Los cambios
-sin conexión quedan pendientes y se reintentan al volver o cada 30 segundos
-mientras la app está activa. Desactivar suprime los avisos locales inmediatamente,
-aunque la baja remota siga pendiente. Una revisión evita que una respuesta antigua
-confirme un endpoint nuevo. Abrir otra identidad elimina la suscripción local
-anterior; no promete borrar su registro remoto con el perfil cerrado.
+- **Qué se ejecuta.** Un servicio en primer plano `specialUse` mantiene una sesión
+  de vigilancia con el relay ([ADR-014](adr/ADR-014-relay-activity-notices.md)).
+  Prueba la lista firmada de direcciones por orden, reconecta tras un fallo con una
+  pausa de 1 s que se duplica hasta 60 s, y al momento cuando cambia la red. Envía
+  un ping cada 90 segundos. Android muestra una notificación permanente y silenciosa
+  «Espera de avisos» mientras funciona; ese canal se puede silenciar. Vuelve a
+  arrancar tras reiniciar o actualizar.
+- **Qué dice un aviso.** Solo «Hay actividad pendiente. Abre Arveil para consultar
+  tus mensajes.». El servicio nunca abre el perfil, no descifra ni lee nada, y el
+  aviso del relay no nombra nada. Los avisos se agrupan hasta una sincronización
+  correcta en primer plano; uno recibido con Arveil visible se muestra una vez si
+  Arveil pasa a segundo plano antes de sincronizar. Pulsarlo abre la bandeja tras
+  desbloquear.
+- **Qué puede hacer la clave.** Solo esperar avisos: el relay rechaza cualquier otro
+  frame suyo. Las credenciales se cifran con una clave del Keystore de Android y no
+  entran en copias de seguridad. Una clave rotada, revocada o retirada detiene el
+  servicio; Arveil registra otra la próxima vez que se abre.
+- **Desactivar** detiene el servicio y los avisos al momento y retira la clave del
+  relay. Si el relay no responde, la retirada se reintenta mientras Arveil está
+  abierto. Abrir otra identidad en el móvil borra los avisos de la anterior.
+- **Batería.** Android puede pausar Arveil; **Permitir en segundo plano** abre la
+  exención del sistema. Forzar el cierre detiene los avisos hasta volver a abrir Arveil.
+- **Qué cuesta.** Mientras los avisos están activos, el relay y cualquier ruta
+  intermedia ven cuándo está conectado este móvil y desde qué red
+  ([qué sabe cada parte](adr/ADR-014-relay-activity-notices.md)).
+- **Al actualizar desde las betas 5 y 6.** Su receptor ntfy/UnifiedPush desaparece.
+  En el primer arranque Arveil retira del relay el endpoint de ntfy y, si los avisos
+  estaban activos, activa los nuevos. La app ntfy ya no hace falta.
 
-El receptor nativo cifra sus preferencias y endpoint con una clave independiente
-del Keystore Android. No inicia Flutter, abre perfiles, descifra mensajes ni
-modifica lecturas. Solo admite el marcador genérico exacto y agrupa avisos hasta
-una sincronización correcta en primer plano. Si llega con Arveil visible y la
-sincronización no termina, se muestra una vez al pasar a segundo plano. Volver
-a cambiar de plano no repite un aviso ya mostrado o descartado.
-Pulsar el aviso abre los chats tras
-desbloquear. Puede avisar con el perfil cerrado: desactívalo antes si no lo deseas.
-Una rotación recibida en segundo plano solicita abrir Arveil para completar el alta.
+### Trabajo pendiente
 
-Se integra específicamente el marcador genérico en texto plano de ntfy mediante
-la compatibilidad del conector. **No es un emisor WebPush/VAPID general**; la vía
-moderna de payload cifrado de UnifiedPush queda aparte. Un hint no demuestra un
-remitente ni una cantidad de mensajes. Tink se usa como biblioteca criptográfica
-local; Arveil no añade FCM ni Google Play Services.
-
-ntfy documenta que las suscripciones a servidores propios evitan Firebase y su
-variante F-Droid lo excluye: [documentación Android/UnifiedPush](https://docs.ntfy.sh/subscribe/phone/).
-El despliegue necesita HTTPS estable accesible desde datos móviles, sin clave
-Firebase ni relay upstream, y los permisos de publicación/lectura de la
-[configuración UnifiedPush](https://docs.ntfy.sh/config/#example-unifiedpush).
-La configuración anónima de loopback de esta prueba no debe exponerse a Internet.
-Los endpoints conceden acceso: deben quedar fuera de registros y protegerse la
-lectura. El servidor y cualquier proxy TLS siguen viendo endpoints, IP y tiempos.
-
-El relay permite registrar una URL por dispositivo y envía solo `arveil-hint/v1`
-cuando el buzón pasa de vacío a ocupado. Prueba reproducible:
-
-```sh
-cd core && cargo build -p arveil-cli
-cd ..
-python3 scripts/test_ntfy_hints.py --ntfy /ruta/al/ntfy-con-servidor
-# O redirige un ntfy remoto desechable a un puerto local:
-python3 scripts/test_ntfy_hints.py --ntfy-url http://127.0.0.1:2586
-```
-
-La primera forma crea su configuración y comprueba también caída/reinicio.
-La segunda no detiene ni reconfigura el servidor facilitado. Ambas compilan un
-relay local nuevo, crean perfiles sintéticos y un topic aleatorio, verifican el
-marcador fijo, agrupación, confirmación y baja, y eliminan sus datos locales.
-Los diagnósticos de fallos quedan privados en `.local/ntfy-acceptance`, ignorado
-por Git. El paquete oficial Darwin de ntfy solo trae el cliente; su código
-ofrece `make cli-darwin-server` para este experimento. Verificado con v2.28.0.
-
-### Trabajo pendiente para integrarlo y hacerlo fiable
-
-- El aviso hace un intento de cinco segundos, sin reintentos. Si falla, el buzón
-  pendiente no vuelve a avisar; la sincronización normal recupera los mensajes.
-  Los errores HTTP también se contabilizan hoy como enviados. Cambiar reintentos
-  y agrupación modifica la política temporal de [Fase 3](../PHASE3.md) y requiere diseño explícito.
-- Antes de admitir endpoints generales, limitar destinos, direcciones resueltas,
-  redirecciones y concurrencia, con excepciones intencionales del operador.
-  Comprobar solo el esquema de la URL no limita las conexiones salientes.
-- Verificar relay → distribuidor ntfy Android real → Arveil, incluyendo rotación,
-  muerte del proceso y pulsación del aviso. El transporte del relay y el
-  distribuidor Android real ya pasan pruebas desechables separadas; todavía
-  no se han probado juntos con un perfil en móvil físico.
-- Probar pantalla apagada/Doze, ahorro de batería, Wi-Fi/datos, reinicio, muerte
-  del proceso, retirada de Recientes y cierre forzado/reapertura en móvil físico.
-  Medir demora y consumo. El servidor no evita las
-  [restricciones Android](https://developer.android.com/training/monitoring-device-state/doze-standby).
-- Integrar el receptor en Arveil podría eliminar la segunda app, pero exige un
-  ciclo de servicio legítimo. `dataSync` no puede suponerse indefinido; véanse
-  los [límites de servicios Android](https://developer.android.com/develop/background-work/services/fgs/timeout).
+- Móvil físico: pantalla apagada y Doze, ahorro de batería, cambio de Wi-Fi a datos
+  y vuelta, reinicio, muerte del proceso, retirada de Recientes, forzar cierre y
+  reabrir. Medir demora y batería por LAN o tailnet y por el túnel público. Un
+  servidor no puede saltarse las
+  [restricciones de Android](https://developer.android.com/training/monitoring-device-state/doze-standby).
+- El ping de 90 segundos es fijo; hay que medirlo por ruta y ajustarlo
+  ([preguntas abiertas de la ADR-014](adr/ADR-014-relay-activity-notices.md)).
+- El relay sigue aceptando el antiguo `NotifyHintSet` para los clientes sin
+  actualizar; se retira una versión después ([ADR-014 §5](adr/ADR-014-relay-activity-notices.md)).
 
 ## Evidencia y límites
 
-Pasan el análisis Flutter y 298 pruebas unitarias/de interfaz: límites del visor,
+Pasan el análisis Flutter y 321 pruebas unitarias/de interfaz: límites del visor,
 confirmación de apertura externa, rechazo de bytes no verificados, deduplicación,
 permiso denegado y protección de lecturas ocultas. Compilan los clientes debug
 Mac y Android. La aceptación nativa macOS con perfiles desechables comprueba
 transferencia/reapertura cifrada, imágenes enviadas y recibidas sin conexión,
 cancelación, nombres duplicados y exportación explícita.
 
-ntfy v2.28.0 local pasó marcador/agrupación/baja, reinicio y recuperación tras
-aviso perdido. ntfy Linux ARM64 desechable en el Mac mini también pasó
-marcador/agrupación/baja mediante redirección SSH local autenticada; se retiraron
-el servicio y sus datos al terminar. Ninguno usó Firebase ni proveedor upstream.
-La prueba remota no comprobó caída/reinicio de su servidor.
+Android, 16-10-2026, en un emulador Android 15 ARM64 contra un relay desechable
+(`scripts/test_android_watch.py`): el servicio de depuración se suscribió por JNI
+en menos de un segundo, mostró su notificación permanente, mostró solo el aviso
+genérico cuando escribió otra identidad y se detuvo con la clave rechazada al
+retirarla. La prueba con relay de la capa de aplicación
+`activity_notices_reach_a_watch_key_and_an_open_profile` comprueba una clave de
+vigilancia registrada, la sesión de miembro del perfil abierto y el rechazo de una
+clave retirada. Seis pruebas Dart cubren activar, desactivar sin conexión y su
+reintento, la migración desde el aviso ntfy, la renovación de una clave rechazada
+una vez por paso a primer plano y la sincronización solo en primer plano. Nada de
+esto demuestra el comportamiento en un móvil físico con Doze, límites de batería o
+cambios de red.
 
-El receptor Android pasa instrumentación nativa en emulador con el conector
-oficial, Keystore y gestor de notificaciones: rechazo de token/marcador incorrecto,
-rechazo de otro servidor, aviso genérico, agrupación y desactivación local. Una
-prueba de regresión cubre un hint en primer plano seguido del paso a segundo plano
-sin otro push, transiciones repetidas y descarte antes de sincronizar. Cinco
-pruebas Dart cubren alta, carreras de rotación, baja sin conexión, sincronización
-solo en primer plano y conservación del aviso tras fallar la sincronización.
-Son pruebas separadas del transporte ntfy; no demuestran entrega en móvil físico.
-La aceptación del perfil nativo Mac también pasó alta en el relay, entrega del
-marcador exacto, rotación/baja y reapertura del perfil cifrado.
-
-La prueba opcional `NtfyDeliveryTest` pasó en un emulador Android 15 ARM64 con el
-APK oficial ntfy v1.25.2 F-Droid (checksum publicado y certificado de firma
-verificados) y ntfy v2.28.0 local, sin Firebase ni proveedor upstream. Comprueba
-alta real del endpoint, entrega del marcador, presentación al pasar a segundo
-plano, agrupación, eliminación del token local y silencio tras desactivar/dar de
-baja. También pasan las tres pruebas nativas juntas. La prueba publica el marcador
-directamente en ntfy: no abre un perfil Arveil, no comprueba el recorrido completo
-relay-móvil ni la entrega tras terminar el proceso. HTTP local para este emisor
-solo se habilita en debug; la política de red publicada no cambia. Al terminar se
-retiran servidor y redirección y se restauran las preferencias anteriores de ntfy.
+Las betas 5 y 6 usaban un servidor ntfy propio y su app de F-Droid mediante
+UnifiedPush. Ese diseño, su aceptación y sus límites están en el historial de este
+documento anterior a la ADR-014; el aviso M3.4 del relay en que se apoyaba sigue
+funcionando para esos clientes hasta que se actualicen.
 
 La aceptación nativa Mac por separado pasó ocultar y reabrir la ventana, abrir
 un archivo real externo, permisos temporales 0700/0600 y limpieza al caducar.

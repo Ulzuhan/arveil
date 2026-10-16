@@ -403,3 +403,55 @@ fn refreshing_after_offline_revocation_preserves_intent_and_hides_the_link() {
 
 #[path = "support/invitation_failures.rs"]
 mod failures;
+
+/// ADR-014 through the application layer: a watch key registered by the
+/// profile hears new mail, the open profile's own session hears mail already
+/// waiting, and a removed key is refused.
+#[test]
+#[ignore = "requires the disposable Go relay binary"]
+fn activity_notices_reach_a_watch_key_and_an_open_profile() {
+    use arveil_app::watch::{self, Ended, WatchCredentials, WatchEvent};
+    use std::sync::mpsc;
+
+    fn wait_on(
+        credentials: WatchCredentials,
+    ) -> (mpsc::Receiver<WatchEvent>, std::thread::JoinHandle<Ended>) {
+        let (tx, rx) = mpsc::channel();
+        let handle = std::thread::spawn(move || {
+            watch::serve(&credentials, Duration::from_secs(30), &|| false, |event| {
+                let _ = tx.send(event);
+                event != WatchEvent::Activity
+            })
+        });
+        (rx, handle)
+    }
+    let next = |rx: &mpsc::Receiver<WatchEvent>| rx.recv_timeout(Duration::from_secs(10)).unwrap();
+
+    let f = Fixture::new();
+    let alice = f.profile("alice");
+    f.enroll(&alice);
+    let bob = f.profile("bob");
+    f.enroll(&bob);
+    let route = alice.own_route().unwrap();
+
+    // What the Android service receives, through the bytes it stores.
+    let service =
+        WatchCredentials::from_bytes(&alice.register_watch_key().unwrap().to_bytes().unwrap())
+            .unwrap();
+    let (events, handle) = wait_on(service.clone());
+    assert_eq!(next(&events), WatchEvent::Listening);
+    bob.create_conversation(&f.bootstrap, &[&route]).unwrap();
+    assert_eq!(next(&events), WatchEvent::Activity);
+    assert_eq!(handle.join().unwrap(), Ended::Stopped);
+
+    // The open profile's member session: the Welcome still waits, so the
+    // notice comes right after subscribing.
+    let (events, handle) = wait_on(alice.watch_credentials().unwrap());
+    assert_eq!(next(&events), WatchEvent::Listening);
+    assert_eq!(next(&events), WatchEvent::Activity);
+    assert_eq!(handle.join().unwrap(), Ended::Stopped);
+
+    alice.clear_watch_key().unwrap();
+    let ended = watch::serve(&service, Duration::from_secs(30), &|| false, |_| true);
+    assert_eq!(ended, Ended::Refused);
+}

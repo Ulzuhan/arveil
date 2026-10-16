@@ -84,7 +84,7 @@ understanding it.
 - Encrypted attachments with resumable transfers; images open inside the app
 - Delivery states that never claim someone read your message
 - Search within a conversation, run on your device
-- Unread counts, previews and opt-in notifications that never show names or text (macOS; experimental on Android through a self-hosted ntfy)
+- Unread counts, previews and opt-in notifications that never show names or text (macOS and Android, announced by your own relay without Google)
 
 </td>
 <td valign="top" width="50%">

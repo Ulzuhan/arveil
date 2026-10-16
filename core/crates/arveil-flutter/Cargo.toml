@@ -19,6 +19,11 @@ arveil-app = { path = "../arveil-app" }
 flutter_rust_bridge = "=2.13.0"
 getrandom = "0.4.3"
 
+# The Android activity service calls into the core over JNI (ADR-014),
+# without starting Flutter.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+
 # This crate does not inherit the workspace lints. Generated bindings carry
 # `unsafe` of their own, and `forbid` cannot be relaxed from the inside, so
 # the exception lives here and nowhere else: handwritten modules deny it,

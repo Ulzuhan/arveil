@@ -2,6 +2,14 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Activity notices (ADR-014): a foreground service keeps one watch
+         session to the relay while the person has turned notices on, and
+         starts again after a reboot. Arveil is distributed outside Google
+         Play, which is why the service type is specialUse. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <!-- The camera reads QR codes to link a device or add a contact
          (ADR-012). It is asked for only after "Scan" is tapped, and a device
          without one pastes instead, so it is not a requirement. The camera
@@ -35,9 +43,17 @@
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules">
         <receiver android:name=".UpdateResultReceiver" android:exported="false"/>
-        <service android:name=".ArveilPushService" android:exported="false">
-            <intent-filter><action android:name="org.unifiedpush.android.connector.PUSH_EVENT"/></intent-filter>
+        <service android:name=".WatchService" android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the end-to-end encrypted messenger's own connection to its self-hosted server, which announces new mail without Google services."/>
         </service>
+        <receiver android:name=".WatchBootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
         <provider android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.attachment_viewer"
             android:exported="false" android:grantUriPermissions="true">

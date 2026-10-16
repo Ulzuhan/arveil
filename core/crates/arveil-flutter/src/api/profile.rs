@@ -23,6 +23,8 @@ pub struct Profile {
     /// Each watcher owns a generation. Replacing/stopping it invalidates the
     /// previous loop even when a screen immediately starts another watcher.
     watching: Arc<AtomicU64>,
+    /// The same, for the loop waiting on activity notices (ADR-014).
+    activity: Arc<AtomicU64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -378,6 +380,18 @@ pub enum CommandError {
     },
 }
 
+/// What the activity stream reports (ADR-014). A notice names nothing: the
+/// screen syncs to learn what arrived.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivityView {
+    /// Subscribed; polling can slow down.
+    Listening,
+    /// A mailbox of this device stopped being empty.
+    Activity,
+    /// The session dropped; it reconnects on its own. Poll meanwhile.
+    Disconnected,
+}
+
 /// Progress while an operation runs. A screen may show it; it does not
 /// replace the answer the operation returns, and a `gap` means events were
 /// missed and the screen should read the state again.
@@ -615,6 +629,7 @@ pub fn open_profile(dir: String, key: String) -> Result<Profile, ProfileError> {
     Ok(Profile {
         inner: Application::open(config).map_err(profile_error)?,
         watching: Arc::new(AtomicU64::new(0)),
+        activity: Arc::new(AtomicU64::new(0)),
     })
 }
 
@@ -625,6 +640,7 @@ pub fn open_unencrypted_profile(dir: String) -> Result<Profile, ProfileError> {
         inner: Application::open(ProfileConfig::unencrypted(dir).with_manual_attachments())
             .map_err(profile_error)?,
         watching: Arc::new(AtomicU64::new(0)),
+        activity: Arc::new(AtomicU64::new(0)),
     })
 }
 
@@ -658,6 +674,8 @@ impl Profile {
     /// profile. Idempotent, and every later call fails instead of quietly
     /// opening it again.
     pub fn close(&self) {
+        // A closed profile must not keep a session open in its name.
+        self.activity.fetch_add(1, AtomicOrdering::AcqRel);
         self.inner.close();
     }
 
@@ -1312,6 +1330,88 @@ impl Profile {
         })
     }
 
+    /// Register a fresh watch key for this device and return the credentials
+    /// a platform service waits with (ADR-014). Replaces any earlier key. The
+    /// bytes include a private key: the platform stores them encrypted and
+    /// hands them only to its own service.
+    pub fn register_watch_key(&self) -> Result<Vec<u8>, CommandError> {
+        let credentials = self.inner.register_watch_key().map_err(command_error)?;
+        credentials
+            .to_bytes()
+            .map_err(|error| CommandError::Internal {
+                operation: operation_name(Operation::RegisterWatchKey).into(),
+                reason: error.to_string(),
+            })
+    }
+
+    /// Remove this device's watch key from the realm, which also ends any
+    /// service session using it.
+    pub fn clear_watch_key(&self) -> Result<(), CommandError> {
+        self.inner
+            .clear_watch_key()
+            .map(|_| ())
+            .map_err(command_error)
+    }
+
+    /// Reserve an activity watcher, as `start_watching` does for progress.
+    #[frb(sync)]
+    pub fn start_activity(&self) -> u64 {
+        self.activity
+            .fetch_add(1, AtomicOrdering::AcqRel)
+            .wrapping_add(1)
+    }
+
+    /// Wait for activity notices on a member session while this profile is
+    /// open (ADR-014), reconnecting after failures with a growing pause, on
+    /// a thread of its own. The stream ends when `stop_activity` is called,
+    /// the profile closes, or the realm refuses the device.
+    pub fn watch_activity(&self, generation: u64, sink: StreamSink<ActivityView>) {
+        let Ok(credentials) = self.inner.watch_credentials() else {
+            // A closed or unenrolled profile has nothing to wait for:
+            // dropping the sink ends the stream.
+            return;
+        };
+        let activity = Arc::clone(&self.activity);
+        let _ = std::thread::Builder::new()
+            .name("arveil-activity".into())
+            .spawn(move || {
+                let current = || activity.load(AtomicOrdering::Acquire) == generation;
+                let stop = || !current();
+                arveil_app::watch::serve(
+                    &credentials,
+                    std::time::Duration::from_secs(60),
+                    &stop,
+                    |event| {
+                        current()
+                            && sink
+                                .add(match event {
+                                    arveil_app::watch::WatchEvent::Listening => {
+                                        ActivityView::Listening
+                                    }
+                                    arveil_app::watch::WatchEvent::Activity => {
+                                        ActivityView::Activity
+                                    }
+                                    arveil_app::watch::WatchEvent::Disconnected => {
+                                        ActivityView::Disconnected
+                                    }
+                                })
+                                .is_ok()
+                    },
+                );
+            });
+    }
+
+    /// Stop the activity stream started with `generation`.
+    #[frb(sync)]
+    pub fn stop_activity(&self, generation: u64) {
+        let _ = self.activity.compare_exchange(
+            generation,
+            generation.wrapping_add(1),
+            AtomicOrdering::AcqRel,
+            AtomicOrdering::Acquire,
+        );
+    }
+
     /// Reserve a watcher synchronously before its asynchronous worker starts.
     /// Stopping during dispatch therefore cannot accidentally revive a stream.
     #[frb(sync)]
@@ -1868,6 +1968,9 @@ fn operation_name(operation: Operation) -> &'static str {
         Operation::CheckKeyPackages => "check-key-packages",
         Operation::ReplenishKeyPackages => "replenish-key-packages",
         Operation::SetNotificationHint => "set-notification-hint",
+        Operation::RegisterWatchKey => "register-watch-key",
+        Operation::ClearWatchKey => "clear-watch-key",
+        Operation::QueryWatchCredentials => "query-watch-credentials",
         Operation::ExportArchive => "export-archive",
         Operation::ImportArchive => "import-archive",
         Operation::QueryArchivePage => "query-archive-page",

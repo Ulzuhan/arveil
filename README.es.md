@@ -85,7 +85,7 @@ puede mantener en una máquina pequeña sin tener que entenderlo.
 - Adjuntos cifrados con transferencias que se reanudan; las imágenes se abren dentro de la app
 - Estados de entrega que nunca afirman que alguien leyó tu mensaje
 - Búsqueda dentro de una conversación, en tu dispositivo
-- Mensajes sin leer, vista previa y notificaciones opcionales que nunca muestran nombres ni texto (macOS; experimentales en Android con un ntfy propio)
+- Mensajes sin leer, vista previa y notificaciones opcionales que nunca muestran nombres ni texto (macOS y Android, avisadas por tu propio relay sin Google)
 
 </td>
 <td valign="top" width="50%">

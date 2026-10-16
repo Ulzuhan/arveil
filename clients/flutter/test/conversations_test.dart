@@ -181,6 +181,22 @@ class ChatProfile extends FakeProfile {
   }
 }
 
+class ActivityProfile extends ChatProfile {
+  ActivityProfile(this.activity);
+  final StreamController<ActivityView> activity;
+  int activityStarts = 0, activityStops = 0;
+
+  @override
+  BigInt startActivity() => BigInt.from(++activityStarts);
+
+  @override
+  Stream<ActivityView> watchActivity({required BigInt generation}) =>
+      activity.stream;
+
+  @override
+  void stopActivity({required BigInt generation}) => activityStops++;
+}
+
 void main() {
   testWidgets('route rebuild retains the conversation controller and draft', (
     tester,
@@ -271,6 +287,48 @@ void main() {
       expect(chat.events.length, 2);
     },
   );
+  testWidgets('activity notices sync at once and slow polling (ADR-014)', (
+    tester,
+  ) async {
+    final activity = StreamController<ActivityView>();
+    final profile = ActivityProfile(activity);
+    final chat = ConversationController(profile, relay);
+    await tester.pumpWidget(
+      MaterialApp(home: ConversationsPage(controller: chat)),
+    );
+    await tester.pumpAndSettle();
+    expect(profile.syncs, 1);
+    expect(profile.activityStarts, 1);
+
+    // Subscribed: ten seconds pass without a poll.
+    activity.add(ActivityView.listening);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pumpAndSettle();
+    expect(profile.syncs, 1);
+
+    // A notice syncs at once.
+    activity.add(ActivityView.activity);
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(profile.syncs, 2);
+
+    // Disconnected: polling returns to every ten seconds.
+    activity.add(ActivityView.disconnected);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pumpAndSettle();
+    expect(profile.syncs, 3);
+
+    // Leaving the foreground stops the subscription.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pumpAndSettle();
+    expect(profile.activityStops, 1);
+    // The page owns the controller and disposes it.
+    await tester.pumpWidget(const SizedBox());
+    unawaited(activity.close());
+  });
+
   test('late history cannot overwrite a new selection', () async {
     final profile = ChatProfile()..history = Completer<HistoryPageView>();
     final chat = ConversationController(profile, relay);

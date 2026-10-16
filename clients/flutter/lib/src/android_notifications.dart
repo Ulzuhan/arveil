@@ -9,8 +9,11 @@ import 'package:flutter/widgets.dart';
 import '../l10n/l10n.dart';
 import 'rust/api/profile.dart';
 
-/// The native receiver only owns delivery preferences and a generic hint.
-/// Registration and synchronization always use the already-open Rust profile.
+/// Activity notices on Android (ADR-014). The open Rust profile registers
+/// and removes the watch key; the native side only keeps the credentials it
+/// is handed, encrypted, and runs the service that waits on the relay. The
+/// service never opens the profile: a notice is generic, and the app syncs
+/// when it opens.
 class AndroidNotifications extends ChangeNotifier with WidgetsBindingObserver {
   AndroidNotifications({
     required this.profile,
@@ -34,19 +37,18 @@ class AndroidNotifications extends ChangeNotifier with WidgetsBindingObserver {
   bool _closed = false;
   bool _active = true;
   bool _again = false;
+  bool _renewed = false;
   Future<void>? _work;
   Timer? _retry;
   VoidCallback? onOpen;
   bool get enabled => _state['enabled'] == true;
-  bool get installed => _state['installed'] == true;
+  bool get listening => _state['listening'] == true;
   bool get permission => _state['permission'] == true;
-  String get server => _state['server'] as String? ?? '';
-  bool get waiting => enabled && (_state['endpoint'] as String? ?? '').isEmpty;
-  bool get relayPending => _state['revision'] != _state['applied'];
+  bool get batteryExempt => _state['battery'] == true;
+  bool get refused => _state['error'] == 'refused';
   String? get nativeError => switch (_state['error']) {
     'permission' => currentStrings.pushPermission,
-    'endpoint' => currentStrings.pushEndpointMismatch,
-    'registration' => currentStrings.pushRegistrationFailed,
+    'refused' => currentStrings.pushRefused,
     _ => null,
   };
   void _changed() {
@@ -85,7 +87,6 @@ class AndroidNotifications extends ChangeNotifier with WidgetsBindingObserver {
       if (await _channel.invokeMethod<bool>('takeOpen') == true && !_closed) {
         onOpen?.call();
       }
-      if (enabled) await _read('retry');
       await reconcile();
     } catch (_) {
       error = currentStrings.pushUnavailable;
@@ -109,38 +110,52 @@ class AndroidNotifications extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> configure({required bool enable, String? server}) async {
+  /// Turn notices on (register a watch key, hand it to the service) or off
+  /// (stop the service, then remove the key from the realm). Turning off
+  /// stops local notices at once, even when the realm cannot be reached.
+  Future<void> configure({required bool enable}) async {
     if (!supported || busy || _closed || _owner == null) return;
     busy = true;
     error = null;
     _changed();
     try {
-      await _read(
-        enable ? 'enable' : 'disable',
-        enable ? {'server': server?.trim() ?? this.server} : null,
-      );
+      if (enable) {
+        await _enable();
+      } else {
+        await _read('disable');
+        await profile.clearWatchKey();
+        await _read('removed');
+      }
       await reconcile();
     } catch (_) {
-      error = currentStrings.pushUnavailable;
+      // Off is already off on this phone; only the realm may still hold
+      // the key, which no session uses and the next "on" replaces.
+      error = enable
+          ? currentStrings.pushUnavailable
+          : currentStrings.pushRemovalPending;
     } finally {
       busy = false;
       _changed();
     }
   }
 
-  Future<void> retry() async {
-    if (_closed || busy) return;
+  Future<void> _enable() async {
+    final credentials = await profile.registerWatchKey();
+    if (_closed) return;
+    await _read('enable', {'credentials': credentials});
+  }
+
+  /// Open the system page that lets Arveil run without battery limits.
+  Future<void> allowBackground() async {
+    if (!supported || _closed) return;
     try {
-      await _read('retry');
-      await reconcile();
+      await _read('battery');
     } catch (_) {
       error = currentStrings.pushUnavailable;
       _changed();
     }
   }
 
-  /// A newer native revision cannot be acknowledged by an older network reply.
-  /// Failed removal is retried on resume / while the profile remains open.
   Future<void> reconcile() {
     if (!supported || _closed || !_active || _owner == null) {
       return Future.value();
@@ -160,17 +175,27 @@ class AndroidNotifications extends ChangeNotifier with WidgetsBindingObserver {
         _again = false;
         await _read('status');
         if (_closed || !_active || _state['owner'] != _owner) return;
-        var registered = false;
-        if (relayPending) {
-          final revision = _state['revision'];
-          final endpoint = _state['endpoint'] as String? ?? '';
-          await profile.setNotificationHint(endpoint: enabled ? endpoint : '');
+        // Betas 5 and 6 registered an ntfy endpoint with the relay. Remove
+        // it, and carry an enabled choice over to the relay's own notices.
+        if (_state['legacy'] == true) {
+          final wasEnabled = _state['legacyEnabled'] == true;
+          await profile.setNotificationHint(endpoint: '');
           if (_closed) return;
-          await _read('ack', {'owner': _owner, 'revision': revision});
-          registered = true;
-          if (relayPending) _again = true;
+          await _read('legacyCleared');
+          if (wasEnabled && !enabled) await _enable();
         }
-        if (!_closed && _active && (registered || _state['pending'] == true)) {
+        // Turned off while the realm was out of reach: tell it now.
+        if (!enabled && _state['removal'] == true) {
+          await profile.clearWatchKey();
+          if (_closed) return;
+          await _read('removed');
+        }
+        // A rotated, revoked or removed key: renew it once per foreground.
+        if (enabled && refused && !_renewed) {
+          _renewed = true;
+          await _enable();
+        }
+        if (!_closed && _active && _state['pending'] == true) {
           final hint = _state['hintRevision'];
           if (await sync() && !_closed) {
             await _read('synced', {'revision': hint, 'owner': _owner});
@@ -179,7 +204,7 @@ class AndroidNotifications extends ChangeNotifier with WidgetsBindingObserver {
         error = null;
       } while (_again && !_closed && _active);
     } catch (_) {
-      if (!_closed) error = currentStrings.pushRelayPending;
+      if (!_closed) error = currentStrings.pushUnavailable;
     }
     _changed();
   }
@@ -187,7 +212,10 @@ class AndroidNotifications extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _active = state == AppLifecycleState.resumed;
-    if (_active) unawaited(retry());
+    if (_active) {
+      _renewed = false;
+      unawaited(reconcile());
+    }
   }
 
   @override
@@ -198,7 +226,7 @@ class AndroidNotifications extends ChangeNotifier with WidgetsBindingObserver {
       WidgetsBinding.instance.removeObserver(this);
       _channel.setMethodCallHandler(null);
     }
-    // Opt-in survives process death. No native receiver ever unlocks a profile.
+    // The choice survives process death; the service never unlocks a profile.
     super.dispose();
   }
 }

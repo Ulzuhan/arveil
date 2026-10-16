@@ -10,6 +10,13 @@
 
 pub mod api;
 
+// JNI entry points for the Android activity service (ADR-014). Exported
+// symbols need `#[unsafe(no_mangle)]`, so this module carries the second,
+// and last, exception to the rule above; it calls only safe `jni` APIs.
+#[cfg(target_os = "android")]
+#[allow(unsafe_code)]
+mod android;
+
 // The generator writes this module, and it is the only place in the
 // workspace where `unsafe` is allowed to appear (M3b.0).
 #[allow(unsafe_code)]

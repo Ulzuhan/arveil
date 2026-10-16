@@ -136,6 +136,9 @@ pub enum Operation {
     CheckKeyPackages,
     ReplenishKeyPackages,
     SetNotificationHint,
+    RegisterWatchKey,
+    ClearWatchKey,
+    QueryWatchCredentials,
     QueryDevices,
     QueryContacts,
     SaveContact,
@@ -284,6 +287,9 @@ pub enum ClientCommand {
     SetNotificationHint {
         endpoint: String,
     },
+    RegisterWatchKey,
+    ClearWatchKey,
+    QueryWatchCredentials,
     QueryDevices,
     QueryContacts,
     SaveContact {
@@ -406,6 +412,9 @@ impl ClientCommand {
             Self::CheckKeyPackages => Operation::CheckKeyPackages,
             Self::ReplenishKeyPackages => Operation::ReplenishKeyPackages,
             Self::SetNotificationHint { .. } => Operation::SetNotificationHint,
+            Self::RegisterWatchKey => Operation::RegisterWatchKey,
+            Self::ClearWatchKey => Operation::ClearWatchKey,
+            Self::QueryWatchCredentials => Operation::QueryWatchCredentials,
             Self::QueueAttachment { .. } => Operation::QueueAttachment,
             Self::ResumeAttachment { .. } => Operation::ResumeAttachment,
             Self::CancelAttachment { .. } => Operation::CancelAttachment,
@@ -1414,6 +1423,7 @@ pub enum CommandOutput {
     HistoryPage(HistoryPage),
     ReadMarker(ReadMarker),
     Archived(Vec<ConversationHistory>),
+    Watch(watch::WatchCredentials),
 }
 
 /// Everything a profile needs that used to arrive through the process
@@ -1911,6 +1921,8 @@ fn command_future(
                     | ClientCommand::CheckKeyPackages
                     | ClientCommand::ReplenishKeyPackages
                     | ClientCommand::SetNotificationHint { .. }
+                    | ClientCommand::RegisterWatchKey
+                    | ClientCommand::ClearWatchKey
             ) {
                 // A second sync waits cooperatively here: network waits from the
                 // active sync still yield to queries and non-sync commands.
@@ -2198,6 +2210,33 @@ impl Application {
         })? {
             CommandOutput::Operation(value) => Ok(value),
             _ => unreachable!("notification hint output"),
+        }
+    }
+
+    /// Register a fresh watch key for this device (ADR-014) and return the
+    /// credentials a platform service waits with. Replaces any earlier key,
+    /// which ends the sessions still using it.
+    pub fn register_watch_key(&self) -> Result<watch::WatchCredentials, ApplicationError> {
+        match self.execute(ClientCommand::RegisterWatchKey)? {
+            CommandOutput::Watch(value) => Ok(value),
+            _ => unreachable!("watch key output"),
+        }
+    }
+
+    /// Remove this device's watch key from the realm.
+    pub fn clear_watch_key(&self) -> Result<OperationResult, ApplicationError> {
+        match self.execute(ClientCommand::ClearWatchKey)? {
+            CommandOutput::Operation(value) => Ok(value),
+            _ => unreachable!("watch key output"),
+        }
+    }
+
+    /// Credentials for waiting on a member session with this device's own
+    /// key while the profile is open. Registers nothing.
+    pub fn watch_credentials(&self) -> Result<watch::WatchCredentials, ApplicationError> {
+        match self.execute(ClientCommand::QueryWatchCredentials)? {
+            CommandOutput::Watch(value) => Ok(value),
+            _ => unreachable!("watch credentials output"),
         }
     }
 
@@ -3132,6 +3171,20 @@ async fn run_command(
         )
         .await
         .map(CommandOutput::Operation),
+        ClientCommand::RegisterWatchKey => Box::pin(run_operation_with_value(
+            Operation::RegisterWatchKey,
+            watch::register(config),
+        ))
+        .await
+        .map(|(value, _)| CommandOutput::Watch(value)),
+        ClientCommand::ClearWatchKey => {
+            run_operation(Operation::ClearWatchKey, watch::clear(config))
+                .await
+                .map(CommandOutput::Operation)
+        }
+        ClientCommand::QueryWatchCredentials => watch::member(config)
+            .map(CommandOutput::Watch)
+            .map_err(|e| application_error(Operation::QueryWatchCredentials, e)),
         ClientCommand::ExportArchive => archives::export(config)
             .map(CommandOutput::Archive)
             .map_err(|e| application_error(Operation::ExportArchive, e)),
