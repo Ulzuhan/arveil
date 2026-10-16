@@ -224,13 +224,15 @@ func (b *BlobStore) Commit(ctx context.Context, ownerIdentity, id, ciphertextHas
 		expiry = maxExpiry
 	}
 	expiry = coarseExpiry(expiry, now)
-	if err := os.Rename(b.stagingPath(id), b.finalPath(id)); err != nil {
+	// The file's own times would otherwise keep the second the database
+	// no longer does; rename keeps them. Set before the rename, so a
+	// failure leaves the upload in staging, where a retry can commit it.
+	// The change time cannot be set and remains.
+	stamp := time.Unix(coarseHour(now), 0)
+	if err := os.Chtimes(b.stagingPath(id), stamp, stamp); err != nil {
 		return 0, err
 	}
-	// The file's own times would otherwise keep the second the database
-	// no longer does. The change time cannot be set and remains.
-	stamp := time.Unix(coarseHour(now), 0)
-	if err := os.Chtimes(b.finalPath(id), stamp, stamp); err != nil {
+	if err := os.Rename(b.stagingPath(id), b.finalPath(id)); err != nil {
 		return 0, err
 	}
 	if _, err := b.s.db.ExecContext(ctx, `UPDATE blobs SET state = ?, expires_at = ? WHERE blob_id = ?`, BlobCommitted, expiry, id); err != nil {
