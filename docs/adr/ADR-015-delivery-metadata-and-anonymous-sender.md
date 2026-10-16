@@ -1,6 +1,6 @@
 # ADR-015 — Delivery metadata and an anonymous sender
 
-- **Status:** part 1 (delivery metadata at rest) implemented on 2026-10-02 as relay schema 6, not yet deployed. Part 2 (anonymous sender) is proposed and waits for the conditions it lists. Part 3 records non-goals.
+- **Status:** part 1 (delivery metadata at rest) implemented on 2026-10-02 as relay schema 6 and deployed to the test environment on 2026-10-16 (`d2417aa`, after a rehearsal on a copy of its database). Part 2 (anonymous sender) is proposed and waits for the conditions it lists. Part 3 records non-goals.
 - **Date:** 2026-10-02.
 - **Scope:** what the relay can relate between senders, mailboxes and people, in its database and while it runs, and which reductions are worth their cost in a family realm.
 

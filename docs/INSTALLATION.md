@@ -9,7 +9,7 @@ from source.
 
 **Current availability (October 1, 2026):** [beta 6, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) provides macOS ARM64 ZIP and Android ARM64 APK, checksums, metadata and signed announcement sequence 8. Homebrew distributes `0.1.0-beta.6,27`. Google Play provides build 27 in internal testing, without production review. Update through the same channel without uninstalling or clearing data.
 
-**Server compatibility.** Public relay/CLI v0.1.0 binaries predate `CredentialGet` and personal invitations. This beta needs relay revision `e4011f3f2781aa48888d7da35114aa475d6ff71e` or a later compatible, tested revision. The test deployment is already updated; versioned relay/CLI distribution and the complete compatibility matrix remain in [#133](https://github.com/Ulzuhan/arveil/issues/133). Take consistent backups before migration. Do not open relay schema 5 or profile schema 8 with older binaries.
+**Server compatibility.** Public relay/CLI v0.1.0 binaries predate `CredentialGet` and personal invitations. This beta needs relay revision `e4011f3f2781aa48888d7da35114aa475d6ff71e` or a later compatible, tested revision. The test deployment is already updated; versioned relay/CLI distribution and the complete compatibility matrix remain in [#133](https://github.com/Ulzuhan/arveil/issues/133). Take consistent backups before migration. Do not open relay schema 5 or profile schema 8 with older binaries. Since 2026-10-16 the test deployment runs `d2417aa` with relay schema 7 ([operations](OPERATIONS.md#upgrading)); a relay older than schema 7 refuses that database.
 
 ## Personal invitations in beta 6
 

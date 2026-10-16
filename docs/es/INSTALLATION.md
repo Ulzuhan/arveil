@@ -9,7 +9,7 @@ y compilar desde el código.
 
 **Disponibilidad actual (1 de octubre de 2026):** [beta 6, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) ofrece ZIP macOS ARM64 y APK Android ARM64, sumas, metadatos y anuncio firmado (secuencia 8). Homebrew distribuye `0.1.0-beta.6,27`. Google Play ofrece la build 27 en pruebas internas, sin revisión de producción. Actualiza por el mismo canal, sin desinstalar ni borrar datos.
 
-**Compatibilidad del servidor.** Los binarios públicos relay/CLI v0.1.0 son anteriores a `CredentialGet` y a las invitaciones personales. Para esta beta utiliza el relay de `e4011f3f2781aa48888d7da35114aa475d6ff71e` o una revisión posterior compatible y probada. El entorno de prueba ya está actualizado; la distribución versionada de relay/CLI y la matriz completa siguen en [#133](https://github.com/Ulzuhan/arveil/issues/133). Conserva copias consistentes antes de migrar. No abras bases de relay 5 o perfil 8 con binarios anteriores.
+**Compatibilidad del servidor.** Los binarios públicos relay/CLI v0.1.0 son anteriores a `CredentialGet` y a las invitaciones personales. Para esta beta utiliza el relay de `e4011f3f2781aa48888d7da35114aa475d6ff71e` o una revisión posterior compatible y probada. El entorno de prueba ya está actualizado; la distribución versionada de relay/CLI y la matriz completa siguen en [#133](https://github.com/Ulzuhan/arveil/issues/133). Conserva copias consistentes antes de migrar. No abras bases de relay 5 o perfil 8 con binarios anteriores. Desde el 16-10-2026 el entorno de prueba ejecuta `d2417aa` con el esquema 7 del relay ([operación](OPERATIONS.md#actualizaciones)); un relay anterior al esquema 7 rechaza esa base.
 
 ## Invitaciones personales en beta 6
 
