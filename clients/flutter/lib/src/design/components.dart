@@ -224,6 +224,25 @@ class DeliveryIcon extends StatelessWidget {
   }
 }
 
+/// How long a code stays valid, ticking every second on screen. A screen
+/// reader hears whole minutes instead, so the text it reads changes once
+/// a minute rather than every second; it is not a live region either.
+class ExpiresIn extends StatelessWidget {
+  const ExpiresIn(this.seconds, {super.key});
+  final int seconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final left = seconds < 0 ? 0 : seconds;
+    final minutes = (left + 59) ~/ 60;
+    return Text(
+      l10n.pairingExpiresIn(countdown(left)),
+      semanticsLabel: l10n.pairingExpiresInSpoken(minutes < 1 ? 1 : minutes),
+    );
+  }
+}
+
 /// "Hoy", "Ayer" or a date between messages.
 class DateSeparator extends StatelessWidget {
   const DateSeparator(this.text, {super.key});

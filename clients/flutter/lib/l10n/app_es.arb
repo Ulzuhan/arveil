@@ -368,10 +368,20 @@
   "pairingShareCode": "Copia este código y pégalo en el administrador, en «Vincular otro dispositivo», por un canal privado.",
   "pairingCopyCode": "Copiar código",
   "pairingCodeCopied": "Código copiado. Puedes salir de Arveil para enviarlo: al volver, esta pantalla seguirá esperando.",
-  "pairingExpiresIn": "{seconds, plural, =1{Caduca en 1 segundo.} other{Caduca en {seconds} segundos.}}",
+  "pairingExpiresIn": "Caduca en {time}.",
   "@pairingExpiresIn": {
+    "description": "Time left on a code, in minutes and seconds such as 9:59.",
     "placeholders": {
-      "seconds": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "pairingExpiresInSpoken": "{minutes, plural, =1{Caduca en un minuto o menos.} other{Caduca en {minutes} minutos o menos.}}",
+  "@pairingExpiresInSpoken": {
+    "description": "What a screen reader says for pairingExpiresIn: whole minutes, so it changes once a minute instead of every second.",
+    "placeholders": {
+      "minutes": {
         "type": "int"
       }
     }
@@ -556,9 +566,27 @@
   "@nameBannerMany": {"placeholders": {"count": {"type": "int"}}},
   "nameThem": "Poner nombres",
   "newConversationNamed": "La conversación se creó, pero no se pudo guardar algún nombre. Pónselo desde los detalles de la conversación.",
-  "numericDate": "{day}/{month}/{year}",
-  "@numericDate": {
-    "description": "A date in digits, in the order the language writes it.",
+  "clockTime12": "{time}\u00a0{period}",
+  "@clockTime12": {
+    "description": "Hour and minute on a 12-hour clock, when the system uses one; period is clockAm or clockPm.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "clockAm": "a.\u00a0m.",
+  "clockPm": "p.\u00a0m.",
+  "shortDateMonths": "1 2 3 4 5 6 7 8 9 10 11 12",
+  "@shortDateMonths": {
+    "description": "How shortDate writes each month, January to December, separated by spaces: digits in Spanish, abbreviations in English so the date is not ambiguous."
+  },
+  "shortDate": "{day}/{month}/{year}",
+  "@shortDate": {
+    "description": "A short date in the order the language writes it; month comes from shortDateMonths.",
     "placeholders": {
       "day": {
         "type": "String"

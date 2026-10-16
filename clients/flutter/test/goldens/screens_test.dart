@@ -290,6 +290,13 @@ Future<void> show(
 ) async {
   tester.platformDispatcher.localesTestValue = [locale];
   addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+  // The clock a system in each language usually shows: 24 hours in Spain,
+  // 12 in the United States.
+  tester.platformDispatcher.alwaysUse24HourFormatTestValue =
+      locale.languageCode != 'en';
+  addTearDown(
+    () => tester.platformDispatcher.alwaysUse24HourFormatTestValue = true,
+  );
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);

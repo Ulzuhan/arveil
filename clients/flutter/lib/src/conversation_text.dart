@@ -86,7 +86,7 @@ String recordedTime(int seconds, {DateTime? now}) {
   final hour = clockTime(at);
   final sameDay =
       at.year == today.year && at.month == today.month && at.day == today.day;
-  return sameDay ? hour : '${numericDate(currentStrings, at)} $hour';
+  return sameDay ? hour : '${shortDate(currentStrings, at)} $hour';
 }
 
 /// When a row's conversation last changed: the hour today, "yesterday",
@@ -102,7 +102,7 @@ String listTime(int seconds, {DateTime? now}) {
   return switch (days) {
     0 => clockTime(at),
     1 => currentStrings.yesterday,
-    _ => numericDate(currentStrings, at),
+    _ => shortDate(currentStrings, at),
   };
 }
 

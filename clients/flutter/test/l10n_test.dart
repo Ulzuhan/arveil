@@ -93,13 +93,21 @@ void main() {
       ),
       contains('from this network'),
     );
-    final at = DateTime(2026, 9, 25, 18, 4);
-    expect(
-      recordedTime(
-        at.millisecondsSinceEpoch ~/ 1000,
-        now: DateTime(2026, 9, 26, 9),
-      ),
-      '9/25/2026 18:04',
+    // Dates name the month, so they read one way only; the clock is the
+    // system's. Local times built from their parts: no time zone changes
+    // the result.
+    final at = DateTime(2026, 9, 25, 18, 4).millisecondsSinceEpoch ~/ 1000;
+    final nextDay = DateTime(2026, 9, 26, 9);
+    expect(recordedTime(at, now: nextDay), 'Sep 25, 2026 18:04');
+    tester.platformDispatcher.alwaysUse24HourFormatTestValue = false;
+    addTearDown(
+      () => tester.platformDispatcher.alwaysUse24HourFormatTestValue = true,
     );
+    expect(recordedTime(at, now: nextDay), 'Sep 25, 2026 6:04\u00a0PM');
+    expect(listTime(at, now: DateTime(2026, 9, 25, 23)), '6:04\u00a0PM');
+    expect(listTime(at, now: nextDay), 'Yesterday');
+    expect(listTime(at, now: DateTime(2026, 10, 1)), 'Sep 25, 2026');
+    expect(clockTime(DateTime(2026, 1, 2, 0, 15)), '12:15\u00a0AM');
+    expect(shortDate(currentStrings, DateTime(2026, 12, 3)), 'Dec 3, 2026');
   });
 }

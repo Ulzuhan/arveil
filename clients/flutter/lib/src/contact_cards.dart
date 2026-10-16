@@ -296,7 +296,7 @@ class _InPersonCodePageState extends State<InPersonCodePage> {
                       label: l10n.cardCodeQrLabel,
                     ),
                     const SizedBox(height: 16),
-                    Text(l10n.pairingExpiresIn(remaining)),
+                    ExpiresIn(remaining, key: const Key('card-expires')),
                   ],
                 ],
               ),
