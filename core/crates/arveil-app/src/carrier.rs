@@ -282,6 +282,12 @@ impl Connection {
     /// Wait for the next activity notice, pinging whenever `keepalive`
     /// passes in silence. Returns when a notice arrives; any failure means
     /// the session is over and the caller reconnects.
+    ///
+    /// Dropping this future is safe while it waits, but not while its
+    /// keepalive ping is in flight: the unread Pong would then answer the
+    /// next request. A caller that may cancel it (`select!`, a timeout)
+    /// must discard the connection afterwards, as [`crate::watch::run`]
+    /// does by owning it.
     pub async fn next_wakeup(&mut self, keepalive: Duration) -> Result<(), CliError> {
         loop {
             if std::mem::take(&mut self.wake_pending) {

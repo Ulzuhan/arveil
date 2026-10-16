@@ -23,7 +23,7 @@ const MinSQLiteVersionNumber = 3051003
 var (
 	ErrInviteInvalid  = errors.New("invite: unknown, expired or exhausted")
 	ErrAlreadyMember  = errors.New("membership: identity already a member")
-	ErrDeviceKeyInUse = errors.New("credential: transport key already registered")
+	ErrDeviceKeyInUse = errors.New("credential: transport key or device id already registered")
 	// ErrAlreadyRedeemed reports a repeat of a redemption this store already
 	// performed for the same token, identity and credential. It is not a
 	// failure: the caller answers with the result it recorded the first time.
@@ -355,6 +355,18 @@ func (s *Store) RedeemInvite(ctx context.Context, tokenHash []byte, now time.Tim
 }
 
 func insertCredential(ctx context.Context, tx *sql.Tx, e Enrollment) error {
+	// A device id is chosen by the device and signed only by its own root,
+	// so the realm makes it unique: one id never names devices of two
+	// identities, and nothing keyed by it can be claimed by another member.
+	var other int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM device_credentials WHERE device_id = ? AND identity_id != ?`,
+		e.DeviceID, e.IdentityID).Scan(&other); err != nil {
+		return err
+	}
+	if other > 0 {
+		return ErrDeviceKeyInUse
+	}
 	// A transport key must never also be a watch key (ADR-014): the same
 	// static key would then open a member session for one device and a
 	// watch session for another.
@@ -580,7 +592,7 @@ func (s *Store) RecoverIdentity(ctx context.Context, e Enrollment, revoked [][]b
 			e.IdentityID, deviceID); err != nil {
 			return previous, err
 		}
-		if err := forgetWatchKey(ctx, tx, deviceID); err != nil {
+		if err := forgetWatchKey(ctx, tx, e.IdentityID, deviceID); err != nil {
 			return previous, err
 		}
 	}
@@ -627,7 +639,7 @@ func revokeCredentials(ctx context.Context, tx *sql.Tx, identityID []byte, hashe
 			identityID, deviceID); err != nil {
 			return n, err
 		}
-		if err := forgetWatchKey(ctx, tx, deviceID); err != nil {
+		if err := forgetWatchKey(ctx, tx, identityID, deviceID); err != nil {
 			return n, err
 		}
 		n++

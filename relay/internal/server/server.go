@@ -141,8 +141,11 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 	readTimeout := s.ReadTimeout
 	var sub *subscription
 	defer func() {
+		// Stop deliver first, so it does not mistake the end of this
+		// connection for a replaced subscription.
+		cancel()
 		if sub != nil {
-			s.hub().unsubscribe(sess.watchDevice().DeviceID, sub)
+			s.hub().unsubscribe(sub)
 		}
 	}()
 	for {
@@ -167,7 +170,7 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 				}
 				continue
 			}
-			next, refusal := s.startWatch(sess, frame)
+			next, refusal := s.startWatch(ctx, sess, frame)
 			if refusal != nil {
 				if err := fw.write(ctx, *refusal); err != nil {
 					return
@@ -175,7 +178,7 @@ func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if sub != nil {
-				s.hub().unsubscribe(sess.watchDevice().DeviceID, sub)
+				s.hub().unsubscribe(sub)
 			}
 			sub = next
 			if err := fw.write(ctx, channel.Frame{ID: frame.ID, Payload: channel.Payload{Kind: channel.KindAck}}); err != nil {

@@ -386,3 +386,48 @@ func TestRemovingTheWatchKeyLeavesAMemberSubscription(t *testing.T) {
 		t.Fatalf("member subscription ended with the watch key: %+v %v", f, ok)
 	}
 }
+
+// A watch session is not in the hub until it subscribes, so revocation and
+// rotation cannot find it there: subscribing re-checks what the handshake
+// established.
+func TestSubscribingRechecksTheKeyAndTheDevice(t *testing.T) {
+	r := newWatchRig(t)
+	member := r.dial(r.static)
+	old := r.registerWatchKey(member)
+	early := r.dial(old)
+	r.registerWatchKey(member) // rotated while early waits
+	if f, _ := early.call(channel.Payload{Kind: channel.KindMailboxWatch}); f.Payload.Code != channel.CodeForbidden {
+		t.Fatalf("subscribed with a rotated key: %+v", f.Payload)
+	}
+
+	current := r.registerWatchKey(member)
+	waiting := r.dial(current)
+	if _, err := r.db.SetCredentialStatus(context.Background(), r.id, [][]byte{r.cred}, "revoked"); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ := waiting.call(channel.Payload{Kind: channel.KindMailboxWatch}); f.Payload.Code != channel.CodeForbidden {
+		t.Fatalf("subscribed after revocation: %+v", f.Payload)
+	}
+}
+
+// A notice is not sent to a session whose device lost its credential since
+// it subscribed, even when nothing told the hub.
+func TestNoticeRechecksTheDevice(t *testing.T) {
+	r := newWatchRig(t)
+	member := r.dial(r.static)
+	key := r.registerWatchKey(member)
+	watch := r.dial(key)
+	watch.call(channel.Payload{Kind: channel.KindMailboxWatch})
+	if _, err := r.db.SetCredentialStatus(context.Background(), r.id, [][]byte{r.cred}, "revoked"); err != nil {
+		t.Fatal(err)
+	}
+	// The relay is not told (no manifest, no recheck): the put wakes the
+	// subscription, which finds the device revoked and closes.
+	if _, err := r.db.PutEnvelope(context.Background(), r.mailbox.MailboxID, []byte("d1"), []byte("e"), []byte("c"), 0, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	r.srv.wakeMailbox(context.Background(), r.mailbox.MailboxID)
+	if f, _, ok := watch.recv(2 * time.Second); ok {
+		t.Fatalf("notice reached a revoked device: %+v", f)
+	}
+}

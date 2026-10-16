@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"sync"
 	"time"
@@ -27,6 +28,7 @@ const DefaultWatchIdle = 10 * time.Minute
 
 type subscription struct {
 	identity []byte
+	device   []byte
 	// watchKey is the key a watch session authenticated with; nil for a
 	// member session that subscribed.
 	watchKey []byte
@@ -46,40 +48,50 @@ func (s *subscription) active() bool {
 	}
 }
 
+// deviceKey names a device by identity and device id together: a device id
+// alone is chosen by the device, and the hub must not let one identity's
+// subscription stand for another's.
+func deviceKey(identity, device []byte) string {
+	return hex.EncodeToString(identity) + "/" + hex.EncodeToString(device)
+}
+
 type watchHub struct {
 	mu   sync.Mutex
 	subs map[string]*subscription
 }
 
 func (h *watchHub) subscribe(identity, device, watchKey []byte) *subscription {
-	sub := &subscription{identity: identity, watchKey: watchKey, wake: make(chan struct{}, 1), done: make(chan struct{})}
+	sub := &subscription{identity: identity, device: device, watchKey: watchKey,
+		wake: make(chan struct{}, 1), done: make(chan struct{})}
+	key := deviceKey(identity, device)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.subs == nil {
 		h.subs = map[string]*subscription{}
 	}
-	if old := h.subs[string(device)]; old != nil {
+	if old := h.subs[key]; old != nil {
 		old.cancel()
 	}
-	h.subs[string(device)] = sub
+	h.subs[key] = sub
 	metrics.WatchSubscriptions.Store(int64(len(h.subs)))
 	return sub
 }
 
-// unsubscribe removes sub if it is still the device's subscription.
-func (h *watchHub) unsubscribe(device []byte, sub *subscription) {
+// unsubscribe removes sub if it is still its device's subscription.
+func (h *watchHub) unsubscribe(sub *subscription) {
 	sub.cancel()
+	key := deviceKey(sub.identity, sub.device)
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.subs[string(device)] == sub {
-		delete(h.subs, string(device))
+	if h.subs[key] == sub {
+		delete(h.subs, key)
 	}
 	metrics.WatchSubscriptions.Store(int64(len(h.subs)))
 }
 
-func (h *watchHub) wake(device []byte) {
+func (h *watchHub) wake(identity, device []byte) {
 	h.mu.Lock()
-	sub := h.subs[string(device)]
+	sub := h.subs[deviceKey(identity, device)]
 	h.mu.Unlock()
 	if sub == nil {
 		return
@@ -90,14 +102,14 @@ func (h *watchHub) wake(device []byte) {
 	}
 }
 
-// devicesOf lists the subscribed devices of one identity.
-func (h *watchHub) devicesOf(identity []byte) [][]byte {
+// of lists the subscriptions of one identity's devices.
+func (h *watchHub) of(identity []byte) []*subscription {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	var out [][]byte
-	for device, sub := range h.subs {
+	var out []*subscription
+	for _, sub := range h.subs {
 		if string(sub.identity) == string(identity) {
-			out = append(out, []byte(device))
+			out = append(out, sub)
 		}
 	}
 	return out
@@ -106,28 +118,18 @@ func (h *watchHub) devicesOf(identity []byte) [][]byte {
 // dropStaleWatch ends the device's subscription if a watch session holds
 // it with a key other than `current` (nil: the key was removed). A member
 // session's subscription is left alone.
-func (h *watchHub) dropStaleWatch(device, current []byte) {
+func (h *watchHub) dropStaleWatch(identity, device, current []byte) {
+	key := deviceKey(identity, device)
 	h.mu.Lock()
-	sub := h.subs[string(device)]
+	sub := h.subs[key]
 	if sub == nil || sub.watchKey == nil || string(sub.watchKey) == string(current) {
 		h.mu.Unlock()
 		return
 	}
-	delete(h.subs, string(device))
+	delete(h.subs, key)
 	metrics.WatchSubscriptions.Store(int64(len(h.subs)))
 	h.mu.Unlock()
 	sub.cancel()
-}
-
-func (h *watchHub) drop(device []byte) {
-	h.mu.Lock()
-	sub := h.subs[string(device)]
-	delete(h.subs, string(device))
-	metrics.WatchSubscriptions.Store(int64(len(h.subs)))
-	h.mu.Unlock()
-	if sub != nil {
-		sub.cancel()
-	}
 }
 
 func (srv *Server) hub() *watchHub {
@@ -145,22 +147,38 @@ func (srv *Server) watchIdle() time.Duration {
 // wakeMailbox notifies the subscription of the device owning a mailbox
 // that has just stopped being empty.
 func (srv *Server) wakeMailbox(ctx context.Context, mailboxID []byte) {
-	device, err := srv.Store.MailboxOwnerDevice(ctx, mailboxID)
+	identity, device, err := srv.Store.MailboxOwner(ctx, mailboxID)
 	if err != nil || device == nil {
 		return
 	}
-	srv.hub().wake(device)
+	srv.hub().wake(identity, device)
 }
 
 // recheckWatchers closes the subscriptions of an identity's devices that no
 // longer have an active credential, after a manifest or a recovery revoked
 // some of them.
 func (srv *Server) recheckWatchers(ctx context.Context, identity []byte, now time.Time) {
-	for _, device := range srv.hub().devicesOf(identity) {
-		if active, err := srv.Store.DeviceActive(ctx, device, now); err == nil && !active {
-			srv.hub().drop(device)
+	for _, sub := range srv.hub().of(identity) {
+		if active, err := srv.Store.DeviceActive(ctx, sub.identity, sub.device, now); err == nil && !active {
+			srv.hub().unsubscribe(sub)
 		}
 	}
+}
+
+// stillEntitled re-reads, for the session's device, what the handshake
+// established: an active, unexpired credential and, for a watch session,
+// that its key is still the device's watch key.
+func (srv *Server) stillEntitled(ctx context.Context, s *session, now time.Time) bool {
+	if s.watcher != nil {
+		d, _, err := srv.Store.DeviceByWatchKey(ctx, s.remoteStatic, now)
+		return err == nil && d != nil &&
+			string(d.IdentityID) == string(s.watcher.IdentityID) && string(d.DeviceID) == string(s.watcher.DeviceID)
+	}
+	if s.device == nil {
+		return false
+	}
+	active, err := srv.Store.DeviceActive(ctx, s.device.IdentityID, s.device.DeviceID, now)
+	return err == nil && active
 }
 
 // watchDevice is the device a session may subscribe for.
@@ -189,7 +207,7 @@ func (srv *Server) watchKeySet(ctx context.Context, s *session, f channel.Frame,
 	if !s.member() {
 		return errFrame(f.ID, channel.CodeUnauthorized, "not a member session")
 	}
-	err := srv.Store.SetWatchKey(ctx, s.device.DeviceID, f.Payload.WatchKey, now)
+	err := srv.Store.SetWatchKey(ctx, s.device.IdentityID, s.device.DeviceID, f.Payload.WatchKey, now)
 	switch {
 	case errors.Is(err, store.ErrWatchKeyShape):
 		return errFrame(f.ID, channel.CodeBadRequest, "a watch key is 32 bytes")
@@ -199,16 +217,22 @@ func (srv *Server) watchKeySet(ctx context.Context, s *session, f channel.Frame,
 		return errFrame(f.ID, channel.CodeInternal, "store error")
 	}
 	// A removed or replaced key must not keep a session alive.
-	srv.hub().dropStaleWatch(s.device.DeviceID, f.Payload.WatchKey)
+	srv.hub().dropStaleWatch(s.device.IdentityID, s.device.DeviceID, f.Payload.WatchKey)
 	return channel.Frame{ID: f.ID, Payload: channel.Payload{Kind: channel.KindAck}}
 }
 
 // startWatch subscribes the session's device and returns the subscription,
-// or an error frame. The caller answers Ack and then runs deliver.
-func (srv *Server) startWatch(s *session, f channel.Frame) (*subscription, *channel.Frame) {
+// or an error frame. The caller answers Ack and then runs deliver. A key
+// rotated or a device revoked since the handshake is refused here: until it
+// subscribes, a session is not in the hub for revocation to find.
+func (srv *Server) startWatch(ctx context.Context, s *session, f channel.Frame) (*subscription, *channel.Frame) {
 	d := s.watchDevice()
 	if d == nil {
 		e := errFrame(f.ID, channel.CodeUnauthorized, "not a member or watch session")
+		return nil, &e
+	}
+	if !srv.stillEntitled(ctx, s, time.Now()) {
+		e := errFrame(f.ID, channel.CodeForbidden, "credential or watch key no longer valid")
 		return nil, &e
 	}
 	var watchKey []byte
@@ -219,9 +243,11 @@ func (srv *Server) startWatch(s *session, f channel.Frame) (*subscription, *chan
 }
 
 // deliver writes one MailboxWakeup per notice until the subscription or
-// the connection ends. It first checks for mail already waiting.
+// the connection ends. It first checks for mail already waiting, and before
+// each notice that the session is still entitled to it, which also ends a
+// session whose credential expired.
 func (srv *Server) deliver(ctx context.Context, s *session, sub *subscription, w *frameWriter) {
-	if has, err := srv.Store.DeviceHasMail(ctx, s.watchDevice().DeviceID, time.Now()); err == nil && has {
+	if has, err := srv.Store.DeviceHasMail(ctx, sub.identity, sub.device, time.Now()); err == nil && has {
 		select {
 		case sub.wake <- struct{}{}:
 		default:
@@ -232,13 +258,20 @@ func (srv *Server) deliver(ctx context.Context, s *session, sub *subscription, w
 		case <-ctx.Done():
 			return
 		case <-sub.done:
-			if s.watcher != nil {
+			if s.watcher != nil && ctx.Err() == nil {
 				// A watch session exists only to be told; replaced or
 				// revoked, it has nothing left to do.
 				w.close("subscription ended")
 			}
 			return
 		case <-sub.wake:
+			if !srv.stillEntitled(ctx, s, time.Now()) {
+				srv.hub().unsubscribe(sub)
+				if s.watcher != nil && ctx.Err() == nil {
+					w.close("credential or watch key no longer valid")
+				}
+				return
+			}
 			if err := w.writePadded(ctx, channel.Frame{Payload: channel.Payload{Kind: channel.KindMailboxWakeup}}); err != nil {
 				return
 			}
