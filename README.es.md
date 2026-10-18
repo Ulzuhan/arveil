@@ -181,7 +181,7 @@ condiciones y los invariantes (I-01 a I-13) que comprueban las pruebas.
 
 El relay, el núcleo Rust y la CLI están implementados hasta la fase 4. Son públicos
 el relay/CLI [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) y el
-cliente [beta 6 (0.1.0+27)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
+cliente [beta 7 (0.1.0+28)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7).
 Las apps Flutter cubren el día a día; la aceptación de la beta sigue abierta.
 
 <details>
@@ -202,10 +202,11 @@ Los flujos principales de M3b.0 a M3b.4 están implementados, con aceptación
 por plataforma pendiente. **M3b.5** requiere pruebas en dispositivos físicos
 y tres personas externas completando los flujos principales. Los anuncios de
 actualización firmados ya están implementados; producción (M3b.8) aún requiere
-revisión externa de seguridad y aceptación final por plataforma. La beta 6 incluye QR,
+revisión externa de seguridad y aceptación final por plataforma. La beta 7 incluye QR,
 solicitudes de contacto, invitaciones personales, apertura de archivos y
-notificaciones experimentales. Requiere la revisión compatible del relay
-registrada con la release; v0.1.0 es anterior a estos cambios. Consulta el
+avisos de actividad experimentales enviados por tu propio relay, sin ntfy ni
+Google. Requiere la revisión compatible del relay registrada con la release
+(esquema 7 del relay); v0.1.0 es anterior a estos cambios. Consulta el
 [registro de preparación de la beta](docs/es/BETA_READINESS.md), el
 [plan de la fase 3b](docs/es/PHASE3B.md) y el
 [registro de implementación del cliente](docs/es/CLIENT_FOUNDATION.md).
@@ -252,7 +253,7 @@ sigue la [guía de Podman sin root y Tailscale](docs/PODMAN.md) (en inglés).
 ### Conseguir las apps
 
 - **Mac (Apple silicon):** descarga el ZIP de la
-  [beta 6 del cliente](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6),
+  [beta 7 del cliente](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7),
   o instálala con Homebrew:
 
   ```sh

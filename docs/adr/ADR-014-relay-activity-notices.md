@@ -1,6 +1,6 @@
 # ADR-014 — Activity notices from the relay
 
-- **Status:** relay and core protocol implemented on 2026-10-02 (sections 1 and 2, relay schema 7) and deployed to the test environment on 2026-10-16 (`d2417aa`). The Android service, the macOS subscription and the client side of retiring ntfy (sections 3 to 5) implemented on 2026-10-16; physical-phone acceptance is pending, and the relay keeps `NotifyHintSet` for one more release.
+- **Status:** relay and core protocol implemented on 2026-10-02 (sections 1 and 2, relay schema 7) and deployed to the test environment on 2026-10-16 (`d2417aa`). The Android service, the macOS subscription and the client side of retiring ntfy (sections 3 to 5) implemented on 2026-10-16 and shipped in client beta 7 (0.1.0+28) on 2026-10-17; the test environment's ntfy server was retired on 2026-10-18. Physical-phone acceptance is pending, and the relay keeps `NotifyHintSet` for one more release.
 - **Date:** 2026-10-02.
 - **Scope:** how a device learns that its mailbox has something while Arveil is not on screen, on Android and macOS, without Google, without a second app and without a second server. It replaces the experimental Android ntfy/UnifiedPush receiver described in [attachments and notifications](../CLIENT_FILES_NOTIFICATIONS.md) and the M3.4 hint of the [protocol](../PROTOCOL.md).
 

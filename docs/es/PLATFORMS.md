@@ -22,15 +22,15 @@ Una plataforma cuenta como **probada** solo donde el flujo de aceptación se eje
 
 | Plataforma | Target de Rust | Compilado | Probado | Distribuido |
 |---|---|---|---|---|
-| macOS (Apple silicon) | `aarch64-apple-darwin` | sí | sí — aceptación ejecutada en el anfitrión | ZIP/Homebrew beta 6 (0.1.0+27) |
-| Android | `aarch64-linux-android`, `x86_64-linux-android` | sí — aplicación y puente | Android 15/API 35 arm64 emulado; vinculación física comunicada por el tester en build 24, matriz física completa pendiente | APK ARM64 beta 6 y Play interno (build 27) |
+| macOS (Apple silicon) | `aarch64-apple-darwin` | sí | sí — aceptación ejecutada en el anfitrión | ZIP/Homebrew beta 7 (0.1.0+28) |
+| Android | `aarch64-linux-android`, `x86_64-linux-android` | sí — aplicación y puente | Android 15/API 35 arm64 emulado; vinculación física comunicada por el tester en build 24, matriz física completa pendiente | APK ARM64 beta 7 y Play interno (build 28) |
 | iOS | `aarch64-apple-ios` | solo núcleo y capa de aplicación | no | no |
 | Linux | — | no | no | no |
 | Windows | — | no | no | no |
 
 SQLCipher y su OpenSSL vendorizado cruzan a Android sin recurrir a la alternativa que ADR-009 dejó en reserva: los objetos resultantes son `elf64-littleaarch64` tanto para `libcrypto` como para `sqlite3`.
 
-La [beta 6 pública](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) usa código `e4011f3f2781aa48888d7da35114aa475d6ff71e`. El [registro de la beta](BETA_READINESS.md) contiene hashes, firmas y canales. Las pruebas de código/debug de otros commits no certifican automáticamente estos paquetes.
+La [beta 7 pública](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7) usa código `2c43970f40476803201c831c077f65dffd5da1c8`. El [registro de la beta](BETA_READINESS.md) contiene hashes, firmas y canales. Las pruebas de código/debug de otros commits no certifican automáticamente estos paquetes.
 
 ## Protección del perfil, y qué recupera cada cosa
 
@@ -731,3 +731,9 @@ implementadas.
 Código limpio `e4011f3`, build 27. ZIP Mac extraído: firma ad hoc comprobada, apertura y versión 27 visibles. APK directo: certificado conservado, instalación correcta en Android 15/API 35 arm64 emulado. AAB: clave de subida aceptada y build disponible en Play interno. Homebrew: descarga y suma verificadas. Relay compatible: backup, identidad conservada y prueba Noise pública correctos.
 
 Esto no acredita cámara física, recorrido de instalación desde WhatsApp, App Links de Play, Gatekeeper en otro Mac ni notificaciones suspendidas. Conserva esos criterios en #134/#135/#140. Las invitaciones están publicadas; su aceptación física completa sigue pendiente.
+
+## Paquetes beta 7 — 18 de octubre de 2026
+
+Código limpio `2c43970`, build 28. Las auditorías del script de publicación pasaron en ambos paquetes: firma, arquitectura, sumas, privacidad del contenido, código limpio y número de build; el versionCode del APK es 28. Los artefactos subidos coinciden con `SHA256SUMS-clients.txt` y el anuncio firmado (secuencia beta 9) recoge los mismos tamaños y SHA-256 de ambas plataformas. AAB: mismo certificado de subida que la build 27, aceptado por Google Play sin nuevas exclusiones de dispositivos y disponible en pruebas internas. Homebrew: cask actualizado a `0.1.0-beta.7,28`. Las redirecciones de descarga de la web apuntan a la build 28.
+
+El servicio de avisos de actividad de Android se aceptó contra un relay desechable en Android 15/API 35 arm64 emulado con la build debug (`scripts/test_android_watch.py`). El APK de release y el ZIP Mac no se reinstalaron a mano en esta beta. Esto no acredita avisos en un teléfono físico (Doze, ahorro de batería, cambios de red, reinicio, forzar detención), avisos y suspensión del Mac empaquetado ni Gatekeeper en otro Mac; conserva esos criterios en #134/#140.

@@ -8,7 +8,7 @@ how it is designed and what has been verified.
 
 *Versión en español: [es/README.md](es/README.md)*
 
-**Status (October 1, 2026).** [Beta 6, build 27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) is published on GitHub, Homebrew and Google Play internal testing. It includes personal invitations, QR codes, attachment opening and experimental notifications without Google. The compatible relay is deployed in the test environment; the public relay/CLI binaries remain at v0.1.0, with their distributable upgrade tracked in #133.
+**Status (October 18, 2026).** [Beta 7, build 28](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7) is published on GitHub, Homebrew and Google Play internal testing. It includes personal invitations, QR codes, attachment opening and experimental activity notices sent by the user's own relay, without ntfy or Google ([ADR-014](adr/ADR-014-relay-activity-notices.md)). The compatible relay (schema 7) is deployed in the test environment; the public relay/CLI binaries remain at v0.1.0, with their distributable upgrade tracked in #133.
 
 M3b.5 physical-device and three-external-user acceptance remain open. The [beta record](BETA_READINESS.md) separates publication from acceptance. There is no independent security audit; the [platform record](PLATFORMS.md) preserves actual results and limits. Each ADR declares its own status.
 

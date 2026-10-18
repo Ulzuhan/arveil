@@ -7,11 +7,11 @@ para ti: [Instalar Arveil](https://arveil.kaicorplabs.com/es/instalar/).
 Esta página es la referencia completa, también para poner en marcha un relay
 y compilar desde el código.
 
-**Disponibilidad actual (1 de octubre de 2026):** [beta 6, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) ofrece ZIP macOS ARM64 y APK Android ARM64, sumas, metadatos y anuncio firmado (secuencia 8). Homebrew distribuye `0.1.0-beta.6,27`. Google Play ofrece la build 27 en pruebas internas, sin revisión de producción. Actualiza por el mismo canal, sin desinstalar ni borrar datos.
+**Disponibilidad actual (18 de octubre de 2026):** [beta 7, 0.1.0+28](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7) ofrece ZIP macOS ARM64 y APK Android ARM64, sumas, metadatos y anuncio firmado (secuencia 9). Homebrew distribuye `0.1.0-beta.7,28`. Google Play ofrece la build 28 en pruebas internas, sin revisión de producción. Los avisos de actividad llegan ahora de tu propio relay, sin ntfy. Actualiza por el mismo canal, sin desinstalar ni borrar datos.
 
-**Compatibilidad del servidor.** Los binarios públicos relay/CLI v0.1.0 son anteriores a `CredentialGet` y a las invitaciones personales. Para esta beta utiliza el relay de `e4011f3f2781aa48888d7da35114aa475d6ff71e` o una revisión posterior compatible y probada. El entorno de prueba ya está actualizado; la distribución versionada de relay/CLI y la matriz completa siguen en [#133](https://github.com/Ulzuhan/arveil/issues/133). Conserva copias consistentes antes de migrar. No abras bases de relay 5 o perfil 8 con binarios anteriores. Desde el 16-10-2026 el entorno de prueba ejecuta `d2417aa` con el esquema 7 del relay ([operación](OPERATIONS.md#actualizaciones)); un relay anterior al esquema 7 rechaza esa base.
+**Compatibilidad del servidor.** Los binarios públicos relay/CLI v0.1.0 son anteriores a `CredentialGet` y a las invitaciones personales. Para los avisos de actividad, la beta 7 necesita el relay `d2417aaf5243042f32e14005332cc13f80701ef2` (esquema 7) o una revisión posterior compatible y probada; la beta 6 necesitaba `e4011f3f2781aa48888d7da35114aa475d6ff71e` o posterior. El entorno de prueba ya está actualizado; la distribución versionada de relay/CLI y la matriz completa siguen en [#133](https://github.com/Ulzuhan/arveil/issues/133). Conserva copias consistentes antes de migrar. No abras bases de relay 5 o perfil 8 con binarios anteriores. Desde el 16-10-2026 el entorno de prueba ejecuta `d2417aa` con el esquema 7 del relay ([operación](OPERATIONS.md#actualizaciones)); un relay anterior al esquema 7 rechaza esa base.
 
-## Invitaciones personales en beta 6
+## Invitaciones personales (desde la beta 6)
 
 **Invitar a alguien** reúne admisión y contacto en un enlace/QR privado. El emisor necesita permiso `owner`, concedido por el administrador del host a su identidad existente. El receptor instala la app, vuelve al enlace (o escanea/pega), revisa y acepta. Crea una identidad independiente y una conversación; un miembro del mismo servidor conserva su identidad. No se copia historial ni se verifica automáticamente al contacto. Sigue disponible el alta antigua por servidor/token.
 
@@ -23,9 +23,9 @@ Los paquetes siguen siendo experimentales, sin auditoría independiente. La acep
 
 | Quiero… | Ruta disponible | Aceptación pendiente |
 |---|---|---|
-| Desplegar un relay | Código compatible de beta 6 con Docker Compose/Podman | Registrar instalación y actualización en un host limpio compatible; el cliente de código actual necesita un relay actualizado |
-| Probar la app en macOS | ZIP beta 6 o Homebrew | Instalación limpia descargada en otro Mac y VoiceOver |
-| Probar la app en Android | APK beta 6 o Play interno (tester autorizado) | Instalación/actualización en teléfono físico, cámara, enlaces, TalkBack y Doze/reconexión |
+| Desplegar un relay | Código compatible de beta 7 con Docker Compose/Podman | Registrar instalación y actualización en un host limpio compatible; el cliente de código actual necesita un relay actualizado |
+| Probar la app en macOS | ZIP beta 7 o Homebrew | Instalación limpia descargada en otro Mac y VoiceOver |
+| Probar la app en Android | APK beta 7 o Play interno (tester autorizado) | Instalación/actualización en teléfono físico, cámara, enlaces, TalkBack y Doze/reconexión |
 | Usar un iPhone | Hito posterior y separado | Aceptación nativa y firma/distribución compatible |
 
 ## Relay: primer arranque local con Docker Compose
@@ -85,7 +85,7 @@ Las releases del cliente usan tags `clients-v…` e incluyen `BUILD-macos.json`,
 `BUILD-android.json` y `SHA256SUMS-clients.txt`. Un candidato local de una sola
 plataforma incluye `BUILD.json` y `SHA256SUMS.txt`.
 Descarga el ZIP o APK de la
-[beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
+[beta 7](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7).
 Para instalar estos paquetes no necesitas Flutter, Rust, Xcode ni Android Studio.
 
 ### macOS: Apple silicon, macOS 12 o posterior
@@ -198,9 +198,9 @@ entrar en las copias de seguridad del destino. Cancelar una transferencia
 incompleta elimina sus datos locales; no retira un mensaje enviado. Pide otra
 copia si el relay indica caducidad.
 
-### Visor y notificaciones (incremento en código, no incluido en build 25)
+### Visor y notificaciones (desde la beta 5; avisos del relay desde la beta 7)
 
-En un cliente compilado con este incremento, pulsa **Descargar y abrir** para
+En la beta 5 o posterior, pulsa **Descargar y abrir** para
 un adjunto recibido o **Abrir** si ya está disponible. Las imágenes PNG/JPEG/WebP
 se ven dentro de Arveil con zoom, también sin red tras reabrir el perfil.
 PDF y otros archivos ofrecen **Abrir con…**: confirma que la aplicación elegida
@@ -213,7 +213,9 @@ En Mac, **Ajustes → Notificaciones** ofrece avisos genéricos y la opción
 independiente **Mantener Arveil en segundo plano**. Activar avisos solicita
 permiso al sistema; denegarlo no impide enviar mensajes. El segundo plano
 mantiene el perfil desbloqueado, oculta la ventana al cerrarla y ofrece abrir
-o salir desde la barra de menús. Salir, cerrar el perfil o suspender el Mac
+o salir desde la barra de menús. Desde la beta 7 el Mac espera el aviso del
+relay y sincroniza al momento, con una comprobación cada dos minutos como
+respaldo (cada diez segundos mientras no hay conexión). Salir, cerrar el perfil o suspender el Mac
 detiene los avisos locales. Si se deniega el permiso, habilita Arveil en los
 ajustes de notificaciones de macOS y vuelve a activar la opción.
 

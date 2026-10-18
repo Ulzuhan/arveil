@@ -7,11 +7,11 @@ written for you: [Install Arveil](https://arveil.kaicorplabs.com/install/).
 This page is the complete reference, including running a relay and building
 from source.
 
-**Current availability (October 1, 2026):** [beta 6, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) provides macOS ARM64 ZIP and Android ARM64 APK, checksums, metadata and signed announcement sequence 8. Homebrew distributes `0.1.0-beta.6,27`. Google Play provides build 27 in internal testing, without production review. Update through the same channel without uninstalling or clearing data.
+**Current availability (October 18, 2026):** [beta 7, 0.1.0+28](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7) provides macOS ARM64 ZIP and Android ARM64 APK, checksums, metadata and signed announcement sequence 9. Homebrew distributes `0.1.0-beta.7,28`. Google Play provides build 28 in internal testing, without production review. Activity notices now come from your own relay, without ntfy. Update through the same channel without uninstalling or clearing data.
 
-**Server compatibility.** Public relay/CLI v0.1.0 binaries predate `CredentialGet` and personal invitations. This beta needs relay revision `e4011f3f2781aa48888d7da35114aa475d6ff71e` or a later compatible, tested revision. The test deployment is already updated; versioned relay/CLI distribution and the complete compatibility matrix remain in [#133](https://github.com/Ulzuhan/arveil/issues/133). Take consistent backups before migration. Do not open relay schema 5 or profile schema 8 with older binaries. Since 2026-10-16 the test deployment runs `d2417aa` with relay schema 7 ([operations](OPERATIONS.md#upgrading)); a relay older than schema 7 refuses that database.
+**Server compatibility.** Public relay/CLI v0.1.0 binaries predate `CredentialGet` and personal invitations. Beta 7 needs relay `d2417aaf5243042f32e14005332cc13f80701ef2` (relay schema 7) or a later compatible, tested revision for activity notices; beta 6 needed `e4011f3f2781aa48888d7da35114aa475d6ff71e` or later. The test deployment is already updated; versioned relay/CLI distribution and the complete compatibility matrix remain in [#133](https://github.com/Ulzuhan/arveil/issues/133). Take consistent backups before migration. Do not open relay schema 5 or profile schema 8 with older binaries. Since 2026-10-16 the test deployment runs `d2417aa` with relay schema 7 ([operations](OPERATIONS.md#upgrading)); a relay older than schema 7 refuses that database.
 
-## Personal invitations in beta 6
+## Personal invitations (since beta 6)
 
 **Invite someone** combines admission and contact in one private link/QR. The issuer needs the `owner` role, granted by the host operator to their existing identity. The recipient installs the app, returns to the link (or scans/pastes), reviews and accepts. This creates an independent identity and conversation; existing same-server members retain their identity. No history is copied and no contact is automatically verified. Legacy server/token enrollment remains available.
 
@@ -23,9 +23,9 @@ Packages remain experimental, without an independent audit. Camera, clean-instal
 
 | I want to… | Available path | Remaining acceptance |
 |---|---|---|
-| Run a relay | Build compatible beta 6 source with Docker Compose/Podman | Record installation and upgrade on a clean supported host; a source client needs a matching newer relay |
-| Try the macOS app | Beta 6 ZIP or Homebrew | Fresh downloaded installation on another Mac and VoiceOver |
-| Try the Android app | Beta 6 APK or internal Play (authorized tester) | Physical-phone installation/update, camera, links, TalkBack and Doze/reconnect |
+| Run a relay | Build compatible beta 7 source with Docker Compose/Podman | Record installation and upgrade on a clean supported host; a source client needs a matching newer relay |
+| Try the macOS app | Beta 7 ZIP or Homebrew | Fresh downloaded installation on another Mac and VoiceOver |
+| Try the Android app | Beta 7 APK or internal Play (authorized tester) | Physical-phone installation/update, camera, links, TalkBack and Doze/reconnect |
 | Use an iPhone | Separate, later milestone | Native acceptance and supported signing/distribution |
 
 ## Relay: first local start with Docker Compose
@@ -85,7 +85,7 @@ Client releases use tags named `clients-v…` and include `BUILD-macos.json`,
 `BUILD-android.json` and `SHA256SUMS-clients.txt`. A single-platform local
 candidate instead includes `BUILD.json` and `SHA256SUMS.txt`.
 Download the ZIP or APK from
-[beta 6](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6).
+[beta 7](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7).
 Installing these packages does not require Flutter, Rust, Xcode or Android Studio.
 
 ### macOS: Apple silicon, macOS 12 or newer
@@ -194,9 +194,9 @@ by its destination. Cancelling an unfinished transfer discards its local data;
 it does not recall a sent message. Request another copy if the relay reports
 expiry.
 
-### File viewing and notifications (source increment, not in build 25)
+### File viewing and notifications (since beta 5; relay notices since beta 7)
 
-In a client built with this increment, choose **Download and open** for an
+In beta 5 or later, choose **Download and open** for an
 incoming attachment or **Open** for a local file. PNG/JPEG/WebP images display
 inside Arveil with zoom, including offline after reopening the profile.
 PDF and other files offer **Open with…**: confirm the temporary decrypted copy
@@ -208,7 +208,9 @@ On Mac, **Settings → Notifications** offers generic alerts and an independent
 **Keep Arveil running in the background** option. Enabling alerts requests system
 permission; a denial does not affect messaging. The background option keeps the
 profile unlocked, hides the window when closed, and provides menu-bar actions
-to reopen or quit. Quit, profile closure and Mac sleep stop local alerts.
+to reopen or quit. Since beta 7 the Mac waits for the relay's notice and syncs
+at once, checking every two minutes as a fallback (every ten seconds while the
+connection is down). Quit, profile closure and Mac sleep stop local alerts.
 If permission is denied, enable Arveil in macOS notification settings and retry.
 
 On Android, **Settings → Notifications → Receive activity notices** keeps
