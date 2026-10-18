@@ -4,9 +4,9 @@
 
 Estado: plan aprobado en dirección; la aceptación de los hitos sigue pendiente, con partes de M3b.0–M3b.4 ya implementadas. Orden de ejecución por dependencias, sin estimaciones de calendario todavía. [ADR-009](adr/ADR-009-flutter-first.md) fija la elección de framework; [base implementada](CLIENT_FOUNDATION.md) se describe en la documentación del cliente.
 
-## Prioridad actual de ejecución — 1 de octubre de 2026
+## Prioridad actual de ejecución — 18 de octubre de 2026
 
-La beta 6 (0.1.0+27) está publicada. [Una invitación, desde la instalación hasta la primera conversación](INVITATION_ONBOARDING_PLAN.md) está implementada y distribuida; el [registro de implementación](INVITATIONS.md) distingue las pruebas automáticas y nativas de la aceptación física pendiente. Publicar no cierra M3b.5: siguen abiertos dispositivos físicos, notificaciones y tres usuarios externos. La [preparación de la beta](BETA_READINESS.md) registra paquetes, compatibilidad y tareas.
+La beta 7 (0.1.0+28) está publicada: los avisos de actividad llegan ahora del propio relay del usuario ([ADR-014](adr/ADR-014-relay-activity-notices.md)), y los de Android siguen siendo experimentales hasta la aceptación física. [Una invitación, desde la instalación hasta la primera conversación](INVITATION_ONBOARDING_PLAN.md) está implementada y distribuida; el [registro de implementación](INVITATIONS.md) distingue las pruebas automáticas y nativas de la aceptación física pendiente. Publicar no cierra M3b.5: siguen abiertos dispositivos físicos, notificaciones y tres usuarios externos. La [preparación de la beta](BETA_READINESS.md) registra paquetes, compatibilidad y tareas.
 
 ## Objetivo y alcance
 

@@ -9,7 +9,7 @@ marcha, cómo está diseñado y qué se ha verificado.
 
 *English version: [../README.md](../README.md)*
 
-**Estado (1 de octubre de 2026).** La [beta 6, build 27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) está publicada en GitHub, Homebrew y pruebas internas de Google Play. Incluye invitaciones personales, QR, apertura de archivos y notificaciones experimentales sin Google. El relay compatible está desplegado en el entorno de prueba; los binarios públicos del relay/CLI siguen en v0.1.0 y su actualización distribuible se sigue en #133.
+**Estado (18 de octubre de 2026).** La [beta 7, build 28](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7) está publicada en GitHub, Homebrew y pruebas internas de Google Play. Incluye invitaciones personales, QR, apertura de archivos y avisos de actividad experimentales enviados por el propio relay del usuario, sin ntfy ni Google ([ADR-014](adr/ADR-014-relay-activity-notices.md)). El relay compatible (esquema 7) está desplegado en el entorno de prueba; los binarios públicos del relay/CLI siguen en v0.1.0 y su actualización distribuible se sigue en #133.
 
 La aceptación física y con tres usuarios externos de M3b.5 sigue abierta. El [registro de la beta](BETA_READINESS.md) distingue lo publicado de lo probado. El proyecto no tiene una auditoría independiente; la [matriz de plataformas](PLATFORMS.md) conserva los resultados y límites reales. Cada ADR declara su propio estado.
 

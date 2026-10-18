@@ -4,9 +4,9 @@ Status: implementation direction accepted; milestone acceptance remains pending,
 
 The [Spanish plan](es/PHASE3B.md) is the normative source of acceptance criteria. This condensed English translation must be updated in the same review; the Spanish text prevails if they diverge.
 
-## Current execution priority — October 1, 2026
+## Current execution priority — October 18, 2026
 
-Beta 6 (0.1.0+27) is published. [One invitation, from installation to the first conversation](INVITATION_ONBOARDING_PLAN.md) is implemented and distributed; the [implementation record](INVITATIONS.md) separates automated/native checks from pending physical acceptance. Publication does not close M3b.5: physical devices, notifications and three external users remain open. [Beta readiness](BETA_READINESS.md) records packages, compatibility and tracked tasks.
+Beta 7 (0.1.0+28) is published: activity notices now come from the user's own relay ([ADR-014](adr/ADR-014-relay-activity-notices.md)), with Android notices experimental until physical acceptance. [One invitation, from installation to the first conversation](INVITATION_ONBOARDING_PLAN.md) is implemented and distributed; the [implementation record](INVITATIONS.md) separates automated/native checks from pending physical acceptance. Publication does not close M3b.5: physical devices, notifications and three external users remain open. [Beta readiness](BETA_READINESS.md) records packages, compatibility and tracked tasks.
 
 ## Scope and structure
 

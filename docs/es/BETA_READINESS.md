@@ -2,30 +2,33 @@
 
 [English](../BETA_READINESS.md).
 
-Estado comprobado el 1 de octubre de 2026. Publicación y aceptación son estados separados. El [plan de fase 3b](PHASE3B.md) conserva los criterios normativos de los hitos.
+Estado comprobado el 18 de octubre de 2026. Publicación y aceptación son estados separados. El [plan de fase 3b](PHASE3B.md) conserva los criterios normativos de los hitos.
 
-## Beta 6 publicada
+## Beta 7 publicada
 
-La [beta 6 del cliente, 0.1.0+27](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.6) usa código limpio `e4011f3f2781aa48888d7da35114aa475d6ff71e`. Tags y artefactos conservan su contenido inmutable al integrar las PR por squash.
+La [beta 7 del cliente, 0.1.0+28](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7) usa código limpio `2c43970f40476803201c831c077f65dffd5da1c8`. Los avisos de actividad llegan ahora del propio relay del usuario ([ADR-014](adr/ADR-014-relay-activity-notices.md)): Android mantiene una conexión de solo vigilancia en un servicio en primer plano y macOS espera el aviso del relay en vez de consultar cada diez segundos. Desaparecen el receptor y los ajustes de ntfy; al actualizar desde la beta 5 o 6 se borra el antiguo aviso en el relay y los avisos siguen activos si lo estaban. Tags y artefactos conservan su contenido inmutable al integrar las PR por squash.
 
 | Canal | Estado verificado |
 |---|---|
-| GitHub | Prerelease pública: ZIP macOS ARM64 y APK Android ARM64; sumas subidas y metadatos comprobados |
-| Google Play | Build 27 en pruebas internas, disponible el 1 de octubre; Sin revisar, no distribución de producción |
-| Homebrew | Cask `0.1.0-beta.6,27`; estilo y descarga/suma reales correctos |
-| Anuncio firmado | Canal beta, secuencia 8; firma, feed público y redirecciones de descarga verificados |
-| Relay compatible | `e4011f3f2781aa48888d7da35114aa475d6ff71e` desplegado en el entorno de prueba; copia consistente, identidad conservada, servicios activos y prueba Noise pública correctos. Desde el 16-10-2026 ejecuta `d2417aaf5243042f32e14005332cc13f80701ef2` (esquema 7 del relay, [ADR-014](adr/ADR-014-relay-activity-notices.md) y parte 1 de la [ADR-015](adr/ADR-015-delivery-metadata-and-anonymous-sender.md)), migrado desde el esquema 5 tras ensayarlo sobre una copia; los clientes de la beta 6 no necesitan cambios |
-| Web complementaria | PR [#3](https://github.com/Ulzuhan/kaicorplabs-web/pull/3) integrada y desplegada; guías y descargas firmadas en `8cc3d8b`; Lighthouse correcto en ambos idiomas |
+| GitHub | Prerelease pública: ZIP macOS ARM64 y APK Android ARM64; sumas subidas, metadatos y tamaños y sumas del anuncio firmado comprobados |
+| Google Play | Build 28 en pruebas internas, disponible el 18 de octubre; sin revisar, no distribución de producción |
+| Homebrew | Cask `0.1.0-beta.7,28` |
+| Anuncio firmado | Canal beta, secuencia 9, caduca el 16 de noviembre de 2026; feed público y redirecciones `/download/android` y `/download/macos` comprobados |
+| Relay compatible | `d2417aaf5243042f32e14005332cc13f80701ef2` (esquema 7 del relay) desplegado en el entorno de prueba desde el 16-10-2026; prueba Noise pública correcta. La beta 7 necesita el esquema 7; los clientes de la beta 6 también funcionan con él |
+| Web complementaria | Guías y descargas firmadas en `fad9770`; Lighthouse correcto en las páginas de Arveil |
+| ntfy | El servidor ntfy autoalojado, su proxy, la ruta del túnel y el nombre DNS se retiraron del entorno de prueba el 18 de octubre |
 
 El APK directo conserva su certificado. El AAB usa la clave de subida establecida; Google Play firma la distribución con su propio certificado de app. macOS conserva firma ad hoc, sin notarización de Apple. Actualiza por el mismo canal sin desinstalar ni borrar datos del perfil.
 
 | Artefacto | SHA-256 |
 |---|---|
-| macOS ZIP | `b4eaa65d56e3d149d5a8dcec85ac5695cfa1670e4ceffd3d5966bf2b065b4fe4` |
-| Android APK | `effaa5a496fd817b4338a24b627e184f4375b80c75a988c070378332a2e0864f` |
-| Play AAB | `d0d90c2d5250e867db41952d385a1f96c529bdf724340d357369b7ff1e6d3ac3` |
+| macOS ZIP | `247be753a545a8818633a1f23630f45afb31227db9149ea0ad93c51264b89c1d` |
+| Android APK | `98317760d3d8f67f7c1c88d3107599bc36515e85c361bf00ba7c0f3e757c48c8` |
+| Play AAB | `a9b90e2631ea8e63ad5c6be51ec15151f93335a18792c081d91abf33b5047b0e` |
 
-El APK se instaló correctamente en el emulador desechable Android 15/API 35 arm64. El paquete Mac extraído abrió y mostró build 27. Estas comprobaciones no sustituyen una instalación limpia en un teléfono físico u otro Mac.
+El servicio de avisos de Android pasó la aceptación relay-emulador en Android 15/API 35 arm64 contra un relay desechable (`scripts/test_android_watch.py`): suscripción, notificación persistente, aviso genérico al llegar correo y parada al rechazarse la clave. Los avisos de Android siguen siendo experimentales hasta que un teléfono físico pase Doze, ahorro de batería, cambios de red, reinicio y forzar detención. Los avisos, toques y suspensión del Mac empaquetado aún no están verificados.
+
+La beta 6 (0.1.0+27, código `e4011f3`, secuencia 8) sigue disponible como prerelease inmutable.
 
 ## Compatibilidad e integración
 
