@@ -37,9 +37,11 @@ same identity. Local builds retain development versions. The original v0.1.0
 artifacts reported a development version; use their recorded commit to identify them.
 
 Choose a relay whose release notes explicitly cover the installed clients.
-Relay v0.1.0 predates beta 6 credential lookup and personal invitations.
-[The beta record](BETA_READINESS.md) and [#133](https://github.com/Ulzuhan/arveil/issues/133)
-track compatible distribution and the package upgrade evidence. Back up first,
+Public relay/CLI v0.2.0 supports beta 6; its package upgrade evidence closed
+[#133](https://github.com/Ulzuhan/arveil/issues/133). Beta 7 activity notices
+require newer compatible relay source with schema 7, as recorded in
+[the beta record](BETA_READINESS.md); the v0.2.0 binaries use schema 5.
+Back up first,
 upgrade the relay before dependent clients, and retain the binary matching each
 backup. A schema migration does not support reopening data with an older binary.
 

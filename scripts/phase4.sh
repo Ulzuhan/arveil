@@ -189,14 +189,14 @@ step "M4.1 packaging: the unit and the compose file are valid, and the image ser
 [ -f "$ROOT/relay/packaging/arveil-relay.service" ] || fail "no systemd unit"
 if command -v systemd-analyze >/dev/null; then
   # Verify a copy whose ExecStart points at the binary just built: the unit
-  # ships with the installed path, which is not there on a build machine,
-  # and that absence would be the only thing verify complained about.
+  # ships with the installed path, which is not there on a build machine.
   sed "s#^ExecStart=/usr/local/bin/arveil-relay#ExecStart=$RELAY#" \
     "$ROOT/relay/packaging/arveil-relay.service" > "$DATA/arveil-relay.service"
-  systemd-analyze verify "$DATA/arveil-relay.service" > "$DATA/unit.verify" 2>&1 || true
-  if [ -s "$DATA/unit.verify" ]; then
+  # Fail on warnings in our unit, using systemd's exit status. The runner's
+  # other units can emit unrelated warnings while dependencies are loaded.
+  if ! systemd-analyze verify --recursive-errors=no "$DATA/arveil-relay.service" > "$DATA/unit.verify" 2>&1; then
     cat "$DATA/unit.verify"
-    fail "systemd-analyze had something to say about the unit"
+    fail "systemd-analyze could not verify the relay unit"
   fi
   echo "systemd unit verified"
 else

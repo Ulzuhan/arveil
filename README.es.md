@@ -180,7 +180,7 @@ condiciones y los invariantes (I-01 a I-13) que comprueban las pruebas.
 ## Estado del proyecto
 
 El relay, el núcleo Rust y la CLI están implementados hasta la fase 4. Son públicos
-el relay/CLI [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) y el
+el relay/CLI [v0.2.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.2.0) y el
 cliente [beta 7 (0.1.0+28)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7).
 Las apps Flutter cubren el día a día; la aceptación de la beta sigue abierta.
 
@@ -206,7 +206,8 @@ revisión externa de seguridad y aceptación final por plataforma. La beta 7 inc
 solicitudes de contacto, invitaciones personales, apertura de archivos y
 avisos de actividad experimentales enviados por tu propio relay, sin ntfy ni
 Google. Requiere la revisión compatible del relay registrada con la release
-(esquema 7 del relay); v0.1.0 es anterior a estos cambios. Consulta el
+(esquema 7 del relay); el relay público v0.2.0 admite la beta 6 y es anterior
+a estos avisos de actividad. Consulta el
 [registro de preparación de la beta](docs/es/BETA_READINESS.md), el
 [plan de la fase 3b](docs/es/PHASE3B.md) y el
 [registro de implementación del cliente](docs/es/CLIENT_FOUNDATION.md).
@@ -216,7 +217,7 @@ Google. Requiere la revisión compatible del relay registrada con la release
 | Plataforma | Estado |
 |---|---|
 | Relay en Linux x86-64 y ARM64 | Flujo de publicación de imágenes versionadas; véase la guía de operación |
-| Relay y CLI en Linux x86-64 y macOS arm64 | v0.1.0 publicada con sumas de comprobación y procedencia de compilación |
+| Relay y CLI en Linux x86-64 y macOS arm64 | v0.2.0 publicada con sumas de comprobación y procedencia de compilación; los avisos de la beta 7 requieren código posterior compatible del relay |
 | App para macOS 12 o posterior (Apple silicon) | ZIP beta público y cask de Homebrew; actualizaciones de paquetes anteriores verificadas; falta instalación limpia descargada |
 | App para Android 7.0 o posterior (arm64) | APK beta público y prueba interna en Google Play; aceptación registrada en emulador; falta dispositivo físico |
 | Apps de escritorio para Windows y Linux | Previstas (M3b.6) |
