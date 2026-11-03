@@ -52,8 +52,12 @@ On desktop, the primary modifier is ⌘ on macOS and Ctrl elsewhere:
 
 See the [installation guide](../../docs/INSTALLATION.md)
 ([español](../../docs/es/INSTALLATION.md)) for availability and the end-user
-installation requirements. No app release has been published yet. The
-commands below are for developers; the macOS package and the Android APK
+installation requirements. [Client beta 7 (0.1.0+28)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7)
+provides a macOS ARM64 ZIP and an Android ARM64 APK. Homebrew and Google Play
+internal testing are also recorded in the installation guide. Beta 7 activity
+notices need the compatible schema-7 relay described there; the public
+relay/CLI v0.2.0 release predates those notices. The commands below are for
+developers; the macOS package and the Android APK
 install without Flutter or Rust. The macOS development path works without a
 paid Apple Developer membership, using the login Keychain. To build the ZIP
 and APK, see [client packages](../../docs/CLIENT_RELEASES.md).
@@ -98,7 +102,11 @@ flutter gen-l10n        # CI fails if the generated code differs or a string is 
 Tests run in Spanish (`test/flutter_test_config.dart`); `test/l10n_test.dart`
 checks English and that both ARB files have the same keys.
 `test/hygiene_test.dart` keeps colours and user-facing text inside the design
-system and the ARB files. After a visual change, update the goldens with
+system and the ARB files. Golden comparisons use the pinned Flutter SDK and
+bundled fonts. They ignore up to two levels of 8-bit channel rounding and
+allow at most 0.5% of other pixels to differ; dimensions must match exactly.
+Inspect the generated `test/goldens/failures/` images before updating a
+reference. After a visual change, update the goldens with
 `flutter test --update-goldens`. `../../scripts/update_screenshots.sh`
 regenerates the screen goldens in English and Spanish, copies the
 documentation screenshots and frames the README pictures and animated tour

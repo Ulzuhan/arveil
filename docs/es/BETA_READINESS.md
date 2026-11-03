@@ -4,6 +4,8 @@
 
 Estado comprobado el 18 de octubre de 2026. Publicación y aceptación son estados separados. El [plan de fase 3b](PHASE3B.md) conserva los criterios normativos de los hitos.
 
+Referencias de releases e issues conciliadas el 3 de noviembre de 2026. Las pruebas de plataformas y canales que figuran a continuación conservan sus fechas de verificación registradas.
+
 ## Beta 7 publicada
 
 La [beta 7 del cliente, 0.1.0+28](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7) usa código limpio `2c43970f40476803201c831c077f65dffd5da1c8`. Los avisos de actividad llegan ahora del propio relay del usuario ([ADR-014](adr/ADR-014-relay-activity-notices.md)): Android mantiene una conexión de solo vigilancia en un servicio en primer plano y macOS espera el aviso del relay en vez de consultar cada diez segundos. Desaparecen el receptor y los ajustes de ntfy; al actualizar desde la beta 5 o 6 se borra el antiguo aviso en el relay y los avisos siguen activos si lo estaban. Tags y artefactos conservan su contenido inmutable al integrar las PR por squash.
@@ -32,7 +34,9 @@ La beta 6 (0.1.0+27, código `e4011f3`, secuencia 8) sigue disponible como prere
 
 ## Compatibilidad e integración
 
-Cuando se publicó beta 6, la release pública de relay/CLI era [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0). Esos binarios son anteriores a la consulta de credenciales e invitaciones personales; no deben usarse con beta 6. Usa la revisión compatible registrada u otra release posterior probada cuyas notas declaren compatibilidad. [#133](https://github.com/Ulzuhan/arveil/issues/133) registra la distribución pública posterior del relay/CLI y sus pruebas de compatibilidad; actualizar solo el despliegue privado no demuestra esos criterios.
+El relay/CLI público [v0.2.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.2.0) se publicó el 1 de octubre de 2026 desde `d660f087f8252adcbdfea226029e374f2aac01b5` para la beta 6. Sus binarios, imágenes públicas Linux x86-64/ARM64, procedencia y pruebas de compatibilidad/actualización entre paquetes instalados cerraron [#133](https://github.com/Ulzuhan/arveil/issues/133). La aceptación en dispositivos físicos y con personas externas sigue separada. Los binarios anteriores v0.1.0 no incluyen la consulta de credenciales ni las invitaciones personales.
+
+El relay v0.2.0 usa el esquema 5 y es anterior a los avisos de actividad de la beta 7. Para esos avisos, compila la revisión compatible registrada `d2417aaf5243042f32e14005332cc13f80701ef2` (esquema 7) u otra posterior compatible y probada; v0.2.0 no distribuye binarios del esquema 7.
 
 Relay 4→5 y perfil 7→8 requieren copias consistentes y un despliegue compatible. Se ensayó restaurar el relay anterior con su backup compatible y contador de endpoints conservado. No es un downgrade in situ de esquema ni reversión del perfil del cliente. Prefiere una build correctiva superior a reemplazar una release inmutable.
 
@@ -42,7 +46,6 @@ Las PR #139 (QR), #141 (archivos/notificaciones) y #142 (invitaciones) contienen
 
 | Issue | Evidencia restante para cerrarla |
 |---|---|
-| [#133](https://github.com/Ulzuhan/arveil/issues/133) | Distribución pública versionada de relay/CLI y matriz completa de compatibilidad y actualización entre paquetes antiguos/nuevos |
 | [#134](https://github.com/Ulzuhan/arveil/issues/134) | Android físico y Mac descargado en limpio: instalación/actualización, QR, enlaces, contactos, adjuntos, recuperación y accesibilidad |
 | [#135](https://github.com/Ulzuhan/arveil/issues/135) | Tres personas externas completan el recorrido principal, con resultados anónimos A/B/C |
 | [#136](https://github.com/Ulzuhan/arveil/issues/136) | Auditoría independiente y corrección verificada de bloqueantes antes de producción |

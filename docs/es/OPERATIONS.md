@@ -39,10 +39,11 @@ versiones de desarrollo. Los artefactos originales v0.1.0 mostraban una versión
 de desarrollo; su commit registrado permite identificarlos.
 
 Elige un relay cuyas notas indiquen compatibilidad con los clientes instalados.
-El relay v0.1.0 es anterior a la consulta de credenciales e invitaciones personales
-de beta 6. El [registro de beta](BETA_READINESS.md) y
-[#133](https://github.com/Ulzuhan/arveil/issues/133) recogen la distribución
-compatible y las pruebas de actualización. Crea una copia consistente antes,
+El relay/CLI público v0.2.0 admite la beta 6; sus pruebas de actualización
+cerraron [#133](https://github.com/Ulzuhan/arveil/issues/133). Los avisos de la
+beta 7 requieren código posterior compatible del relay con esquema 7, según
+el [registro de beta](BETA_READINESS.md); los binarios v0.2.0 usan el esquema 5.
+Crea una copia consistente antes,
 actualiza el relay antes que los clientes que lo necesitan y conserva el binario
 compatible con cada backup. Migrar un esquema no permite volver a abrir sus datos
 con un binario antiguo.

@@ -177,7 +177,7 @@ its conditions, and the invariants (I-01 to I-13) the tests check.
 ## Project status
 
 The relay, the Rust core and the CLI are implemented through Phase 4. Relay/CLI
-[v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0) and client
+[v0.2.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.2.0) and client
 [beta 7 (0.1.0+28)](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7)
 are public. The Flutter apps cover everyday flows; beta acceptance is still open.
 
@@ -202,7 +202,8 @@ production (M3b.8) still requires external security review and final platform
 acceptance. Beta 7 includes QR codes, contact requests, personal invitations, attachment
 opening and experimental activity notices sent by your own relay, without ntfy
 or Google. It requires the compatible relay revision recorded with the release
-(relay schema 7); v0.1.0 is too old. Follow the
+(relay schema 7); the public v0.2.0 relay supports beta 6 and predates these
+activity notices. Follow the
 [beta readiness record](docs/BETA_READINESS.md), the
 [Phase 3b plan](docs/PHASE3B.md) and the
 [client implementation record](docs/CLIENT_FOUNDATION.md).
@@ -212,7 +213,7 @@ or Google. It requires the compatible relay revision recorded with the release
 | Platform | Status |
 |---|---|
 | Relay on Linux x86-64 and ARM64 | Versioned container release workflow; see the operations guide |
-| Relay and CLI on Linux x86-64 and macOS arm64 | v0.1.0 published with checksums and build provenance |
+| Relay and CLI on Linux x86-64 and macOS arm64 | v0.2.0 published with checksums and build provenance; beta 7 notices require newer compatible relay source |
 | macOS 12+ app (Apple silicon) | Public beta ZIP and Homebrew cask; earlier package upgrades verified; fresh-download acceptance pending |
 | Android 7.0+ app (arm64) | Public beta APK and Google Play internal testing; emulator acceptance recorded; physical-device acceptance pending |
 | Windows and Linux desktop apps | Planned (M3b.6) |

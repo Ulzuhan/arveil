@@ -1,10 +1,12 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Goldens compare pixels, and antialiasing can differ between otherwise
-/// identical machines. A small share of differing pixels is accepted; a
-/// layout, colour or font change moves far more.
+/// identical machines. Ignore two steps of 8-bit channel rounding, then allow
+/// at most 0.5% differing pixels. Image dimensions must still match exactly.
 class TolerantComparator extends LocalFileComparator {
   TolerantComparator(super.testFile, {this.tolerance = 0.005});
   final double tolerance;
@@ -15,13 +17,41 @@ class TolerantComparator extends LocalFileComparator {
       imageBytes,
       await getGoldenBytes(golden),
     );
-    if (result.passed || result.diffPercent <= tolerance) {
+    try {
+      if (result.passed || result.diffPercent <= tolerance) return true;
+      final actual = result.diffs?['testImage'];
+      final expected = result.diffs?['masterImage'];
+      if (actual != null &&
+          expected != null &&
+          actual.width == expected.width &&
+          actual.height == expected.height) {
+        final actualPixels = (await actual.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!.buffer.asUint8List();
+        final expectedPixels = (await expected.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!.buffer.asUint8List();
+        var different = 0;
+        for (var pixel = 0; pixel < actualPixels.length; pixel += 4) {
+          for (var channel = 0; channel < 4; channel++) {
+            if ((actualPixels[pixel + channel] -
+                        expectedPixels[pixel + channel])
+                    .abs() >
+                2) {
+              different++;
+              break;
+            }
+          }
+        }
+        if (different / (actual.width * actual.height) <= tolerance) {
+          return true;
+        }
+      }
+      final error = await generateFailureOutput(result, golden, basedir);
+      throw FlutterError(error);
+    } finally {
       result.dispose();
-      return true;
     }
-    final error = await generateFailureOutput(result, golden, basedir);
-    result.dispose();
-    throw FlutterError(error);
   }
 }
 

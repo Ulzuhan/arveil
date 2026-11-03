@@ -4,6 +4,8 @@
 
 Status checked October 18, 2026. Publication and milestone acceptance are separate. [Phase 3b](PHASE3B.md) retains the normative acceptance criteria.
 
+Release and issue references reconciled November 3, 2026. The platform and channel evidence below retains its recorded verification dates.
+
 ## Published beta 7
 
 [Client beta 7, 0.1.0+28](https://github.com/Ulzuhan/arveil/releases/tag/clients-v0.1.0-beta.7) uses clean source `2c43970f40476803201c831c077f65dffd5da1c8`. Activity notices now come from the user's own relay ([ADR-014](adr/ADR-014-relay-activity-notices.md)): Android keeps a watch-only connection in a foreground service and macOS waits for the relay's notice instead of polling every ten seconds. The ntfy receiver and settings are gone; upgrading from beta 5 or 6 clears the old relay hint and keeps notices on if they were. The release assets and tags remain immutable when source PRs are integrated by squash.
@@ -32,7 +34,9 @@ Beta 6 (0.1.0+27, source `e4011f3`, sequence 8) remains available as an immutabl
 
 ## Compatibility and integration
 
-When beta 6 was published, the public relay/CLI release was [v0.1.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.1.0). Those binaries predate contact credential lookup and personal invitations and must not be paired with beta 6. Use the recorded compatible relay source, or a later tested release whose notes declare compatibility. [#133](https://github.com/Ulzuhan/arveil/issues/133) records subsequent public relay/CLI distribution and package compatibility evidence; updating the private deployment alone does not establish either.
+Public relay/CLI [v0.2.0](https://github.com/Ulzuhan/arveil/releases/tag/v0.2.0) was published on October 1, 2026 from `d660f087f8252adcbdfea226029e374f2aac01b5` for beta 6. Its binaries, public Linux x86-64/ARM64 container images, provenance and installed-package compatibility/update evidence closed [#133](https://github.com/Ulzuhan/arveil/issues/133). Physical-device and external-user acceptance remain separate. The earlier v0.1.0 binaries predate credential lookup and personal invitations.
+
+The v0.2.0 relay uses schema 5 and predates beta 7 activity notices. For beta 7 notices, build the recorded compatible relay source `d2417aaf5243042f32e14005332cc13f80701ef2` (schema 7), or a later compatible, tested revision; v0.2.0 is not a schema-7 binary distribution.
 
 Relay schema 4→5 and profile schema 7→8 require consistent backups and a forward-compatible rollout. The prior-relay restoration drill passed with its matching earlier backup and preserved endpoint sequence. This is not an in-place schema downgrade or a client-profile rollback. Prefer a higher corrective build over replacing an immutable release.
 
@@ -42,7 +46,6 @@ PRs #139 (QR), #141 (files/notifications) and #142 (invitations) carry the beta 
 
 | Issue | Remaining exit evidence |
 |---|---|
-| [#133](https://github.com/Ulzuhan/arveil/issues/133) | Versioned public relay/CLI distribution and complete old/new package compatibility and update evidence |
 | [#134](https://github.com/Ulzuhan/arveil/issues/134) | Physical Android and fresh downloaded Mac: installation/update, QR, incoming links, contacts, attachments, recovery and accessibility |
 | [#135](https://github.com/Ulzuhan/arveil/issues/135) | Three external people complete the main journey with anonymized A/B/C results |
 | [#136](https://github.com/Ulzuhan/arveil/issues/136) | Independent security review and verified resolution of blocking findings before production |
