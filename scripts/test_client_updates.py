@@ -15,6 +15,7 @@ from unittest.mock import patch
 import warnings
 
 import client_updates as updates
+import check_update_feed
 
 VECTORS = json.loads((Path(__file__).resolve().parents[1] /
                       "clients/flutter/test/fixtures/update-manifest-vectors.json").read_text(encoding="utf-8"))
@@ -111,6 +112,21 @@ class SigningTests(unittest.TestCase):
     def recorded(self):
         return [entry["sequence"] for entry in
                 json.loads(self.ledger.read_text(encoding="utf-8"))["channels"]["beta"]]
+
+    def test_public_monitor_checks_signature_sequence_channel_and_expiry(self):
+        self.sign(sequence=2)
+        wire = self.args.output.read_bytes()
+        self.assertEqual(check_update_feed.verify(wire, self.config, 2, 0)["sequence"], 2)
+        with self.assertRaisesRegex(ValueError, "sequence"):
+            check_update_feed.verify(wire, self.config, 3, 0)
+        with self.assertRaisesRegex(ValueError, "expires"):
+            check_update_feed.verify(wire, self.config, 2, 91)
+        with self.assertRaisesRegex(ValueError, "channel"):
+            check_update_feed.verify(wire, dict(self.config, ARVEIL_UPDATE_CHANNEL="stable"), 2, 0)
+        envelope = json.loads(wire)
+        envelope["signature"] = base64.b64encode(bytes(64)).decode()
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_update_feed.verify(json.dumps(envelope).encode(), self.config, 2, 0)
 
     def test_signs_exact_domain_separated_bytes_and_never_replaces_key_or_feed(self):
         data = self.sign(sequence=1)

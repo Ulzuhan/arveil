@@ -162,6 +162,10 @@ and tap sections are optional:
 
 The sections below describe the same steps by hand.
 
+### Renew the offer for an existing build
+
+Run `python3 scripts/release_clients.py renew --tag clients-v0.1.0-beta.7` on the signing machine with the original packages, release notes and channel ledger. The command checks the published artifacts and the website's current offer. In the last seven days of validity, or after expiry, it signs a new sequence with the configured key. Enter the passphrase on the terminal. A retry reuses the signed receipt. A published immutable GitHub release keeps its original attachment. The web repository stores the renewal as both a sequence-named JSON file and the live channel file. The `Beta update feed` workflow checks the public signature and remaining lifetime daily using the distribution pinned in build 28.
+
 ## Prepare the GitHub draft
 
 Client releases use **`clients-v<version>`** tags, for example

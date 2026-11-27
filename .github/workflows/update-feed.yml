@@ -1,0 +1,27 @@
+name: Beta update feed
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 * * *"
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/update-feed.yml'
+      - 'scripts/check_update_feed.py'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the channel used by the published build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download clients-v0.1.0-beta.7 --repo Ulzuhan/arveil --pattern BUILD-android.json --dir "$RUNNER_TEMP"
+          (cd "$RUNNER_TEMP" && echo '49e11772ad4915ddeef1fd163310cfbd327bf6200be45e7be0d6f1af5b86223a  BUILD-android.json' | sha256sum --check --strict)
+          python3 scripts/check_update_feed.py --build "$RUNNER_TEMP/BUILD-android.json" --min-sequence 9 --min-days 7

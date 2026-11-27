@@ -9,6 +9,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import release_clients as release
@@ -201,6 +202,51 @@ class ReleaseClientsTests(unittest.TestCase):
         with self.assertRaises(release.ReleaseError):
             release.cask_text('cask "arveil" do\nend\n', "0.1.0-beta.3", 21, "9" * 64)
 
+    def test_expired_offer_renews_once_and_failed_deploy_reuses_receipt(self):
+        packages = self.packages()
+        web = {"repo": self.root / "site", "site": "https://project.example"}
+        public = web["repo"] / "arveil/updates/clients-beta.json"
+        public.parent.mkdir(parents=True)
+        assets = []
+        offers = {}
+        for platform, (artifact, _) in packages.items():
+            for name, path in ((artifact.name, artifact), (f"BUILD-{platform}.json", artifact.parent / "BUILD.json")):
+                assets.append({"name": name, "digest": "sha256:" + release.sha256(path)})
+            offers[f"{platform}-arm64"] = {"build": 21, "sha256": release.sha256(artifact), "notes": "beta",
+                "size": artifact.stat().st_size, "url": f"https://github.com/{REPO}/releases/download/{TAG}/{artifact.name}"}
+        def wire(sequence, days):
+            payload = {"schema": 1, "channel": "beta", "sequence": sequence, "platforms": offers,
+                       "expires": (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()}
+            return json.dumps({"schema": 1, "payload": base64.b64encode(json.dumps(payload).encode()).decode()})
+        public.write_text(wire(9, -1))
+        (release.RELEASES / f"{TAG}-app-notes.txt").write_text("beta")
+        ledger = self.root / "sequences.json"
+        entries = []
+        def record(path, sequence):
+            entries.append({"sequence": sequence, "build": 21, "manifest_sha256": release.sha256(path)})
+            ledger.write_text(json.dumps({"schema": 1, "channels": {"beta": entries}}))
+        record(public, 9)
+        def sign(*args):
+            sequence, path = args[-2:]
+            path.parent.mkdir()
+            path.write_text(wire(sequence, 30))
+            record(path, sequence)
+        item = {"assets": assets, "tag_name": TAG, "target_commitish": REVISION}
+        with patch.object(release, "update_config", return_value=(DISTRIBUTION, "beta")), \
+             patch.object(release, "repository", return_value=REPO), patch.object(release, "release", return_value=item), \
+             patch.object(release, "fetch_live_manifest", side_effect=lambda _: public.read_bytes()), \
+             patch.object(release, "sign_packages", side_effect=sign) as signer, \
+             patch.object(release, "publish_web") as publish:
+            config = {"update_key": self.root / "key"}
+            release.renew_current(config, web, TAG)
+            release.renew_current(config, web, TAG)
+            self.assertEqual(signer.call_count, 1)
+            self.assertEqual(publish.call_args_list[0], publish.call_args_list[1])
+            self.assertTrue(publish.call_args.kwargs["archive"])
+            public.write_text(public.read_text() + " ")
+            with self.assertRaisesRegex(release.ReleaseError, "ledger"):
+                release.renew_current(config, web, TAG)
+
     def test_the_live_site_must_serve_this_announcement_and_links(self):
         packages = self.packages()
         announced = self.root / "clients-beta-5.json"
@@ -213,8 +259,9 @@ class ReleaseClientsTests(unittest.TestCase):
 
         class Site(http.server.BaseHTTPRequestHandler):
             def reply(self):
-                # Like the real front end, refuse Python's default User-Agent.
-                if self.headers.get("User-Agent", "").startswith("Python-urllib"):
+                # Only accept the request profile used by the Flutter updater.
+                if self.command == "GET" and (self.headers.get("User-Agent") is not None
+                                               or self.headers.get("Accept-Encoding") != "identity"):
                     self.send_response(403)
                     self.send_header("Content-Length", "0")
                     self.end_headers()
