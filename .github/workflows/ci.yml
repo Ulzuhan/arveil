@@ -320,6 +320,21 @@ jobs:
         with:
           workspaces: core
       - run: ./scripts/phase4.sh
+      - name: Upgrade the published schema 5 relay and restore its backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          old="$RUNNER_TEMP/arveil-v0.2.0"
+          gh release download v0.2.0 --repo Ulzuhan/arveil --dir "$old" \
+            --pattern arveil-linux-x86_64 --pattern arveil-relay-linux-x86_64
+          (cd "$old" && sha256sum --check <<'SUMS'
+          2fb451204004107743ab7972169f6ac8214c89a0161141293a3e8cff4ce78612  arveil-linux-x86_64
+          3e68dd8df888751d4d53a553206851fa73781abe2205576de60c36c0a6b67b5a  arveil-relay-linux-x86_64
+          SUMS
+          )
+          chmod +x "$old"/arveil*-linux-x86_64
+          python3 scripts/test_relay_upgrade.py --old-relay "$old/arveil-relay-linux-x86_64" \
+            --old-cli "$old/arveil-linux-x86_64" --new-relay relay/bin/arveil-relay --new-cli core/target/debug/arveil
   phase3b:
     name: Phase 3b acceptance (repeatable mailbox creation)
     runs-on: ubuntu-latest
