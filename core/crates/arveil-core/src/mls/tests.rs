@@ -121,6 +121,50 @@ fn three_member_group_add_then_remove() {
 }
 
 #[test]
+fn replacement_device_joins_with_fresh_keys_and_only_reads_the_new_epoch() {
+    let coordinator = peer("coordinator");
+    let lost = peer("old-device");
+    let replacement = peer("replacement-device");
+    let mut group = coordinator.engine.create_group().unwrap();
+    let initial = group
+        .commit_builder()
+        .add_member(lost.engine.key_package().unwrap())
+        .unwrap()
+        .build()
+        .unwrap();
+    group.apply_pending_commit().unwrap();
+    let mut old_group = lost.engine.join(&initial.welcome_messages[0]).unwrap();
+    let before = group
+        .encrypt_application_message(b"old epoch", Default::default())
+        .unwrap();
+
+    // Group-level building block for #137. Peer authorization belongs to the application.
+    let replace = group
+        .commit_builder()
+        .remove_member(old_group.current_member_index())
+        .unwrap()
+        .add_member(replacement.engine.key_package().unwrap())
+        .unwrap()
+        .build()
+        .unwrap();
+    group.apply_pending_commit().unwrap();
+    let welcome = &replace.welcome_messages[0];
+    assert!(lost.engine.join(welcome).is_err());
+    let mut new_group = replacement.engine.join(welcome).unwrap();
+    assert!(new_group.process_incoming_message(before).is_err());
+
+    let after = group
+        .encrypt_application_message(b"after rejoin", Default::default())
+        .unwrap();
+    assert!(old_group.process_incoming_message(after.clone()).is_err());
+    assert_eq!(decrypt(&mut new_group, after), b"after rejoin");
+    let reply = new_group
+        .encrypt_application_message(b"received", Default::default())
+        .unwrap();
+    assert_eq!(decrypt(&mut group, reply), b"received");
+}
+
+#[test]
 fn unauthorized_commit_is_refused_by_every_member() {
     let alice = peer("alice");
     let bob = peer("bob");

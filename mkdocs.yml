@@ -105,6 +105,8 @@ nav:
       - Índice: es/README.md
       - Instalar y probar: es/INSTALLATION.md
       - Preparación de la beta: es/BETA_READINESS.md
+      - Plan de implementación y cierre de la beta: es/PLAN_CIERRE_BETA.md
+      - Sesiones de aceptación y alcance de auditoría: es/ACEPTACION_BETA7.md
       - Crear paquetes del cliente: es/CLIENT_RELEASES.md
       - Actualizaciones Android firmadas: es/CLIENT_UPDATES.md
       - Acceso mediante túnel: es/TUNNEL.md
@@ -136,6 +138,7 @@ nav:
       - ADR-013 Administrar el realm: es/adr/ADR-013-realm-administration-from-the-app.md
       - ADR-014 Avisos de actividad desde el relay: es/adr/ADR-014-relay-activity-notices.md
       - ADR-015 Metadatos de entrega y remitente anónimo: es/adr/ADR-015-delivery-metadata-and-anonymous-sender.md
+      - ADR-016 Reincorporación MLS (propuesta): es/adr/ADR-016-reincorporacion-mls.md
 
 validation:
   anchors: warn
