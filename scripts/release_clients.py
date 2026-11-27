@@ -508,14 +508,15 @@ def renew_current(config, web, tag):
     feed = None
     if latest["sequence"] > current["sequence"]:
         candidate = directory / f"clients-{channel}-{latest['sequence']}.json"
-        if candidate.exists():
-            if sha256(candidate) != latest["manifest_sha256"]:
-                raise ReleaseError("The renewal differs from the local signing ledger.")
-            previous = feed_payload(candidate, channel)
-            if previous["platforms"] != current["platforms"]:
-                raise ReleaseError("The latest signed announcement offers a different release.")
-            if remaining(previous) > timedelta(0):
-                feed = candidate
+        if not candidate.is_file():
+            raise ReleaseError("Recover the latest signed renewal from its receipt before signing another announcement.")
+        if sha256(candidate) != latest["manifest_sha256"]:
+            raise ReleaseError("The renewal differs from the local signing ledger.")
+        previous = feed_payload(candidate, channel)
+        if previous["platforms"] != current["platforms"]:
+            raise ReleaseError("The latest signed announcement offers a different release.")
+        if remaining(previous) > timedelta(0):
+            feed = candidate
     elif remaining(current) > timedelta(days=7):
         try:
             check_live(web["site"], channel, published, repo, tag, packages)

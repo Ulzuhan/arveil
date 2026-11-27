@@ -243,6 +243,10 @@ class ReleaseClientsTests(unittest.TestCase):
             self.assertEqual(signer.call_count, 1)
             self.assertEqual(publish.call_args_list[0], publish.call_args_list[1])
             self.assertTrue(publish.call_args.kwargs["archive"])
+            publish.call_args.args[1].unlink()
+            with self.assertRaisesRegex(release.ReleaseError, "latest signed renewal"):
+                release.renew_current(config, web, TAG)
+            self.assertEqual(signer.call_count, 1)
             public.write_text(public.read_text() + " ")
             with self.assertRaisesRegex(release.ReleaseError, "ledger"):
                 release.renew_current(config, web, TAG)
