@@ -373,11 +373,12 @@ def sign(args):
                            "signature": base64.b64encode(signature).decode()}, indent=2).encode() + b"\n"
     if len(envelope) > 65536:
         raise ValueError("Signed manifest exceeds the client's size limit.")
-    # Record the sequence before writing the manifest: a failed write then
-    # leaves an unused number, which clients accept, never a reused one.
+    # Persist both the sequence and its signed public bytes atomically so that a
+    # retry can recover the exact offer after an interrupted output write.
     record_sequence(ledger, channel, {
         "sequence": sequence, "version": build["version"], "build": build["build"],
-        "expires": expires, "manifest_sha256": hashlib.sha256(envelope).hexdigest()})
+        "expires": expires, "manifest_sha256": hashlib.sha256(envelope).hexdigest(),
+        "signed_manifest": envelope.decode("ascii")})
     private_output(args.output, envelope, OUTPUT_EXISTS)
     print(f"Signed {channel} sequence {sequence} and verified it locally. "
           "Publish it only after the immutable release assets are available.")

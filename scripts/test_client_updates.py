@@ -306,6 +306,7 @@ class SigningTests(unittest.TestCase):
         self.assertEqual(self.recorded(), [5, 6])
         entry = json.loads(self.ledger.read_text(encoding="utf-8"))["channels"]["beta"][-1]
         self.assertEqual(entry["manifest_sha256"], hashlib.sha256(self.args.output.read_bytes()).hexdigest())
+        self.assertEqual(entry["signed_manifest"].encode("ascii"), self.args.output.read_bytes())
         self.assertEqual((entry["version"], entry["build"]), ("0.1.0", 18))
         self.assertEqual([p.name for p in self.ledger.parent.iterdir() if p.name.startswith(".")], [])
 
