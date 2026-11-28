@@ -265,6 +265,19 @@ class ReleaseClientsTests(unittest.TestCase):
                     repair.assert_called_once()
             self.assertEqual(signer.call_count, 1)
             public.write_bytes(expired)
+            expected = pending.read_bytes()
+            entries[-1]["signed_manifest"] = expected.decode("ascii")
+            ledger.write_text(json.dumps({"schema": 1, "channels": {"beta": entries}}))
+            pending.unlink()
+            release.renew_current(config, web, TAG)
+            self.assertEqual(pending.read_bytes(), expected)
+            pending.write_bytes(expected[:20])
+            release.renew_current(config, web, TAG)
+            self.assertEqual(pending.read_bytes(), expected)
+            self.assertEqual(signer.call_count, 1)
+            # Existing ledgers created before full receipts were recorded remain readable.
+            del entries[-1]["signed_manifest"]
+            ledger.write_text(json.dumps({"schema": 1, "channels": {"beta": entries}}))
             pending.unlink()
             with self.assertRaisesRegex(release.ReleaseError, "latest signed renewal"):
                 release.renew_current(config, web, TAG)
