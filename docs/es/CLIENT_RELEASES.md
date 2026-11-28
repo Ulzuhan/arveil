@@ -160,6 +160,10 @@ Las secciones de la web y del tap son opcionales:
 
 Las secciones siguientes describen los mismos pasos a mano.
 
+### Renovar la oferta de una build publicada
+
+Ejecuta `python3 scripts/release_clients.py renew --tag clients-v0.1.0-beta.7` en el equipo de firma con los paquetes originales, las notas de la release y el registro de secuencias. El comando comprueba los artefactos y la oferta del repositorio web. En los últimos siete días de vigencia, o después de caducar, firma la secuencia siguiente con la clave configurada. La frase de paso se introduce en el terminal. Al reintentar se reutiliza el recibo firmado. La release inmutable de GitHub conserva su adjunto original. El repositorio web guarda el recibo por secuencia y publica los mismos bytes en la ruta estable del canal. El workflow `Beta update feed` comprueba diariamente la firma y la vigencia desde la distribución fijada en la build 28.
+
 ## Preparar el borrador en GitHub
 
 Las releases del cliente usan tags **`clients-v<versión>`**, por ejemplo

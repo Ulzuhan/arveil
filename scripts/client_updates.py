@@ -246,12 +246,14 @@ def choose_sequence(ledger, channel, requested):
 
 
 def record_sequence(path, channel, entry):
-    # Read again, so a concurrent signature cannot be overwritten silently.
-    ledger = read_ledger(path)
-    if entry["sequence"] <= (last_sequence(ledger, channel) or 0):
-        raise ValueError("The sequence ledger changed while signing; nothing was written.")
-    ledger["channels"].setdefault(channel, []).append(entry)
-    replace_private(path, (json.dumps(ledger, indent=2) + "\n").encode())
+    # Lock a stable sibling: replacing the ledger changes its inode.
+    with open(path.with_suffix(".lock"), "a", opener=lambda p, f: os.open(p, f, 0o600)) as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        ledger = read_ledger(path)
+        if entry["sequence"] <= (last_sequence(ledger, channel) or 0):
+            raise ValueError("The sequence ledger changed while signing; nothing was written.")
+        ledger["channels"].setdefault(channel, []).append(entry)
+        replace_private(path, (json.dumps(ledger, indent=2) + "\n").encode())
 
 
 def checked_package(directory, platform, suffix, config):

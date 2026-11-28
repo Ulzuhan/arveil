@@ -16,6 +16,7 @@ never from the repository. See docs/CLIENT_RELEASES.md.
 """
 import argparse
 import base64
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import os
@@ -24,8 +25,11 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.request
+
+import client_updates
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / ".local/release.json"
@@ -304,6 +308,10 @@ def sign(config, channel, tag, repo, packages, app_notes, build):
     sequence = max((e.get("sequence", 0) for e in entries), default=0) + 1
     feed.mkdir(parents=True, exist_ok=True, mode=0o700)
     output = feed / f"clients-{channel}-{sequence}.json"
+    return sign_packages(config, tag, repo, packages, app_notes, sequence, output)
+
+
+def sign_packages(config, tag, repo, packages, app_notes, sequence, output):
     base = f"https://github.com/{repo}/releases"
     command = [sys.executable, str(ROOT / "scripts/client_updates.py"), "sign",
                "--key", str(config["update_key"]), "--config", str(config["update_config"]),
@@ -439,6 +447,103 @@ def git_ready(repo):
     run(["git", "pull", "--quiet", "--ff-only"], cwd=repo)
 
 
+def feed_payload(path, channel):
+    envelope = json.loads(path.read_bytes())
+    payload = json.loads(base64.b64decode(envelope["payload"], validate=True))
+    if payload["channel"] != channel or not client_updates.integer(payload["sequence"], 1, client_updates.MAX_SEQUENCE):
+        raise ReleaseError("Announcement has the wrong channel or sequence.")
+    return payload
+
+
+def remaining(payload):
+    expires = datetime.fromisoformat(payload["expires"].replace("Z", "+00:00"))
+    if expires.utcoffset() != timedelta(0):
+        raise ReleaseError("Announcement expiry must be in UTC.")
+    return expires - datetime.now(timezone.utc)
+
+
+def renew(args):
+    """Extend the current channel offer for exactly the packages already published."""
+    config = load_config()
+    web = config.get("web")
+    if not web:
+        raise ReleaseError("Renewal requires the website repository in the release configuration.")
+    origin = run(["git", "remote", "get-url", "origin"], cwd=web["repo"]).strip()
+    with tempfile.TemporaryDirectory(prefix="arveil-feed-site-") as checkout:
+        run(["git", "clone", "--quiet", "--branch", "main", "--single-branch", "--", origin, checkout])
+        renew_current(config, dict(web, repo=Path(checkout)), args.tag)
+
+
+def renew_current(config, web, tag):
+    distribution, channel = update_config(config)
+    version, label = parse_tag(tag)
+    published = web["repo"] / web.get("updates", "arveil/updates") / f"clients-{channel}.json"
+    current = feed_payload(published, channel)
+    entries = client_updates.read_ledger(config["update_key"].parent / client_updates.LEDGER)["channels"].get(channel, [])
+    known = {entry["sequence"]: entry for entry in entries}
+    if known.get(current["sequence"], {}).get("manifest_sha256") != sha256(published):
+        raise ReleaseError("The website announcement does not match the local signing ledger.")
+    repo = repository()
+    item = release(repo, tag)
+    if not item or item.get("draft") or item.get("tag_name") != tag:
+        raise ReleaseError("Renewal requires a published client release.")
+    digests = {asset["name"]: asset.get("digest") for asset in item["assets"]}
+    packages = {}
+    build = current["platforms"]["android-arm64"]["build"]
+    for platform, suffix in PLATFORMS:
+        offer = current["platforms"][f"{platform}-arm64"]
+        directory = package_dir(version, build, platform)
+        artifact, info = check_package(directory, platform, suffix, item["target_commitish"], build, distribution)
+        digest = sha256(artifact)
+        url = f"https://github.com/{repo}/releases/download/{tag}/{artifact.name}"
+        if (digests.get(artifact.name) != "sha256:" + digest or offer["sha256"] != digest
+                or digests.get(f"BUILD-{platform}.json") != "sha256:" + sha256(directory / "BUILD.json")
+                or offer["url"] != url or offer["build"] != build or offer["size"] != artifact.stat().st_size):
+            raise ReleaseError(f"The website, local {platform} package and published release must agree.")
+        packages[platform] = artifact, info
+    latest = entries[-1]
+    if latest["build"] != build:
+        raise ReleaseError("A different build was signed more recently; reconcile the release first.")
+    directory = RELEASES / f"{tag}-renewals"
+    feed = None
+    if latest["sequence"] > current["sequence"]:
+        candidate = directory / f"clients-{channel}-{latest['sequence']}.json"
+        if not candidate.is_file():
+            raise ReleaseError("Recover the latest signed renewal from its receipt before signing another announcement.")
+        if sha256(candidate) != latest["manifest_sha256"]:
+            raise ReleaseError("The renewal differs from the local signing ledger.")
+        previous = feed_payload(candidate, channel)
+        if previous["platforms"] != current["platforms"]:
+            raise ReleaseError("The latest signed announcement offers a different release.")
+        if remaining(previous) > timedelta(0):
+            feed = candidate
+    elif remaining(current) > timedelta(days=7):
+        try:
+            check_live(web["site"], channel, published, repo, tag, packages)
+        except (ReleaseError, OSError):
+            # A previous push may have succeeded just before a deployment failed.
+            # Use a separate file: publish_web writes into the checkout.
+            feed = directory / f"clients-{channel}-{current['sequence']}.json"
+            if not feed.exists() or sha256(feed) != sha256(published):
+                raise
+        else:
+            print("The published announcement is current.")
+            return
+    if feed is None:
+        if fetch_live_manifest(distribution["ARVEIL_UPDATE_URL"]) != published.read_bytes():
+            raise ReleaseError("The public feed differs from the website revision; reconcile it before signing.")
+        sequence = latest["sequence"] + 1
+        feed = directory / f"clients-{channel}-{sequence}.json"
+        notes_file = RELEASES / f"{tag}-app-notes.txt"
+        if any(p["notes"] != notes_file.read_text(encoding="utf-8") for p in current["platforms"].values()):
+            raise ReleaseError("The local release notes differ from the signed announcement.")
+        sign_packages(config, tag, repo, packages, notes_file, sequence, feed)
+    renewed = feed_payload(feed, channel)
+    if renewed["platforms"] != current["platforms"]:
+        raise ReleaseError("Renewal changed the offer for the published packages.")
+    publish_web(web, feed, channel, label, repo, tag, packages, archive=True)
+
+
 def commit(repo, paths, message):
     run(["git", "add", *paths], cwd=repo)
     if run(["git", "status", "--porcelain"], cwd=repo).strip():
@@ -448,13 +553,24 @@ def commit(repo, paths, message):
     return False
 
 
-def publish_web(web, feed, channel, label, repo_name, tag, packages):
+def publish_web(web, feed, channel, label, repo_name, tag, packages, *, archive=False):
     repo = web["repo"]
     git_ready(repo)
     # Where the site keeps the announcement, and its tool that turns the
     # announcement into download links; both belong to the website.
     updates = web.get("updates", "arveil/updates")
     target = repo / updates / f"clients-{channel}.json"
+    incoming = feed_payload(feed, channel)
+    if remaining(incoming) <= timedelta(0):
+        raise ReleaseError("The signed announcement has expired.")
+    if target.exists() and target.read_bytes() != feed.read_bytes():
+        if feed_payload(target, channel)["sequence"] >= incoming["sequence"]:
+            raise ReleaseError("The website already has this sequence or a newer one.")
+    if archive:
+        receipt = target.with_name(f"clients-{channel}-{incoming['sequence']}.json")
+        if receipt.exists() and receipt.read_bytes() != feed.read_bytes():
+            raise ReleaseError("A different renewal receipt already exists.")
+        shutil.copyfile(feed, receipt)
     shutil.copyfile(feed, target)
     generator = web.get("generator", "tools/arveil-descargas.py")
     if (repo / generator).is_file():
@@ -484,18 +600,28 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def check_live(site, channel, feed, repo, tag, packages):
-    """The deployed feed is this one and /download/… point at this release."""
+def fetch_live_manifest(url):
     opener = urllib.request.build_opener(NoRedirect)
-    request = urllib.request.Request(f"{site}/updates/clients-{channel}.json",
-                                     headers={**AGENT, "Cache-Control": "no-cache"})
+    # Match HttpsUpdateTransport on Android and macOS, including the absent User-Agent.
+    opener.addheaders = []
+    request = urllib.request.Request(url, headers={"Accept-Encoding": "identity"})
     try:
         with opener.open(request, timeout=20) as response:
-            served = response.read()
+            if response.status != 200 or response.headers.get("Content-Encoding", "identity").lower() != "identity":
+                raise ReleaseError("The website must serve an uncompressed HTTP 200 announcement.")
+            served = response.read(65537)
+            if len(served) > 65536:
+                raise ReleaseError("The announcement exceeds the client limit.")
+            return served
     except urllib.error.HTTPError as error:
         raise ReleaseError(f"The website answered {error.code} for the announcement.") from None
-    if served != feed.read_bytes():
+
+
+def check_live(site, channel, feed, repo, tag, packages):
+    """The deployed feed is this one and /download/… point at this release."""
+    if fetch_live_manifest(f"{site}/updates/clients-{channel}.json") != feed.read_bytes():
         raise ReleaseError("The website does not serve the new announcement yet.")
+    opener = urllib.request.build_opener(NoRedirect)
     base = f"https://github.com/{repo}/releases"
     expected = {"android": f"{base}/download/{tag}/{packages['android'][0].name}",
                 "macos": f"{base}/download/{tag}/{packages['macos'][0].name}",
@@ -541,6 +667,9 @@ def main():
     first.add_argument("--revision", help="an earlier commit on origin/main whose packages are already built "
                                           "and tested (default: the checked-out one)")
     first.set_defaults(action=prepare)
+    renewal = commands.add_parser("renew", help="renew the current signed offer for an existing release")
+    renewal.add_argument("--tag", required=True)
+    renewal.set_defaults(action=renew)
     second = commands.add_parser("publish", help="publish the draft, then the website and the cask")
     second.add_argument("--tag", required=True)
     second.add_argument("--yes", action="store_true", help="do not ask to type the tag before publishing")
