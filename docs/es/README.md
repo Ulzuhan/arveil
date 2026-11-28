@@ -73,6 +73,7 @@ La aceptación física y con tres usuarios externos de M3b.5 sigue abierta. El [
 | Documento | Contenido |
 |---|---|
 | [Plan de la fase 3b](PHASE3B.md) | Hitos M3b.0 a M3b.8 y sus criterios de aceptación (texto normativo) |
+| [Plan de implementación y cierre de la beta](PLAN_CIERRE_BETA.md) | Orden de ejecución, dependencias y criterios de cierre de las cinco issues abiertas a 27 de noviembre de 2026 |
 | [Registro de implementación](CLIENT_FOUNDATION.md) | Qué implementó cada cambio, su evidencia y sus límites |
 | [Diseño del cliente](CLIENT_DESIGN.md) | Sistema visual, personalización y plan del rediseño |
 | [Plan de invitación y alta](INVITATION_ONBOARDING_PLAN.md) | Prioridad actual: una invitación desde la instalación hasta la primera conversación; dependencias, bloqueos y aceptación |
