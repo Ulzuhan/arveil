@@ -234,16 +234,38 @@ class ReleaseClientsTests(unittest.TestCase):
         item = {"assets": assets, "tag_name": TAG, "target_commitish": REVISION}
         with patch.object(release, "update_config", return_value=(DISTRIBUTION, "beta")), \
              patch.object(release, "repository", return_value=REPO), patch.object(release, "release", return_value=item), \
-             patch.object(release, "fetch_live_manifest", side_effect=lambda _: public.read_bytes()), \
+             patch.object(release, "fetch_live_manifest") as fetch, \
              patch.object(release, "sign_packages", side_effect=sign) as signer, \
              patch.object(release, "publish_web") as publish:
             config = {"update_key": self.root / "key"}
+            fetch.side_effect = release.ReleaseError("HTTP 403")
+            with self.assertRaisesRegex(release.ReleaseError, "403"):
+                release.renew_current(config, web, TAG)
+            fetch.side_effect = None
+            fetch.return_value = b"another announcement"
+            with self.assertRaisesRegex(release.ReleaseError, "differs"):
+                release.renew_current(config, web, TAG)
+            signer.assert_not_called()
+            publish.assert_not_called()
+            fetch.side_effect = release.AnnouncementMissing("HTTP 404")
             release.renew_current(config, web, TAG)
             release.renew_current(config, web, TAG)
             self.assertEqual(signer.call_count, 1)
             self.assertEqual(publish.call_args_list[0], publish.call_args_list[1])
             self.assertTrue(publish.call_args.kwargs["archive"])
-            publish.call_args.args[1].unlink()
+            pending = publish.call_args.args[1]
+            expired = public.read_bytes()
+            public.write_bytes(pending.read_bytes())
+            with patch.object(release, "check_live", side_effect=release.AnnouncementMissing("HTTP 404")):
+                def check_repair(web, receipt, *args, **kwargs):
+                    self.assertEqual(receipt.read_bytes(), public.read_bytes())
+                    self.assertTrue(kwargs["archive"])
+                with patch.object(release, "publish_web", side_effect=check_repair) as repair:
+                    release.renew_current(config, web, TAG)
+                    repair.assert_called_once()
+            self.assertEqual(signer.call_count, 1)
+            public.write_bytes(expired)
+            pending.unlink()
             with self.assertRaisesRegex(release.ReleaseError, "latest signed renewal"):
                 release.renew_current(config, web, TAG)
             self.assertEqual(signer.call_count, 1)
@@ -297,7 +319,7 @@ class ReleaseClientsTests(unittest.TestCase):
         with self.assertRaisesRegex(release.ReleaseError, "announcement"):
             release.check_live(site, "beta", announced, REPO, TAG, packages)
         routes.pop("/updates/clients-beta.json")
-        with self.assertRaisesRegex(release.ReleaseError, "404"):
+        with self.assertRaisesRegex(release.AnnouncementMissing, "404"):
             release.check_live(site, "beta", announced, REPO, TAG, packages)
 
 
