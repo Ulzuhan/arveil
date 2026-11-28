@@ -18,10 +18,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Check the channel used by the published build
+      - name: Download and verify the public build configuration
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download clients-v0.1.0-beta.7 --repo Ulzuhan/arveil --pattern BUILD-android.json --dir "$RUNNER_TEMP"
           (cd "$RUNNER_TEMP" && echo '49e11772ad4915ddeef1fd163310cfbd327bf6200be45e7be0d6f1af5b86223a  BUILD-android.json' | sha256sum --check --strict)
+      - name: Check the channel used by the published build
+        id: channel
+        run: |
           python3 scripts/check_update_feed.py --build "$RUNNER_TEMP/BUILD-android.json" --min-sequence 9 --min-days 7
+      - name: Report public route status when the channel check fails
+        if: ${{ failure() && steps.channel.outcome == 'failure' }}
+        run: |
+          url=$(jq -er '.update_config.ARVEIL_UPDATE_URL' "$RUNNER_TEMP/BUILD-android.json")
+          site=${url%/updates/*}
+          for path in / /install/ /download/android /updates/clients-beta.json; do
+            curl --silent --show-error --output /dev/null --max-time 10 --max-filesize 1048576 \
+              --header 'User-Agent:' --header 'Accept-Encoding: identity' \
+              --write-out "$path HTTP %{http_code} %{content_type}\n" "$site$path" || true
+          done

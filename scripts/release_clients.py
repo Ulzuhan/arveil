@@ -45,6 +45,10 @@ class ReleaseError(Exception):
     pass
 
 
+class AnnouncementMissing(ReleaseError):
+    """The client's public URL returned HTTP 404."""
+
+
 def run(command, *, cwd=None, capture=True, env=None):
     """Run a command; its output, or a ReleaseError naming the step."""
     try:
@@ -520,6 +524,13 @@ def renew_current(config, web, tag):
     elif remaining(current) > timedelta(days=7):
         try:
             check_live(web["site"], channel, published, repo, tag, packages)
+        except AnnouncementMissing:
+            # Restore a still-valid ledger-verified offer without consuming a sequence.
+            with tempfile.TemporaryDirectory(prefix="arveil-feed-restore-") as temporary:
+                receipt = Path(temporary) / published.name
+                shutil.copyfile(published, receipt)
+                publish_web(web, receipt, channel, label, repo, tag, packages, archive=True)
+            return
         except (ReleaseError, OSError):
             # A previous push may have succeeded just before a deployment failed.
             # Use a separate file: publish_web writes into the checkout.
@@ -530,7 +541,12 @@ def renew_current(config, web, tag):
             print("The published announcement is current.")
             return
     if feed is None:
-        if fetch_live_manifest(distribution["ARVEIL_UPDATE_URL"]) != published.read_bytes():
+        try:
+            live = fetch_live_manifest(distribution["ARVEIL_UPDATE_URL"])
+        except AnnouncementMissing:
+            # The current web revision and both release artifacts were verified above.
+            live = None
+        if live is not None and live != published.read_bytes():
             raise ReleaseError("The public feed differs from the website revision; reconcile it before signing.")
         sequence = latest["sequence"] + 1
         feed = directory / f"clients-{channel}-{sequence}.json"
@@ -614,6 +630,8 @@ def fetch_live_manifest(url):
                 raise ReleaseError("The announcement exceeds the client limit.")
             return served
     except urllib.error.HTTPError as error:
+        if error.code == 404:
+            raise AnnouncementMissing("The website answered 404 for the announcement.") from None
         raise ReleaseError(f"The website answered {error.code} for the announcement.") from None
 
 
